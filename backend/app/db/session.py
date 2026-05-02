@@ -16,10 +16,17 @@ from typing import AsyncGenerator
 
 from app.core.config import settings
 
+# Ensure the connection string uses the asyncpg driver
+db_url = settings.database_url
+if db_url and db_url.startswith("postgres://"):
+    db_url = db_url.replace("postgres://", "postgresql+asyncpg://", 1)
+elif db_url and db_url.startswith("postgresql://"):
+    db_url = db_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+
 # --- Async Engine ---
 # Creates a connection pool to Supabase PostgreSQL
 engine = create_async_engine(
-    settings.database_url,
+    db_url,
     echo=settings.debug,        # Log SQL queries in debug mode
     pool_size=5,                 # Connection pool size
     max_overflow=5,              # Extra connections allowed beyond pool_size
