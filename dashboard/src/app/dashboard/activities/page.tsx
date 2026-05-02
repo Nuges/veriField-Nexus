@@ -7,6 +7,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Search, Filter, RefreshCw, ChevronLeft, ChevronRight, Download } from "lucide-react";
 import { fetchActivities } from "@/lib/api";
 import type { Activity, ActivityListResponse } from "@/lib/types";
@@ -20,6 +21,8 @@ export default function ActivitiesPage() {
   const [page, setPage] = useState(1);
   const [activityType, setActivityType] = useState("");
   const [status, setStatus] = useState("");
+
+  const router = useRouter();
 
   const loadActivities = async () => {
     setIsLoading(true);
@@ -112,7 +115,11 @@ export default function ActivitiesPage() {
                 </tr>
               ) : (
                 data?.activities.map((activity) => (
-                  <tr key={activity.id} className="hover:bg-[var(--color-surface)] transition-colors group cursor-pointer">
+                  <tr 
+                    key={activity.id} 
+                    onClick={() => router.push(`/dashboard/activities/${activity.id}`)}
+                    className="hover:bg-[var(--color-surface)] transition-colors group cursor-pointer"
+                  >
                     <td className="p-4">
                       <div className="flex items-center gap-3">
                         {activity.image_url ? (
