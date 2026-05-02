@@ -34,7 +34,7 @@ export default function AnalyticsPage() {
   const handleExport = async (format: 'csv' | 'json') => {
     setIsExporting(true);
     try {
-      const res = await exportData({ format, include_flagged: true });
+      const res = await exportData({ format, include_flagged: true }) as { download_url?: string };
       
       // Handle file download
       if (res.download_url) {

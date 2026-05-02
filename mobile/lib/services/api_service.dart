@@ -12,11 +12,9 @@ import '../core/config/supabase_config.dart';
 
 /// Centralized API client for communicating with the FastAPI backend.
 class ApiService {
-  // Dynamic URL based on platform
   static String get baseUrl {
-    if (kIsWeb) return 'http://127.0.0.1:8000/api/v1';
-    if (defaultTargetPlatform == TargetPlatform.android) return 'http://10.0.2.2:8000/api/v1';
-    return 'http://127.0.0.1:8000/api/v1'; // iOS simulator or macOS desktop
+    // Return the production Render URL
+    return 'https://verifield-nexus.onrender.com/api/v1';
   }
 
   /// Get the current auth token from Supabase session.
