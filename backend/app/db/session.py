@@ -21,8 +21,8 @@ from app.core.config import settings
 engine = create_async_engine(
     settings.database_url,
     echo=settings.debug,        # Log SQL queries in debug mode
-    pool_size=20,                # Connection pool size
-    max_overflow=10,             # Extra connections allowed beyond pool_size
+    pool_size=5,                 # Connection pool size
+    max_overflow=5,              # Extra connections allowed beyond pool_size
     pool_pre_ping=True,          # Verify connections before use
     pool_recycle=300,            # Recycle connections every 5 minutes
 )

@@ -15,7 +15,6 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
-import httpx
 
 from app.db.session import get_db
 from app.core.security import require_admin
@@ -87,6 +86,7 @@ async def export_data(
     # Send to webhook if URL provided
     if payload.webhook_url:
         try:
+            import httpx
             async with httpx.AsyncClient(timeout=30) as client:
                 resp = await client.post(
                     payload.webhook_url,

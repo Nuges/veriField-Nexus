@@ -22,22 +22,10 @@ from app.api.v1 import auth, activities, properties, analytics, export, cross_ve
 async def lifespan(app: FastAPI):
     """
     Application lifespan handler.
-    Startup: Initialize database tables
-    Shutdown: Clean up resources
+    Database tables should be managed by Alembic in production
+    to avoid blocking operations and cold start delays.
     """
-    # Startup
-    from app.db.session import engine
-    from app.db.base import Base
-    # Import all models so they're registered with Base.metadata
-    import app.models  # noqa: F401
-
-    async with engine.begin() as conn:
-        # Create tables if they don't exist (for development)
-        # In production, use Alembic migrations instead
-        await conn.run_sync(Base.metadata.create_all)
-
     yield
-
     # Shutdown
     from app.db.session import engine
     await engine.dispose()

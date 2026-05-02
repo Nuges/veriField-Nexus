@@ -16,10 +16,6 @@ from sqlalchemy import select, func, and_
 from typing import Optional
 from datetime import datetime
 from uuid import UUID
-import httpx
-import imagehash
-from PIL import Image
-from io import BytesIO
 
 from app.db.session import get_db
 from app.core.security import get_current_user, require_admin
@@ -31,8 +27,6 @@ from app.schemas.activity import (
     ActivityResponse, ActivityListResponse, ActivityBatchResponse,
 )
 from app.schemas.analytics import TrustScoreResponse
-from app.services.trust_engine import TrustEngine
-from app.services.ai_detector import AnomalyDetector
 
 router = APIRouter(prefix="/activities", tags=["Activities"])
 
@@ -41,6 +35,10 @@ async def compute_phash(image_url: str) -> Optional[str]:
     if not image_url:
         return None
     try:
+        import httpx
+        import imagehash
+        from PIL import Image
+        from io import BytesIO
         async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.get(image_url)
             if response.status_code == 200:
@@ -147,6 +145,7 @@ async def create_activity(
 
     # Calculate trust score asynchronously
     try:
+        from app.services.trust_engine import TrustEngine
         trust_engine = TrustEngine(db)
         await trust_engine.calculate_trust_score(activity)
     except Exception:
@@ -154,6 +153,7 @@ async def create_activity(
 
     # Run anomaly detection
     try:
+        from app.services.ai_detector import AnomalyDetector
         detector = AnomalyDetector(db)
         await detector.analyze_activity(activity)
     except Exception:
@@ -240,6 +240,8 @@ async def batch_create_activities(
 
             # Trust score + anomaly detection
             try:
+                from app.services.trust_engine import TrustEngine
+                from app.services.ai_detector import AnomalyDetector
                 engine = TrustEngine(db)
                 await engine.calculate_trust_score(activity)
                 detector = AnomalyDetector(db)

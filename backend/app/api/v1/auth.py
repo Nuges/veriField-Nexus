@@ -11,7 +11,6 @@ database for extended user profiles.
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-import httpx
 import uuid
 
 from app.db.session import get_db
@@ -58,6 +57,7 @@ async def register(
 
     # Register with Supabase Auth
     try:
+        import httpx
         async with httpx.AsyncClient() as client:
             # Build Supabase auth request
             auth_data = {"password": payload.password}
@@ -83,11 +83,13 @@ async def register(
                 )
 
             auth_result = response.json()
-    except httpx.RequestError as e:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Authentication service unavailable: {str(e)}",
-        )
+    except Exception as e:
+        if type(e).__name__ == "RequestError":
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"Authentication service unavailable: {str(e)}",
+            )
+        raise
 
     # Extract Supabase user ID and token
     supabase_user_id = auth_result.get("id") or auth_result.get("user", {}).get("id")
@@ -144,6 +146,7 @@ async def login(
         )
 
     try:
+        import httpx
         async with httpx.AsyncClient() as client:
             auth_data = {"password": payload.password}
             if payload.email:
@@ -167,11 +170,13 @@ async def login(
                 )
 
             auth_result = response.json()
-    except httpx.RequestError:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Authentication service unavailable",
-        )
+    except Exception as e:
+        if type(e).__name__ == "RequestError":
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Authentication service unavailable",
+            )
+        raise
 
     # Get user from our database
     supabase_user_id = auth_result.get("user", {}).get("id")
