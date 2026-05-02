@@ -1,0 +1,95 @@
+/* =============================================================================
+   VeriField Nexus — Global Styles
+   =============================================================================
+   Dark theme with custom design tokens. Uses Tailwind's @import syntax.
+   ============================================================================= */
+
+@import "tailwindcss";
+
+:root {
+  /* Standard UI UX (Off-white default) */
+  --color-background: #f8fafc; /* slate-50 - off white */
+  --color-surface: #ffffff; /* white */
+  --color-card: #ffffff; /* white */
+  --color-border: #e2e8f0; /* slate-200 */
+  --color-primary: #10B981; /* emerald-500 - green highlight */
+  --color-text-primary: #1e293b; /* slate-800 - dark grey */
+  --color-text-secondary: #475569; /* slate-600 - grey */
+  --color-text-muted: #64748b; /* slate-500 - light grey */
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* Premium Dark Theme */
+    --color-background: #0B1120;
+    --color-surface: #0F172A;
+    --color-card: #1E293B;
+    --color-border: #334155;
+    --color-primary: #10B981;
+    --color-text-primary: #F8FAFC;
+    --color-text-secondary: #94A3B8;
+    --color-text-muted: #64748B;
+  }
+}
+
+/* --- Base Styles --- */
+body {
+  background-color: var(--color-background);
+  color: var(--color-text-primary);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* --- Scrollbar Styling (Dark theme) --- */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-surface);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+/* --- Selection Color --- */
+::selection {
+  background-color: rgba(16, 185, 129, 0.3);
+  color: white;
+}
+
+/* --- Custom Animations --- */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.4s ease-out forwards;
+}
+
+/* Stagger children animations */
+.stagger-children > * {
+  opacity: 0;
+  animation: fadeInUp 0.4s ease-out forwards;
+}
+
+.stagger-children > *:nth-child(1) { animation-delay: 0.05s; }
+.stagger-children > *:nth-child(2) { animation-delay: 0.1s; }
+.stagger-children > *:nth-child(3) { animation-delay: 0.15s; }
+.stagger-children > *:nth-child(4) { animation-delay: 0.2s; }
+.stagger-children > *:nth-child(5) { animation-delay: 0.25s; }
+.stagger-children > *:nth-child(6) { animation-delay: 0.3s; }
