@@ -142,6 +142,13 @@ export async function fetchActivity(id: string): Promise<Activity> {
   return apiFetch<Activity>(`/activities/${id}`);
 }
 
+export async function updateActivityStatus(id: string, status: string): Promise<Activity> {
+  return apiFetch<Activity>(`/activities/${id}/status`, {
+    method: "PATCH",
+    body: JSON.stringify({ status }),
+  });
+}
+
 export async function fetchTrustScore(
   activityId: string
 ): Promise<TrustScoreBreakdown> {

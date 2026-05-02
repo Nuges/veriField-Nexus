@@ -373,3 +373,34 @@ async def get_trust_score(
     if not trust_log:
         raise HTTPException(status_code=404, detail="Trust score not calculated yet")
     return TrustScoreResponse.model_validate(trust_log)
+
+
+# =============================================================================
+# PATCH /api/v1/activities/{id}/status — Update activity status
+# =============================================================================
+from pydantic import BaseModel
+
+class ActivityStatusUpdate(BaseModel):
+    status: str
+
+@router.patch(
+    "/{activity_id}/status",
+    response_model=ActivityResponse,
+    summary="Update activity status",
+)
+async def update_activity_status(
+    activity_id: UUID,
+    payload: ActivityStatusUpdate,
+    user: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Admin endpoint to approve, reject, or flag an activity."""
+    result = await db.execute(select(Activity).where(Activity.id == activity_id))
+    activity = result.scalar_one_or_none()
+    if not activity:
+        raise HTTPException(status_code=404, detail="Activity not found")
+        
+    activity.status = payload.status
+    await db.commit()
+    await db.refresh(activity)
+    return ActivityResponse.model_validate(activity)

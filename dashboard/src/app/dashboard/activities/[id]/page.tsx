@@ -120,13 +120,40 @@ export default function ActivityDetailPage() {
           <div className="bg-[var(--color-card)] border border-[var(--color-border)] rounded-2xl p-6">
             <h2 className="font-semibold text-[var(--color-text-primary)] mb-4">Review Action</h2>
             <div className="space-y-3">
-              <button className="w-full py-3 rounded-xl bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 hover:bg-emerald-500/20 flex items-center justify-center gap-2 transition-colors font-medium">
+              <button 
+                onClick={async () => {
+                  try {
+                    await import("@/lib/api").then(m => m.updateActivityStatus(id, "verified"));
+                    alert("Activity approved!");
+                    router.back();
+                  } catch (e) { alert("Failed to update"); }
+                }}
+                className="w-full py-3 rounded-xl bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 hover:bg-emerald-500/20 flex items-center justify-center gap-2 transition-colors font-medium"
+              >
                 <CheckCircle size={18} /> Approve
               </button>
-              <button className="w-full py-3 rounded-xl bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20 flex items-center justify-center gap-2 transition-colors font-medium">
+              <button 
+                onClick={async () => {
+                  try {
+                    await import("@/lib/api").then(m => m.updateActivityStatus(id, "flagged"));
+                    alert("Activity rejected!");
+                    router.back();
+                  } catch (e) { alert("Failed to update"); }
+                }}
+                className="w-full py-3 rounded-xl bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20 flex items-center justify-center gap-2 transition-colors font-medium"
+              >
                 <XCircle size={18} /> Reject
               </button>
-              <button className="w-full py-3 rounded-xl bg-amber-500/10 text-amber-500 border border-amber-500/20 hover:bg-amber-500/20 flex items-center justify-center gap-2 transition-colors font-medium">
+              <button 
+                onClick={async () => {
+                  try {
+                    await import("@/lib/api").then(m => m.updateActivityStatus(id, "review"));
+                    alert("Flagged for audit");
+                    router.back();
+                  } catch (e) { alert("Failed to update"); }
+                }}
+                className="w-full py-3 rounded-xl bg-amber-500/10 text-amber-500 border border-amber-500/20 hover:bg-amber-500/20 flex items-center justify-center gap-2 transition-colors font-medium"
+              >
                 <AlertTriangle size={18} /> Flag for Audit
               </button>
             </div>
