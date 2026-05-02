@@ -51,7 +51,7 @@ class _AuditListScreenState extends State<AuditListScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Audit Tasks', style: AppTypography.h3),
+        title: Text('Audit Tasks', style: AppTypography.h3),
         centerTitle: false,
       ),
       body: _audits.isEmpty
@@ -61,7 +61,7 @@ class _AuditListScreenState extends State<AuditListScreen> {
                 children: [
                   const Icon(Icons.fact_check_outlined, size: 64, color: AppColors.textTertiary),
                   const SizedBox(height: AppSpacing.md),
-                  const Text('No pending audits', style: AppTypography.title),
+                  Text('No pending audits', style: AppTypography.title),
                   const SizedBox(height: AppSpacing.sm),
                   Text(
                     'Assigned audits will appear here.',

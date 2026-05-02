@@ -69,7 +69,7 @@ class _SyncQueueScreenState extends State<SyncQueueScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Sync Queue', style: AppTypography.h3),
+        title: Text('Sync Queue', style: AppTypography.h3),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),

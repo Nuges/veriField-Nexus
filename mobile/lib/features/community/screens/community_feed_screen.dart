@@ -52,7 +52,7 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Community Feed', style: AppTypography.h3),
+        title: Text('Community Feed', style: AppTypography.h3),
         centerTitle: false,
         actions: [
           IconButton(

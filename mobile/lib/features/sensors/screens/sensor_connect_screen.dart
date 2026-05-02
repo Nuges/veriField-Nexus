@@ -76,7 +76,7 @@ class _SensorConnectScreenState extends State<SensorConnectScreen> with SingleTi
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('IoT Sensors', style: AppTypography.h3),
+        title: Text('IoT Sensors', style: AppTypography.h3),
         centerTitle: false,
       ),
       body: Column(
