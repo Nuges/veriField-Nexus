@@ -23,7 +23,7 @@ from app.schemas.analytics import (
     AnalyticsTrends, TrustDistribution,
 )
 
-router = APIRouter(prefix="/analytics", tags=["Analytics"])
+router = APIRouter(prefix="/metrics", tags=["Analytics"])
 
 
 # =============================================================================

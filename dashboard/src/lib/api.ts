@@ -179,7 +179,7 @@ export async function fetchPropertyActivities(id: string): Promise<Activity[]> {
 // ---------------------------------------------------------------------------
 
 export async function fetchAnalyticsOverview(): Promise<AnalyticsOverview> {
-  return apiFetch<AnalyticsOverview>("/analytics/overview");
+  return apiFetch<AnalyticsOverview>("/metrics/overview");
 }
 
 export async function fetchDailySubmissions(
@@ -189,7 +189,7 @@ export async function fetchDailySubmissions(
 }
 
 export async function fetchTrends(days = 30): Promise<AnalyticsTrends> {
-  return apiFetch<AnalyticsTrends>(`/analytics/trends?days=${days}`);
+  return apiFetch<AnalyticsTrends>(`/metrics/trends?days=${days}`);
 }
 
 export async function fetchTrustDistribution(): Promise<TrustDistribution> {
