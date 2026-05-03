@@ -172,20 +172,20 @@ export default function ActivityDetailPage() {
                 <div>
                   <div className="flex justify-between text-xs mb-1">
                     <span className="text-[var(--color-text-secondary)]">Location Trust</span>
-                    <span className="font-medium text-[var(--color-text-primary)]">{trustDetails.location_score}/30</span>
+                    <span className="font-medium text-[var(--color-text-primary)]">{trustDetails.gps_score}/30</span>
                   </div>
                   <div className="w-full h-1.5 bg-[var(--color-surface)] rounded-full overflow-hidden">
-                    <div className="h-full bg-blue-500 rounded-full" style={{ width: `${(trustDetails.location_score / 30) * 100}%` }} />
+                    <div className="h-full bg-blue-500 rounded-full" style={{ width: `${(trustDetails.gps_score / 30) * 100}%` }} />
                   </div>
                 </div>
 
                 <div>
                   <div className="flex justify-between text-xs mb-1">
-                    <span className="text-[var(--color-text-secondary)]">Time Trust</span>
-                    <span className="font-medium text-[var(--color-text-primary)]">{trustDetails.time_score}/20</span>
+                    <span className="text-[var(--color-text-secondary)]">Time & Frequency Trust</span>
+                    <span className="font-medium text-[var(--color-text-primary)]">{trustDetails.frequency_score}/20</span>
                   </div>
                   <div className="w-full h-1.5 bg-[var(--color-surface)] rounded-full overflow-hidden">
-                    <div className="h-full bg-purple-500 rounded-full" style={{ width: `${(trustDetails.time_score / 20) * 100}%` }} />
+                    <div className="h-full bg-purple-500 rounded-full" style={{ width: `${(trustDetails.frequency_score / 20) * 100}%` }} />
                   </div>
                 </div>
 
@@ -201,15 +201,15 @@ export default function ActivityDetailPage() {
               </div>
 
               {/* Anomalies */}
-              {trustDetails.flags.length > 0 && (
+              {trustDetails.flags && Object.keys(trustDetails.flags).length > 0 && (
                 <div className="mt-6 pt-4 border-t border-[var(--color-border)]">
                   <p className="text-xs font-semibold text-red-400 uppercase tracking-wider mb-3 flex items-center gap-1">
                     <AlertTriangle size={14} /> Detected Anomalies
                   </p>
                   <ul className="space-y-2">
-                    {trustDetails.flags.map((flag, idx) => (
-                      <li key={idx} className="text-xs text-[var(--color-text-secondary)] bg-red-500/5 border border-red-500/10 p-2 rounded-lg">
-                        • {flag}
+                    {Object.entries(trustDetails.flags).map(([key, value]) => (
+                      <li key={key} className="text-xs text-[var(--color-text-secondary)] bg-red-500/5 border border-red-500/10 p-2 rounded-lg">
+                        <span className="font-semibold capitalize text-red-400 mr-1">{key}:</span> {String(value)}
                       </li>
                     ))}
                   </ul>
