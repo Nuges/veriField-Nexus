@@ -102,3 +102,56 @@ export interface AnalyticsTrends {
   activity_types: ActivityTypeSummary[];
   trust_distribution: TrustDistribution;
 }
+
+export interface Project {
+  id: string;
+  name: string;
+  methodology_id: string;
+  registry_id: string | null;
+  baseline_parameters: Record<string, any>;
+  created_at: string;
+}
+
+export interface CarbonCalculation {
+  id: string;
+  project_id: string;
+  activity_id: string;
+  methodology_used: string;
+  tco2e_generated: number;
+  calculation_log: any;
+  status: string;
+  created_at: string;
+}
+
+export interface AgentPerformance {
+  id: string;
+  full_name: string;
+  email: string | null;
+  role: string;
+  organization: string | null;
+  total_submissions: number;
+  avg_trust_score: number | null;
+  flagged_count: number;
+  flag_rate: number;
+  suspicious: boolean;
+}
+
+export interface AgentPerformanceResponse {
+  agents: AgentPerformance[];
+  total_agents: number;
+  suspicious_count: number;
+}
+
+export interface NdviRecord {
+  ndvi_score: number;
+  trend: string;
+  observation_date: string;
+  source: string;
+}
+
+export interface NdviHistoryResponse {
+  asset_id: string;
+  records: NdviRecord[];
+  count: number;
+}
+

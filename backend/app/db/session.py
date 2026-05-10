@@ -25,13 +25,19 @@ elif db_url and db_url.startswith("postgresql://"):
 
 # --- Async Engine ---
 # Creates a connection pool to Supabase PostgreSQL
+# Tuned for Supabase Session pooler (5432)
 engine = create_async_engine(
     db_url,
     echo=settings.debug,        # Log SQL queries in debug mode
-    pool_size=5,                 # Connection pool size
-    max_overflow=5,              # Extra connections allowed beyond pool_size
+    pool_size=10,                # Handle concurrent Next.js dashboard requests
+    max_overflow=0,              # Hard limit at 10 to stay under Supabase 15 connection limit
     pool_pre_ping=True,          # Verify connections before use
     pool_recycle=300,            # Recycle connections every 5 minutes
+    pool_timeout=15,             # Wait up to 15s for a connection
+    connect_args={
+        "server_settings": {"jit": "off"},  # Disable JIT for faster simple queries
+        "command_timeout": 15.0,             # Kill queries that hang at the socket level
+    },
 )
 
 # --- Session Factory ---

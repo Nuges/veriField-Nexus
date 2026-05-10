@@ -7,5 +7,12 @@ from app.models.anomaly_flag import AnomalyFlag
 from app.models.sensor_reading import SensorReading
 from app.models.community_validation import CommunityValidation
 from app.models.audit_task import AuditTask
+from app.models.project import Project
+from app.models.carbon_calculation import CarbonCalculation
+from app.models.ndvi_record import NdviRecord
 
-__all__ = ["User", "Activity", "Property", "TrustLog", "AnomalyFlag", "SensorReading", "CommunityValidation", "AuditTask"]
+__all__ = [
+    "User", "Activity", "Property", "TrustLog", "AnomalyFlag",
+    "SensorReading", "CommunityValidation", "AuditTask",
+    "Project", "CarbonCalculation", "NdviRecord",
+]

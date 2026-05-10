@@ -13,8 +13,10 @@ import '../core/config/supabase_config.dart';
 /// Centralized API client for communicating with the FastAPI backend.
 class ApiService {
   static String get baseUrl {
-    // Return the production Render URL
-    return 'https://verifield-nexus.onrender.com/api/v1';
+    // Development: use local backend
+    return 'http://localhost:8000/api/v1';
+    // Production: uncomment below and comment above when deploying
+    // return 'https://verifield-nexus.onrender.com/api/v1';
   }
 
   /// Get the current auth token from Supabase session.
@@ -59,6 +61,19 @@ class ApiService {
     Map<String, dynamic>? body,
   }) async {
     final response = await http.put(
+      Uri.parse('$baseUrl$endpoint'),
+      headers: _headers,
+      body: body != null ? jsonEncode(body) : null,
+    );
+    return _handleResponse(response);
+  }
+
+  /// Perform a PATCH request.
+  static Future<Map<String, dynamic>> patch(
+    String endpoint, {
+    Map<String, dynamic>? body,
+  }) async {
+    final response = await http.patch(
       Uri.parse('$baseUrl$endpoint'),
       headers: _headers,
       body: body != null ? jsonEncode(body) : null,

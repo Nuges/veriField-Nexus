@@ -123,8 +123,18 @@ export default function ActivityDetailPage() {
               <button 
                 onClick={async () => {
                   try {
-                    await import("@/lib/api").then(m => m.updateActivityStatus(id, "verified"));
-                    alert("Activity approved!");
+                    const api = await import("@/lib/api");
+                    await api.updateActivityStatus(id, "verified");
+                    
+                    // Trigger Carbon Quantification silently
+                    try {
+                      await api.quantifyActivity(id);
+                      alert("Activity approved and Carbon Credits calculated!");
+                    } catch (calcErr) {
+                      console.error("Quantification skipped (no project linked):", calcErr);
+                      alert("Activity approved! (No carbon generated, missing project parameters)");
+                    }
+                    
                     router.back();
                   } catch (e) { alert("Failed to update"); }
                 }}

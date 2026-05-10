@@ -250,12 +250,12 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
                 ],
               ),
             );
-            if (mounted) context.pop();
+            if (mounted) context.pop(true);
           } else {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Activity submitted successfully! ✅')),
             );
-            context.pop();
+            context.pop(true);
           }
         }
       } else {
@@ -288,7 +288,7 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Saved offline. Will sync when connected. 📱')),
           );
-          context.pop();
+          context.pop(true);
         }
       }
     } catch (e) {

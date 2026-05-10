@@ -12,7 +12,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
-from app.api.v1 import auth, activities, properties, analytics, export, cross_verification
+from app.api.v1 import auth, activities, properties, analytics, export, cross_verification, carbon, audits, sensors, community
+from app.api.v1 import registry, satellite
 
 
 # ---------------------------------------------------------------------------
@@ -22,11 +23,19 @@ from app.api.v1 import auth, activities, properties, analytics, export, cross_ve
 async def lifespan(app: FastAPI):
     """
     Application lifespan handler.
-    Database tables should be managed by Alembic in production
-    to avoid blocking operations and cold start delays.
+    - Startup: Start the background job scheduler
+    - Shutdown: Stop scheduler and dispose DB engine
     """
+    # Startup
+    from app.services.job_scheduler import start_scheduler, shutdown_scheduler
+    import logging
+    logging.basicConfig(level=logging.INFO)
+    start_scheduler()
+
     yield
+
     # Shutdown
+    shutdown_scheduler()
     from app.db.session import engine
     await engine.dispose()
 
@@ -61,7 +70,7 @@ app.add_middleware(
         "http://192.168.8.200:3000",
         "https://verifield-nexus.vercel.app"
     ],
-    allow_origin_regex=r"https://.*\.vercel\.app",
+    allow_origin_regex=r"(https://.*\.vercel\.app|http://localhost:\d+|http://127\.0\.0\.1:\d+)",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -79,6 +88,12 @@ app.include_router(properties.router, prefix=API_PREFIX)
 app.include_router(analytics.router, prefix=API_PREFIX)
 app.include_router(export.router, prefix=API_PREFIX)
 app.include_router(cross_verification.router, prefix=API_PREFIX)
+app.include_router(carbon.router, prefix=API_PREFIX)
+app.include_router(audits.router, prefix=API_PREFIX)
+app.include_router(sensors.router, prefix=API_PREFIX)
+app.include_router(community.router, prefix=API_PREFIX)
+app.include_router(registry.router, prefix=API_PREFIX)
+app.include_router(satellite.router, prefix=API_PREFIX)
 
 
 # ---------------------------------------------------------------------------

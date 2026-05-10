@@ -22,7 +22,14 @@ class VFShell extends StatelessWidget {
       body: child,
       // --- Floating Action Button for quick activity creation ---
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.push(AppRoutes.newActivity),
+        onPressed: () async {
+          final result = await context.push(AppRoutes.newActivity);
+          if (result == true) {
+            if (context.mounted) {
+              context.pushReplacement(AppRoutes.home);
+            }
+          }
+        },
         icon: const Icon(Icons.add_a_photo_rounded),
         label: const Text('Log Activity'),
         backgroundColor: AppColors.primary,

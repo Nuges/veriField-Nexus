@@ -58,7 +58,7 @@ async def register(
     # Register with Supabase Auth
     try:
         import httpx
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             # Build Supabase auth request
             auth_data = {"password": payload.password}
             if payload.email:
@@ -145,43 +145,60 @@ async def login(
             detail="Either email or phone is required",
         )
 
-    try:
-        import httpx
-        async with httpx.AsyncClient() as client:
-            auth_data = {"password": payload.password}
-            if payload.email:
-                auth_data["email"] = payload.email
-            if payload.phone:
-                auth_data["phone"] = payload.phone
+    import httpx
+    import asyncio
+    max_retries = 2
+    for attempt in range(max_retries):
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                auth_data = {"password": payload.password}
+                if payload.email:
+                    auth_data["email"] = payload.email
+                if payload.phone:
+                    auth_data["phone"] = payload.phone
 
-            response = await client.post(
-                f"{settings.supabase_url}/auth/v1/token?grant_type=password",
-                json=auth_data,
-                headers={
-                    "apikey": settings.supabase_key,
-                    "Content-Type": "application/json",
-                },
-            )
-
-            if response.status_code != 200:
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Invalid credentials",
+                response = await client.post(
+                    f"{settings.supabase_url}/auth/v1/token?grant_type=password",
+                    json=auth_data,
+                    headers={
+                        "apikey": settings.supabase_key,
+                        "Content-Type": "application/json",
+                    },
                 )
 
-            auth_result = response.json()
-    except Exception as e:
-        if type(e).__name__ == "RequestError":
+                if response.status_code != 200:
+                    raise HTTPException(
+                        status_code=status.HTTP_401_UNAUTHORIZED,
+                        detail="Invalid credentials",
+                    )
+
+                auth_result = response.json()
+                break # Success, exit retry loop
+        except HTTPException:
+            raise
+        except Exception as e:
+            if attempt < max_retries - 1:
+                # Wait 2 seconds, then 4 seconds before next attempt
+                await asyncio.sleep(2 ** (attempt + 1))
+                continue
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Authentication service unavailable",
+                detail=f"Authentication service unavailable. Please retry in a moment.",
             )
-        raise
 
-    # Get user from our database
+    # Get user from our database, with timeout to prevent hanging
     supabase_user_id = auth_result.get("user", {}).get("id")
-    result = await db.execute(select(User).where(User.id == supabase_user_id))
-    user = result.scalar_one_or_none()
+    try:
+        result = await asyncio.wait_for(
+            db.execute(select(User).where(User.id == supabase_user_id)),
+            timeout=15.0
+        )
+        user = result.scalar_one_or_none()
+    except asyncio.TimeoutError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database connection timeout. Please retry.",
+        )
 
     if not user:
         # Auto-create local profile if authenticated via Supabase but missing locally
@@ -195,8 +212,14 @@ async def login(
             full_name="Admin User" if "admin" in (user_email or "").lower() else "Field Agent",
         )
         db.add(user)
-        await db.commit()
-        await db.refresh(user)
+        try:
+            await asyncio.wait_for(db.commit(), timeout=15.0)
+            await db.refresh(user)
+        except asyncio.TimeoutError:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Database write timeout. Please retry.",
+            )
 
     return AuthResponse(
         user=UserResponse.model_validate(user),

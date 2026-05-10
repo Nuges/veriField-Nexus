@@ -77,15 +77,37 @@ async function apiFetch<T>(
     ...(options.headers as Record<string, string> || {}),
   };
 
-  const response = await fetch(`${API_V1}${endpoint}`, {
-    ...options,
-    headers,
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+  let response: Response;
+  try {
+    response = await fetch(`${API_V1}${endpoint}`, {
+      ...options,
+      headers,
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+  } catch (networkError: any) {
+    clearTimeout(timeoutId);
+    if (networkError.name === 'AbortError') {
+      throw new Error("Request timed out. The server is taking too long to respond. Please try again.");
+    }
+    // Network error — backend unreachable, don't logout
+    throw new Error("Network error: Unable to reach the server. Please check your connection.");
+  }
 
   if (!response.ok) {
-    if (response.status === 401 && typeof window !== "undefined") {
-      // Clear expired token and redirect to login
+    // Only redirect to login on 401 for non-auth endpoints
+    // This prevents the login → dashboard → 401 → login loop
+    if (
+      response.status === 401 &&
+      typeof window !== "undefined" &&
+      !endpoint.startsWith("/auth/") &&
+      !window.location.pathname.includes("/login")
+    ) {
       localStorage.removeItem("vf_token");
+      authToken = null;
       window.location.href = "/login";
     }
 
@@ -233,3 +255,117 @@ export async function createAuditTask(data: { asset_id: string; assigned_agent: 
     body: JSON.stringify(data),
   });
 }
+
+// ---------------------------------------------------------------------------
+// Carbon MRV & Registry API
+// ---------------------------------------------------------------------------
+
+export async function fetchCarbonLedger(): Promise<{ data: any[] }> {
+  return apiFetch<{ data: any[] }>(`/carbon/ledger`);
+}
+
+export async function fetchAnomalies(): Promise<{ anomalies: any[], total: number }> {
+  return apiFetch<{ anomalies: any[], total: number }>("/metrics/anomalies");
+}
+
+export async function fetchAudits(): Promise<{ audits: any[], total: number }> {
+  return apiFetch<{ audits: any[], total: number }>("/audits");
+}
+
+export async function issueVerraCredits(): Promise<any> {
+  return apiFetch<any>(`/carbon/registry/verra/issue`, {
+    method: "POST",
+  });
+}
+
+export async function issueGoldStandardCredits(): Promise<any> {
+  return apiFetch<any>(`/carbon/registry/goldstandard/issue`, {
+    method: "POST",
+  });
+}
+
+export async function quantifyActivity(id: string, projectId?: string): Promise<any> {
+  return apiFetch<any>(`/carbon/calculate/${id}`, {
+    method: "POST",
+    body: projectId ? JSON.stringify({ project_id: projectId }) : undefined,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Agent Performance API
+// ---------------------------------------------------------------------------
+
+export async function fetchAgentPerformance(): Promise<import("./types").AgentPerformanceResponse> {
+  return apiFetch<import("./types").AgentPerformanceResponse>("/metrics/agents");
+}
+
+// ---------------------------------------------------------------------------
+// Registry Export API
+// ---------------------------------------------------------------------------
+
+export async function exportVerraCSV(minTrustScore = 80): Promise<void> {
+  const currentToken = getAuthToken();
+  const response = await fetch(
+    `${API_V1}/registry/export/verra?min_trust_score=${minTrustScore}`,
+    {
+      headers: {
+        ...(currentToken ? { Authorization: `Bearer ${currentToken}` } : {}),
+      },
+    }
+  );
+  if (!response.ok) throw new Error("Export failed");
+  const blob = await response.blob();
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = response.headers.get("Content-Disposition")?.split("filename=")[1] || "verra_export.csv";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.URL.revokeObjectURL(url);
+}
+
+export async function exportGoldStandardJSON(minTrustScore = 80): Promise<any> {
+  return apiFetch<any>(`/registry/export/goldstandard?min_trust_score=${minTrustScore}`);
+}
+
+// ---------------------------------------------------------------------------
+// Satellite NDVI API
+// ---------------------------------------------------------------------------
+
+export async function fetchNdvi(assetId: string, month?: string): Promise<any> {
+  const params = month ? `?month=${month}` : "";
+  return apiFetch<any>(`/satellite/ndvi/${assetId}${params}`, { method: "POST" });
+}
+
+export async function fetchNdviHistory(assetId: string): Promise<import("./types").NdviHistoryResponse> {
+  return apiFetch<import("./types").NdviHistoryResponse>(`/satellite/ndvi/${assetId}/history`);
+}
+
+// ---------------------------------------------------------------------------
+// Sensor Devices API
+// ---------------------------------------------------------------------------
+
+export async function fetchSensorDevices(): Promise<{ devices: any[]; total: number }> {
+  return apiFetch<{ devices: any[]; total: number }>("/sensors/devices");
+}
+
+// ---------------------------------------------------------------------------
+// Carbon Projects API
+// ---------------------------------------------------------------------------
+
+export async function fetchProjectTotal(projectId: string): Promise<any> {
+  return apiFetch<any>(`/carbon/projects/${projectId}/total`);
+}
+
+export async function createCarbonProject(data: {
+  name: string;
+  methodology_id: string;
+  baseline_parameters: Record<string, any>;
+}): Promise<any> {
+  return apiFetch<any>("/carbon/projects", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+

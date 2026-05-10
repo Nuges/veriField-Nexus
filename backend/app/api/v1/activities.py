@@ -118,7 +118,11 @@ async def create_activity(
             property_type=payload.activity_type,
             latitude=payload.latitude,
             longitude=payload.longitude,
-            sustainability_metrics={}
+            sustainability_metrics={
+                "energy_score": activity_data.get("energy_score", "Pending"),
+                "carbon_offset_kg": activity_data.get("carbon_offset_kg", "Calculating..."),
+                "status": "Awaiting Review"
+            }
         )
         db.add(prop)
         await db.flush()
@@ -155,9 +159,23 @@ async def create_activity(
     try:
         from app.services.ai_detector import AnomalyDetector
         detector = AnomalyDetector(db)
-        await detector.analyze_activity(activity)
+        anomaly_flags = await detector.analyze_activity(activity)
+        if anomaly_flags and activity.status == "verified":
+            activity.status = "flagged"
+            activity.trust_flags["anomaly_detected"] = True
+            await db.commit()
     except Exception:
         pass  # Don't fail submission if anomaly detection fails
+
+    # If it passed all automatic checks and is verified, quantify immediately!
+    if activity.status == "verified":
+        try:
+            from app.services.quantification_engine import QuantificationEngine
+            quant_engine = QuantificationEngine(db)
+            await quant_engine.quantify_activity(activity.id, None)
+        except Exception as e:
+            import logging
+            logging.getLogger("verifield.api").error(f"Auto-quantification failed for {activity.id}: {e}")
 
     await db.refresh(activity)
     return ActivityResponse.model_validate(activity)
@@ -244,8 +262,24 @@ async def batch_create_activities(
                 from app.services.ai_detector import AnomalyDetector
                 engine = TrustEngine(db)
                 await engine.calculate_trust_score(activity)
+                
                 detector = AnomalyDetector(db)
-                await detector.analyze_activity(activity)
+                anomaly_flags = await detector.analyze_activity(activity)
+                if anomaly_flags and activity.status == "verified":
+                    activity.status = "flagged"
+                    activity.trust_flags["anomaly_detected"] = True
+                    await db.commit()
+                    
+                # Quantify if automatically verified
+                if activity.status == "verified":
+                    try:
+                        from app.services.quantification_engine import QuantificationEngine
+                        quant_engine = QuantificationEngine(db)
+                        await quant_engine.quantify_activity(activity.id, None)
+                    except Exception as e:
+                        import logging
+                        logging.getLogger("verifield.api").error(f"Auto-quantification failed for {activity.id}: {e}")
+                        
             except Exception:
                 pass
 
@@ -403,4 +437,19 @@ async def update_activity_status(
     activity.status = payload.status
     await db.commit()
     await db.refresh(activity)
+
+    # If an admin manually verifies an activity, we must trigger the
+    # Quantification Engine to calculate carbon credits and energy scores,
+    # as it bypassed the background worker's automatic quantification.
+    if activity.status == "verified":
+        try:
+            from app.services.quantification_engine import QuantificationEngine
+            quant_engine = QuantificationEngine(db)
+            await quant_engine.quantify_activity(activity.id, None)
+        except Exception as e:
+            # We don't want to fail the API request if quantification fails,
+            # but we should log it for debugging
+            import logging
+            logging.getLogger("verifield.api").error(f"Manual quantification failed for {activity.id}: {e}")
+
     return ActivityResponse.model_validate(activity)

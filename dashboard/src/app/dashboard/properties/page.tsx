@@ -97,14 +97,18 @@ export default function PropertiesPage() {
                     <span className="text-sm font-medium text-slate-300">Sustainability Profile</span>
                   </div>
                   
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-[var(--color-surface)] rounded-lg p-3 border border-[var(--color-border)]">
-                      <p className="text-xs text-[var(--color-text-muted)] mb-1">Energy Score</p>
-                      <p className="text-lg font-semibold text-emerald-400">{metrics?.energy_score || 'N/A'}</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="bg-[var(--color-surface)] rounded-lg p-2.5 border border-[var(--color-border)]">
+                      <p className="text-[10px] text-[var(--color-text-muted)] uppercase tracking-wider mb-1">Energy Score</p>
+                      <p className="text-sm font-semibold text-emerald-400">{metrics?.energy_score || 'N/A'}</p>
                     </div>
-                    <div className="bg-[var(--color-surface)] rounded-lg p-3 border border-[var(--color-border)]">
-                      <p className="text-xs text-[var(--color-text-muted)] mb-1">Carbon Offset</p>
-                      <p className="text-lg font-semibold text-blue-400">{metrics?.carbon_offset_kg ? `${metrics.carbon_offset_kg}kg` : 'N/A'}</p>
+                    <div className="bg-[var(--color-surface)] rounded-lg p-2.5 border border-[var(--color-border)]">
+                      <p className="text-[10px] text-[var(--color-text-muted)] uppercase tracking-wider mb-1">Carbon Offset</p>
+                      <p className="text-sm font-semibold text-blue-400">{metrics?.carbon_offset_kg ? `${metrics.carbon_offset_kg}kg` : 'N/A'}</p>
+                    </div>
+                    <div className="bg-[var(--color-surface)] rounded-lg p-2.5 border border-[var(--color-border)]">
+                      <p className="text-[10px] text-[var(--color-text-muted)] uppercase tracking-wider mb-1">Status</p>
+                      <p className="text-sm font-semibold text-amber-400 truncate" title={metrics?.status || 'Unverified'}>{metrics?.status || 'Unverified'}</p>
                     </div>
                   </div>
                 </div>

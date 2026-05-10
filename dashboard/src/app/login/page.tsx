@@ -61,8 +61,15 @@ export default function LoginPage() {
 
           {/* Error Message */}
           {error && (
-            <div className="mb-4 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+            <div className={`mb-4 px-4 py-3 rounded-xl text-sm ${
+              error.includes("unavailable") || error.includes("Network")
+                ? "bg-amber-500/10 border border-amber-500/20 text-amber-400"
+                : "bg-red-500/10 border border-red-500/20 text-red-400"
+            }`}>
               {error}
+              {(error.includes("unavailable") || error.includes("Network")) && (
+                <p className="text-xs mt-1 opacity-70">This is a temporary network issue. Please try again.</p>
+              )}
             </div>
           )}
 

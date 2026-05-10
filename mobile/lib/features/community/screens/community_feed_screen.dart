@@ -1,8 +1,18 @@
+// =============================================================================
+// VeriField Nexus — Community Feed Screen (Live API)
+// =============================================================================
+// Displays the community validation feed fetched from the backend API.
+// No hardcoded data — fully production-ready.
+// =============================================================================
+
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:intl/intl.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../shared/widgets/shared_widgets.dart';
+import '../../../services/api_service.dart';
 
 class CommunityFeedScreen extends StatefulWidget {
   const CommunityFeedScreen({super.key});
@@ -12,86 +22,169 @@ class CommunityFeedScreen extends StatefulWidget {
 }
 
 class _CommunityFeedScreenState extends State<CommunityFeedScreen> {
-  final List<Map<String, dynamic>> _posts = [
-    {
-      'id': 'p1',
-      'user': 'Amina J.',
-      'role': 'Community Leader',
-      'action': 'validated an activity',
-      'time': '2 hours ago',
-      'content': 'I can confirm the new solar water pump in Sector 4 is operational. Good water flow observed this morning.',
-      'upvotes': 12,
-      'isUpvoted': false,
-      'type': 'validation',
-    },
-    {
-      'id': 'p2',
-      'user': 'Musa K.',
-      'role': 'Field Agent',
-      'action': 'raised a flag',
-      'time': '5 hours ago',
-      'content': 'Notice: The cookstoves delivered to the north district are missing serial numbers. Pending manual verification.',
-      'upvotes': 8,
-      'isUpvoted': true,
-      'type': 'flag',
-    },
-    {
-      'id': 'p3',
-      'user': 'Sarah O.',
-      'role': 'Local Member',
-      'action': 'shared an update',
-      'time': '1 day ago',
-      'content': 'Crop yields using the new sustainable fertilizer method are looking much healthier than last season.',
-      'upvotes': 24,
-      'isUpvoted': false,
-      'type': 'update',
-    },
-  ];
+  List<Map<String, dynamic>> _posts = [];
+  bool _isLoading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFeed();
+  }
+
+  Future<void> _loadFeed() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      final response = await ApiService.get('/community?per_page=50');
+      final postsList = response['posts'] as List? ?? [];
+      setState(() {
+        _posts = postsList.cast<Map<String, dynamic>>();
+      });
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+      });
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Community Feed', style: AppTypography.h3),
+        title: Text('Community Feed', style: AppTypography.title),
         centerTitle: false,
         actions: [
           IconButton(
-            icon: const Icon(Icons.filter_list),
-            onPressed: () {},
+            icon: const Icon(Icons.refresh),
+            onPressed: _loadFeed,
           ),
         ],
       ),
-      body: ListView.builder(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        itemCount: _posts.length,
-        itemBuilder: (context, index) {
-          return _buildPostCard(_posts[index]);
-        },
-      ),
+      body: _isLoading
+          ? const Center(
+              child: CircularProgressIndicator(color: AppColors.primary),
+            )
+          : _error != null
+              ? _buildErrorState()
+              : _posts.isEmpty
+                  ? VFEmptyState(
+                      icon: Icons.forum_outlined,
+                      title: 'No community posts yet',
+                      subtitle:
+                          'Community validations and updates will appear here.',
+                    )
+                  : RefreshIndicator(
+                      onRefresh: _loadFeed,
+                      color: AppColors.primary,
+                      child: ListView.builder(
+                        padding: const EdgeInsets.all(AppSpacing.md),
+                        itemCount: _posts.length,
+                        itemBuilder: (context, index) {
+                          return _buildPostCard(_posts[index], index);
+                        },
+                      ),
+                    ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {},
+        onPressed: () {
+          // Future: open a submission dialog
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Submit validations from the asset detail page')),
+          );
+        },
         backgroundColor: AppColors.primary,
         child: const Icon(Icons.add_comment, color: Colors.white),
       ),
     );
   }
 
-  Widget _buildPostCard(Map<String, dynamic> post) {
+  Widget _buildErrorState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.xl),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.cloud_off, size: 64, color: AppColors.textTertiary),
+            const SizedBox(height: AppSpacing.md),
+            Text('Could not load feed', style: AppTypography.title),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              _error ?? 'Unknown error',
+              style: AppTypography.bodySmall,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            VFButton(label: 'Retry', onPressed: _loadFeed, icon: Icons.refresh),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPostCard(Map<String, dynamic> post, int index) {
+    final response = post['response'] ?? 'pending';
+    final userName = post['user_name'] ?? 'Unknown';
+    final userRole = post['user_role'] ?? 'member';
+    final action = post['action'] ?? 'shared an update';
+    final content = post['content'] ?? '';
+    final timestamp = post['timestamp'];
+    final upvotes = post['upvotes'] ?? 0;
+
+    // Determine type from response
     Color typeColor;
     IconData typeIcon;
-
-    switch (post['type']) {
-      case 'validation':
+    switch (response) {
+      case 'yes':
         typeColor = AppColors.trustHigh;
         typeIcon = Icons.check_circle;
         break;
-      case 'flag':
+      case 'no':
         typeColor = AppColors.error;
         typeIcon = Icons.flag;
         break;
       default:
         typeColor = AppColors.primary;
         typeIcon = Icons.chat_bubble;
+    }
+
+    // Format timestamp
+    String timeStr = '';
+    if (timestamp != null) {
+      try {
+        final date = DateTime.parse(timestamp);
+        final now = DateTime.now();
+        final diff = now.difference(date);
+        if (diff.inMinutes < 60) {
+          timeStr = '${diff.inMinutes}m ago';
+        } else if (diff.inHours < 24) {
+          timeStr = '${diff.inHours}h ago';
+        } else if (diff.inDays < 7) {
+          timeStr = '${diff.inDays}d ago';
+        } else {
+          timeStr = DateFormat('MMM d').format(date);
+        }
+      } catch (_) {
+        timeStr = '';
+      }
+    }
+
+    // Role label formatting
+    String roleLabel;
+    switch (userRole) {
+      case 'admin':
+        roleLabel = 'Admin';
+        break;
+      case 'field_agent':
+        roleLabel = 'Field Agent';
+        break;
+      default:
+        roleLabel = 'Member';
     }
 
     return Padding(
@@ -105,8 +198,9 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen> {
                 CircleAvatar(
                   backgroundColor: AppColors.primary.withValues(alpha: 0.2),
                   child: Text(
-                    post['user'].substring(0, 1),
-                    style: AppTypography.title.copyWith(color: AppColors.primary),
+                    userName.isNotEmpty ? userName.substring(0, 1) : '?',
+                    style: AppTypography.title
+                        .copyWith(color: AppColors.primary),
                   ),
                 ),
                 const SizedBox(width: AppSpacing.md),
@@ -116,23 +210,30 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen> {
                     children: [
                       Row(
                         children: [
-                          Text(post['user'], style: AppTypography.title.copyWith(fontSize: 16)),
+                          Flexible(
+                            child: Text(userName,
+                                style: AppTypography.title
+                                    .copyWith(fontSize: 16),
+                                overflow: TextOverflow.ellipsis),
+                          ),
                           const SizedBox(width: AppSpacing.sm),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
-                              color: AppColors.backgroundAlt,
+                              color: AppColors.surfaceLight,
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(
-                              post['role'],
-                              style: AppTypography.caption.copyWith(fontSize: 10),
+                              roleLabel,
+                              style: AppTypography.caption
+                                  .copyWith(fontSize: 10),
                             ),
                           ),
                         ],
                       ),
                       Text(
-                        '${post['action']} • ${post['time']}',
+                        '$action${timeStr.isNotEmpty ? ' • $timeStr' : ''}',
                         style: AppTypography.caption,
                       ),
                     ],
@@ -143,8 +244,8 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen> {
             ),
             const SizedBox(height: AppSpacing.md),
             Text(
-              post['content'],
-              style: AppTypography.bodyMedium,
+              content,
+              style: AppTypography.body,
             ),
             const SizedBox(height: AppSpacing.md),
             const Divider(height: 1),
@@ -154,50 +255,38 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen> {
               children: [
                 Row(
                   children: [
-                    InkWell(
-                      onTap: () {
-                        setState(() {
-                          post['isUpvoted'] = !post['isUpvoted'];
-                          post['upvotes'] += post['isUpvoted'] ? 1 : -1;
-                        });
-                      },
-                      child: Row(
-                        children: [
-                          Icon(
-                            post['isUpvoted'] ? Icons.thumb_up : Icons.thumb_up_outlined,
-                            size: 18,
-                            color: post['isUpvoted'] ? AppColors.primary : AppColors.textSecondary,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${post['upvotes']}',
-                            style: AppTypography.caption.copyWith(
-                              color: post['isUpvoted'] ? AppColors.primary : AppColors.textSecondary,
-                              fontWeight: post['isUpvoted'] ? FontWeight.bold : FontWeight.normal,
-                            ),
-                          ),
-                        ],
+                    Icon(
+                      upvotes > 0
+                          ? Icons.thumb_up
+                          : Icons.thumb_up_outlined,
+                      size: 18,
+                      color: upvotes > 0
+                          ? AppColors.primary
+                          : AppColors.textSecondary,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '$upvotes',
+                      style: AppTypography.caption.copyWith(
+                        color: upvotes > 0
+                            ? AppColors.primary
+                            : AppColors.textSecondary,
                       ),
                     ),
                     const SizedBox(width: AppSpacing.lg),
-                    Row(
-                      children: [
-                        const Icon(Icons.comment_outlined, size: 18, color: AppColors.textSecondary),
-                        const SizedBox(width: 4),
-                        Text('Reply', style: AppTypography.caption),
-                      ],
-                    ),
+                    const Icon(Icons.comment_outlined,
+                        size: 18, color: AppColors.textSecondary),
+                    const SizedBox(width: 4),
+                    Text('Reply', style: AppTypography.caption),
                   ],
-                ),
-                TextButton(
-                  onPressed: () {},
-                  child: const Text('View Activity'),
                 ),
               ],
             ),
           ],
         ),
       ),
-    );
+    ).animate()
+        .fadeIn(delay: Duration(milliseconds: 50 * index))
+        .slideX(begin: 0.05);
   }
 }

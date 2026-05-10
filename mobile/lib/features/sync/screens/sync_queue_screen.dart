@@ -69,7 +69,7 @@ class _SyncQueueScreenState extends State<SyncQueueScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Sync Queue', style: AppTypography.h3),
+        title: Text('Sync Queue', style: AppTypography.title),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -108,7 +108,7 @@ class _SyncQueueScreenState extends State<SyncQueueScreen> {
   Widget _buildSyncHeader() {
     return Container(
       padding: const EdgeInsets.all(16.0),
-      color: AppColors.backgroundAlt,
+      color: AppColors.surfaceLight,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [

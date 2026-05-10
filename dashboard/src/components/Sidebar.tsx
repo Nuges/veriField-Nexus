@@ -24,8 +24,11 @@ import {
   ClipboardCheck,
   AlertTriangle,
   Radio,
-  UsersRound,
   Settings,
+  Leaf,
+  UsersRound,
+  FileDown,
+  Satellite,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -43,6 +46,9 @@ const navItems = [
   { href: "/dashboard/anomalies", label: "Anomalies", icon: AlertTriangle },
   { href: "/dashboard/sensors", label: "Sensors", icon: Radio },
   { href: "/dashboard/community", label: "Community", icon: UsersRound },
+  { href: "/dashboard/carbon", label: "Carbon Ledger", icon: Leaf },
+  { href: "/dashboard/registry", label: "Registry Export", icon: FileDown },
+  { href: "/dashboard/satellite", label: "Satellite NDVI", icon: Satellite },
   { href: "/dashboard/settings", label: "Settings", icon: Settings },
 ];
 

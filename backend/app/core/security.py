@@ -10,7 +10,7 @@ role-based access control for admin vs field_agent users.
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from jose import JWTError, jwt
+import jwt as pyjwt
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import Optional
@@ -23,42 +23,82 @@ from app.models.user import User
 security = HTTPBearer()
 
 
+import time
+from cachetools import TTLCache
+
+# Cache successful token validations for 5 minutes to avoid network spam
+# and handle transient network failures gracefully
+_token_cache = TTLCache(maxsize=1000, ttl=300)
+
 async def decode_jwt_token(token: str) -> dict:
     """
-    Decode and validate a Supabase JWT token.
+    Validate a Supabase JWT token.
     
-    Supabase issues JWTs with the project's JWT secret.
-    We validate the signature and extract the user claims.
+    Since newer Supabase projects use ES256 asymmetric keys, local signature 
+    verification requires JWKS which isn't always exposed. The most secure 
+    method is calling Supabase's get_user endpoint, which we cache locally.
     
     Returns:
-        dict: Decoded token payload containing user ID and metadata
+        dict: Decoded token payload containing user ID ('sub')
         
     Raises:
         HTTPException: If token is invalid or expired
     """
-    try:
-        import httpx
-        async with httpx.AsyncClient() as client:
-            response = await client.get(
-                f"{settings.supabase_url}/auth/v1/user",
-                headers={
-                    "Authorization": f"Bearer {token}",
-                    "apikey": settings.supabase_key,
-                }
-            )
-            
-            if response.status_code != 200:
-                raise JWTError("Invalid token")
+    # Check cache first
+    if token in _token_cache:
+        return {"sub": _token_cache[token]}
+
+    import httpx
+    import asyncio
+    max_retries = 2
+    for attempt in range(max_retries):
+        try:
+            # Call Supabase auth to verify the token and get the user
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(
+                    f"{settings.supabase_url}/auth/v1/user",
+                    headers={
+                        "apikey": settings.supabase_key,
+                        "Authorization": f"Bearer {token}"
+                    }
+                )
                 
-            user_data = response.json()
-            return {"sub": user_data.get("id")}
+                if response.status_code == 200:
+                    user_data = response.json()
+                    user_id = user_data.get("id")
+                    if user_id:
+                        _token_cache[token] = user_id
+                        return {"sub": user_id}
+                
+                # If not 200 or missing ID, token is invalid
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid or expired authentication token",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+        except HTTPException:
+            raise
+        except Exception as e:
+            if attempt < max_retries - 1:
+                # Wait 2 seconds, then 4 seconds before next attempt
+                await asyncio.sleep(2 ** (attempt + 1))
+                continue
             
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Invalid authentication token: {str(e)}",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+            # If network is down but token is well-formed, we could theoretically 
+            # do an unverified decode as a fallback, but that's insecure.
+            # Instead, we just throw a 503 so the client knows it's temporary.
+            import logging
+            logger = logging.getLogger("verifield.security")
+            logger.error(f"Network error verifying token: {e}")
+            
+            # Fallback: if we really need to verify during network outage, 
+            # we could check if it's an HS256 token and do local verify, 
+            # but for ES256 we must fail safely.
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Authentication service unavailable. Please retry.",
+            )
+
 
 
 async def get_current_user(
@@ -102,6 +142,31 @@ async def get_current_user(
         )
 
     return user
+
+
+# Optional auth — for endpoints that work with or without authentication
+optional_security = HTTPBearer(auto_error=False)
+
+async def get_optional_user(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(optional_security),
+    db: AsyncSession = Depends(get_db),
+) -> Optional[User]:
+    """
+    Like get_current_user but returns None instead of raising 401.
+    Use for endpoints that should work for both authenticated and unauthenticated users.
+    """
+    if credentials is None:
+        return None
+    try:
+        payload = await decode_jwt_token(credentials.credentials)
+        user_id = payload.get("sub")
+        if not user_id:
+            return None
+        result = await db.execute(select(User).where(User.id == user_id))
+        return result.scalar_one_or_none()
+    except Exception:
+        return None
+
 
 
 async def require_admin(
