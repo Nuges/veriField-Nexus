@@ -7,7 +7,7 @@ activity breakdowns, and trust score distributions.
 =============================================================================
 """
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, cast, Date
 from datetime import datetime, timedelta, timezone
@@ -231,6 +231,7 @@ async def get_agent_performance(
             User.email,
             User.role,
             User.organization,
+            User.status,
             func.count(Activity.id).label("total_submissions"),
             func.avg(Activity.trust_score).label("avg_trust_score"),
         )
@@ -273,6 +274,7 @@ async def get_agent_performance(
             "flagged_count": flagged_count,
             "flag_rate": flag_rate,
             "suspicious": suspicious,
+            "status": getattr(row, "status", "active"),
         })
 
     return {
@@ -311,6 +313,8 @@ async def get_anomalies(
             "flag_type": flag.flag_type,
             "severity": flag.severity,
             "description": flag.description,
+            "resolved": flag.resolved,
+            "resolved_by": flag.resolved_by,
             "created_at": flag.created_at.isoformat() if flag.created_at else None,
             "activity_type": activity.activity_type,
             "activity_status": activity.status,
@@ -318,4 +322,67 @@ async def get_anomalies(
         })
 
     return {"anomalies": anomalies, "total": len(anomalies)}
+
+# =============================================================================
+# PATCH /api/v1/metrics/anomalies/{flag_id}/resolve — Resolve anomaly
+# =============================================================================
+from pydantic import BaseModel
+import uuid
+
+class AnomalyResolve(BaseModel):
+    action: str  # "verify" or "reject"
+    notes: str = ""
+
+@router.patch(
+    "/anomalies/{flag_id}/resolve",
+    summary="Resolve an AI anomaly flag",
+)
+async def resolve_anomaly(
+    flag_id: uuid.UUID,
+    payload: AnomalyResolve,
+    user: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Mark an anomaly as resolved and update the underlying activity."""
+    result = await db.execute(select(AnomalyFlag).where(AnomalyFlag.id == flag_id))
+    flag = result.scalar_one_or_none()
+    if not flag:
+        raise HTTPException(status_code=404, detail="Anomaly flag not found")
+
+    act_result = await db.execute(select(Activity).where(Activity.id == flag.activity_id))
+    activity = act_result.scalar_one_or_none()
+    if not activity:
+        raise HTTPException(status_code=404, detail="Associated activity not found")
+
+    if payload.action not in ("verify", "reject"):
+        raise HTTPException(status_code=400, detail="Action must be 'verify' or 'reject'")
+
+    # Update Flag
+    flag.resolved = True
+    flag.resolved_by = user.email
+    flag.resolution_notes = payload.notes
+
+    # Update Activity
+    if payload.action == "verify":
+        activity.status = "verified"
+        # Since an admin manually verified it, force the trust score to 100 for the ledger
+        activity.trust_score = 100.0
+    else:
+        activity.status = "rejected"
+
+    await db.commit()
+    
+    # If verified, trigger quantification engine asynchronously
+    if payload.action == "verify":
+        import asyncio
+        from app.services.quantification_engine import QuantificationEngine
+        async def run_quantification(act_id):
+            async with app.db.session.async_session_factory() as temp_db:
+                engine = QuantificationEngine(temp_db)
+                await engine.process_activity(act_id)
+        
+        import app.db.session
+        asyncio.create_task(run_quantification(activity.id))
+
+    return {"status": "success", "message": f"Activity {payload.action}ed"}
 

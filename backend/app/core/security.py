@@ -141,6 +141,12 @@ async def get_current_user(
             detail="User not found. Please complete registration.",
         )
 
+    if user.status != "active":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Account is {user.status}. Please contact the administrator.",
+        )
+
     return user
 
 

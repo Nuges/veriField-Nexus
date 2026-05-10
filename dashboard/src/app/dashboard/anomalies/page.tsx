@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AlertTriangle, Filter, AlertCircle, RefreshCw, ShieldAlert, Clock, MapPin, Activity } from "lucide-react";
-import { fetchAnomalies } from "@/lib/api";
+import { AlertTriangle, Filter, AlertCircle, RefreshCw, ShieldAlert, Clock, MapPin, Activity, Check, X } from "lucide-react";
+import { fetchAnomalies, resolveAnomaly } from "@/lib/api";
 
 export default function AnomaliesPage() {
   const [anomalies, setAnomalies] = useState<any[]>([]);
@@ -17,6 +17,16 @@ export default function AnomaliesPage() {
       console.error(err);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleResolve = async (flagId: string, action: "verify" | "reject") => {
+    try {
+      await resolveAnomaly(flagId, action, `Admin ${action}ed manually`);
+      // Optimistic UI update or full reload
+      await loadData();
+    } catch (err) {
+      console.error("Failed to resolve:", err);
     }
   };
 
@@ -79,16 +89,17 @@ export default function AnomaliesPage() {
                 <th className="p-4 text-xs font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider">Flag Type</th>
                 <th className="p-4 text-xs font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider">Description</th>
                 <th className="p-4 text-xs font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider text-right">Activity Status</th>
+                <th className="p-4 text-xs font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider text-center">Resolution</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--color-border)]">
               {isLoading && anomalies.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="p-8 text-center text-[var(--color-text-secondary)]">Scanning network...</td>
+                  <td colSpan={6} className="p-8 text-center text-[var(--color-text-secondary)]">Scanning network...</td>
                 </tr>
               ) : anomalies.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="p-16 text-center">
+                  <td colSpan={6} className="p-16 text-center">
                     <div className="flex flex-col items-center justify-center">
                       <div className="w-16 h-16 rounded-full bg-emerald-500/10 flex items-center justify-center mb-4 border border-emerald-500/20">
                         <ShieldAlert className="text-emerald-500" size={32} />
@@ -136,6 +147,30 @@ export default function AnomaliesPage() {
                       <div className="text-xs text-[var(--color-text-muted)] mt-1 font-mono">
                         {flag.activity_id.substring(0,8)}
                       </div>
+                    </td>
+                    <td className="p-4 text-center">
+                      {flag.resolved ? (
+                        <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-500 border border-slate-200">
+                          RESOLVED
+                        </span>
+                      ) : (
+                        <div className="flex items-center justify-center gap-2">
+                          <button 
+                            onClick={() => handleResolve(flag.id, "verify")}
+                            className="p-1.5 rounded-md bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border border-emerald-200 transition-colors"
+                            title="Verify Activity (Approve)"
+                          >
+                            <Check size={16} />
+                          </button>
+                          <button 
+                            onClick={() => handleResolve(flag.id, "reject")}
+                            className="p-1.5 rounded-md bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 transition-colors"
+                            title="Reject Activity"
+                          >
+                            <X size={16} />
+                          </button>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))

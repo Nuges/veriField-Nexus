@@ -15,7 +15,7 @@ import uuid
 
 from app.db.session import get_db
 from app.core.config import settings
-from app.core.security import get_current_user
+from app.core.security import get_current_user, require_admin
 from app.models.user import User
 from app.schemas.user import (
     UserCreate, UserUpdate, UserLogin,
@@ -38,6 +38,7 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 async def register(
     payload: UserCreate,
     db: AsyncSession = Depends(get_db),
+    admin_user: User = Depends(require_admin),
 ):
     """
     Register a new user account.
@@ -261,3 +262,41 @@ async def update_profile(
     await db.commit()
     await db.refresh(user)
     return UserResponse.model_validate(user)
+
+
+# =============================================================================
+# PATCH /api/v1/auth/users/{user_id}/status — Suspend/Revoke User (Admin)
+# =============================================================================
+from pydantic import BaseModel
+
+class UserStatusUpdate(BaseModel):
+    status: str
+
+@router.patch(
+    "/users/{user_id}/status",
+    response_model=UserResponse,
+    summary="Update user status (Admin only)",
+    description="Allows an admin to set a user's status to active, suspended, or revoked.",
+)
+async def update_user_status(
+    user_id: uuid.UUID,
+    payload: UserStatusUpdate,
+    db: AsyncSession = Depends(get_db),
+    admin_user: User = Depends(require_admin),
+):
+    if payload.status not in ("active", "suspended", "revoked"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid status. Must be 'active', 'suspended', or 'revoked'.",
+        )
+
+    result = await db.execute(select(User).where(User.id == user_id))
+    target_user = result.scalar_one_or_none()
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    target_user.status = payload.status
+    await db.commit()
+    await db.refresh(target_user)
+    return UserResponse.model_validate(target_user)
+

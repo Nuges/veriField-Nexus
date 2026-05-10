@@ -134,6 +134,7 @@ export interface AgentPerformance {
   flagged_count: number;
   flag_rate: number;
   suspicious: boolean;
+  status?: string;
 }
 
 export interface AgentPerformanceResponse {

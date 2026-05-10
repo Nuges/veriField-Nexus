@@ -268,6 +268,13 @@ export async function fetchAnomalies(): Promise<{ anomalies: any[], total: numbe
   return apiFetch<{ anomalies: any[], total: number }>("/metrics/anomalies");
 }
 
+export async function resolveAnomaly(flagId: string, action: "verify" | "reject", notes: string = ""): Promise<any> {
+  return apiFetch<any>(`/metrics/anomalies/${flagId}/resolve`, {
+    method: "PATCH",
+    body: JSON.stringify({ action, notes }),
+  });
+}
+
 export async function fetchAudits(): Promise<{ audits: any[], total: number }> {
   return apiFetch<{ audits: any[], total: number }>("/audits");
 }
@@ -297,6 +304,20 @@ export async function quantifyActivity(id: string, projectId?: string): Promise<
 
 export async function fetchAgentPerformance(): Promise<import("./types").AgentPerformanceResponse> {
   return apiFetch<import("./types").AgentPerformanceResponse>("/metrics/agents");
+}
+
+export async function createAgent(data: any): Promise<any> {
+  return apiFetch<any>("/auth/register", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateAgentStatus(userId: string, status: "active" | "suspended" | "revoked"): Promise<any> {
+  return apiFetch<any>(`/auth/users/${userId}/status`, {
+    method: "PATCH",
+    body: JSON.stringify({ status }),
+  });
 }
 
 // ---------------------------------------------------------------------------

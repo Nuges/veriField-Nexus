@@ -50,6 +50,9 @@ class User(Base):
     role: Mapped[str] = mapped_column(
         String(20), nullable=False, default="field_agent"
     )
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="active"
+    )
 
     # Profile metadata
     avatar_url: Mapped[str] = mapped_column(String(500), nullable=True)
