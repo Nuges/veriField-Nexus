@@ -108,11 +108,20 @@ class QuantificationEngine:
         else:
             # Auto-find project matching activity type
             type_to_method = {
+                # New Smart Installation types
+                "CLEAN_COOKING": ["VM0006", "VMR0050", "GS_TPDDTEC", "GS_MECD"],
+                "AGRICULTURE": ["VM0006"],
+                "ENERGY_USE": ["GS_MECD"],
+                "FORESTRY_LAND_USE": ["VM0006"],
+                "SAFE_WATER": ["GS_TPDDTEC"],
+                "TRANSPORT_MOBILITY": ["GS_MECD"],
+                "OTHER": ["VM0006", "GS_TPDDTEC", "GS_MECD"],
+                # Legacy types (backwards compatibility)
                 "cooking": ["VM0006", "VMR0050", "GS_TPDDTEC", "GS_MECD"],
                 "energy": ["GS_MECD"],
                 "farming": ["VM0006"],
             }
-            methods = type_to_method.get(activity.activity_type, [])
+            methods = type_to_method.get(activity.activity_type, ["VM0006", "GS_TPDDTEC", "GS_MECD"])
             project = None
             for m in methods:
                 proj_res = await self.db.execute(
