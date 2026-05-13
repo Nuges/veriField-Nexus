@@ -83,10 +83,6 @@ class _LoginScreenState extends State<LoginScreen> {
               // --- Login Form ---
               _buildLoginForm(),
 
-              const SizedBox(height: AppSpacing.xl),
-
-              // --- Register Link ---
-              _buildRegisterLink(),
             ],
           ),
         ),
@@ -198,28 +194,5 @@ class _LoginScreenState extends State<LoginScreen> {
         ],
       ),
     );
-  }
-
-  Widget _buildRegisterLink() {
-    return Center(
-      child: TextButton(
-        onPressed: () => context.push(AppRoutes.register),
-        child: RichText(
-          text: TextSpan(
-            text: "Don't have an account? ",
-            style: AppTypography.bodySmall,
-            children: [
-              TextSpan(
-                text: 'Sign up',
-                style: AppTypography.bodySmall.copyWith(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    ).animate().fadeIn(delay: 800.ms);
   }
 }

@@ -66,10 +66,19 @@ class TrustEngine:
         """
         flags: Dict[str, Any] = {}
 
+        # Get system settings weights
+        from app.models.system_setting import SystemSetting
+        result = await self.db.execute(select(SystemSetting).where(SystemSetting.id == 1))
+        sys_settings = result.scalar_one_or_none()
+        
+        gps_weight = sys_settings.gps_weight if sys_settings else 30.0
+        image_weight = sys_settings.image_weight if sys_settings else 40.0
+        frequency_weight = sys_settings.frequency_weight if sys_settings else 30.0
+
         # Calculate individual components
-        gps_score, gps_flags = await self._calculate_gps_score(activity)
-        image_score, image_flags = await self._calculate_image_score(activity)
-        frequency_score, freq_flags = await self._calculate_frequency_score(activity)
+        gps_score, gps_flags = await self._calculate_gps_score(activity, gps_weight)
+        image_score, image_flags = await self._calculate_image_score(activity, image_weight)
+        frequency_score, freq_flags = await self._calculate_frequency_score(activity, frequency_weight)
 
         # Merge all flags
         flags.update(gps_flags)
@@ -82,7 +91,6 @@ class TrustEngine:
         # Apply Cross-Verification Bonuses
         cross_verif_bonus, cross_verif_flags = await self._calculate_cross_verification_bonus(activity)
         final_score += cross_verif_bonus
-        flags.update(cross_verif_flags)
 
         # Cap at 100
         final_score = min(100.0, final_score)
@@ -116,19 +124,19 @@ class TrustEngine:
     # =========================================================================
 
     async def _calculate_gps_score(
-        self, activity: Activity
+        self, activity: Activity, max_weight: float = 30.0
     ) -> Tuple[float, Dict[str, Any]]:
         """
         Evaluate GPS data quality and consistency.
         
         Scoring breakdown:
-        - No GPS data at all: 0/30
+        - No GPS data at all: 0/max_weight
         - GPS accuracy > 100m: Penalty applied
         - Distance from property: Penalty if > threshold
         - Historical consistency: Bonus for consistent locations
         """
         flags: Dict[str, Any] = {}
-        score = 30.0  # Start at max, apply penalties
+        score = max_weight  # Start at max, apply penalties
 
         # --- No GPS data: immediate zero ---
         if activity.latitude is None or activity.longitude is None:
@@ -186,7 +194,7 @@ class TrustEngine:
         score += cluster_penalty
         flags.update(cluster_flags)
 
-        return max(0.0, min(30.0, score)), flags
+        return max(0.0, min(max_weight, score)), flags
 
     async def _check_gps_consistency(self, activity: Activity) -> float:
         """
@@ -293,29 +301,29 @@ class TrustEngine:
     # =========================================================================
 
     async def _calculate_image_score(
-        self, activity: Activity
+        self, activity: Activity, max_weight: float = 40.0
     ) -> Tuple[float, Dict[str, Any]]:
         """
         Evaluate image uniqueness using perceptual hashing.
         
         Scoring breakdown:
-        - No image: 0/35
+        - No image: 0/max_weight
         - Duplicate image detected: Heavy penalty
         - Similar image detected: Moderate penalty
         - Unique image: Full score
         """
         flags: Dict[str, Any] = {}
-        score = 35.0
+        score = max_weight
 
         # --- No image provided ---
         if not activity.image_url:
             flags["image_missing"] = True
-            return 15.0, flags  # Partial credit so perfectly valid test data can hit exactly 80 points
+            return max_weight * 0.4, flags  # Partial credit
 
         # --- No hash available (can't verify uniqueness) ---
         if not activity.image_hash:
             flags["image_hash_missing"] = True
-            return 15.0, flags  # Partial credit — image exists but can't verify
+            return max_weight * 0.4, flags  # Partial credit
 
         # --- Check for duplicate/similar images ---
         duplicate_found, similarity = await self._check_image_similarity(activity)
@@ -337,7 +345,7 @@ class TrustEngine:
                 flags["image_similar"] = True
                 flags["image_similarity"] = similarity
 
-        return max(0.0, min(35.0, score)), flags
+        return max(0.0, min(max_weight, score)), flags
 
     async def _check_image_similarity(
         self, activity: Activity
@@ -395,7 +403,7 @@ class TrustEngine:
     # =========================================================================
 
     async def _calculate_frequency_score(
-        self, activity: Activity
+        self, activity: Activity, max_weight: float = 30.0
     ) -> Tuple[float, Dict[str, Any]]:
         """
         Evaluate submission frequency patterns.
@@ -407,7 +415,7 @@ class TrustEngine:
         - Consistent daily patterns: Bonus
         """
         flags: Dict[str, Any] = {}
-        score = 35.0
+        score = max_weight
 
         # --- Check submissions in the last hour ---
         one_hour_ago = datetime.now(timezone.utc) - timedelta(hours=1)
@@ -451,7 +459,7 @@ class TrustEngine:
         consistency_bonus = await self._check_daily_consistency(activity)
         score += consistency_bonus
 
-        return max(0.0, min(35.0, score)), flags
+        return max(0.0, min(max_weight, score)), flags
 
     async def _check_daily_consistency(self, activity: Activity) -> float:
         """

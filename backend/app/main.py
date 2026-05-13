@@ -13,7 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.api.v1 import auth, activities, properties, analytics, export, cross_verification, carbon, audits, sensors, community
-from app.api.v1 import registry, satellite
+from app.api.v1 import registry, satellite, settings as api_settings
 
 
 # ---------------------------------------------------------------------------
@@ -94,6 +94,7 @@ app.include_router(sensors.router, prefix=API_PREFIX)
 app.include_router(community.router, prefix=API_PREFIX)
 app.include_router(registry.router, prefix=API_PREFIX)
 app.include_router(satellite.router, prefix=API_PREFIX)
+app.include_router(api_settings.router, prefix=API_PREFIX)
 
 
 # ---------------------------------------------------------------------------

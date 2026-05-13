@@ -41,10 +41,10 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
   Future<void> _loadActivities() async {
     setState(() => _isLoading = true);
 
-    _isOnline = await SyncService.isOnline();
-    _pendingCount = await LocalDbService.getPendingCount();
-
     try {
+      _isOnline = await SyncService.isOnline();
+      _pendingCount = await LocalDbService.getPendingCount();
+
       if (_isOnline) {
         // Sync pending activities first
         if (_pendingCount > 0) await SyncService.syncPendingActivities();

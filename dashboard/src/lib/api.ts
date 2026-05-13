@@ -390,3 +390,18 @@ export async function createCarbonProject(data: {
   });
 }
 
+// ---------------------------------------------------------------------------
+// System Settings API
+// ---------------------------------------------------------------------------
+
+export async function fetchSettings(): Promise<{ gps_weight: number; image_weight: number; frequency_weight: number }> {
+  return apiFetch<{ gps_weight: number; image_weight: number; frequency_weight: number }>("/settings");
+}
+
+export async function updateSettings(data: { gps_weight: number; image_weight: number; frequency_weight: number }): Promise<any> {
+  return apiFetch<any>("/settings", {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
