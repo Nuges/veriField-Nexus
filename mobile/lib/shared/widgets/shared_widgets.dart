@@ -139,6 +139,7 @@ class VFTextField extends StatelessWidget {
   final Widget? prefixIcon;
   final Widget? suffixIcon;
   final String? Function(String?)? validator;
+  final void Function(String)? onChanged;
   final int maxLines;
 
   const VFTextField({
@@ -151,6 +152,7 @@ class VFTextField extends StatelessWidget {
     this.prefixIcon,
     this.suffixIcon,
     this.validator,
+    this.onChanged,
     this.maxLines = 1,
   });
 
@@ -167,6 +169,7 @@ class VFTextField extends StatelessWidget {
           keyboardType: keyboardType,
           maxLines: maxLines,
           validator: validator,
+          onChanged: onChanged,
           style: AppTypography.body,
           decoration: InputDecoration(
             hintText: hint,

@@ -1,11 +1,13 @@
 """
 =============================================================================
-VeriField Nexus — Activities API Routes
+VeriField Nexus — Activities API Routes (Smart Installation System)
 =============================================================================
-CRUD operations for field activity submissions. Supports:
-- Single activity submission
+CRUD operations for field activity / installation submissions. Supports:
+- Single activity submission with GPS duplicate validation
 - Batch submission (offline sync)
+- Pre-submission duplicate check endpoint
 - Filtered listing with pagination
+- Activity type schema retrieval for dynamic forms
 - Trust score retrieval
 =============================================================================
 """
@@ -16,6 +18,7 @@ from sqlalchemy import select, func, and_
 from typing import Optional
 from datetime import datetime
 from uuid import UUID
+from pydantic import BaseModel
 
 from app.db.session import get_db
 from app.core.security import get_current_user, require_admin
@@ -25,6 +28,7 @@ from app.models.trust_log import TrustLog
 from app.schemas.activity import (
     ActivityCreate, ActivityBatchCreate,
     ActivityResponse, ActivityListResponse, ActivityBatchResponse,
+    ACTIVITY_SCHEMAS,
 )
 from app.schemas.analytics import TrustScoreResponse
 
@@ -52,25 +56,105 @@ async def compute_phash(image_url: str) -> Optional[str]:
 def calculate_carbon_offset(activity_type: str, data: dict) -> dict:
     """
     Calculate estimated CO2 reduction based on activity type.
+    Updated for the Smart Installation System activity types.
     """
-    if activity_type == "cooking":
-        hours = data.get("duration_hours", 1.0) if data else 1.0
+    activity_type_upper = activity_type.upper()
+    
+    if activity_type_upper == "CLEAN_COOKING":
+        household_size = data.get("household_size", 4)
+        fuel = data.get("primary_fuel", "wood")
+        base_reduction = {"wood": 3.5, "charcoal": 2.8, "pellet": 1.5, "LPG": 0.5}
         return {
-            "emission_reduction_value_kg": round(2.5 * hours, 2),
-            "methodology_reference": "Gold Standard TPDDTEC v3.1"
+            "emission_reduction_value_kg": round(base_reduction.get(fuel, 2.0) * household_size * 0.5, 2),
+            "methodology_reference": "Gold Standard TPDDTEC v3.1",
         }
-    elif activity_type == "energy":
-        kwh = data.get("energy_kwh", 5.0) if data else 5.0
+    elif activity_type_upper == "AGRICULTURE":
+        hectares = data.get("plot_area_hectares", 1.0)
+        return {
+            "emission_reduction_value_kg": round(15.0 * hectares, 2),
+            "methodology_reference": "Verra VM0042",
+        }
+    elif activity_type_upper == "ENERGY_USE":
+        kwh = data.get("daily_output_kwh", data.get("capacity_kw", 5.0))
         return {
             "emission_reduction_value_kg": round(0.8 * kwh, 2),
-            "methodology_reference": "CDM AMS-I.A."
+            "methodology_reference": "CDM AMS-I.A.",
         }
-    elif activity_type == "farming":
+    elif activity_type_upper == "FORESTRY_LAND_USE":
+        trees = data.get("tree_count", 10)
         return {
-            "emission_reduction_value_kg": 15.0,
-            "methodology_reference": "Verra VM0042"
+            "emission_reduction_value_kg": round(22.0 * trees / 100, 2),
+            "methodology_reference": "Verra VM0047 ARR",
         }
+    elif activity_type_upper == "SAFE_WATER":
+        liters = data.get("daily_volume_liters", 500)
+        return {
+            "emission_reduction_value_kg": round(liters * 0.003, 2),
+            "methodology_reference": "Gold Standard Safe Water",
+        }
+    elif activity_type_upper == "TRANSPORT_MOBILITY":
+        km = data.get("daily_distance_km", 20)
+        energy_type = data.get("energy_type", "EV")
+        factor = {"EV": 0.12, "hybrid": 0.08, "CNG": 0.05, "diesel_retrofit": 0.03}
+        return {
+            "emission_reduction_value_kg": round(km * factor.get(energy_type, 0.05), 2),
+            "methodology_reference": "CDM AMS-III.C.",
+        }
+    # Legacy fallback for old activity types
+    elif activity_type_upper in ("COOKING",):
+        hours = data.get("duration_hours", 1.0)
+        return {"emission_reduction_value_kg": round(2.5 * hours, 2), "methodology_reference": "Gold Standard TPDDTEC v3.1"}
+    elif activity_type_upper in ("ENERGY",):
+        kwh = data.get("energy_kwh", 5.0)
+        return {"emission_reduction_value_kg": round(0.8 * kwh, 2), "methodology_reference": "CDM AMS-I.A."}
+    elif activity_type_upper in ("FARMING",):
+        return {"emission_reduction_value_kg": 15.0, "methodology_reference": "Verra VM0042"}
     return {}
+
+
+# =============================================================================
+# GET /api/v1/activities/schemas — Get form schemas for dynamic forms
+# =============================================================================
+@router.get(
+    "/schemas",
+    summary="Get activity type schemas for dynamic forms",
+)
+async def get_activity_schemas():
+    """
+    Returns the complete schema definitions for all activity types.
+    The mobile app uses this to dynamically render forms.
+    """
+    return {"schemas": ACTIVITY_SCHEMAS}
+
+
+# =============================================================================
+# POST /api/v1/activities/check-duplicate — Pre-submission GPS check
+# =============================================================================
+class DuplicateCheckRequest(BaseModel):
+    latitude: float
+    longitude: float
+    activity_type: str
+
+@router.post(
+    "/check-duplicate",
+    summary="Check for nearby duplicate installations",
+)
+async def check_duplicate(
+    payload: DuplicateCheckRequest,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Pre-submission check: scans for existing installations of the same type
+    within the adaptive radius. Returns environment type, radius used, and
+    any nearby installations found.
+    """
+    from app.services.gps_validator import GPSValidator
+    validator = GPSValidator(db)
+    result = await validator.check_duplicate(
+        payload.latitude, payload.longitude, payload.activity_type
+    )
+    return result
 
 
 # =============================================================================
@@ -80,7 +164,7 @@ def calculate_carbon_offset(activity_type: str, data: dict) -> dict:
     "",
     response_model=ActivityResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="Submit a new field activity",
+    summary="Submit a new field activity / installation",
 )
 async def create_activity(
     payload: ActivityCreate,
@@ -89,7 +173,8 @@ async def create_activity(
 ):
     """
     Submit a new field activity with photo, GPS, and timestamp data.
-    Automatically triggers trust score calculation and anomaly detection.
+    Automatically triggers GPS duplicate check, trust score calculation,
+    and anomaly detection.
     """
     # Check for duplicate client_id (offline sync deduplication)
     if payload.client_id:
@@ -105,12 +190,32 @@ async def create_activity(
     # Calculate carbon offset
     activity_data = payload.activity_data or {}
     activity_data.update(calculate_carbon_offset(payload.activity_type, activity_data))
+
+    # --- Smart GPS Validation ---
+    environment_type = payload.environment_type
+    radius_used_m = payload.radius_used_m
+    duplicate_flag = payload.duplicate_flag or False
+    
+    if payload.latitude and payload.longitude and not environment_type:
+        # Server-side GPS validation if client didn't pre-check
+        try:
+            from app.services.gps_validator import GPSValidator
+            validator = GPSValidator(db)
+            gps_result = await validator.check_duplicate(
+                payload.latitude, payload.longitude, payload.activity_type
+            )
+            environment_type = gps_result["environment_type"]
+            radius_used_m = gps_result["radius_used_m"]
+            duplicate_flag = gps_result["duplicate_flag"]
+        except Exception:
+            pass
     
     # Auto-create asset if no property is linked
     property_id = payload.property_id
     if not property_id:
         from app.models.property import Property
-        asset_name = activity_data.get("asset_name", f"New {payload.activity_type.capitalize()} Installation")
+        type_label = payload.activity_type.replace("_", " ").title()
+        asset_name = activity_data.get("asset_name", f"New {type_label} Installation")
         prop = Property(
             owner_id=user.id,
             name=asset_name,
@@ -140,6 +245,10 @@ async def create_activity(
         latitude=payload.latitude,
         longitude=payload.longitude,
         gps_accuracy=payload.gps_accuracy,
+        environment_type=environment_type,
+        radius_used_m=radius_used_m,
+        duplicate_flag=duplicate_flag,
+        override_reason=payload.override_reason,
         captured_at=payload.captured_at,
         client_id=payload.client_id,
     )
@@ -220,11 +329,30 @@ async def batch_create_activities(
             a_data = activity_data.activity_data or {}
             a_data.update(calculate_carbon_offset(activity_data.activity_type, a_data))
             
+            # GPS validation
+            env_type = activity_data.environment_type
+            radius = activity_data.radius_used_m
+            dup_flag = activity_data.duplicate_flag or False
+            
+            if activity_data.latitude and activity_data.longitude and not env_type:
+                try:
+                    from app.services.gps_validator import GPSValidator
+                    validator = GPSValidator(db)
+                    gps_result = await validator.check_duplicate(
+                        activity_data.latitude, activity_data.longitude, activity_data.activity_type
+                    )
+                    env_type = gps_result["environment_type"]
+                    radius = gps_result["radius_used_m"]
+                    dup_flag = gps_result["duplicate_flag"]
+                except Exception:
+                    pass
+            
             # Auto-create asset if no property is linked
             property_id = activity_data.property_id
             if not property_id:
                 from app.models.property import Property
-                asset_name = a_data.get("asset_name", f"New {activity_data.activity_type.capitalize()} Installation")
+                type_label = activity_data.activity_type.replace("_", " ").title()
+                asset_name = a_data.get("asset_name", f"New {type_label} Installation")
                 prop = Property(
                     owner_id=user.id,
                     name=asset_name,
@@ -250,6 +378,10 @@ async def batch_create_activities(
                 latitude=activity_data.latitude,
                 longitude=activity_data.longitude,
                 gps_accuracy=activity_data.gps_accuracy,
+                environment_type=env_type,
+                radius_used_m=radius,
+                duplicate_flag=dup_flag,
+                override_reason=activity_data.override_reason,
                 captured_at=activity_data.captured_at,
                 client_id=activity_data.client_id,
             )
@@ -310,6 +442,7 @@ async def list_activities(
     date_to: Optional[datetime] = Query(None),
     min_trust: Optional[float] = Query(None, ge=0, le=100),
     max_trust: Optional[float] = Query(None, ge=0, le=100),
+    duplicate_only: Optional[bool] = Query(None),
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=1000),
     user: User = Depends(get_current_user),
@@ -341,6 +474,8 @@ async def list_activities(
         conditions.append(Activity.trust_score >= min_trust)
     if max_trust is not None:
         conditions.append(Activity.trust_score <= max_trust)
+    if duplicate_only:
+        conditions.append(Activity.duplicate_flag == True)
 
     if conditions:
         query = query.where(and_(*conditions))
@@ -412,7 +547,6 @@ async def get_trust_score(
 # =============================================================================
 # PATCH /api/v1/activities/{id}/status — Update activity status
 # =============================================================================
-from pydantic import BaseModel
 
 class ActivityStatusUpdate(BaseModel):
     status: str

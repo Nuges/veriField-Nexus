@@ -13,7 +13,7 @@ Represents a single field activity submission. Each activity includes:
 
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import String, Float, DateTime, ForeignKey, Text, text
+from sqlalchemy import String, Float, DateTime, ForeignKey, Text, Boolean, text
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -22,14 +22,16 @@ from app.db.base import Base
 
 class Activity(Base):
     """
-    Field activity submission model.
+    Field activity submission model (Smart Installation System).
     
     Activity Types:
-        - "cooking": Clean cooking activities (stove usage, fuel type)
-        - "farming": Agricultural activities (planting, harvesting, soil management)
-        - "energy": Energy usage monitoring (solar, biogas, grid)
-        - "sustainability": Real estate sustainability activities
-        - "other": Custom activity types
+        - "CLEAN_COOKING": Clean cooking activities (stove usage, fuel type)
+        - "AGRICULTURE": Agricultural activities (planting, harvesting, soil management)
+        - "ENERGY_USE": Energy usage monitoring (solar, biogas, grid)
+        - "FORESTRY_LAND_USE": Forestry and land use management
+        - "SAFE_WATER": Safe water supply and purification
+        - "TRANSPORT_MOBILITY": Clean transport and mobility
+        - "OTHER": Custom activity types (fallback)
     
     Status:
         - "pending": Submitted, awaiting trust score calculation
@@ -84,6 +86,20 @@ class Activity(Base):
     latitude: Mapped[float] = mapped_column(Float, nullable=True)
     longitude: Mapped[float] = mapped_column(Float, nullable=True)
     gps_accuracy: Mapped[float] = mapped_column(Float, nullable=True)  # meters
+
+    # --- Smart GPS Validation ---
+    environment_type: Mapped[str] = mapped_column(
+        String(10), nullable=True, default=None  # "URBAN" or "RURAL"
+    )
+    radius_used_m: Mapped[float] = mapped_column(
+        Float, nullable=True, default=None  # Dynamic radius used for duplicate check
+    )
+    duplicate_flag: Mapped[bool] = mapped_column(
+        nullable=True, default=False  # True if nearby duplicate detected
+    )
+    override_reason: Mapped[str] = mapped_column(
+        Text, nullable=True, default=None  # Agent reason for overriding duplicate warning
+    )
 
     # --- When it happened ---
     captured_at: Mapped[datetime] = mapped_column(

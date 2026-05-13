@@ -27,6 +27,10 @@ export interface Activity {
   latitude: number | null;
   longitude: number | null;
   gps_accuracy: number | null;
+  environment_type: string | null;
+  radius_used_m: number | null;
+  duplicate_flag: boolean | null;
+  override_reason: string | null;
   captured_at: string;
   submitted_at: string;
   trust_score: number | null;

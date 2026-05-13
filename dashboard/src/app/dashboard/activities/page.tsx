@@ -78,11 +78,13 @@ export default function ActivitiesPage() {
           className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl px-3 py-1.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:border-emerald-500"
         >
           <option value="">All Types</option>
-          <option value="cooking">Clean Cooking</option>
-          <option value="farming">Agriculture</option>
-          <option value="energy">Energy Use</option>
-          <option value="sustainability">Sustainability</option>
-          <option value="other">Other</option>
+          <option value="CLEAN_COOKING">Clean Cooking</option>
+          <option value="AGRICULTURE">Agriculture</option>
+          <option value="ENERGY_USE">Energy Use</option>
+          <option value="FORESTRY_LAND_USE">Forestry & Land</option>
+          <option value="SAFE_WATER">Safe Water</option>
+          <option value="TRANSPORT_MOBILITY">Transport</option>
+          <option value="OTHER">Other</option>
         </select>
 
         <select 
@@ -139,10 +141,17 @@ export default function ActivitiesPage() {
                           </div>
                         )}
                         <div>
-                          <p className="text-sm font-medium text-[var(--color-text-primary)] capitalize">{activity.activity_type}</p>
-                          <p className="text-xs text-[var(--color-text-secondary)] truncate max-w-[150px]">
-                            {activity.description || "No description"}
+                          <p className="text-sm font-medium text-[var(--color-text-primary)]">
+                            {activity.activity_type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
                           </p>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            {activity.duplicate_flag && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 font-medium">⚠ DUP</span>
+                            )}
+                            {activity.environment_type && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-500/15 text-slate-400">{activity.environment_type}</span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </td>

@@ -30,8 +30,8 @@ class VFShell extends StatelessWidget {
             }
           }
         },
-        icon: const Icon(Icons.add_a_photo_rounded),
-        label: const Text('Log Activity'),
+        icon: const Icon(Icons.add_location_alt_rounded),
+        label: const Text('Register Installation'),
         backgroundColor: AppColors.primary,
         foregroundColor: AppColors.textInverse,
       ),
