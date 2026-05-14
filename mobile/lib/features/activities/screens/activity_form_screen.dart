@@ -458,14 +458,14 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
           hint: 'Enter ${field.label.toLowerCase()}',
           controller: _controllerFor(field.key),
           maxLines: 3,
-          onChanged: (v) => _fieldValues[field.key] = v,
+          onChanged: (v) => setState(() => _fieldValues[field.key] = v),
         );
       default:
         return VFTextField(
           label: '${field.label}${field.required ? " *" : ""}',
           hint: 'Enter ${field.label.toLowerCase()}',
           controller: _controllerFor(field.key),
-          onChanged: (v) => _fieldValues[field.key] = v,
+          onChanged: (v) => setState(() => _fieldValues[field.key] = v),
         );
     }
   }
@@ -524,8 +524,10 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
       controller: _controllerFor(field.key),
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
       onChanged: (v) {
-        if (v.isEmpty) { _fieldValues.remove(field.key); return; }
-        _fieldValues[field.key] = field.type == 'int' ? int.tryParse(v) ?? 0 : double.tryParse(v) ?? 0.0;
+        setState(() {
+          if (v.isEmpty) { _fieldValues.remove(field.key); return; }
+          _fieldValues[field.key] = field.type == 'int' ? int.tryParse(v) ?? 0 : double.tryParse(v) ?? 0.0;
+        });
       },
     );
   }
