@@ -16,6 +16,7 @@ import TrustBadge from "@/components/TrustBadge";
 export default function ActivitiesPage() {
   const [data, setData] = useState<ActivityListResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   // Filters
   const [page, setPage] = useState(1);
@@ -29,6 +30,7 @@ export default function ActivitiesPage() {
     try {
       const res = await fetchActivities({ page, per_page: 20, activity_type: activityType, status });
       setData(res);
+      setLastUpdated(new Date());
     } catch (err) {
       console.error(err);
     } finally {
@@ -52,8 +54,12 @@ export default function ActivitiesPage() {
       {/* Header & Controls */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 animate-fade-in-up">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--color-text-primary)] tracking-tight">Activities</h1>
-          <p className="text-[var(--color-text-secondary)] text-sm mt-1">Review and manage field activity submissions</p>
+          <h1 className="text-2xl font-bold text-[var(--color-text-primary)] tracking-tight">Installations</h1>
+          <div className="flex items-center gap-3 mt-1">
+            <p className="text-[var(--color-text-secondary)] text-sm">Review and manage field installations</p>
+            {data && <span className="text-xs font-medium text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">{data.total} total</span>}
+            {lastUpdated && <span className="text-xs text-[var(--color-text-muted)]">Updated {lastUpdated.toLocaleTimeString()}</span>}
+          </div>
         </div>
         <div className="flex items-center gap-3">
           <button onClick={loadActivities} className="p-2 rounded-xl bg-[var(--color-card)] border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors">
