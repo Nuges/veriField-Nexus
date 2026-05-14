@@ -200,6 +200,7 @@ class TrustScoreGauge extends StatelessWidget {
       width: size,
       height: size,
       child: Stack(
+        alignment: Alignment.center,
         children: [
           // Background circle
           CircularProgressIndicator(
@@ -214,13 +215,18 @@ class TrustScoreGauge extends StatelessWidget {
             color: color,
             strokeCap: StrokeCap.round,
           ),
-          // Score text
-          Center(
-            child: Text(
-              score != null ? '${displayScore.toInt()}' : '—',
-              style: AppTypography.numericSmall.copyWith(
-                color: color,
-                fontSize: size * 0.3,
+          // Score text — FittedBox prevents overflow for 3-digit scores
+          Padding(
+            padding: EdgeInsets.all(size * 0.2),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                score != null ? '${displayScore.toInt()}' : '—',
+                style: AppTypography.numericSmall.copyWith(
+                  color: color,
+                  fontSize: size * 0.35,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
             ),
           ),

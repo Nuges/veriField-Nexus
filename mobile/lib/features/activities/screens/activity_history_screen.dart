@@ -186,12 +186,20 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
 
   /// Get activity type display info.
   Map<String, dynamic> _getTypeInfo(String type) {
-    switch (type) {
-      case 'cooking': return {'label': 'Clean Cooking', 'icon': Icons.local_fire_department_rounded, 'color': AppColors.warning};
-      case 'farming': return {'label': 'Agriculture', 'icon': Icons.grass_rounded, 'color': AppColors.primary};
-      case 'energy': return {'label': 'Energy Use', 'icon': Icons.bolt_rounded, 'color': AppColors.accent};
-      case 'sustainability': return {'label': 'Sustainability', 'icon': Icons.eco_rounded, 'color': AppColors.accentPurple};
-      default: return {'label': 'Other', 'icon': Icons.more_horiz_rounded, 'color': AppColors.textTertiary};
+    switch (type.toUpperCase()) {
+      // New Smart Installation types
+      case 'CLEAN_COOKING': return {'label': 'Clean Cooking', 'icon': Icons.local_fire_department_rounded, 'color': AppColors.warning};
+      case 'AGRICULTURE': return {'label': 'Agriculture', 'icon': Icons.grass_rounded, 'color': AppColors.primary};
+      case 'ENERGY_USE': return {'label': 'Energy Use', 'icon': Icons.bolt_rounded, 'color': AppColors.accent};
+      case 'FORESTRY_LAND_USE': return {'label': 'Forestry & Land', 'icon': Icons.park_rounded, 'color': const Color(0xFF2E7D32)};
+      case 'SAFE_WATER': return {'label': 'Safe Water', 'icon': Icons.water_drop_rounded, 'color': const Color(0xFF0288D1)};
+      case 'TRANSPORT_MOBILITY': return {'label': 'Transport', 'icon': Icons.directions_car_rounded, 'color': AppColors.accentPurple};
+      case 'OTHER': return {'label': 'Other', 'icon': Icons.more_horiz_rounded, 'color': AppColors.textTertiary};
+      // Legacy types (backwards compatibility)
+      case 'COOKING': return {'label': 'Clean Cooking', 'icon': Icons.local_fire_department_rounded, 'color': AppColors.warning};
+      case 'FARMING': return {'label': 'Agriculture', 'icon': Icons.grass_rounded, 'color': AppColors.primary};
+      case 'ENERGY': return {'label': 'Energy Use', 'icon': Icons.bolt_rounded, 'color': AppColors.accent};
+      default: return {'label': type.replaceAll('_', ' '), 'icon': Icons.category_rounded, 'color': AppColors.textTertiary};
     }
   }
 
