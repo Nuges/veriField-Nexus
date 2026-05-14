@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ClipboardCheck, Plus, Filter, RefreshCw, Calendar, MapPin, User, ArrowRight } from "lucide-react";
-import { fetchAudits } from "@/lib/api";
+import { ClipboardCheck, Plus, Filter, RefreshCw, Calendar, MapPin, User, Play, CheckCircle, XCircle, MoreVertical } from "lucide-react";
+import { fetchAudits, updateAuditStatus } from "@/lib/api";
 
 export default function AuditsPage() {
   const [audits, setAudits] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const [updating, setUpdating] = useState<string | null>(null);
 
   const loadData = async () => {
     setIsLoading(true);
@@ -24,8 +26,22 @@ export default function AuditsPage() {
     loadData();
   }, []);
 
+  const handleStatusChange = async (auditId: string, newStatus: string) => {
+    setUpdating(auditId);
+    setOpenMenu(null);
+    try {
+      await updateAuditStatus(auditId, newStatus);
+      await loadData();
+    } catch (err) {
+      console.error(err);
+      alert("Failed to update audit status");
+    } finally {
+      setUpdating(null);
+    }
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" onClick={() => setOpenMenu(null)}>
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 animate-fade-in-up">
         <div>
@@ -105,7 +121,8 @@ export default function AuditsPage() {
                       <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${
                         audit.status === "pending" ? "bg-amber-500/10 text-amber-500 border-amber-500/20" :
                         audit.status === "in_progress" ? "bg-blue-500/10 text-blue-400 border-blue-500/20" :
-                        "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                        audit.status === "completed" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" :
+                        "bg-red-500/10 text-red-400 border-red-500/20"
                       }`}>
                         {audit.status.replace("_", " ")}
                       </span>
@@ -117,9 +134,49 @@ export default function AuditsPage() {
                       </div>
                     </td>
                     <td className="p-4 text-right">
-                      <button className="text-emerald-500 hover:text-emerald-400 transition-colors p-2 rounded-lg hover:bg-emerald-500/10">
-                        <ArrowRight size={18} />
-                      </button>
+                      <div className="relative inline-block">
+                        {updating === audit.id ? (
+                          <div className="p-2"><RefreshCw size={16} className="animate-spin text-emerald-400" /></div>
+                        ) : (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setOpenMenu(openMenu === audit.id ? null : audit.id); }}
+                            className="text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors p-2 rounded-lg hover:bg-[var(--color-surface)]"
+                          >
+                            <MoreVertical size={18} />
+                          </button>
+                        )}
+                        {openMenu === audit.id && (
+                          <div
+                            onClick={(e) => e.stopPropagation()}
+                            className="absolute right-0 top-full mt-1 w-44 bg-[var(--color-card)] border border-[var(--color-border)] rounded-xl shadow-xl z-20 py-1"
+                          >
+                            {audit.status === "pending" && (
+                              <button
+                                onClick={() => handleStatusChange(audit.id, "in_progress")}
+                                className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-blue-400 hover:bg-blue-500/10 transition-colors"
+                              >
+                                <Play size={14} /> Start Audit
+                              </button>
+                            )}
+                            {(audit.status === "pending" || audit.status === "in_progress") && (
+                              <button
+                                onClick={() => handleStatusChange(audit.id, "completed")}
+                                className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-emerald-400 hover:bg-emerald-500/10 transition-colors"
+                              >
+                                <CheckCircle size={14} /> Mark Complete
+                              </button>
+                            )}
+                            {audit.status !== "cancelled" && (
+                              <button
+                                onClick={() => handleStatusChange(audit.id, "cancelled")}
+                                className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 transition-colors"
+                              >
+                                <XCircle size={14} /> Cancel Task
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))

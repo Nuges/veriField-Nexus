@@ -279,6 +279,15 @@ export async function fetchAudits(): Promise<{ audits: any[], total: number }> {
   return apiFetch<{ audits: any[], total: number }>("/audits");
 }
 
+export async function updateAuditStatus(id: string, status: string, deadline?: string): Promise<any> {
+  const body: Record<string, string> = { status };
+  if (deadline) body.deadline = deadline;
+  return apiFetch<any>(`/audits/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+}
+
 export async function issueVerraCredits(): Promise<any> {
   return apiFetch<any>(`/carbon/registry/verra/issue`, {
     method: "POST",
