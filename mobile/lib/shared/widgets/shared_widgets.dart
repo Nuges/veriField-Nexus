@@ -196,38 +196,37 @@ class TrustScoreGauge extends StatelessWidget {
     final displayScore = score ?? 0;
     final color = _getColor(displayScore);
 
+    final scoreText = score != null ? '${displayScore.toInt()}' : '—';
+    // Scale font for 3-digit numbers
+    final fontSize = scoreText.length >= 3 ? size * 0.22 : size * 0.3;
+
     return SizedBox(
       width: size,
       height: size,
       child: Stack(
         alignment: Alignment.center,
         children: [
-          // Background circle
-          CircularProgressIndicator(
-            value: 1,
-            strokeWidth: 4,
-            color: AppColors.surface,
+          SizedBox.expand(
+            child: CircularProgressIndicator(
+              value: 1,
+              strokeWidth: 3,
+              color: AppColors.surface,
+            ),
           ),
-          // Score arc
-          CircularProgressIndicator(
-            value: displayScore / 100,
-            strokeWidth: 4,
-            color: color,
-            strokeCap: StrokeCap.round,
+          SizedBox.expand(
+            child: CircularProgressIndicator(
+              value: displayScore / 100,
+              strokeWidth: 3,
+              color: color,
+              strokeCap: StrokeCap.round,
+            ),
           ),
-          // Score text
-          Padding(
-            padding: EdgeInsets.all(size * 0.12),
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(
-                score != null ? '${displayScore.toInt()}' : '—',
-                style: AppTypography.numericSmall.copyWith(
-                  color: color,
-                  fontSize: size * 0.28,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
+          Text(
+            scoreText,
+            style: AppTypography.numericSmall.copyWith(
+              color: color,
+              fontSize: fontSize,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ],
