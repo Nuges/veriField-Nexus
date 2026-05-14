@@ -215,17 +215,17 @@ class TrustScoreGauge extends StatelessWidget {
             color: color,
             strokeCap: StrokeCap.round,
           ),
-          // Score text — FittedBox prevents overflow for 3-digit scores
+          // Score text
           Padding(
-            padding: EdgeInsets.all(size * 0.2),
+            padding: EdgeInsets.all(size * 0.12),
             child: FittedBox(
               fit: BoxFit.scaleDown,
               child: Text(
                 score != null ? '${displayScore.toInt()}' : '—',
                 style: AppTypography.numericSmall.copyWith(
                   color: color,
-                  fontSize: size * 0.35,
-                  fontWeight: FontWeight.w800,
+                  fontSize: size * 0.28,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ),
