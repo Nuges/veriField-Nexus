@@ -61,6 +61,37 @@ METHODOLOGY_DEFAULTS = {
         "fraction_non_renewable_biomass": 0.80,
         "leakage_factor": 0.95,
     },
+    # --- New per-type methodologies ---
+    "VM0042": {
+        "sequestration_tco2_ha_yr": 3.5,
+        "practice_multipliers": {
+            "conservation_tillage": 0.8,
+            "cover_cropping": 1.0,
+            "agroforestry": 1.5,
+            "composting": 0.6,
+            "other": 0.5,
+        },
+        "is_monthly_check": True,
+    },
+    "VM0047_ARR": {
+        "co2_per_tree_yr": 0.022,
+        "default_survival_rate": 0.80,
+        "is_monthly_check": True,
+    },
+    "AMS_IA": {
+        "grid_emission_factor_tco2_kwh": 0.0005,
+    },
+    "GS_SAFE_WATER": {
+        "fuel_saved_kg_per_person_yr": 180.0,
+        "persons_per_household": 5,
+        "ncv_mj_kg": 16.0,
+        "ef_tco2_tj": 112.0,
+        "f_nrb": 0.80,
+        "is_monthly_check": True,
+    },
+    "AMS_IIIC": {
+        "baseline_emission_factor_tco2_km": 0.00021,
+    },
 }
 
 
@@ -107,16 +138,16 @@ class QuantificationEngine:
                 raise ValueError("Project not found")
         else:
             # Auto-find project matching activity type
+            # Map activity types to their correct methodologies
             type_to_method = {
-                # New Smart Installation types
                 "CLEAN_COOKING": ["VM0006", "VMR0050", "GS_TPDDTEC", "GS_MECD"],
-                "AGRICULTURE": ["VM0006"],
+                "AGRICULTURE": ["VM0006"],  # Uses VM0042 calc but VM0006 project as host
                 "ENERGY_USE": ["GS_MECD"],
-                "FORESTRY_LAND_USE": ["VM0006"],
+                "FORESTRY_LAND_USE": ["VM0006"],  # Uses VM0047 calc but VM0006 project as host
                 "SAFE_WATER": ["GS_TPDDTEC"],
                 "TRANSPORT_MOBILITY": ["GS_MECD"],
                 "OTHER": ["VM0006", "GS_TPDDTEC", "GS_MECD"],
-                # Legacy types (backwards compatibility)
+                # Legacy types
                 "cooking": ["VM0006", "VMR0050", "GS_TPDDTEC", "GS_MECD"],
                 "energy": ["GS_MECD"],
                 "farming": ["VM0006"],
@@ -133,17 +164,30 @@ class QuantificationEngine:
             if not project:
                 raise ValueError(f"No project found for activity type '{activity.activity_type}'")
 
-
-        # Route to the correct methodology
-        methodology = project.methodology_id
-        if methodology in ["VM0006", "VMR0050"]:
-            tco2e, log = await self._calculate_verra_cookstove(activity, project)
-        elif methodology == "GS_MECD":
-            tco2e, log = await self._calculate_mecd(activity, project)
-        elif methodology == "GS_TPDDTEC":
-            tco2e, log = await self._calculate_tpddtec(activity, project)
+        # Route to the correct calculation based on ACTIVITY TYPE first,
+        # then fall back to methodology-based routing
+        act_type = activity.activity_type.upper()
+        if act_type == "AGRICULTURE":
+            tco2e, log = await self._calculate_agriculture(activity, project)
+        elif act_type == "FORESTRY_LAND_USE":
+            tco2e, log = await self._calculate_forestry(activity, project)
+        elif act_type == "ENERGY_USE":
+            tco2e, log = await self._calculate_energy(activity, project)
+        elif act_type == "SAFE_WATER":
+            tco2e, log = await self._calculate_safe_water(activity, project)
+        elif act_type == "TRANSPORT_MOBILITY":
+            tco2e, log = await self._calculate_transport(activity, project)
         else:
-            raise ValueError(f"Unsupported methodology: {methodology}")
+            # Default: route by project methodology (CLEAN_COOKING, OTHER, legacy)
+            methodology = project.methodology_id
+            if methodology in ["VM0006", "VMR0050"]:
+                tco2e, log = await self._calculate_verra_cookstove(activity, project)
+            elif methodology == "GS_MECD":
+                tco2e, log = await self._calculate_mecd(activity, project)
+            elif methodology == "GS_TPDDTEC":
+                tco2e, log = await self._calculate_tpddtec(activity, project)
+            else:
+                raise ValueError(f"Unsupported methodology: {methodology}")
 
         # Store immutable record
         calc = CarbonCalculation(
@@ -367,3 +411,196 @@ class QuantificationEngine:
         }
 
         return max(0.0, final_tco2e), log
+
+    # =========================================================================
+    # Methodology: Verra VM0042 — Agriculture / Soil Carbon
+    # =========================================================================
+    async def _calculate_agriculture(
+        self, activity: Activity, project: Project
+    ) -> Tuple[float, Dict[str, Any]]:
+        """
+        VM0042: Soil carbon sequestration from sustainable agricultural practices.
+        Formula: ER = plot_area_ha * sequestration_rate * practice_multiplier
+        """
+        defaults = METHODOLOGY_DEFAULTS.get("VM0042", {})
+        data = activity.activity_data or {}
+
+        plot_area = float(data.get("plot_area_hectares", 1.0))
+        seq_rate = defaults.get("sequestration_tco2_ha_yr", 3.5)
+        practice = data.get("practice_type", "other")
+        multipliers = defaults.get("practice_multipliers", {})
+        multiplier = multipliers.get(practice, 0.5)
+
+        er_y = plot_area * seq_rate * multiplier
+        is_monthly = defaults.get("is_monthly_check", True)
+        final_tco2e = round(er_y / 12.0, 4) if is_monthly else round(er_y, 4)
+
+        log = {
+            "methodology": "VM0042",
+            "mrv_data_source": "Field_Agent_Survey",
+            "inputs": {
+                "plot_area_hectares": plot_area,
+                "sequestration_tco2_ha_yr": seq_rate,
+                "practice_type": practice,
+                "practice_multiplier": multiplier,
+                "prorated_monthly": is_monthly,
+            },
+            "formula_trace": "plot_area * sequestration_rate * practice_multiplier",
+            "annual_er": round(er_y, 4),
+            "final_tco2e": final_tco2e,
+        }
+        return max(0.0, final_tco2e), log
+
+    # =========================================================================
+    # Methodology: Verra VM0047 — Forestry / Afforestation
+    # =========================================================================
+    async def _calculate_forestry(
+        self, activity: Activity, project: Project
+    ) -> Tuple[float, Dict[str, Any]]:
+        """
+        VM0047 ARR: CO2 sequestration from tree planting.
+        Formula: ER = tree_count * co2_per_tree_yr * survival_rate
+        """
+        defaults = METHODOLOGY_DEFAULTS.get("VM0047_ARR", {})
+        data = activity.activity_data or {}
+
+        tree_count = int(data.get("tree_count", 0))
+        co2_per_tree = defaults.get("co2_per_tree_yr", 0.022)
+        survival_rate = float(data.get("survival_rate_pct", 80)) / 100.0
+        if survival_rate <= 0 or survival_rate > 1:
+            survival_rate = defaults.get("default_survival_rate", 0.80)
+
+        er_y = tree_count * co2_per_tree * survival_rate
+        is_monthly = defaults.get("is_monthly_check", True)
+        final_tco2e = round(er_y / 12.0, 4) if is_monthly else round(er_y, 4)
+
+        log = {
+            "methodology": "VM0047_ARR",
+            "mrv_data_source": "Field_Agent_Survey",
+            "inputs": {
+                "tree_count": tree_count,
+                "co2_per_tree_yr": co2_per_tree,
+                "survival_rate": survival_rate,
+                "prorated_monthly": is_monthly,
+            },
+            "formula_trace": "tree_count * co2_per_tree_yr * survival_rate",
+            "annual_er": round(er_y, 4),
+            "final_tco2e": final_tco2e,
+        }
+        return max(0.0, final_tco2e), log
+
+    # =========================================================================
+    # Methodology: CDM AMS-I.A — Renewable Energy / Electricity
+    # =========================================================================
+    async def _calculate_energy(
+        self, activity: Activity, project: Project
+    ) -> Tuple[float, Dict[str, Any]]:
+        """
+        AMS-I.A: Grid displacement from renewable energy.
+        Formula: ER = daily_output_kwh * 365 * grid_ef
+        """
+        defaults = METHODOLOGY_DEFAULTS.get("AMS_IA", {})
+        data = activity.activity_data or {}
+
+        daily_kwh = float(data.get("daily_output_kwh", data.get("capacity_kw", 5.0)))
+        grid_ef = defaults.get("grid_emission_factor_tco2_kwh", 0.0005)
+        annual_kwh = daily_kwh * 365.0
+
+        er_y = annual_kwh * grid_ef
+        final_tco2e = round(er_y / 12.0, 4)  # Monthly proration
+
+        log = {
+            "methodology": "AMS_IA",
+            "mrv_data_source": "Metered_Output",
+            "inputs": {
+                "daily_output_kwh": daily_kwh,
+                "annual_kwh": annual_kwh,
+                "grid_emission_factor_tco2_kwh": grid_ef,
+            },
+            "formula_trace": "daily_kwh * 365 * grid_ef / 12",
+            "annual_er": round(er_y, 4),
+            "final_tco2e": final_tco2e,
+        }
+        return max(0.0, final_tco2e), log
+
+    # =========================================================================
+    # Methodology: Gold Standard Safe Water Supply
+    # =========================================================================
+    async def _calculate_safe_water(
+        self, activity: Activity, project: Project
+    ) -> Tuple[float, Dict[str, Any]]:
+        """
+        GS Safe Water: Fuel savings from eliminating need to boil water.
+        Formula: ER = households * persons_per_hh * fuel_saved_kg * NCV * EF * fNRB / 1e6
+        """
+        defaults = METHODOLOGY_DEFAULTS.get("GS_SAFE_WATER", {})
+        data = activity.activity_data or {}
+
+        households = int(data.get("households_served", 1))
+        persons = defaults.get("persons_per_household", 5)
+        fuel_saved = defaults.get("fuel_saved_kg_per_person_yr", 180.0)
+        ncv = defaults.get("ncv_mj_kg", 16.0)
+        ef = defaults.get("ef_tco2_tj", 112.0)
+        f_nrb = defaults.get("f_nrb", 0.80)
+
+        total_fuel_kg = households * persons * fuel_saved
+        energy_tj = (total_fuel_kg * ncv) / 1e6
+        er_y = energy_tj * ef * f_nrb
+
+        is_monthly = defaults.get("is_monthly_check", True)
+        final_tco2e = round(er_y / 12.0, 4) if is_monthly else round(er_y, 4)
+
+        log = {
+            "methodology": "GS_SAFE_WATER",
+            "mrv_data_source": "Field_Agent_Survey",
+            "inputs": {
+                "households_served": households,
+                "persons_per_household": persons,
+                "fuel_saved_kg_per_person_yr": fuel_saved,
+                "ncv_mj_kg": ncv,
+                "ef_tco2_tj": ef,
+                "f_nrb": f_nrb,
+                "prorated_monthly": is_monthly,
+            },
+            "formula_trace": "(households * persons * fuel_saved * NCV * EF * fNRB) / 1e6",
+            "total_fuel_saved_kg": total_fuel_kg,
+            "energy_tj": round(energy_tj, 6),
+            "annual_er": round(er_y, 4),
+            "final_tco2e": final_tco2e,
+        }
+        return max(0.0, final_tco2e), log
+
+    # =========================================================================
+    # Methodology: CDM AMS-III.C — Transport / Low-Emission Vehicles
+    # =========================================================================
+    async def _calculate_transport(
+        self, activity: Activity, project: Project
+    ) -> Tuple[float, Dict[str, Any]]:
+        """
+        AMS-III.C: Emission reduction from clean transport.
+        Formula: ER = daily_distance_km * 365 * baseline_ef
+        """
+        defaults = METHODOLOGY_DEFAULTS.get("AMS_IIIC", {})
+        data = activity.activity_data or {}
+
+        daily_km = float(data.get("daily_distance_km", 0.0))
+        baseline_ef = defaults.get("baseline_emission_factor_tco2_km", 0.00021)
+        annual_km = daily_km * 365.0
+
+        er_y = annual_km * baseline_ef
+        final_tco2e = round(er_y / 12.0, 4)  # Monthly proration
+
+        log = {
+            "methodology": "AMS_IIIC",
+            "mrv_data_source": "Vehicle_Telemetry",
+            "inputs": {
+                "daily_distance_km": daily_km,
+                "annual_km": annual_km,
+                "baseline_emission_factor_tco2_km": baseline_ef,
+            },
+            "formula_trace": "daily_km * 365 * baseline_ef / 12",
+            "annual_er": round(er_y, 4),
+            "final_tco2e": final_tco2e,
+        }
+        return max(0.0, final_tco2e), log
+
