@@ -64,15 +64,15 @@ export default function AuditsPage() {
         </div>
       </div>
 
-      <div className="bg-[var(--color-card)] border border-[var(--color-border)] rounded-2xl overflow-hidden animate-fade-in-up animation-delay-100">
-        <div className="p-4 border-b border-[var(--color-border)] flex items-center justify-between bg-[var(--color-surface)]">
+      <div className="bg-[var(--color-card)] border border-[var(--color-border)] rounded-2xl animate-fade-in-up animation-delay-100">
+        <div className="p-4 border-b border-[var(--color-border)] flex items-center justify-between bg-[var(--color-surface)] rounded-t-2xl">
           <h2 className="font-semibold text-[var(--color-text-primary)]">Field Assignments</h2>
           <div className="text-xs font-medium text-[var(--color-text-secondary)] bg-[var(--color-background)] px-3 py-1 rounded-full border border-[var(--color-border)]">
             {audits.length} Tasks
           </div>
         </div>
         
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto rounded-b-2xl">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-[var(--color-surface)] border-b border-[var(--color-border)]">
@@ -148,7 +148,7 @@ export default function AuditsPage() {
                         {openMenu === audit.id && (
                           <div
                             onClick={(e) => e.stopPropagation()}
-                            className="absolute right-0 top-full mt-1 w-44 bg-[var(--color-card)] border border-[var(--color-border)] rounded-xl shadow-xl z-20 py-1"
+                            className="absolute right-0 bottom-full mb-1 w-44 bg-[var(--color-card)] border border-[var(--color-border)] rounded-xl shadow-xl z-50 py-1"
                           >
                             {audit.status === "pending" && (
                               <button
