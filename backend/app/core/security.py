@@ -46,7 +46,7 @@ async def decode_jwt_token(token: str) -> dict:
     """
     # Check cache first
     if token in _token_cache:
-        return {"sub": _token_cache[token]}
+        return _token_cache[token]
 
     import httpx
     import asyncio
@@ -67,8 +67,10 @@ async def decode_jwt_token(token: str) -> dict:
                     user_data = response.json()
                     user_id = user_data.get("id")
                     if user_id:
-                        _token_cache[token] = user_id
-                        return {"sub": user_id}
+                        email = user_data.get("email", f"{user_id}@verifield.local")
+                        payload = {"sub": user_id, "email": email}
+                        _token_cache[token] = payload
+                        return payload
                 
                 # If not 200 or missing ID, token is invalid
                 raise HTTPException(
@@ -136,10 +138,19 @@ async def get_current_user(
     user = result.scalar_one_or_none()
 
     if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found. Please complete registration.",
+        # Auto-create user from Supabase Auth sync
+        import uuid
+        user_email = payload.get("email", f"{user_id}@verifield.local")
+        user = User(
+            id=uuid.UUID(user_id),
+            email=user_email,
+            full_name=user_email.split('@')[0],
+            role="field_agent",
+            status="active"
         )
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
 
     if user.status != "active":
         raise HTTPException(
