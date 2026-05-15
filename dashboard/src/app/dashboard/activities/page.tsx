@@ -18,6 +18,8 @@ export default function ActivitiesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
+  const [error, setError] = useState<string | null>(null);
+
   // Filters
   const [page, setPage] = useState(1);
   const [activityType, setActivityType] = useState("");
@@ -27,12 +29,14 @@ export default function ActivitiesPage() {
 
   const loadActivities = async () => {
     setIsLoading(true);
+    setError(null);
     try {
       const res = await fetchActivities({ page, per_page: 20, activity_type: activityType, status });
       setData(res);
       setLastUpdated(new Date());
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      setError(err?.message || "Failed to load installations. Please refresh or re-login.");
     } finally {
       setIsLoading(false);
     }
@@ -123,6 +127,17 @@ export default function ActivitiesPage() {
               {isLoading && !data ? (
                 <tr>
                   <td colSpan={5} className="p-8 text-center text-[var(--color-text-secondary)]">Loading activities...</td>
+                </tr>
+              ) : error ? (
+                <tr>
+                  <td colSpan={5} className="p-8 text-center">
+                    <div className="flex flex-col items-center gap-3">
+                      <span className="text-red-400 text-sm font-medium">{error}</span>
+                      <button onClick={loadActivities} className="px-4 py-2 rounded-xl bg-emerald-500/10 text-emerald-400 text-sm font-medium hover:bg-emerald-500/20 transition-colors">
+                        Retry
+                      </button>
+                    </div>
+                  </td>
                 </tr>
               ) : data?.activities.length === 0 ? (
                 <tr>
