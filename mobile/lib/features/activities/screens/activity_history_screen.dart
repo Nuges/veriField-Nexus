@@ -12,11 +12,13 @@ import 'package:intl/intl.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/constants/app_spacing.dart';
+import 'dart:async';
 import '../../../shared/widgets/shared_widgets.dart';
 import '../../../services/api_service.dart';
 import '../../../services/sync_service.dart';
 import '../../../services/local_db_service.dart';
 import '../../sync/widgets/sync_status_indicator.dart';
+import '../../../core/utils/refresh_event_bus.dart';
 
 class ActivityHistoryScreen extends StatefulWidget {
   const ActivityHistoryScreen({super.key});
@@ -30,11 +32,21 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
   bool _isLoading = true;
   bool _isOnline = true;
   int _pendingCount = 0;
+  StreamSubscription? _refreshSub;
 
   @override
   void initState() {
     super.initState();
     _loadActivities();
+    _refreshSub = RefreshEventBus.onActivityRefresh.listen((_) {
+      if (mounted) _loadActivities();
+    });
+  }
+
+  @override
+  void dispose() {
+    _refreshSub?.cancel();
+    super.dispose();
   }
 
   /// Load activities from API (online) or local cache (offline).

@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/router/app_router.dart';
+import '../../core/utils/refresh_event_bus.dart';
 
 /// Shell widget providing bottom navigation across main app sections.
 class VFShell extends StatelessWidget {
@@ -25,6 +26,7 @@ class VFShell extends StatelessWidget {
         onPressed: () async {
           final result = await context.push(AppRoutes.newActivity);
           if (result == true) {
+            RefreshEventBus.triggerActivityRefresh();
             if (context.mounted) {
               context.pushReplacement(AppRoutes.home);
             }

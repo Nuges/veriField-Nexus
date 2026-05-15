@@ -45,10 +45,10 @@ export default function ActivitiesPage() {
   useEffect(() => {
     loadActivities();
     
-    // Auto-refresh the activities list every 15 seconds
+    // Auto-refresh the activities list every 5 seconds for near real-time updates
     const interval = setInterval(() => {
       loadActivities();
-    }, 15000);
+    }, 5000);
     
     return () => clearInterval(interval);
   }, [page, activityType, status]);
