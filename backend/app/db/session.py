@@ -29,8 +29,8 @@ elif db_url and db_url.startswith("postgresql://"):
 engine = create_async_engine(
     db_url,
     echo=settings.debug,        # Log SQL queries in debug mode
-    pool_size=10,                # Handle concurrent Next.js dashboard requests
-    max_overflow=0,              # Hard limit at 10 to stay under Supabase 15 connection limit
+    pool_size=4,                 # Reduced to stay well below Supabase limits
+    max_overflow=2,              # Soft limit to handle bursts without hitting 15
     pool_pre_ping=True,          # Verify connections before use
     pool_recycle=300,            # Recycle connections every 5 minutes
     pool_timeout=15,             # Wait up to 15s for a connection

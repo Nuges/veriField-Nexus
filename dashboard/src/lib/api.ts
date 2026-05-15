@@ -156,9 +156,15 @@ export async function fetchActivities(params?: {
   if (params?.max_trust !== undefined) searchParams.set("max_trust", String(params.max_trust));
 
   const query = searchParams.toString();
-  return apiFetch<ActivityListResponse>(
+  const res = await apiFetch<any>(
     `/activities${query ? `?${query}` : ""}`
   );
+  
+  // Map backend's 'data' key to the dashboard's expected 'activities' key
+  return {
+    ...res,
+    activities: res.data || [],
+  } as ActivityListResponse;
 }
 
 export async function fetchActivity(id: string): Promise<Activity> {
