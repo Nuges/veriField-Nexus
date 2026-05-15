@@ -90,7 +90,34 @@ METHODOLOGY_DEFAULTS = {
         "is_monthly_check": True,
     },
     "AMS_IIIC": {
-        "baseline_emission_factor_tco2_km": 0.00021,
+        # Baseline emission factors by vehicle type (tCO2/km) — diesel baseline
+        "baseline_ef_by_vehicle": {
+            "motorcycle_okada": 0.00008,
+            "tricycle_keke": 0.00012,
+            "car_taxi": 0.00021,
+            "minibus_danfo": 0.00035,
+            "bus": 0.00065,
+            "light_truck": 0.00045,
+            "heavy_truck": 0.00090,
+            "forklift": 0.0040,   # tCO2/hour for forklifts
+        },
+        # Project emission factors by energy type (tCO2/km)
+        "project_ef_by_energy": {
+            "EV": 0.00003,         # Grid electricity
+            "hybrid": 0.00012,     # Partial fuel savings
+            "CNG": 0.00014,        # Cleaner than diesel
+            "LPG": 0.00016,        # Cleaner than diesel
+            "diesel_retrofit": 0.00018,  # Marginal improvement
+        },
+        # Charging source adjustment for EVs (multiplier on project EF)
+        "charging_source_multiplier": {
+            "grid": 1.0,
+            "solar_onsite": 0.05,   # Near-zero project emissions
+            "solar_offsite": 0.15,
+            "generator": 2.5,       # Generator defeats purpose
+            "mixed": 0.6,
+        },
+        "forklift_km_equivalent_per_hour": 5.0,
     },
 }
 
@@ -578,28 +605,77 @@ class QuantificationEngine:
     ) -> Tuple[float, Dict[str, Any]]:
         """
         AMS-III.C: Emission reduction from clean transport.
-        Formula: ER = daily_distance_km * 365 * baseline_ef
+        Formula: ER = distance_km * (baseline_ef - project_ef) * charging_adj
+        Forklift: ER = operating_hours * baseline_ef_per_hour * (1 - project_ratio)
         """
         defaults = METHODOLOGY_DEFAULTS.get("AMS_IIIC", {})
         data = activity.activity_data or {}
 
-        daily_km = float(data.get("daily_distance_km", 0.0))
-        baseline_ef = defaults.get("baseline_emission_factor_tco2_km", 0.00021)
-        annual_km = daily_km * 365.0
+        vehicle_type = data.get("vehicle_type", "car_taxi")
+        energy_type = data.get("energy_type", "EV")
+        charging_source = data.get("charging_source", "grid")
 
-        er_y = annual_km * baseline_ef
-        final_tco2e = round(er_y / 12.0, 4)  # Monthly proration
+        # Get baseline and project emission factors
+        baseline_efs = defaults.get("baseline_ef_by_vehicle", {})
+        project_efs = defaults.get("project_ef_by_energy", {})
+        charging_mults = defaults.get("charging_source_multiplier", {})
+
+        baseline_ef = baseline_efs.get(vehicle_type, 0.00021)
+        project_ef = project_efs.get(energy_type, 0.00012)
+
+        # Charging source adjustment (only for EV/hybrid)
+        charging_adj = 1.0
+        if energy_type in ["EV", "hybrid"]:
+            charging_adj = charging_mults.get(charging_source, 1.0)
+            project_ef = project_ef * charging_adj
+
+        # Calculate distance
+        if vehicle_type == "forklift":
+            # Forklifts: use operating hours instead of distance
+            operating_hours = float(data.get("operating_hours", 0.0))
+            operating_days = int(data.get("operating_days", 1))
+            forklift_ef = baseline_efs.get("forklift", 0.004)  # tCO2/hour
+            # Project ratio based on energy type
+            project_ratio = project_ef / max(baseline_ef, 0.0001)
+            er_period = operating_hours * forklift_ef * (1.0 - project_ratio)
+            distance_km = operating_hours * defaults.get("forklift_km_equivalent_per_hour", 5.0)
+            formula = "operating_hours * baseline_ef/hr * (1 - project_ratio)"
+        else:
+            # Normal vehicles: use odometer data
+            odo_start = float(data.get("odometer_start", 0.0))
+            odo_end = float(data.get("odometer_end", 0.0))
+            distance_km = max(0.0, odo_end - odo_start)
+            operating_days = int(data.get("operating_days", 1))
+            # Emission reduction = distance * (baseline - project)
+            er_period = distance_km * (baseline_ef - project_ef)
+            operating_hours = 0.0
+            formula = "distance_km * (baseline_ef - project_ef)"
+
+        # Annualize: scale from measurement period to yearly
+        daily_avg = er_period / max(operating_days, 1)
+        er_annual = daily_avg * 365.0
+        final_tco2e = round(er_annual / 12.0, 4)  # Monthly proration
 
         log = {
             "methodology": "AMS_IIIC",
-            "mrv_data_source": "Vehicle_Telemetry",
+            "mrv_data_source": "Odometer_and_Field_Agent",
             "inputs": {
-                "daily_distance_km": daily_km,
-                "annual_km": annual_km,
-                "baseline_emission_factor_tco2_km": baseline_ef,
+                "vehicle_type": vehicle_type,
+                "energy_type": energy_type,
+                "charging_source": charging_source,
+                "distance_km": round(distance_km, 2),
+                "operating_days": operating_days,
+                "operating_hours": float(data.get("operating_hours", 0.0)),
+                "energy_used": float(data.get("energy_used", 0.0)),
+                "energy_unit": data.get("energy_unit", "kWh"),
+                "baseline_ef_tco2_km": baseline_ef,
+                "project_ef_tco2_km": round(project_ef, 8),
+                "charging_adjustment": charging_adj,
             },
-            "formula_trace": "daily_km * 365 * baseline_ef / 12",
-            "annual_er": round(er_y, 4),
+            "formula_trace": formula,
+            "er_measurement_period": round(er_period, 6),
+            "daily_avg_tco2": round(daily_avg, 6),
+            "annual_er": round(er_annual, 4),
             "final_tco2e": final_tco2e,
         }
         return max(0.0, final_tco2e), log

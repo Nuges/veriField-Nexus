@@ -93,11 +93,20 @@ def calculate_carbon_offset(activity_type: str, data: dict) -> dict:
             "methodology_reference": "Gold Standard Safe Water",
         }
     elif activity_type_upper == "TRANSPORT_MOBILITY":
-        km = data.get("daily_distance_km", 20)
+        # AMS-III.C: Use odometer data for distance
+        odo_start = data.get("odometer_start", 0)
+        odo_end = data.get("odometer_end", 0)
+        distance_km = max(0, odo_end - odo_start)
         energy_type = data.get("energy_type", "EV")
-        factor = {"EV": 0.12, "hybrid": 0.08, "CNG": 0.05, "diesel_retrofit": 0.03}
+        vehicle_type = data.get("vehicle_type", "car_taxi")
+        # Per-vehicle baseline EFs
+        baseline_efs = {"motorcycle_okada": 0.08, "tricycle_keke": 0.12, "car_taxi": 0.21, "minibus_danfo": 0.35, "bus": 0.65, "light_truck": 0.45, "heavy_truck": 0.90, "forklift": 4.0}
+        project_efs = {"EV": 0.03, "hybrid": 0.12, "CNG": 0.14, "LPG": 0.16, "diesel_retrofit": 0.18}
+        base = baseline_efs.get(vehicle_type, 0.21)
+        proj = project_efs.get(energy_type, 0.12)
+        reduction_kg = round(distance_km * (base - proj), 2)
         return {
-            "emission_reduction_value_kg": round(km * factor.get(energy_type, 0.05), 2),
+            "emission_reduction_value_kg": reduction_kg,
             "methodology_reference": "CDM AMS-III.C.",
         }
     # Legacy fallback for old activity types

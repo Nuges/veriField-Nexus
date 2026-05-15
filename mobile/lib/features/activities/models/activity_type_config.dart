@@ -127,16 +127,29 @@ final List<ActivityTypeConfig> activityTypes = [
   ActivityTypeConfig(
     id: 'TRANSPORT_MOBILITY',
     label: 'Transport',
-    description: 'Clean mobility logging',
+    description: 'Clean mobility (AMS-III.C)',
     icon: Icons.directions_car_rounded,
     color: const Color(0xFF7B1FA2),
     methodology: 'CDM AMS-III.C.',
     fields: [
-      FormFieldDef(key: 'vehicle_id', label: 'Vehicle ID', type: 'string', required: true),
+      // Vehicle identification
+      FormFieldDef(key: 'vehicle_type', label: 'Vehicle Type', type: 'enum', required: true,
+          options: ['motorcycle_okada', 'tricycle_keke', 'car_taxi', 'minibus_danfo', 'bus', 'light_truck', 'heavy_truck', 'forklift']),
       FormFieldDef(key: 'energy_type', label: 'Energy Type', type: 'enum', required: true,
-          options: ['EV', 'hybrid', 'CNG', 'diesel_retrofit']),
-      FormFieldDef(key: 'daily_distance_km', label: 'Daily Distance (km)', type: 'float', required: true),
-      FormFieldDef(key: 'energy_consumption_kwh', label: 'Energy Used (kWh)', type: 'float'),
+          options: ['EV', 'hybrid', 'CNG', 'LPG', 'diesel_retrofit']),
+      FormFieldDef(key: 'vehicle_id', label: 'Vehicle ID', type: 'string', required: true),
+      FormFieldDef(key: 'registration_number', label: 'Registration Number', type: 'string', required: true),
+      // Usage data
+      FormFieldDef(key: 'odometer_start', label: 'Odometer Start (km)', type: 'float', required: true),
+      FormFieldDef(key: 'odometer_end', label: 'Odometer End (km)', type: 'float', required: true),
+      FormFieldDef(key: 'operating_days', label: 'Operating Days', type: 'int', required: true),
+      FormFieldDef(key: 'energy_used', label: 'Energy Used', type: 'float', required: true),
+      FormFieldDef(key: 'energy_unit', label: 'Energy Unit', type: 'enum',
+          options: ['kWh', 'litres', 'm3']),
+      FormFieldDef(key: 'charging_source', label: 'Charging Source', type: 'enum',
+          options: ['grid', 'solar_onsite', 'solar_offsite', 'generator', 'mixed']),
+      // Forklift mode
+      FormFieldDef(key: 'operating_hours', label: 'Operating Hours', type: 'float'),
     ],
   ),
   ActivityTypeConfig(
