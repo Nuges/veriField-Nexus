@@ -86,6 +86,7 @@ async function apiFetch<T>(
       ...options,
       headers,
       signal: controller.signal,
+      cache: "no-store", // Prevents Next.js aggressive caching for dashboard live data
     });
     clearTimeout(timeoutId);
   } catch (networkError: any) {
