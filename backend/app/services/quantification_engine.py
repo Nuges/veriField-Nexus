@@ -377,21 +377,18 @@ class QuantificationEngine:
         self, activity: Activity, project: Project
     ) -> Tuple[float, Dict[str, Any]]:
         """
-        Gold Standard TPDDTEC — Technologies and Practices to Displace
-        Decentralized Thermal Energy Consumption.
-
-        Formula:
+        Gold Standard TPDDTEC v3.1 (Clean Cooking)
         ER = (B_fuel * (1 - eff_b/eff_p)) * NCV * EF * fNRB * leakage_factor
-
-        Where:
-        - eff_b = baseline thermal efficiency (e.g., 10% for three-stone fire)
-        - eff_p = project thermal efficiency (e.g., 35% for improved cookstove)
+        Now incorporates user-provided monthly baseline fuel.
         """
         params = project.baseline_parameters or {}
         defaults = METHODOLOGY_DEFAULTS.get("GS_TPDDTEC", {})
         data = activity.activity_data or {}
 
-        b_fuel = self._get_param(params, defaults, "baseline_fuel_kg_yr", data)
+        # Baseline fuel from form (monthly kg) or default to configured annual
+        monthly_b_fuel = float(data.get("baseline_fuel_consumption", 0.0))
+        b_fuel = (monthly_b_fuel * 12.0) if monthly_b_fuel > 0 else self._get_param(params, defaults, "baseline_fuel_kg_yr", data)
+
         eff_b = self._get_param(params, defaults, "thermal_efficiency_baseline", data)
         eff_p = self._get_param(params, defaults, "thermal_efficiency_project", data)
         ncv_mj_kg = self._get_param(params, defaults, "ncv_mj_kg", data)
@@ -399,44 +396,38 @@ class QuantificationEngine:
         f_nrb = self._get_param(params, defaults, "fraction_non_renewable_biomass", data)
         leakage = self._get_param(params, defaults, "leakage_factor", data)
 
-        # Fuel savings from efficiency improvement
+        # Check project usage flag (if abandoned/not in use, no reduction)
+        is_used = data.get("usage_flag", True)
+        if not is_used:
+            return 0.0, {"status": "Not in use", "annual_er": 0.0, "final_tco2e": 0.0}
+
         fuel_savings_fraction = 1.0 - (eff_b / eff_p) if eff_p > 0 else 0.0
         fuel_savings_kg = b_fuel * fuel_savings_fraction
-
-        # Convert to energy (TJ)
         energy_tj = (fuel_savings_kg * ncv_mj_kg) / 1e6
-
-        # Emission reduction
         er_y = energy_tj * ef * f_nrb * leakage
 
-        # Prorate if monthly
         is_monthly = data.get("is_monthly_check", params.get("is_monthly_check", True))
-        if is_monthly:
-            final_tco2e = round(er_y / 12.0, 4)
-        else:
-            final_tco2e = round(er_y, 4)
+        final_tco2e = round(er_y / 12.0, 4) if is_monthly else round(er_y, 4)
 
         log = {
             "methodology": "GS_TPDDTEC",
-            "mrv_data_source": "KPT_and_Water_Boiling_Test",
+            "mrv_data_source": "Field_Baseline_Data",
             "inputs": {
+                "baseline_fuel_source": data.get("baseline_fuel", "wood"),
                 "baseline_fuel_kg_yr": b_fuel,
+                "project_fuel_source": data.get("primary_fuel", "pellet"),
                 "thermal_efficiency_baseline": eff_b,
                 "thermal_efficiency_project": eff_p,
                 "ncv_mj_kg": ncv_mj_kg,
                 "ef_tco2_tj": ef,
                 "f_nrb": f_nrb,
                 "leakage_factor": leakage,
-                "prorated_monthly": is_monthly,
             },
             "formula_trace": "(B_fuel * (1 - eff_b/eff_p)) * NCV * EF * fNRB * leakage",
-            "fuel_savings_fraction": round(fuel_savings_fraction, 4),
             "fuel_savings_kg": round(fuel_savings_kg, 2),
-            "energy_tj": round(energy_tj, 6),
             "annual_er": round(er_y, 4),
             "final_tco2e": final_tco2e,
         }
-
         return max(0.0, final_tco2e), log
 
     # =========================================================================
@@ -447,7 +438,7 @@ class QuantificationEngine:
     ) -> Tuple[float, Dict[str, Any]]:
         """
         VM0042: Soil carbon sequestration from sustainable agricultural practices.
-        Formula: ER = plot_area_ha * sequestration_rate * practice_multiplier
+        ER = plot_area_ha * sequestration_rate * practice_multiplier
         """
         defaults = METHODOLOGY_DEFAULTS.get("VM0042", {})
         data = activity.activity_data or {}
@@ -458,6 +449,12 @@ class QuantificationEngine:
         multipliers = defaults.get("practice_multipliers", {})
         multiplier = multipliers.get(practice, 0.5)
 
+        # Baseline adjustment: If they used synthetic fertilizer and stopped, boost multiplier
+        baseline_synth = data.get("baseline_synthetic_fert", False)
+        project_fert = data.get("fertiliser_type", "both")
+        if baseline_synth and project_fert in ["organic_only", "none"]:
+            multiplier += 0.2  # Bonus for eliminating synthetic N2O emissions
+
         er_y = plot_area * seq_rate * multiplier
         is_monthly = defaults.get("is_monthly_check", True)
         final_tco2e = round(er_y / 12.0, 4) if is_monthly else round(er_y, 4)
@@ -467,10 +464,10 @@ class QuantificationEngine:
             "mrv_data_source": "Field_Agent_Survey",
             "inputs": {
                 "plot_area_hectares": plot_area,
+                "baseline_practice": data.get("baseline_practice", "unknown"),
                 "sequestration_tco2_ha_yr": seq_rate,
-                "practice_type": practice,
-                "practice_multiplier": multiplier,
-                "prorated_monthly": is_monthly,
+                "project_practice": practice,
+                "final_multiplier": round(multiplier, 2),
             },
             "formula_trace": "plot_area * sequestration_rate * practice_multiplier",
             "annual_er": round(er_y, 4),
@@ -486,31 +483,54 @@ class QuantificationEngine:
     ) -> Tuple[float, Dict[str, Any]]:
         """
         VM0047 ARR: CO2 sequestration from tree planting.
-        Formula: ER = tree_count * co2_per_tree_yr * survival_rate
+        Utilizes DBH and Height if available, otherwise falls back to default.
         """
         defaults = METHODOLOGY_DEFAULTS.get("VM0047_ARR", {})
         data = activity.activity_data or {}
 
         tree_count = int(data.get("tree_count", 0))
-        co2_per_tree = defaults.get("co2_per_tree_yr", 0.022)
         survival_rate = float(data.get("survival_rate_pct", 80)) / 100.0
         if survival_rate <= 0 or survival_rate > 1:
             survival_rate = defaults.get("default_survival_rate", 0.80)
 
-        er_y = tree_count * co2_per_tree * survival_rate
+        # Baseline carbon stock deduction (annualized over e.g. 20 years)
+        baseline_carbon = float(data.get("baseline_carbon_stock", 0.0))
+        area_ha = float(data.get("plot_area_hectares", 1.0))
+        baseline_deduction_y = (baseline_carbon * area_ha) / 20.0
+
+        # Allometric calculation if measurements exist
+        height = float(data.get("avg_height_cm", 0.0)) / 100.0  # m
+        dbh = float(data.get("avg_dbh_cm", 0.0))                # cm
+        
+        if height > 0 and dbh > 0:
+            # Simplified tropical tree allometric equation for AGB (Chave et al)
+            # AGB (kg) ~ 0.0673 * (rho * dbh^2 * H)^0.976, assume rho=0.6 g/cm3
+            agb_kg = 0.0673 * ((0.6 * (dbh**2) * height) ** 0.976)
+            bgb_kg = agb_kg * 0.25 # 25% below-ground
+            total_biomass_kg = agb_kg + bgb_kg
+            # Carbon fraction ~ 0.47, CO2 conversion ~ 44/12
+            co2_per_tree = (total_biomass_kg * 0.47 * (44/12)) / 1000.0 # tonnes
+        else:
+            co2_per_tree = defaults.get("co2_per_tree_yr", 0.022)
+
+        gross_er = tree_count * co2_per_tree * survival_rate
+        er_y = max(0.0, gross_er - baseline_deduction_y)
+
         is_monthly = defaults.get("is_monthly_check", True)
         final_tco2e = round(er_y / 12.0, 4) if is_monthly else round(er_y, 4)
 
         log = {
             "methodology": "VM0047_ARR",
-            "mrv_data_source": "Field_Agent_Survey",
+            "mrv_data_source": "Field_Measurements",
             "inputs": {
                 "tree_count": tree_count,
-                "co2_per_tree_yr": co2_per_tree,
                 "survival_rate": survival_rate,
-                "prorated_monthly": is_monthly,
+                "avg_height_m": height,
+                "avg_dbh_cm": dbh,
+                "calculated_co2_per_tree": round(co2_per_tree, 4),
+                "baseline_deduction_y": round(baseline_deduction_y, 4)
             },
-            "formula_trace": "tree_count * co2_per_tree_yr * survival_rate",
+            "formula_trace": "Gross ER - Baseline (Tree_count * co2_per_tree * survival - baseline_deduction)",
             "annual_er": round(er_y, 4),
             "final_tco2e": final_tco2e,
         }
@@ -523,28 +543,41 @@ class QuantificationEngine:
         self, activity: Activity, project: Project
     ) -> Tuple[float, Dict[str, Any]]:
         """
-        AMS-I.A: Grid displacement from renewable energy.
-        Formula: ER = daily_output_kwh * 365 * grid_ef
+        AMS-I.A: Grid or fuel displacement from renewable energy.
+        Calculates based on baseline fuel volume if replacing diesel/kerosene,
+        otherwise uses grid emission factor for generated electricity.
         """
         defaults = METHODOLOGY_DEFAULTS.get("AMS_IA", {})
         data = activity.activity_data or {}
 
-        daily_kwh = float(data.get("daily_output_kwh", data.get("capacity_kw", 5.0)))
-        grid_ef = defaults.get("grid_emission_factor_tco2_kwh", 0.0005)
-        annual_kwh = daily_kwh * 365.0
+        baseline_source = data.get("baseline_energy", "grid_electricity")
+        baseline_fuel_vol = float(data.get("baseline_fuel_volume", 0.0))  # monthly
+        
+        formula = ""
+        if baseline_source in ["kerosene_lamp", "diesel_generator"] and baseline_fuel_vol > 0:
+            # Diesel/Kerosene displacement (approx 2.68 kg CO2 / L)
+            annual_fuel_vol = baseline_fuel_vol * 12.0
+            er_y = annual_fuel_vol * 2.68 / 1000.0
+            formula = f"Annual_Fuel ({annual_fuel_vol} L) * 2.68 kg/L / 1000"
+        else:
+            # Grid displacement
+            daily_kwh = float(data.get("daily_output_kwh", data.get("capacity_kw", 5.0)))
+            grid_ef = defaults.get("grid_emission_factor_tco2_kwh", 0.0005)
+            annual_kwh = daily_kwh * 365.0
+            er_y = annual_kwh * grid_ef
+            formula = f"Annual_kWh ({annual_kwh}) * Grid_EF ({grid_ef})"
 
-        er_y = annual_kwh * grid_ef
         final_tco2e = round(er_y / 12.0, 4)  # Monthly proration
 
         log = {
             "methodology": "AMS_IA",
-            "mrv_data_source": "Metered_Output",
+            "mrv_data_source": "Metered_Output_or_Survey",
             "inputs": {
-                "daily_output_kwh": daily_kwh,
-                "annual_kwh": annual_kwh,
-                "grid_emission_factor_tco2_kwh": grid_ef,
+                "baseline_source": baseline_source,
+                "baseline_fuel_volume_monthly": baseline_fuel_vol,
+                "daily_output_kwh": float(data.get("daily_output_kwh", 0)),
             },
-            "formula_trace": "daily_kwh * 365 * grid_ef / 12",
+            "formula_trace": formula,
             "annual_er": round(er_y, 4),
             "final_tco2e": final_tco2e,
         }
@@ -558,19 +591,28 @@ class QuantificationEngine:
     ) -> Tuple[float, Dict[str, Any]]:
         """
         GS Safe Water: Fuel savings from eliminating need to boil water.
-        Formula: ER = households * persons_per_hh * fuel_saved_kg * NCV * EF * fNRB / 1e6
+        Checks baseline treatment to ensure fuel was actually displaced.
         """
         defaults = METHODOLOGY_DEFAULTS.get("GS_SAFE_WATER", {})
         data = activity.activity_data or {}
 
-        households = int(data.get("households_served", 1))
-        persons = defaults.get("persons_per_household", 5)
+        population = int(data.get("population_served", data.get("households_served", 1) * 5))
         fuel_saved = defaults.get("fuel_saved_kg_per_person_yr", 180.0)
         ncv = defaults.get("ncv_mj_kg", 16.0)
         ef = defaults.get("ef_tco2_tj", 112.0)
         f_nrb = defaults.get("f_nrb", 0.80)
 
-        total_fuel_kg = households * persons * fuel_saved
+        # Ensure baseline was boiling, otherwise no thermal emissions were displaced
+        baseline_treatment = data.get("baseline_treatment", "boiling")
+        if baseline_treatment != "boiling":
+            return 0.0, {
+                "status": "No thermal baseline",
+                "reason": f"Previous treatment was {baseline_treatment}, not boiling",
+                "annual_er": 0.0,
+                "final_tco2e": 0.0
+            }
+
+        total_fuel_kg = population * fuel_saved
         energy_tj = (total_fuel_kg * ncv) / 1e6
         er_y = energy_tj * ef * f_nrb
 
@@ -579,17 +621,16 @@ class QuantificationEngine:
 
         log = {
             "methodology": "GS_SAFE_WATER",
-            "mrv_data_source": "Field_Agent_Survey",
+            "mrv_data_source": "Field_Baseline_Data",
             "inputs": {
-                "households_served": households,
-                "persons_per_household": persons,
+                "population_served": population,
+                "baseline_treatment": baseline_treatment,
                 "fuel_saved_kg_per_person_yr": fuel_saved,
                 "ncv_mj_kg": ncv,
                 "ef_tco2_tj": ef,
                 "f_nrb": f_nrb,
-                "prorated_monthly": is_monthly,
             },
-            "formula_trace": "(households * persons * fuel_saved * NCV * EF * fNRB) / 1e6",
+            "formula_trace": "(population * fuel_saved * NCV * EF * fNRB) / 1e6",
             "total_fuel_saved_kg": total_fuel_kg,
             "energy_tj": round(energy_tj, 6),
             "annual_er": round(er_y, 4),
