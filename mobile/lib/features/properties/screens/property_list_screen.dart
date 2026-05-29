@@ -80,11 +80,8 @@ class _PropertyListScreenState extends State<PropertyListScreen> {
 
   Widget _buildPropertyCard(Map<String, dynamic> property, int index) {
     final typeIcons = {
-      'residential': Icons.home_rounded,
-      'commercial': Icons.business_rounded,
-      'agricultural': Icons.agriculture_rounded,
-      'industrial': Icons.factory_rounded,
-      'mixed': Icons.domain_rounded,
+      'cookstove': Icons.soup_kitchen_rounded,
+      'CLEAN_COOKING': Icons.soup_kitchen_rounded,
     };
 
     return Padding(

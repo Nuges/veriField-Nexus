@@ -41,6 +41,22 @@ class CommunityValidationListResponse(BaseModel):
     per_page: int
 
 
+class CommunityCommentCreate(BaseModel):
+    comment: str
+
+
+class CommunityCommentResponse(BaseModel):
+    id: UUID
+    validation_id: UUID
+    user_id: UUID
+    user_name: str
+    user_role: str
+    comment: str
+    timestamp: datetime
+
+    model_config = {"from_attributes": True}
+
+
 class CommunityFeedItem(BaseModel):
     """A feed-style view combining validations with user context."""
     id: UUID
@@ -53,6 +69,7 @@ class CommunityFeedItem(BaseModel):
     response: str
     timestamp: datetime
     upvotes: int = 0
+    comments: List[CommunityCommentResponse] = []
 
 
 class CommunityFeedResponse(BaseModel):

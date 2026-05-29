@@ -22,6 +22,7 @@ class AuditTaskCreate(BaseModel):
 class AuditTaskUpdate(BaseModel):
     status: Optional[str] = None
     deadline: Optional[datetime] = None
+    assigned_agent: Optional[UUID] = None
 
 
 class AuditTaskResponse(BaseModel):

@@ -15,6 +15,7 @@ CRUD operations for field activity / installation submissions. Supports:
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_
+from sqlalchemy.orm import selectinload
 from typing import Optional
 from datetime import datetime
 from uuid import UUID
@@ -53,14 +54,23 @@ async def compute_phash(image_url: str) -> Optional[str]:
     return None
 
 
+def activity_to_response(activity: Activity) -> ActivityResponse:
+    """Convert Activity ORM model to response, injecting agent_name from user relationship."""
+    data = ActivityResponse.model_validate(activity)
+    # Inject agent name from the eagerly-loaded user relationship
+    if hasattr(activity, 'user') and activity.user is not None:
+        data.agent_name = activity.user.full_name
+    return data
+
+
 def calculate_carbon_offset(activity_type: str, data: dict) -> dict:
     """
-    Calculate estimated CO2 reduction based on activity type.
-    Updated for the Smart Installation System activity types.
+    Calculate estimated CO2 reduction for cookstove activities.
+    All activities are implicitly clean cooking installations.
     """
     activity_type_upper = activity_type.upper()
     
-    if activity_type_upper == "CLEAN_COOKING":
+    if activity_type_upper in ("CLEAN_COOKING", "COOKING"):
         household_size = data.get("household_size", 4)
         fuel = data.get("primary_fuel", "wood")
         base_reduction = {"wood": 3.5, "charcoal": 2.8, "pellet": 1.5, "LPG": 0.5}
@@ -68,57 +78,11 @@ def calculate_carbon_offset(activity_type: str, data: dict) -> dict:
             "emission_reduction_value_kg": round(base_reduction.get(fuel, 2.0) * household_size * 0.5, 2),
             "methodology_reference": "Gold Standard TPDDTEC v3.1",
         }
-    elif activity_type_upper == "AGRICULTURE":
-        hectares = data.get("plot_area_hectares", 1.0)
-        return {
-            "emission_reduction_value_kg": round(15.0 * hectares, 2),
-            "methodology_reference": "Verra VM0042",
-        }
-    elif activity_type_upper == "ENERGY_USE":
-        kwh = data.get("daily_output_kwh", data.get("capacity_kw", 5.0))
-        return {
-            "emission_reduction_value_kg": round(0.8 * kwh, 2),
-            "methodology_reference": "CDM AMS-I.A.",
-        }
-    elif activity_type_upper == "FORESTRY_LAND_USE":
-        trees = data.get("tree_count", 10)
-        return {
-            "emission_reduction_value_kg": round(22.0 * trees / 100, 2),
-            "methodology_reference": "Verra VM0047 ARR",
-        }
-    elif activity_type_upper == "SAFE_WATER":
-        liters = data.get("daily_volume_liters", 500)
-        return {
-            "emission_reduction_value_kg": round(liters * 0.003, 2),
-            "methodology_reference": "Gold Standard Safe Water",
-        }
-    elif activity_type_upper == "TRANSPORT_MOBILITY":
-        # AMS-III.C: Use odometer data for distance
-        odo_start = data.get("odometer_start", 0)
-        odo_end = data.get("odometer_end", 0)
-        distance_km = max(0, odo_end - odo_start)
-        energy_type = data.get("energy_type", "EV")
-        vehicle_type = data.get("vehicle_type", "car_taxi")
-        # Per-vehicle baseline EFs
-        baseline_efs = {"motorcycle_okada": 0.08, "tricycle_keke": 0.12, "car_taxi": 0.21, "minibus_danfo": 0.35, "bus": 0.65, "light_truck": 0.45, "heavy_truck": 0.90, "forklift": 4.0}
-        project_efs = {"EV": 0.03, "hybrid": 0.12, "CNG": 0.14, "LPG": 0.16, "diesel_retrofit": 0.18}
-        base = baseline_efs.get(vehicle_type, 0.21)
-        proj = project_efs.get(energy_type, 0.12)
-        reduction_kg = round(distance_km * (base - proj), 2)
-        return {
-            "emission_reduction_value_kg": reduction_kg,
-            "methodology_reference": "CDM AMS-III.C.",
-        }
-    # Legacy fallback for old activity types
-    elif activity_type_upper in ("COOKING",):
-        hours = data.get("duration_hours", 1.0)
-        return {"emission_reduction_value_kg": round(2.5 * hours, 2), "methodology_reference": "Gold Standard TPDDTEC v3.1"}
-    elif activity_type_upper in ("ENERGY",):
-        kwh = data.get("energy_kwh", 5.0)
-        return {"emission_reduction_value_kg": round(0.8 * kwh, 2), "methodology_reference": "CDM AMS-I.A."}
-    elif activity_type_upper in ("FARMING",):
-        return {"emission_reduction_value_kg": 15.0, "methodology_reference": "Verra VM0042"}
-    return {}
+    # Fallback for any legacy data
+    return {
+        "emission_reduction_value_kg": 0.0,
+        "methodology_reference": "Gold Standard TPDDTEC v3.1",
+    }
 
 
 # =============================================================================
@@ -192,7 +156,7 @@ async def create_activity(
         )
         existing = result.scalar_one_or_none()
         if existing:
-            return ActivityResponse.model_validate(existing)
+            return activity_to_response(existing)
 
     phash = await compute_phash(payload.image_url)
     
@@ -270,8 +234,10 @@ async def create_activity(
         from app.services.trust_engine import TrustEngine
         trust_engine = TrustEngine(db)
         await trust_engine.calculate_trust_score(activity)
-    except Exception:
-        pass  # Don't fail submission if trust scoring fails
+    except Exception as e:
+        await db.rollback()
+        import logging
+        logging.getLogger("verifield.api").warning(f"Swallowed trust score calculation error: {e}")
 
     # Run anomaly detection
     try:
@@ -282,8 +248,10 @@ async def create_activity(
             activity.status = "flagged"
             activity.trust_flags["anomaly_detected"] = True
             await db.commit()
-    except Exception:
-        pass  # Don't fail submission if anomaly detection fails
+    except Exception as e:
+        await db.rollback()
+        import logging
+        logging.getLogger("verifield.api").warning(f"Swallowed anomaly detection error: {e}")
 
     # If it passed all automatic checks and is verified, quantify immediately!
     if activity.status == "verified":
@@ -296,7 +264,7 @@ async def create_activity(
             logging.getLogger("verifield.api").error(f"Auto-quantification failed for {activity.id}: {e}")
 
     await db.refresh(activity)
-    return ActivityResponse.model_validate(activity)
+    return activity_to_response(activity)
 
 
 # =============================================================================
@@ -421,8 +389,10 @@ async def batch_create_activities(
                         import logging
                         logging.getLogger("verifield.api").error(f"Auto-quantification failed for {activity.id}: {e}")
                         
-            except Exception:
-                pass
+            except Exception as e:
+                await db.rollback()
+                import logging
+                logging.getLogger("verifield.api").warning(f"Swallowed trust/anomaly batch execution error: {e}")
 
             submitted += 1
             results.append({"client_id": activity_data.client_id, "status": "submitted", "id": str(activity.id)})
@@ -458,16 +428,20 @@ async def list_activities(
     db: AsyncSession = Depends(get_db),
 ):
     """List activities with optional filtering, sorting, and pagination."""
-    # Build query with filters
-    query = select(Activity)
-    count_query = select(func.count(Activity.id))
+    # Build query with filters joined on user table for secure multi-tenant scoping
+    query = select(Activity).join(User, Activity.user_id == User.id).options(selectinload(Activity.user))
+    count_query = select(func.count(Activity.id)).join(User, Activity.user_id == User.id)
 
     conditions = []
-    # Non-admins can only see their own activities
+    # If the user is a field agent, they only see their own logged activities.
+    # If the user is an admin, they only see activities belonging to their organization.
     if user.role != "admin":
         conditions.append(Activity.user_id == user.id)
-    elif user_id:
-        conditions.append(Activity.user_id == user_id)
+    else:
+        if user.organization:
+            conditions.append(User.organization == user.organization)
+        if user_id:
+            conditions.append(Activity.user_id == user_id)
 
     if activity_type:
         conditions.append(Activity.activity_type == activity_type)
@@ -504,7 +478,7 @@ async def list_activities(
     total_pages = max(1, (total + per_page - 1) // per_page)
 
     return ActivityListResponse(
-        activities=[ActivityResponse.model_validate(a) for a in activities],
+        activities=[activity_to_response(a) for a in activities],
         total=total, page=page, per_page=per_page, total_pages=total_pages,
     )
 
@@ -523,13 +497,13 @@ async def get_activity(
     db: AsyncSession = Depends(get_db),
 ):
     """Get detailed information about a specific activity."""
-    result = await db.execute(select(Activity).where(Activity.id == activity_id))
+    result = await db.execute(select(Activity).options(selectinload(Activity.user)).where(Activity.id == activity_id))
     activity = result.scalar_one_or_none()
     if not activity:
         raise HTTPException(status_code=404, detail="Activity not found")
     if user.role != "admin" and activity.user_id != user.id:
         raise HTTPException(status_code=403, detail="Access denied")
-    return ActivityResponse.model_validate(activity)
+    return activity_to_response(activity)
 
 
 # =============================================================================
@@ -572,7 +546,11 @@ async def update_activity_status(
     db: AsyncSession = Depends(get_db),
 ):
     """Admin endpoint to approve, reject, or flag an activity."""
-    result = await db.execute(select(Activity).where(Activity.id == activity_id))
+    result = await db.execute(
+        select(Activity)
+        .options(selectinload(Activity.user))
+        .where(Activity.id == activity_id)
+    )
     activity = result.scalar_one_or_none()
     if not activity:
         raise HTTPException(status_code=404, detail="Activity not found")
@@ -595,4 +573,13 @@ async def update_activity_status(
             import logging
             logging.getLogger("verifield.api").error(f"Manual quantification failed for {activity.id}: {e}")
 
-    return ActivityResponse.model_validate(activity)
+    # Re-fetch with user relationship to ensure response has agent_name
+    # (quantification engine may have committed and invalidated the session state)
+    result = await db.execute(
+        select(Activity)
+        .options(selectinload(Activity.user))
+        .where(Activity.id == activity_id)
+    )
+    activity = result.scalar_one_or_none()
+
+    return activity_to_response(activity)

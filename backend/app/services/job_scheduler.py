@@ -41,16 +41,19 @@ async def _run_verification_worker():
     max_retries = 2
     for attempt in range(max_retries + 1):
         try:
-            stats = await process_pending_activities(batch_size=20)
+            stats = await asyncio.wait_for(
+                process_pending_activities(batch_size=20),
+                timeout=25.0
+            )
             if stats["processed"] > 0:
                 logger.info(f"Verification sweep: {stats}")
             return
         except Exception as e:
-            if attempt < max_retries and "Connection" in str(e):
-                logger.warning(f"DB connection error (attempt {attempt + 1}), retrying in 5s: {e}")
+            if attempt < max_retries:
+                logger.warning(f"Verification worker error (attempt {attempt + 1}), retrying in 5s: {e}")
                 await asyncio.sleep(5)
             else:
-                logger.error(f"Verification worker error: {e}")
+                logger.error(f"Verification worker error (final attempt): {e}")
 
 
 def start_scheduler():

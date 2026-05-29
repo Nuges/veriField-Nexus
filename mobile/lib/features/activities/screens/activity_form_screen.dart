@@ -1,11 +1,10 @@
 // =============================================================================
-// VeriField Nexus — Smart Installation Form (Dynamic Form Engine)
+// VeriField Nexus — Cookstove Installation Form (Dynamic Form Engine)
 // =============================================================================
-// Progressive step-by-step form:
-//   Step 1: Select activity type (icon grid)
-//   Step 2: Dynamic fields based on type
-//   Step 3: Photo capture + GPS lock
-//   Step 4: Review & submit
+// Progressive step-by-step form (Cookstove Only):
+//   Step 1: Cookstove detail fields
+//   Step 2: Photo capture + GPS lock
+//   Step 3: Review & submit
 // =============================================================================
 
 import 'dart:io';
@@ -38,9 +37,16 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
   final _uuid = const Uuid();
   int _currentStep = 0;
 
-  // Step 1: Type selection
-  String? _selectedTypeId;
-  ActivityTypeConfig? _selectedConfig;
+  // Cookstove is the only type — auto-selected
+  String _selectedTypeId = 'CLEAN_COOKING';
+  late ActivityTypeConfig _selectedConfig;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedConfig = getActivityTypeConfig('CLEAN_COOKING');
+    WidgetsBinding.instance.addPostFrameCallback((_) => _captureLocation());
+  }
 
   // Step 2: Dynamic field values
   final Map<String, dynamic> _fieldValues = {};
@@ -56,6 +62,7 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
   bool _isCheckingDuplicate = false;
   String? _overrideReason;
   final _overrideController = TextEditingController();
+  final _descriptionController = TextEditingController();
 
   // Submission
   bool _isSubmitting = false;
@@ -67,6 +74,7 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
       c.dispose();
     }
     _overrideController.dispose();
+    _descriptionController.dispose();
     super.dispose();
   }
 
@@ -77,25 +85,25 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
   bool get _canProceed {
     switch (_currentStep) {
       case 0:
-        return _selectedTypeId != null;
-      case 1:
         return _validateDynamicFields();
-      case 2:
+      case 1:
         return _capturedImage != null && _locationData != null;
       default:
         return true;
     }
   }
 
-  void _nextStep() {
+  Future<void> _nextStep() async {
     if (!_canProceed) return;
-    if (_currentStep == 2) {
+    if (_currentStep == 1) {
       // After photo/GPS step, run duplicate check if not done
       if (_duplicateCheckResult == null && _locationData != null) {
-        _runDuplicateCheck();
+        await _runDuplicateCheck();
       }
     }
-    setState(() => _currentStep++);
+    if (mounted) {
+      setState(() => _currentStep++);
+    }
   }
 
   void _prevStep() {
@@ -107,8 +115,7 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
   // =========================================================================
 
   bool _validateDynamicFields() {
-    if (_selectedConfig == null) return false;
-    for (final field in _selectedConfig!.fields) {
+    for (final field in _selectedConfig.fields) {
       if (field.required) {
         final val = _fieldValues[field.key];
         if (val == null || (val is String && val.isEmpty)) return false;
@@ -187,7 +194,7 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
   // =========================================================================
 
   Future<void> _submitInstallation() async {
-    if (_capturedImage == null || _locationData == null || _selectedTypeId == null) return;
+    if (_capturedImage == null || _locationData == null || _isCheckingDuplicate) return;
 
     // Check if duplicate override needs reason
     final isDuplicate = _duplicateCheckResult?['duplicate_flag'] == true;
@@ -216,6 +223,7 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
         await ApiService.post('/activities', body: {
           'activity_type': _selectedTypeId,
           'activity_data': activityData,
+          'description': _descriptionController.text,
           'image_url': imageUrl,
           'image_hash': imageHash,
           'latitude': _locationData!['latitude'],
@@ -230,9 +238,7 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
         });
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Installation registered successfully! ✅')),
-          );
+          VFNotification.showSuccess(context, 'Installation registered successfully! ✅');
           context.pop(true);
         }
       } else {
@@ -241,6 +247,7 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
           'client_id': clientId,
           'activity_type': _selectedTypeId,
           'activity_data': jsonEncode(activityData),
+          'description': _descriptionController.text,
           'image_path': _capturedImage!.path,
           'image_hash': imageHash,
           'latitude': _locationData!['latitude'],
@@ -250,9 +257,7 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
           'created_at': capturedAt,
         });
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Saved offline. Will sync when connected. 📱')),
-          );
+          VFNotification.showSuccess(context, 'Saved offline. Will sync when connected. 📱');
           context.pop(true);
         }
       }
@@ -269,10 +274,10 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final steps = ['Type', 'Details', 'Capture', 'Review'];
+    final steps = ['Details', 'Capture', 'Review'];
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Register Installation'),
+        title: const Text('Register Cookstove'),
         leading: IconButton(icon: const Icon(Icons.close_rounded), onPressed: () => context.pop()),
       ),
       body: Column(
@@ -337,10 +342,11 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
         if (_currentStep > 0) const SizedBox(width: AppSpacing.md),
         Expanded(
           flex: 2,
-          child: _currentStep == 3
+          child: _currentStep == 2
               ? VFButton(label: 'Submit', onPressed: _canProceed ? _submitInstallation : null,
                   isLoading: _isSubmitting, icon: Icons.send_rounded)
               : VFButton(label: 'Continue', onPressed: _canProceed ? _nextStep : null,
+                  isLoading: _isCheckingDuplicate,
                   icon: Icons.arrow_forward_rounded),
         ),
       ]),
@@ -353,85 +359,27 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
 
   Widget _buildCurrentStep() {
     switch (_currentStep) {
-      case 0: return _buildTypeSelection();
-      case 1: return _buildDynamicFields();
-      case 2: return _buildCaptureStep();
-      case 3: return _buildReviewStep();
+      case 0: return _buildDynamicFields();
+      case 1: return _buildCaptureStep();
+      case 2: return _buildReviewStep();
       default: return const SizedBox();
     }
   }
 
-  // --- Step 1: Type Selection ---
-  Widget _buildTypeSelection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('What are you registering?', style: AppTypography.heading).animate().fadeIn(),
-        const SizedBox(height: AppSpacing.sm),
-        Text('Select the installation type', style: AppTypography.bodySmall).animate().fadeIn(delay: 100.ms),
-        const SizedBox(height: AppSpacing.xl),
-        ...activityTypes.map((type) {
-          final isSelected = _selectedTypeId == type.id;
-          return Padding(
-            padding: const EdgeInsets.only(bottom: AppSpacing.md),
-            child: GestureDetector(
-              onTap: () => setState(() {
-                _selectedTypeId = type.id;
-                _selectedConfig = type;
-                _fieldValues.clear();
-                for (final c in _textControllers.values) { c.clear(); }
-              }),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.all(AppSpacing.base),
-                decoration: BoxDecoration(
-                  color: isSelected ? type.color.withValues(alpha: 0.1) : AppColors.surface,
-                  borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-                  border: Border.all(color: isSelected ? type.color : AppColors.border, width: isSelected ? 2 : 1),
-                ),
-                child: Row(children: [
-                  Container(
-                    width: 48, height: 48,
-                    decoration: BoxDecoration(
-                      color: type.color.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(type.icon, color: type.color, size: 24),
-                  ),
-                  const SizedBox(width: AppSpacing.md),
-                  Expanded(child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(type.label, style: AppTypography.title.copyWith(fontSize: 15)),
-                      const SizedBox(height: 2),
-                      Text(type.description, style: AppTypography.caption),
-                    ],
-                  )),
-                  if (isSelected) Icon(Icons.check_circle, color: type.color, size: 24),
-                ]),
-              ),
-            ),
-          ).animate().fadeIn(delay: Duration(milliseconds: 50 * activityTypes.indexOf(type)));
-        }),
-      ],
-    );
-  }
-
-  // --- Step 2: Dynamic Fields ---
+  // --- Step 1: Dynamic Fields ---
   Widget _buildDynamicFields() {
-    if (_selectedConfig == null) return const SizedBox();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(children: [
-          Icon(_selectedConfig!.icon, color: _selectedConfig!.color, size: 24),
+          Icon(_selectedConfig.icon, color: _selectedConfig.color, size: 24),
           const SizedBox(width: AppSpacing.sm),
-          Text(_selectedConfig!.label, style: AppTypography.heading),
+          Text(_selectedConfig.label, style: AppTypography.heading),
         ]).animate().fadeIn(),
         const SizedBox(height: 4),
-        Text(_selectedConfig!.methodology, style: AppTypography.caption.copyWith(color: AppColors.primary)),
+        Text(_selectedConfig.methodology, style: AppTypography.caption.copyWith(color: AppColors.primary)),
         const SizedBox(height: AppSpacing.xl),
-        ..._selectedConfig!.fields.asMap().entries.map((entry) {
+        ..._selectedConfig.fields.asMap().entries.map((entry) {
           final i = entry.key;
           final field = entry.value;
           return Padding(
@@ -439,6 +387,15 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
             child: _buildField(field).animate().fadeIn(delay: Duration(milliseconds: 80 * i)),
           );
         }),
+        const SizedBox(height: AppSpacing.md),
+        const Divider(height: 1, thickness: 0.5),
+        const SizedBox(height: AppSpacing.lg),
+        VFTextField(
+          label: "Reporting Agent's Notes",
+          hint: "Stove condition, household reception, or carbon audit notes...",
+          controller: _descriptionController,
+          maxLines: 4,
+        ).animate().fadeIn(delay: Duration(milliseconds: 80 * (_selectedConfig.fields.length + 1))),
       ],
     );
   }
@@ -645,6 +602,7 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
           const SizedBox(height: AppSpacing.xl),
         ],
         _reviewRow('Type', _selectedConfig?.label ?? ''),
+        _reviewRow('Notes', _descriptionController.text.isNotEmpty ? _descriptionController.text : 'None'),
         _reviewRow('Environment', _duplicateCheckResult?['environment_type'] ?? 'Detecting...'),
         ..._fieldValues.entries.map((e) => _reviewRow(
           e.key.replaceAll('_', ' ').split(' ').map((w) => '${w[0].toUpperCase()}${w.substring(1)}').join(' '),
@@ -680,11 +638,5 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
         ],
       ),
     );
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _captureLocation());
   }
 }

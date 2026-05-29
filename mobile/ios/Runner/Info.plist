@@ -66,5 +66,9 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>VeriField Nexus requires foreground location access to accurately register cookstove installations, compute double-blind geofenced audit proximity routing, and ensure carbon offset methodology verification.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>VeriField Nexus uses your location to route pending double-blind field audit tasks to the closest active agent.</string>
 </dict>
 </plist>

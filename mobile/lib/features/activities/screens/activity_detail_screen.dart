@@ -12,6 +12,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/constants/app_spacing.dart';
+import '../../../core/config/supabase_config.dart';
 import '../../../shared/widgets/shared_widgets.dart';
 import '../../../services/api_service.dart';
 
@@ -27,6 +28,7 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
   Map<String, dynamic>? _activity;
   Map<String, dynamic>? _trustBreakdown;
   bool _isLoading = true;
+  String? _myVote;
 
   @override
   void initState() {
@@ -44,6 +46,29 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
         final trust = await ApiService.get('/activities/${widget.activityId}/trust');
         setState(() => _trustBreakdown = trust);
       } catch (_) {}
+
+      // Load peer validations to resolve dynamic selected state
+      final assetId = activity['property_id'];
+      if (_myVote == null && assetId != null) {
+        try {
+          final valResponse = await ApiService.get('/community/validations?asset_id=$assetId');
+          final validationsList = valResponse['validations'] as List? ?? [];
+          final currentUserId = SupabaseConfig.currentUser?.id;
+          if (currentUserId != null) {
+            Map<String, dynamic>? myVal;
+            for (var v in validationsList) {
+              if (v != null && v['validator_id']?.toString() == currentUserId) {
+                myVal = v as Map<String, dynamic>;
+                break;
+              }
+            }
+            if (myVal != null) {
+              final voteResponse = myVal['response']?.toString();
+              setState(() => _myVote = voteResponse);
+            }
+          }
+        } catch (_) {}
+      }
     } catch (e) {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -86,10 +111,121 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
 
                       // Trust Breakdown
                       if (_trustBreakdown != null) _buildTrustBreakdown(),
+                      const SizedBox(height: AppSpacing.xl),
+
+                      // Peer Validation Actions
+                      _buildPeerValidationSection(),
                     ],
                   ),
                 ),
     );
+  }
+
+  Widget _buildPeerValidationSection() {
+    final hasVoted = _myVote != null;
+    final votedYes = _myVote == 'yes';
+    final votedNo = _myVote == 'no';
+
+    return VFCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Community Peer Validation', style: AppTypography.title),
+          const SizedBox(height: 4),
+          Text(
+            hasVoted 
+                ? 'Your validation has been recorded and locked on the consensus registry. Thank you! 🔒'
+                : 'Audit this installation. Your validation dynamically influences the asset\'s system trust status.',
+            style: AppTypography.caption,
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          Row(
+            children: [
+              Expanded(
+                child: VFButton(
+                  label: votedYes ? 'Approved ✅' : 'Approve',
+                  onPressed: hasVoted 
+                      ? (votedYes ? () => VFNotification.showSuccess(context, 'Your peer validation is locked! 🔒') : null)
+                      : () => _submitPeerValidation('yes'),
+                  icon: votedYes ? Icons.check_circle : Icons.check_circle_outline_rounded,
+                  color: votedYes 
+                      ? const Color(0xFF064E3B) // Dark completed forest green
+                      : (votedNo ? AppColors.surfaceLight : AppColors.trustHigh),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: VFButton(
+                  label: votedNo ? 'Flagged ⚠️' : 'Flag Anomaly',
+                  onPressed: hasVoted 
+                      ? (votedNo ? () => VFNotification.showSuccess(context, 'Your anomaly flag is locked! 🔒') : null)
+                      : () => _submitPeerValidation('no'),
+                  icon: votedNo ? Icons.warning : Icons.warning_amber_rounded,
+                  isOutlined: !votedNo && !hasVoted,
+                  color: votedNo 
+                      ? const Color(0xFF7F1D1D) // Deep technical maroon red
+                      : (votedYes ? AppColors.surfaceLight : AppColors.error),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _submitPeerValidation(String responseType) async {
+    final assetId = _activity!['property_id'];
+    if (assetId == null) {
+      VFNotification.showError(context, 'Could not resolve parent asset.');
+      return;
+    }
+
+    // 1. Instantly set selected local state so user gets immediate visual feedback
+    setState(() {
+      _myVote = responseType;
+    });
+
+    try {
+      await ApiService.post('/community', body: {
+        'asset_id': assetId,
+        'response': responseType,
+      });
+
+      if (mounted) {
+        VFNotification.showSuccess(
+          context,
+          responseType == 'yes'
+              ? 'Peer validation registered! Trust Score boosted. 🚀'
+              : 'Anomaly reported! Trust Score penalized. ⚠️',
+        );
+        // Reload details in background to sync score, but keep local vote state locked!
+        _loadActivityBackground();
+      }
+    } catch (e) {
+      if (mounted) {
+        if (e.toString().contains('409') || e.toString().contains('already submitted')) {
+          VFNotification.showError(context, 'You already voted on this installation! 🔒');
+        } else {
+          // Reset local selection only if it was a real connection or network failure
+          setState(() {
+            _myVote = null;
+          });
+          VFNotification.showError(context, 'Validation failed: $e');
+        }
+      }
+    }
+  }
+
+  Future<void> _loadActivityBackground() async {
+    try {
+      final activity = await ApiService.get('/activities/${widget.activityId}');
+      setState(() { _activity = activity; });
+      try {
+        final trust = await ApiService.get('/activities/${widget.activityId}/trust');
+        setState(() => _trustBreakdown = trust);
+      } catch (_) {}
+    } catch (_) {}
   }
 
   Widget _buildPhoto() {

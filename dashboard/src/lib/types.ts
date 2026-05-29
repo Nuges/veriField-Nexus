@@ -19,6 +19,7 @@ export interface User {
 export interface Activity {
   id: string;
   user_id: string;
+  agent_name?: string | null;
   property_id: string | null;
   activity_type: string;
   activity_data: Record<string, unknown> | null;
@@ -146,17 +147,3 @@ export interface AgentPerformanceResponse {
   total_agents: number;
   suspicious_count: number;
 }
-
-export interface NdviRecord {
-  ndvi_score: number;
-  trend: string;
-  observation_date: string;
-  source: string;
-}
-
-export interface NdviHistoryResponse {
-  asset_id: string;
-  records: NdviRecord[];
-  count: number;
-}
-

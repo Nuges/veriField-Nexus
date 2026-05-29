@@ -27,12 +27,20 @@ class AnomalyDetector:
 
     async def analyze_activity(self, activity: Activity) -> List[AnomalyFlag]:
         """Run all anomaly detection checks on an activity."""
+        from app.models.system_setting import SystemSetting
+        result = await self.db.execute(select(SystemSetting).where(SystemSetting.id == 1))
+        sys_settings = result.scalar_one_or_none()
+
+        max_subs_per_hour = sys_settings.max_submissions_per_hour if sys_settings else settings.trust_max_submissions_per_hour
+        hours_start = sys_settings.suspicious_hours_start if sys_settings else settings.trust_suspicious_hours_start
+        hours_end = sys_settings.suspicious_hours_end if sys_settings else settings.trust_suspicious_hours_end
+
         flags: List[AnomalyFlag] = []
         flags.extend(await self._detect_gps_spoofing(activity))
         flags.extend(await self._detect_impossible_travel(activity))
         flags.extend(await self._detect_image_recycling(activity))
-        flags.extend(await self._detect_bot_patterns(activity))
-        flags.extend(await self._detect_time_anomalies(activity))
+        flags.extend(await self._detect_bot_patterns(activity, max_subs_per_hour))
+        flags.extend(await self._detect_time_anomalies(activity, hours_start, hours_end))
         for flag in flags:
             self.db.add(flag)
         if flags:
@@ -92,13 +100,13 @@ class AnomalyDetector:
         return flags
 
     async def _detect_image_recycling(self, activity: Activity) -> List[AnomalyFlag]:
-        """Detect exact image hash duplicates across user submissions."""
+        """Detect exact image hash duplicates across all user submissions (global check)."""
         flags = []
         if not activity.image_hash:
             return flags
         result = await self.db.execute(
             select(Activity).where(
-                Activity.user_id == activity.user_id, Activity.id != activity.id,
+                Activity.id != activity.id,
                 Activity.image_hash == activity.image_hash,
             ).limit(1)
         )
@@ -107,11 +115,11 @@ class AnomalyDetector:
             flags.append(AnomalyFlag(
                 activity_id=activity.id, user_id=activity.user_id,
                 flag_type="image_duplicate", severity="critical",
-                description=f"Exact image duplicate of activity {match.id} from {match.created_at.isoformat()}.",
+                description=f"Exact image duplicate detected globally (matched activity ID: {match.id} from {match.created_at.strftime('%Y-%m-%d %H:%M:%S')}).",
             ))
         return flags
 
-    async def _detect_bot_patterns(self, activity: Activity) -> List[AnomalyFlag]:
+    async def _detect_bot_patterns(self, activity: Activity, max_subs_per_hour: int) -> List[AnomalyFlag]:
         """Detect bot-like submission patterns (high volume, regular intervals)."""
         flags = []
         one_hour_ago = datetime.now(timezone.utc) - timedelta(hours=1)
@@ -121,7 +129,7 @@ class AnomalyDetector:
             ).order_by(Activity.created_at.asc())
         )
         timestamps = [row[0] for row in result.all()]
-        if len(timestamps) > settings.trust_max_submissions_per_hour * 2:
+        if len(timestamps) > max_subs_per_hour * 2:
             flags.append(AnomalyFlag(
                 activity_id=activity.id, user_id=activity.user_id,
                 flag_type="pattern_anomaly", severity="critical",
@@ -141,11 +149,11 @@ class AnomalyDetector:
                     ))
         return flags
 
-    async def _detect_time_anomalies(self, activity: Activity) -> List[AnomalyFlag]:
+    async def _detect_time_anomalies(self, activity: Activity, hours_start: int, hours_end: int) -> List[AnomalyFlag]:
         """Detect suspicious submission times and large capture-submit gaps."""
         flags = []
         hour = activity.captured_at.hour
-        if settings.trust_suspicious_hours_start <= hour <= settings.trust_suspicious_hours_end:
+        if hours_start <= hour <= hours_end:
             flags.append(AnomalyFlag(
                 activity_id=activity.id, user_id=activity.user_id,
                 flag_type="time_anomaly", severity="low",

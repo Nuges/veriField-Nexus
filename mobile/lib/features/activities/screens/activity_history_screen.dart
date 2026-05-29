@@ -13,6 +13,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/constants/app_spacing.dart';
 import 'dart:async';
+import 'dart:convert';
 import '../../../shared/widgets/shared_widgets.dart';
 import '../../../services/api_service.dart';
 import '../../../services/sync_service.dart';
@@ -29,6 +30,7 @@ class ActivityHistoryScreen extends StatefulWidget {
 
 class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
   List<Map<String, dynamic>> _activities = [];
+  Map<String, dynamic>? _user;
   bool _isLoading = true;
   bool _isOnline = true;
   int _pendingCount = 0;
@@ -65,6 +67,11 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
         final activitiesList = response['activities'] as List? ?? [];
         _activities = activitiesList.cast<Map<String, dynamic>>();
 
+        // Fetch user details for welcome header
+        try {
+          _user = await ApiService.get('/auth/me');
+        } catch (_) {}
+
         // Update pending count after sync
         _pendingCount = await LocalDbService.getPendingCount();
       } else {
@@ -83,9 +90,61 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('VeriField Nexus'),
-        actions: const [
-          SyncStatusIndicator(),
+        title: Row(
+          children: [
+            const Icon(Icons.energy_savings_leaf_rounded, color: AppColors.primary, size: 20),
+            const SizedBox(width: 8),
+            const Text('VeriField Nexus'),
+          ],
+        ),
+        actions: [
+          const SyncStatusIndicator(),
+          if (_user != null) ...[
+            const SizedBox(width: 8),
+            Center(
+              child: Text(
+                'Hi, ${_user!['full_name'].toString().split(' ')[0]}',
+                style: AppTypography.bodySmall.copyWith(
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.primary,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            GestureDetector(
+              onTap: () {
+                context.go('/profile');
+              },
+              child: Container(
+                margin: const EdgeInsets.only(right: AppSpacing.md),
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.3), width: 1.5),
+                  image: _user!['avatar_url'] != null && _user!['avatar_url'].toString().isNotEmpty
+                      ? DecorationImage(
+                          image: NetworkImage(_user!['avatar_url'].toString()),
+                          fit: BoxFit.cover,
+                        )
+                      : null,
+                ),
+                child: _user!['avatar_url'] == null || _user!['avatar_url'].toString().isEmpty
+                    ? Center(
+                        child: Text(
+                          _user!['full_name'].toString().substring(0, 1).toUpperCase(),
+                          style: AppTypography.caption.copyWith(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 10,
+                          ),
+                        ),
+                      )
+                    : null,
+              ),
+            ),
+          ] else
+            const SizedBox(width: AppSpacing.md),
         ],
       ),
       body: Column(
@@ -120,12 +179,50 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
     );
   }
 
+  String _formatStoveModel(String model) {
+    if (model.isEmpty) return '';
+    return model
+        .replaceAll('_', ' ')
+        .replaceAll('-', ' ')
+        .split(' ')
+        .map((word) => word.isEmpty ? '' : '${word[0].toUpperCase()}${word.substring(1)}')
+        .join(' ');
+  }
+
   /// Build a single activity card with trust score badge.
   Widget _buildActivityCard(Map<String, dynamic> activity, int index) {
     final activityType = activity['activity_type'] ?? 'other';
     final trustScore = activity['trust_score'] as num?;
     final status = activity['status'] ?? 'pending';
     final capturedAt = activity['captured_at'] ?? activity['created_at'] ?? '';
+    
+    // Parse dynamic activity data safely
+    Map<String, dynamic>? activityData;
+    if (activity['activity_data'] is Map) {
+      activityData = Map<String, dynamic>.from(activity['activity_data']);
+    } else if (activity['activity_data'] is String) {
+      try {
+        activityData = Map<String, dynamic>.from(jsonDecode(activity['activity_data']));
+      } catch (_) {}
+    }
+
+    // Resolve a highly-descriptive dynamic title instead of hardcoded "Clean Cooking"
+    String displayTitle = 'Clean Cooking Stove';
+    if (activityData != null) {
+      final headName = activityData['head_name']?.toString() ?? '';
+      final stoveModel = activityData['stove_model']?.toString() ?? '';
+      final serialNumber = activityData['serial_number']?.toString() ?? '';
+      
+      if (headName.isNotEmpty && stoveModel.isNotEmpty) {
+        displayTitle = '${_formatStoveModel(stoveModel)} • $headName';
+      } else if (headName.isNotEmpty) {
+        displayTitle = 'Stove: $headName';
+      } else if (stoveModel.isNotEmpty) {
+        displayTitle = '${_formatStoveModel(stoveModel)} Installation';
+      } else if (serialNumber.isNotEmpty) {
+        displayTitle = 'Stove SN: $serialNumber';
+      }
+    }
 
     // Activity type metadata
     final typeInfo = _getTypeInfo(activityType);
@@ -153,7 +250,7 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
               width: 48,
               height: 48,
               decoration: BoxDecoration(
-                color: (typeInfo['color'] as Color).withValues(alpha: 0.15),
+                color: (typeInfo['color'] as Color).withOpacity(0.15),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(typeInfo['icon'] as IconData, color: typeInfo['color'] as Color, size: 24),
@@ -165,7 +262,7 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(typeInfo['label'] as String, style: AppTypography.title.copyWith(fontSize: 16)),
+                  Text(displayTitle, style: AppTypography.title.copyWith(fontSize: 15, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 2),
                   Text(dateStr, style: AppTypography.caption),
                   if (activity['description'] != null && activity['description'].toString().isNotEmpty)
@@ -196,22 +293,14 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
     ).animate().fadeIn(delay: Duration(milliseconds: 50 * index)).slideX(begin: 0.05);
   }
 
-  /// Get activity type display info.
+  /// Get activity type display info (cookstove only).
   Map<String, dynamic> _getTypeInfo(String type) {
     switch (type.toUpperCase()) {
-      // New Smart Installation types
-      case 'CLEAN_COOKING': return {'label': 'Clean Cooking', 'icon': Icons.local_fire_department_rounded, 'color': AppColors.warning};
-      case 'AGRICULTURE': return {'label': 'Agriculture', 'icon': Icons.grass_rounded, 'color': AppColors.primary};
-      case 'ENERGY_USE': return {'label': 'Energy Use', 'icon': Icons.bolt_rounded, 'color': AppColors.accent};
-      case 'FORESTRY_LAND_USE': return {'label': 'Forestry & Land', 'icon': Icons.park_rounded, 'color': const Color(0xFF2E7D32)};
-      case 'SAFE_WATER': return {'label': 'Safe Water', 'icon': Icons.water_drop_rounded, 'color': const Color(0xFF0288D1)};
-      case 'TRANSPORT_MOBILITY': return {'label': 'Transport', 'icon': Icons.directions_car_rounded, 'color': AppColors.accentPurple};
-      case 'OTHER': return {'label': 'Other', 'icon': Icons.more_horiz_rounded, 'color': AppColors.textTertiary};
-      // Legacy types (backwards compatibility)
-      case 'COOKING': return {'label': 'Clean Cooking', 'icon': Icons.local_fire_department_rounded, 'color': AppColors.warning};
-      case 'FARMING': return {'label': 'Agriculture', 'icon': Icons.grass_rounded, 'color': AppColors.primary};
-      case 'ENERGY': return {'label': 'Energy Use', 'icon': Icons.bolt_rounded, 'color': AppColors.accent};
-      default: return {'label': type.replaceAll('_', ' '), 'icon': Icons.category_rounded, 'color': AppColors.textTertiary};
+      case 'CLEAN_COOKING':
+      case 'COOKING':
+        return {'label': 'Clean Cooking', 'icon': Icons.soup_kitchen_rounded, 'color': AppColors.warning};
+      default:
+        return {'label': 'Clean Cooking', 'icon': Icons.soup_kitchen_rounded, 'color': AppColors.warning};
     }
   }
 

@@ -9,6 +9,7 @@ Endpoints for carbon project management, quantification, and credit ledger.
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import defer
 from typing import List, Dict, Any, Optional
 import uuid
 
@@ -16,6 +17,8 @@ from app.db.session import get_db
 from app.core.security import require_admin
 from app.models.project import Project
 from app.models.carbon_calculation import CarbonCalculation
+from app.models.activity import Activity
+from app.models.user import User
 from app.services.quantification_engine import QuantificationEngine
 from pydantic import BaseModel
 
@@ -91,11 +94,23 @@ async def get_project_total(
 @router.get("/ledger", summary="Get Carbon Credit Ledger")
 async def get_ledger(
     status_filter: Optional[str] = Query(None, alias="status"),
+    include_log: bool = Query(False, alias="include_log"),
     db: AsyncSession = Depends(get_db),
     user=Depends(require_admin),
 ):
     """Fetch the immutable ledger of calculated credits."""
-    query = select(CarbonCalculation).order_by(CarbonCalculation.created_at.desc())
+    query = select(CarbonCalculation)
+    
+    if not include_log:
+        query = query.options(defer(CarbonCalculation.calculation_log))
+        
+    query = (
+        query.join(Activity, CarbonCalculation.activity_id == Activity.id)
+        .join(User, Activity.user_id == User.id)
+    )
+    if user.organization:
+        query = query.where(User.organization == user.organization)
+    query = query.order_by(CarbonCalculation.created_at.desc())
     if status_filter:
         query = query.where(CarbonCalculation.status == status_filter)
     query = query.limit(100)
@@ -111,7 +126,7 @@ async def get_ledger(
                 "tco2e": c.tco2e_generated,
                 "methodology": c.methodology_used,
                 "status": c.status,
-                "calculation_log": c.calculation_log,
+                "calculation_log": c.calculation_log if include_log else None,
                 "created_at": c.created_at.isoformat() if c.created_at else None,
             }
             for c in calcs
@@ -123,7 +138,15 @@ async def get_ledger(
 @router.post("/registry/verra/issue", summary="Mock Verra Registry API Push")
 async def push_to_verra_registry(db: AsyncSession = Depends(get_db), user=Depends(require_admin)):
     """Mock integration: Packs the calculation logs into a JSON ready for Verra API."""
-    result = await db.execute(select(CarbonCalculation).where(CarbonCalculation.status == "calculated"))
+    stmt = select(CarbonCalculation)\
+        .join(Activity, CarbonCalculation.activity_id == Activity.id)\
+        .join(User, Activity.user_id == User.id)
+
+    if user.organization:
+        stmt = stmt.where(User.organization == user.organization)
+
+    stmt = stmt.where(CarbonCalculation.status == "calculated")
+    result = await db.execute(stmt)
     calcs = result.scalars().all()
 
     if not calcs:
@@ -148,7 +171,15 @@ async def push_to_verra_registry(db: AsyncSession = Depends(get_db), user=Depend
 @router.post("/registry/goldstandard/issue", summary="Mock Gold Standard Registry API Push")
 async def push_to_goldstandard_registry(db: AsyncSession = Depends(get_db), user=Depends(require_admin)):
     """Mock integration: Packs the calculation logs into a JSON ready for Gold Standard API."""
-    result = await db.execute(select(CarbonCalculation).where(CarbonCalculation.status == "calculated"))
+    stmt = select(CarbonCalculation)\
+        .join(Activity, CarbonCalculation.activity_id == Activity.id)\
+        .join(User, Activity.user_id == User.id)
+
+    if user.organization:
+        stmt = stmt.where(User.organization == user.organization)
+
+    stmt = stmt.where(CarbonCalculation.status == "calculated")
+    result = await db.execute(stmt)
     calcs = result.scalars().all()
 
     if not calcs:

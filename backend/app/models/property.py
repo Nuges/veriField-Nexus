@@ -19,22 +19,19 @@ from app.db.base import Base
 
 class Property(Base):
     """
-    Property model for the Real Estate Sustainability module.
+    Property model — represents a cookstove installation asset.
     
     Property Types:
-        - "residential": Homes, apartments
-        - "commercial": Offices, retail spaces
-        - "agricultural": Farms, plantations
-        - "industrial": Factories, warehouses
-        - "mixed": Mixed-use properties
+        - "cookstove": Clean cooking stove installation
+        - "CLEAN_COOKING": Activity-linked cookstove asset
     
     Sustainability Metrics (stored in JSONB):
         {
             "carbon_offset_kg": 150.5,
-            "energy_saved_kwh": 2400,
+            "energy_score": "A",
             "clean_cooking_sessions": 89,
-            "sustainability_score": 78.5,
-            "last_calculated": "2024-01-15T10:30:00Z"
+            "status": "Verified MRV",
+            "last_calculation_date": "2024-01-15T10:30:00Z"
         }
     """
     __tablename__ = "properties"

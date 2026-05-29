@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     app_name: str = "VeriField Nexus"
     app_version: str = "1.0.0"
     debug: bool = False
+    dev_mode: bool = False  # Enable offline login bypass (set DEV_MODE=true in .env)
 
     # --- Supabase Configuration ---
     supabase_url: str = ""

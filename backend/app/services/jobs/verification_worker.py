@@ -94,6 +94,8 @@ async def process_pending_activities(batch_size: int = 20) -> dict:
                     f"Activity {activity.id}: score={score:.1f} "
                     f"status={activity.status} flags={len(flags)}"
                 )
+                
+                await db.commit()
 
             except Exception as e:
                 stats["errors"] += 1

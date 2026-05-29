@@ -111,8 +111,14 @@ async def list_audit_tasks(
     count_query = select(func.count(AuditTask.id))
 
     conditions = []
-    if user and user.role != "admin":
-        conditions.append(AuditTask.assigned_agent == user.id)
+    if user:
+        if user.role != "admin":
+            conditions.append(AuditTask.assigned_agent == user.id)
+        else:
+            query = query.join(Property, AuditTask.asset_id == Property.id).join(User, Property.owner_id == User.id)
+            count_query = count_query.join(Property, AuditTask.asset_id == Property.id).join(User, Property.owner_id == User.id)
+            if user.organization:
+                conditions.append(User.organization == user.organization)
     if status_filter:
         conditions.append(AuditTask.status == status_filter)
 
@@ -133,6 +139,29 @@ async def list_audit_tasks(
         audits=[_serialize_audit(a) for a in audits],
         total=total, page=page, per_page=per_page,
     )
+
+
+# =============================================================================
+# GET /api/v1/audits/my-tasks — List audit tasks for current agent
+# =============================================================================
+@router.get(
+    "/my-tasks",
+    response_model=list[AuditTaskResponse],
+    summary="Get audit tasks assigned to the current agent",
+)
+async def get_my_audit_tasks(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get audit tasks assigned to the current agent."""
+    result = await db.execute(
+        select(AuditTask)
+        .options(selectinload(AuditTask.property), selectinload(AuditTask.agent))
+        .where(AuditTask.assigned_agent == user.id)
+        .order_by(AuditTask.created_at.desc())
+    )
+    audits = result.scalars().all()
+    return [_serialize_audit(a) for a in audits]
 
 
 # =============================================================================
@@ -167,6 +196,8 @@ async def update_audit_task(
         audit.status = payload.status
     if payload.deadline is not None:
         audit.deadline = payload.deadline
+    if payload.assigned_agent is not None:
+        audit.assigned_agent = payload.assigned_agent
 
     await db.commit()
     await db.refresh(audit)

@@ -82,13 +82,16 @@ async def export_verra_csv(
     Generate a CSV export matching Verra VCS requirements.
     Only includes verified activities with trust score >= threshold.
     """
-    # Fetch verified activities
+    # Fetch verified activities scoped securely by admin's organization
     conditions = [
         Activity.status == "verified",
         Activity.trust_score >= min_trust_score,
     ]
+    if user.organization:
+        conditions.append(User.organization == user.organization)
     result = await db.execute(
         select(Activity)
+        .join(User, Activity.user_id == User.id)
         .where(and_(*conditions))
         .order_by(Activity.captured_at.asc())
     )
@@ -200,8 +203,11 @@ async def export_goldstandard_json(
         Activity.status == "verified",
         Activity.trust_score >= min_trust_score,
     ]
+    if user.organization:
+        conditions.append(User.organization == user.organization)
     result = await db.execute(
         select(Activity)
+        .join(User, Activity.user_id == User.id)
         .where(and_(*conditions))
         .order_by(Activity.captured_at.asc())
     )

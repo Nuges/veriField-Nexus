@@ -32,11 +32,10 @@ _token_cache = TTLCache(maxsize=1000, ttl=300)
 
 async def decode_jwt_token(token: str) -> dict:
     """
-    Validate a Supabase JWT token.
+    Validate a JWT token. Supports both Supabase tokens and dev mode local tokens.
     
-    Since newer Supabase projects use ES256 asymmetric keys, local signature 
-    verification requires JWKS which isn't always exposed. The most secure 
-    method is calling Supabase's get_user endpoint, which we cache locally.
+    In dev mode (DEV_MODE=true), first attempts local HS256 verification.
+    Otherwise delegates to Supabase's get_user endpoint (cached locally).
     
     Returns:
         dict: Decoded token payload containing user ID ('sub')
@@ -48,13 +47,35 @@ async def decode_jwt_token(token: str) -> dict:
     if token in _token_cache:
         return _token_cache[token]
 
+    # =========================================================================
+    # DEV MODE: Try local JWT decode first (HS256 tokens from dev login)
+    # =========================================================================
+    if settings.dev_mode:
+        try:
+            jwt_secret = settings.jwt_secret or "verifield-dev-secret-key"
+            decoded = pyjwt.decode(token, jwt_secret, algorithms=["HS256"])
+            if decoded.get("sub") and decoded.get("dev_mode"):
+                payload = {"sub": decoded["sub"], "email": decoded.get("email", "")}
+                _token_cache[token] = payload
+                return payload
+        except pyjwt.ExpiredSignatureError:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Dev token expired. Please login again.",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        except (pyjwt.InvalidTokenError, Exception):
+            pass  # Not a dev token, fall through to Supabase validation
+
+    # =========================================================================
+    # Standard: Validate via Supabase Auth API
+    # =========================================================================
     import httpx
     import asyncio
     max_retries = 2
     for attempt in range(max_retries):
         try:
-            # Call Supabase auth to verify the token and get the user
-            async with httpx.AsyncClient(timeout=10.0) as client:
+            async with httpx.AsyncClient(timeout=20.0) as client:
                 response = await client.get(
                     f"{settings.supabase_url}/auth/v1/user",
                     headers={
@@ -82,20 +103,13 @@ async def decode_jwt_token(token: str) -> dict:
             raise
         except Exception as e:
             if attempt < max_retries - 1:
-                # Wait 2 seconds, then 4 seconds before next attempt
                 await asyncio.sleep(2 ** (attempt + 1))
                 continue
             
-            # If network is down but token is well-formed, we could theoretically 
-            # do an unverified decode as a fallback, but that's insecure.
-            # Instead, we just throw a 503 so the client knows it's temporary.
             import logging
             logger = logging.getLogger("verifield.security")
             logger.error(f"Network error verifying token: {e}")
             
-            # Fallback: if we really need to verify during network outage, 
-            # we could check if it's an HS256 token and do local verify, 
-            # but for ES256 we must fail safely.
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="Authentication service unavailable. Please retry.",
@@ -111,21 +125,13 @@ async def get_current_user(
     FastAPI dependency that extracts and validates the current user
     from the Authorization header's Bearer token.
     
-    Flow:
-    1. Extract JWT from Authorization header
-    2. Decode and validate the token
-    3. Look up user in our database by Supabase user ID
-    4. Return the User model instance
-    
-    Usage:
-        @router.get("/protected")
-        async def protected_route(user: User = Depends(get_current_user)):
-            return {"user_id": str(user.id)}
+    In dev mode, gracefully handles unreachable database by creating
+    a virtual User object from the JWT claims.
     """
     # Decode the JWT token
     payload = await decode_jwt_token(credentials.credentials)
 
-    # Extract Supabase user ID from the 'sub' claim
+    # Extract user ID from the 'sub' claim
     user_id: Optional[str] = payload.get("sub")
     if user_id is None:
         raise HTTPException(
@@ -134,31 +140,76 @@ async def get_current_user(
         )
 
     # Look up the user in our database
-    result = await db.execute(select(User).where(User.id == user_id))
-    user = result.scalar_one_or_none()
-
-    if user is None:
-        # Auto-create user from Supabase Auth sync
-        import uuid
-        user_email = payload.get("email", f"{user_id}@verifield.local")
-        user = User(
-            id=uuid.UUID(user_id),
-            email=user_email,
-            full_name=user_email.split('@')[0],
-            role="field_agent",
-            status="active"
+    import uuid as _uuid
+    import asyncio
+    
+    try:
+        result = await asyncio.wait_for(
+            db.execute(select(User).where(User.id == user_id)),
+            timeout=20.0,
         )
-        db.add(user)
-        await db.commit()
-        await db.refresh(user)
+        user = result.scalar_one_or_none()
 
-    if user.status != "active":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Account is {user.status}. Please contact the administrator.",
+        if user is None:
+            user_email = payload.get("email", f"{user_id}@verifield.local")
+            # Avoid IntegrityError: check if a user with this email already exists
+            email_result = await asyncio.wait_for(
+                db.execute(select(User).where(User.email == user_email)),
+                timeout=20.0,
+            )
+            user = email_result.scalar_one_or_none()
+
+            if user is None:
+                user = User(
+                    id=_uuid.UUID(user_id),
+                    email=user_email,
+                    full_name=user_email.split('@')[0].replace(".", " ").replace("_", " ").replace("-", " ").title() if user_email else "Field Agent",
+                    role=payload.get("role", "field_agent"),
+                    status="active"
+                )
+                db.add(user)
+                await asyncio.wait_for(db.commit(), timeout=20.0)
+                await db.refresh(user)
+
+        if user.status != "active":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Account is {user.status}. Please contact the administrator.",
+            )
+
+        return user
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        import logging
+        logging.getLogger("verifield.security").error(
+            f"DEV MODE user fallback triggered by exception: {e}\nTraceback:\n{traceback.format_exc()}"
         )
+        # Always rollback the session to keep the connection clean
+        try:
+            await db.rollback()
+        except Exception as rb_err:
+            logging.getLogger("verifield.security").warning(f"Session rollback failed: {rb_err}")
 
-    return user
+        # DEV MODE: If DB is unreachable, create a virtual User from token claims
+        if settings.dev_mode:
+            logging.getLogger("verifield.security").warning(
+                f"DEV MODE: DB unreachable, using virtual user from token"
+            )
+            from datetime import datetime, timezone
+            now = datetime.now(timezone.utc)
+            virtual_user = User(
+                id=_uuid.UUID(user_id),
+                email=payload.get("email", f"{user_id}@verifield.local"),
+                full_name=payload.get("email", "Dev User").split("@")[0].replace(".", " ").title(),
+                role=payload.get("role", "admin"),
+                status="active",
+                created_at=now,
+                updated_at=now,
+            )
+            return virtual_user
+        raise
 
 
 # Optional auth — for endpoints that work with or without authentication

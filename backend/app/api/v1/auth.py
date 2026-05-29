@@ -8,10 +8,12 @@ database for extended user profiles.
 =============================================================================
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 import uuid
+import os
+import shutil
 
 from app.db.session import get_db
 from app.core.config import settings
@@ -103,14 +105,114 @@ async def register(
             detail="Failed to get user ID from auth service",
         )
 
-    # Create local user record
+    # Create local user record - automatically scope to the registering admin's organization
     user = User(
         id=uuid.UUID(supabase_user_id) if isinstance(supabase_user_id, str) else supabase_user_id,
         email=payload.email,
         phone=payload.phone,
         full_name=payload.full_name,
         role=payload.role,
-        organization=payload.organization,
+        organization=admin_user.organization or "VeriField",  # AUTO-CONNECTED INHERITANCE!
+    )
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+
+    return AuthResponse(
+        user=UserResponse.model_validate(user),
+        access_token=access_token,
+        expires_in=expires_in,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Request Payload for Public Onboarding
+# ---------------------------------------------------------------------------
+from pydantic import BaseModel, Field
+
+class OnboardPayload(BaseModel):
+    email: str = Field(..., description="Developer admin email address")
+    password: str = Field(..., min_length=8, description="Primary account password")
+    full_name: str = Field(..., description="Developer's full name")
+    organization_name: str = Field(..., description="Name of the carbon methodology developer organization")
+
+
+# =============================================================================
+# POST /api/v1/auth/onboard — Public Carbon Developer Onboarding
+# =============================================================================
+@router.post(
+    "/onboard",
+    response_model=AuthResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Onboard a new carbon developer organization",
+    description="Public endpoint to self-register a new organization and create its primary admin account.",
+)
+async def onboard(
+    payload: OnboardPayload,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Onboard a new carbon methodology developer organization and its primary Org Admin.
+    """
+    import httpx
+    
+    # 1. Provision Auth identity in Supabase Auth
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            auth_payload = {
+                "email": payload.email,
+                "password": payload.password,
+                "options": {
+                    "data": {
+                        "organization": payload.organization_name,
+                        "role": "admin"
+                    }
+                }
+            }
+            response = await client.post(
+                f"{settings.supabase_url}/auth/v1/signup",
+                json=auth_payload,
+                headers={
+                    "apikey": settings.supabase_key,
+                    "Content-Type": "application/json",
+                },
+            )
+
+            if response.status_code not in (200, 201):
+                error_detail = response.json().get("msg", "Onboarding registration failed")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Auth Service Error: {error_detail}",
+                )
+
+            auth_result = response.json()
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Auth server unreachable: {str(e)}",
+        )
+
+    # 2. Extract Auth Keys
+    supabase_user_id = auth_result.get("id") or auth_result.get("user", {}).get("id")
+    access_token = auth_result.get("access_token", "")
+    expires_in = auth_result.get("expires_in", 3600)
+
+    if not supabase_user_id:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to capture authentication keys.",
+        )
+
+    # 3. Create local profile entry flagged as Admin role
+    user = User(
+        id=uuid.UUID(supabase_user_id) if isinstance(supabase_user_id, str) else supabase_user_id,
+        email=payload.email,
+        full_name=payload.full_name,
+        role="admin",  # Org Admin
+        organization=payload.organization_name,
+        status="active"
     )
     db.add(user)
     await db.commit()
@@ -138,6 +240,7 @@ async def login(
     """
     Authenticate a user and return a JWT token.
     Delegates authentication to Supabase Auth.
+    Falls back to dev mode login when DEV_MODE=true and Supabase is unreachable.
     """
     identifier = payload.email or payload.phone
     if not identifier:
@@ -148,10 +251,99 @@ async def login(
 
     import httpx
     import asyncio
-    max_retries = 2
+    import logging
+    import jwt as pyjwt
+    import time
+    logger = logging.getLogger("verifield.auth")
+    
+    # =========================================================================
+    # DEV MODE: Skip Supabase entirely, use local auth
+    # =========================================================================
+    if settings.dev_mode:
+        logger.info(f"DEV MODE: Local login for {identifier}")
+        
+        dev_user_id = uuid.uuid5(uuid.NAMESPACE_DNS, identifier)
+        user = None
+        
+        try:
+            result = await asyncio.wait_for(
+                db.execute(select(User).where(User.email == identifier)),
+                timeout=20.0,
+            )
+            user = result.scalar_one_or_none()
+            
+            if not user:
+                user = User(
+                    id=dev_user_id,
+                    email=payload.email,
+                    phone=payload.phone,
+                    role="admin",
+                    full_name=payload.email.split("@")[0].replace(".", " ").title() if payload.email else "Dev Admin",
+                    status="active",
+                )
+                db.add(user)
+                await asyncio.wait_for(db.commit(), timeout=20.0)
+                await db.refresh(user)
+        except Exception as db_err:
+            logger.warning(f"DEV MODE: DB unreachable ({type(db_err).__name__}), using virtual user")
+            try:
+                await db.rollback()
+            except Exception as rb_err:
+                logger.warning(f"DEV MODE session rollback failed: {rb_err}")
+            # Create a virtual User-like object for the response
+            from app.schemas.user import UserResponse as _UR
+            user = None  # Will construct response manually below
+        
+        # Build response — either from DB user or virtual data
+        if user is not None:
+            user_resp = UserResponse.model_validate(user)
+            user_sub = str(user.id)
+            user_email = user.email
+            user_role = user.role
+        else:
+            # Virtual user when DB is completely offline
+            from datetime import datetime, timezone
+            now = datetime.now(timezone.utc)
+            user_sub = str(dev_user_id)
+            user_email = payload.email or identifier
+            user_role = "admin"
+            user_resp = UserResponse(
+                id=dev_user_id,
+                email=user_email,
+                full_name=payload.email.split("@")[0].replace(".", " ").title() if payload.email else "Dev Admin",
+                role="admin",
+                created_at=now,
+                updated_at=now,
+            )
+        
+        # Generate a local JWT token
+        dev_token_payload = {
+            "sub": user_sub,
+            "email": user_email,
+            "role": user_role,
+            "dev_mode": True,
+            "iat": int(time.time()),
+            "exp": int(time.time()) + 86400,
+        }
+        jwt_secret = settings.jwt_secret or "verifield-dev-secret-key"
+        dev_token = pyjwt.encode(dev_token_payload, jwt_secret, algorithm="HS256")
+        
+        return AuthResponse(
+            user=user_resp,
+            access_token=dev_token,
+            expires_in=86400,
+        )
+    
+    # =========================================================================
+    # PRODUCTION: Authenticate via Supabase Auth
+    # =========================================================================
+    supabase_succeeded = False
+    auth_result = None
+    
+    max_retries = 3
     for attempt in range(max_retries):
         try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
+            async with httpx.AsyncClient(timeout=20.0) as client:
                 auth_data = {"password": payload.password}
                 if payload.email:
                     auth_data["email"] = payload.email
@@ -168,26 +360,82 @@ async def login(
                 )
 
                 if response.status_code != 200:
+                    try:
+                        error_body = response.json()
+                        error_code = error_body.get("error_code", "")
+                        error_msg = error_body.get("msg", "")
+                    except Exception:
+                        error_code = ""
+                        error_msg = ""
+                    
+                    logger.warning(f"Supabase auth error: {response.status_code} - {error_code}: {error_msg}")
+                    
                     raise HTTPException(
                         status_code=status.HTTP_401_UNAUTHORIZED,
-                        detail="Invalid credentials",
+                        detail="Invalid credentials. Please check your email and password.",
                     )
 
                 auth_result = response.json()
-                break # Success, exit retry loop
+                supabase_succeeded = True
+                break
         except HTTPException:
             raise
         except Exception as e:
+            logger.warning(f"Login attempt {attempt+1}/{max_retries} failed: {type(e).__name__}: {e}")
             if attempt < max_retries - 1:
-                # Wait 2 seconds, then 4 seconds before next attempt
                 await asyncio.sleep(2 ** (attempt + 1))
                 continue
+            
+            # =========================================================
+            # DEV MODE FALLBACK — offline login when Supabase is down
+            # =========================================================
+            if settings.dev_mode:
+                logger.info(f"DEV MODE: Supabase unreachable, using offline login for {identifier}")
+                
+                # Find or create dev user in local database
+                dev_user_id = uuid.uuid5(uuid.NAMESPACE_DNS, identifier)
+                result = await db.execute(select(User).where(User.email == identifier))
+                user = result.scalar_one_or_none()
+                
+                if not user:
+                    user = User(
+                        id=dev_user_id,
+                        email=payload.email,
+                        phone=payload.phone,
+                        role="admin",
+                        full_name=payload.email.split("@")[0].replace(".", " ").title() if payload.email else "Dev Admin",
+                        status="active",
+                    )
+                    db.add(user)
+                    await db.commit()
+                    await db.refresh(user)
+                
+                # Generate a local JWT token (signed with jwt_secret)
+                dev_token_payload = {
+                    "sub": str(user.id),
+                    "email": user.email,
+                    "role": user.role,
+                    "dev_mode": True,
+                    "iat": int(time.time()),
+                    "exp": int(time.time()) + 86400,  # 24h expiry
+                }
+                jwt_secret = settings.jwt_secret or "verifield-dev-secret-key"
+                dev_token = pyjwt.encode(dev_token_payload, jwt_secret, algorithm="HS256")
+                
+                return AuthResponse(
+                    user=UserResponse.model_validate(user),
+                    access_token=dev_token,
+                    expires_in=86400,
+                )
+            
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail=f"Authentication service unavailable. Please retry in a moment.",
+                detail="Authentication service unavailable. Please retry in a moment.",
             )
 
-    # Get user from our database, with timeout to prevent hanging
+    # =========================================================================
+    # Standard Supabase flow — get/create user in local DB
+    # =========================================================================
     supabase_user_id = auth_result.get("user", {}).get("id")
     try:
         result = await asyncio.wait_for(
@@ -202,15 +450,15 @@ async def login(
         )
 
     if not user:
-        # Auto-create local profile if authenticated via Supabase but missing locally
-        import uuid
         user_email = payload.email or auth_result.get("user", {}).get("email")
         user = User(
             id=uuid.UUID(supabase_user_id) if isinstance(supabase_user_id, str) else supabase_user_id,
             email=user_email,
             phone=payload.phone,
             role="admin" if "admin" in (user_email or "").lower() else "field_agent",
-            full_name="Admin User" if "admin" in (user_email or "").lower() else "Field Agent",
+            full_name="Admin User" if "admin" in (user_email or "").lower() else (
+                user_email.split("@")[0].replace(".", " ").replace("_", " ").replace("-", " ").title() if user_email else "Field Agent"
+            ),
         )
         db.add(user)
         try:
@@ -256,12 +504,128 @@ async def update_profile(
     db: AsyncSession = Depends(get_db),
 ):
     """Update the authenticated user's profile fields."""
+    db_user = await db.get(User, user.id)
+    if not db_user:
+        # If transient virtual user in DEV_MODE, register it in DB
+        db_user = User(
+            id=user.id,
+            email=user.email,
+            phone=user.phone,
+            full_name=user.full_name,
+            role=user.role,
+            status=user.status,
+            avatar_url=user.avatar_url,
+            organization=user.organization,
+        )
+        db.add(db_user)
+
     update_data = payload.model_dump(exclude_unset=True)
     for field, value in update_data.items():
-        setattr(user, field, value)
+        setattr(db_user, field, value)
     await db.commit()
-    await db.refresh(user)
-    return UserResponse.model_validate(user)
+    await db.refresh(db_user)
+    return UserResponse.model_validate(db_user)
+
+
+@router.post(
+    "/upload-avatar",
+    summary="Upload user avatar image",
+    description="Uploads a profile picture and returns the hosting static URL.",
+)
+async def upload_avatar(
+    request: Request,
+    file: UploadFile = File(...),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    # Validate file extension
+    file_ext = os.path.splitext(file.filename)[1].lower()
+    if file_ext not in (".jpg", ".jpeg", ".png", ".gif", ".webp"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only JPG, JPEG, PNG, GIF, and WEBP images are supported.",
+        )
+    
+    # Create unique filename
+    unique_filename = f"{uuid.uuid4()}{file_ext}"
+    target_path = os.path.join("static", "avatars", unique_filename)
+    
+    # Save the file
+    try:
+        with open(target_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Could not save uploaded file: {str(e)}",
+        )
+        
+    # Build absolute URL using base_url
+    base_url = str(request.base_url).rstrip("/")
+    avatar_url = f"{base_url}/static/avatars/{unique_filename}"
+    
+    # Persist avatar_url in the database immediately
+    db_user = await db.get(User, user.id)
+    if not db_user:
+        db_user = User(
+            id=user.id,
+            email=user.email,
+            phone=user.phone,
+            full_name=user.full_name,
+            role=user.role,
+            status=user.status,
+            avatar_url=avatar_url,
+            organization=user.organization,
+        )
+        db.add(db_user)
+    else:
+        db_user.avatar_url = avatar_url
+
+    await db.commit()
+    await db.refresh(db_user)
+    
+    return {"avatar_url": avatar_url}
+
+
+class ChangePasswordPayload(BaseModel):
+    new_password: str = Field(..., min_length=8, description="New password (min 8 characters)")
+
+
+@router.post(
+    "/change-password",
+    summary="Change user password",
+)
+async def change_password(
+    payload: ChangePasswordPayload,
+    user: User = Depends(get_current_user),
+):
+    """Change the password for the currently logged-in user in Supabase Auth."""
+    import httpx
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.put(
+                f"{settings.supabase_url}/auth/v1/admin/users/{user.id}",
+                json={"password": payload.new_password},
+                headers={
+                    "apikey": settings.supabase_key,
+                    "Authorization": f"Bearer {settings.supabase_key}",
+                    "Content-Type": "application/json",
+                },
+            )
+            if response.status_code not in (200, 201):
+                error_detail = response.json().get("msg", "Password update failed")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Auth Service Error: {error_detail}",
+                )
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Auth server unreachable: {str(e)}",
+        )
+    return {"message": "Password successfully updated."}
 
 
 # =============================================================================
@@ -299,4 +663,26 @@ async def update_user_status(
     await db.commit()
     await db.refresh(target_user)
     return UserResponse.model_validate(target_user)
+
+
+# =============================================================================
+# DELETE /api/v1/auth/me — Delete current user account (Compliance)
+# =============================================================================
+@router.delete(
+    "/me",
+    status_code=status.HTTP_200_OK,
+    summary="Delete current user profile (Compliance)",
+    description="Deletes the authenticated user's database profile and data for GDPR/App Store compliance.",
+)
+async def delete_me(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    GDPR & App Store compliance: Deletes the user profile and extended data from PostgreSQL.
+    """
+    await db.delete(user)
+    await db.commit()
+    return {"message": "Account successfully deleted."}
+
 

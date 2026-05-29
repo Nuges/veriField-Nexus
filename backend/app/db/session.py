@@ -16,12 +16,19 @@ from typing import AsyncGenerator
 
 from app.core.config import settings
 
-# Ensure the connection string uses the asyncpg driver
+# Ensure the connection string uses the asyncpg driver and transaction pooler
 db_url = settings.database_url
 if db_url and db_url.startswith("postgres://"):
     db_url = db_url.replace("postgres://", "postgresql+asyncpg://", 1)
 elif db_url and db_url.startswith("postgresql://"):
     db_url = db_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+
+# Keep the Session Pooler (port 5432) as it fully supports prepared statements
+# without throwing PgBouncer transaction errors.
+if "?" not in db_url:
+    db_url += "?prepared_statement_cache_size=100"
+else:
+    db_url += "&prepared_statement_cache_size=100"
 
 # --- Async Engine ---
 # Creates a connection pool to Supabase PostgreSQL
@@ -29,11 +36,11 @@ elif db_url and db_url.startswith("postgresql://"):
 engine = create_async_engine(
     db_url,
     echo=settings.debug,        # Log SQL queries in debug mode
-    pool_size=4,                 # Reduced to stay well below Supabase limits
-    max_overflow=2,              # Soft limit to handle bursts without hitting 15
+    pool_size=10,                 # Allow up to 10 connections in pool
+    max_overflow=5,               # Allow overflow up to 15 connections max to prevent bottlenecks
     pool_pre_ping=True,          # Verify connections before use
     pool_recycle=300,            # Recycle connections every 5 minutes
-    pool_timeout=15,             # Wait up to 15s for a connection
+    pool_timeout=30,             # Wait up to 30s for a connection
     connect_args={
         "server_settings": {"jit": "off"},  # Disable JIT for faster simple queries
         "command_timeout": 15.0,             # Kill queries that hang at the socket level

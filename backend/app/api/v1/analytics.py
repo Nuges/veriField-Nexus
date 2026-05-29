@@ -43,28 +43,44 @@ async def get_overview(
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     week_start = today_start - timedelta(days=7)
 
-    import asyncio
-    from app.db.session import async_session_factory
+    # Filter all activity queries securely by admin's organization (if set)
+    if user.organization:
+        q_total_sub = select(func.count(Activity.id)).join(User, Activity.user_id == User.id).where(User.organization == user.organization).scalar_subquery()
+        q_total_users = select(func.count(User.id)).where(User.organization == user.organization, User.role == "field_agent").scalar_subquery()
+        q_total_props = select(func.count(Property.id)).join(User, Property.owner_id == User.id).where(User.organization == user.organization).scalar_subquery()
+        q_avg_score = select(func.avg(Activity.trust_score)).join(User, Activity.user_id == User.id).where(User.organization == user.organization, Activity.trust_score.isnot(None)).scalar_subquery()
+        q_flagged = select(func.count(AnomalyFlag.id)).join(Activity, AnomalyFlag.activity_id == Activity.id).join(User, Activity.user_id == User.id).where(User.organization == user.organization, AnomalyFlag.resolved == False).scalar_subquery()
+        q_today_sub = select(func.count(Activity.id)).join(User, Activity.user_id == User.id).where(User.organization == user.organization, Activity.created_at >= today_start).scalar_subquery()
+        q_week_sub = select(func.count(Activity.id)).join(User, Activity.user_id == User.id).where(User.organization == user.organization, Activity.created_at >= week_start).scalar_subquery()
+    else:
+        q_total_sub = select(func.count(Activity.id)).join(User, Activity.user_id == User.id).scalar_subquery()
+        q_total_users = select(func.count(User.id)).where(User.role == "field_agent").scalar_subquery()
+        q_total_props = select(func.count(Property.id)).scalar_subquery()
+        q_avg_score = select(func.avg(Activity.trust_score)).join(User, Activity.user_id == User.id).where(Activity.trust_score.isnot(None)).scalar_subquery()
+        q_flagged = select(func.count(AnomalyFlag.id)).where(AnomalyFlag.resolved == False).scalar_subquery()
+        q_today_sub = select(func.count(Activity.id)).join(User, Activity.user_id == User.id).where(Activity.created_at >= today_start).scalar_subquery()
+        q_week_sub = select(func.count(Activity.id)).join(User, Activity.user_id == User.id).where(Activity.created_at >= week_start).scalar_subquery()
 
-    async def fetch_scalar(stmt):
-        # Checkout a dedicated connection from QueuePool for concurrent execution
-        async with async_session_factory() as temp_db:
-            res = await temp_db.execute(stmt)
-            return res.scalar()
-            
-    # Execute all 7 queries concurrently using 7 separate connections from the pool
-    # This reduces total latency from ~17s to ~2s
-    results = await asyncio.gather(
-        fetch_scalar(select(func.count(Activity.id))),
-        fetch_scalar(select(func.count(User.id))),
-        fetch_scalar(select(func.count(Property.id))),
-        fetch_scalar(select(func.avg(Activity.trust_score)).where(Activity.trust_score.isnot(None))),
-        fetch_scalar(select(func.count(Activity.id)).where(Activity.status == "flagged")),
-        fetch_scalar(select(func.count(Activity.id)).where(Activity.created_at >= today_start)),
-        fetch_scalar(select(func.count(Activity.id)).where(Activity.created_at >= week_start)),
+    stmt = select(
+        q_total_sub.label("total_sub"),
+        q_total_users.label("total_users"),
+        q_total_props.label("total_props"),
+        q_avg_score.label("avg_score"),
+        q_flagged.label("flagged"),
+        q_today_sub.label("today_sub"),
+        q_week_sub.label("week_sub")
     )
-    
-    total_sub, total_users, total_props, avg_score, flagged, today_sub, week_sub = results
+
+    res = await db.execute(stmt)
+    row = res.fetchone()
+
+    total_sub = row.total_sub if row else 0
+    total_users = row.total_users if row else 0
+    total_props = row.total_props if row else 0
+    avg_score = row.avg_score if row else None
+    flagged = row.flagged if row else 0
+    today_sub = row.today_sub if row else 0
+    week_sub = row.week_sub if row else 0
 
     return AnalyticsOverview(
         total_submissions=total_sub or 0,
@@ -84,6 +100,7 @@ async def get_overview(
     "/daily",
     response_model=list[DailySubmission],
     summary="Get daily submission counts",
+    response_model_exclude_none=True,
 )
 async def get_daily_submissions(
     days: int = Query(30, ge=1, le=365),
@@ -93,16 +110,20 @@ async def get_daily_submissions(
     """Daily submission counts for the last N days."""
     start_date = datetime.now(timezone.utc) - timedelta(days=days)
 
-    result = await db.execute(
-        select(
-            cast(Activity.created_at, Date).label("date"),
-            func.count(Activity.id).label("count"),
-            func.avg(Activity.trust_score).label("avg_trust"),
-        )
-        .where(Activity.created_at >= start_date)
-        .group_by(cast(Activity.created_at, Date))
-        .order_by(cast(Activity.created_at, Date))
-    )
+    stmt = select(
+        cast(Activity.created_at, Date).label("date"),
+        func.count(Activity.id).label("count"),
+        func.avg(Activity.trust_score).label("avg_trust"),
+    ).join(User, Activity.user_id == User.id)
+
+    if user.organization:
+        stmt = stmt.where(User.organization == user.organization)
+
+    stmt = stmt.where(
+        Activity.created_at >= start_date
+    ).group_by(cast(Activity.created_at, Date)).order_by(cast(Activity.created_at, Date))
+
+    result = await db.execute(stmt)
 
     return [
         DailySubmission(
@@ -130,55 +151,129 @@ async def get_trends(
     """Comprehensive analytics including daily counts, type breakdown, and trust distribution."""
     start_date = datetime.now(timezone.utc) - timedelta(days=days)
 
-    # Daily submissions
-    daily_result = await db.execute(
-        select(
-            cast(Activity.created_at, Date).label("date"),
-            func.count(Activity.id).label("count"),
-            func.avg(Activity.trust_score).label("avg_trust"),
-        )
-        .where(Activity.created_at >= start_date)
-        .group_by(cast(Activity.created_at, Date))
-        .order_by(cast(Activity.created_at, Date))
-    )
+    # Daily submissions scoped to admin's organization (if set)
+    stmt_daily = select(
+        cast(Activity.created_at, Date).label("date"),
+        func.count(Activity.id).label("count"),
+        func.avg(Activity.trust_score).label("avg_trust"),
+    ).join(User, Activity.user_id == User.id)
+
+    if user.organization:
+        stmt_daily = stmt_daily.where(User.organization == user.organization)
+
+    stmt_daily = stmt_daily.where(
+        Activity.created_at >= start_date
+    ).group_by(cast(Activity.created_at, Date)).order_by(cast(Activity.created_at, Date))
+
+    daily_result = await db.execute(stmt_daily)
     daily = [
         DailySubmission(date=str(r.date), count=r.count, avg_trust_score=round(r.avg_trust, 1) if r.avg_trust else None)
         for r in daily_result.all()
     ]
 
-    # Activity type breakdown
-    total_count_result = await db.execute(
-        select(func.count(Activity.id)).where(Activity.created_at >= start_date)
+    # Activity type breakdown scoped to admin's organization (if set)
+    stmt_total = select(func.count(Activity.id)).join(User, Activity.user_id == User.id)
+    if user.organization:
+        stmt_total = stmt_total.where(User.organization == user.organization)
+    stmt_total = stmt_total.where(
+        Activity.created_at >= start_date
     )
+    total_count_result = await db.execute(stmt_total)
     total_count = total_count_result.scalar() or 1
 
-    type_result = await db.execute(
-        select(
-            Activity.activity_type,
-            func.count(Activity.id).label("count"),
-            func.avg(Activity.trust_score).label("avg_trust"),
-        )
-        .where(Activity.created_at >= start_date)
-        .group_by(Activity.activity_type)
+    def get_stove_model_label(model_code: str, act_type: str) -> str:
+        t = (act_type or "").upper().strip()
+        if t == "ENERGY":
+            return "Energy Systems"
+        if t == "AGRICULTURE" or t == "FARMING":
+            return "Agriculture & Farming"
+        if t in ("TRANSPORT_MOBILITY", "TRANSPORT"):
+            return "Transport & Mobility"
+        if t in ("FORESTRY_LAND_USE", "FORESTRY"):
+            return "Forestry & Land Use"
+        if t == "SUSTAINABILITY":
+            return "Sustainability Monitoring"
+        
+        m = (model_code or "").lower().strip()
+        if "baikuc" in m:
+            return "Baikuc Gen 1"
+        if "tlud" in m or "forced" in m:
+            return "TLUD Forced Draft"
+        if "rocket" in m:
+            return "Rocket Stove"
+        if "gasifier" in m:
+            return "Gasifier Stove"
+        if "jiko" in m:
+            return "Kenya Ceramic Jiko"
+        if "lpg" in m:
+            return "LPG Double Burner"
+        if "electric" in m or "ics" in m:
+            return "Electric ICS"
+        
+        if act_type and act_type != "other":
+            return act_type.replace("_", " ").title()
+        return "Other Methodology"
+
+    stmt_type = select(
+        Activity.activity_data,
+        Activity.trust_score,
+        Activity.activity_type
+    ).join(User, Activity.user_id == User.id)
+
+    if user.organization:
+        stmt_type = stmt_type.where(User.organization == user.organization)
+
+    stmt_type = stmt_type.where(
+        Activity.created_at >= start_date
     )
+
+    type_result = await db.execute(stmt_type)
+    
+    normalized_groups = {}
+    for data_val, trust, act_type in type_result.all():
+        raw_model = None
+        if isinstance(data_val, dict):
+            raw_model = data_val.get("stove_model")
+        
+        label = get_stove_model_label(raw_model, act_type)
+        
+        if label not in normalized_groups:
+            normalized_groups[label] = {"count": 0, "sum_trust": 0.0, "count_trust": 0}
+        normalized_groups[label]["count"] += 1
+        if trust is not None:
+            normalized_groups[label]["sum_trust"] += trust
+            normalized_groups[label]["count_trust"] += 1
+
     types = [
         ActivityTypeSummary(
-            activity_type=r.activity_type, count=r.count,
-            percentage=round((r.count / total_count) * 100, 1),
-            avg_trust_score=round(r.avg_trust, 1) if r.avg_trust else None,
+            activity_type=name,
+            count=data["count"],
+            percentage=round((data["count"] / total_count) * 100, 1),
+            avg_trust_score=round(data["sum_trust"] / data["count_trust"], 1) if data["count_trust"] > 0 else None,
         )
-        for r in type_result.all()
+        for name, data in normalized_groups.items()
     ]
 
-    # Trust distribution
-    high = await db.execute(select(func.count(Activity.id)).where(Activity.trust_score >= 80))
-    medium = await db.execute(select(func.count(Activity.id)).where(Activity.trust_score.between(50, 79.99)))
-    low = await db.execute(select(func.count(Activity.id)).where(Activity.trust_score < 50, Activity.trust_score.isnot(None)))
-    unscored = await db.execute(select(func.count(Activity.id)).where(Activity.trust_score.is_(None)))
+    # Trust distribution scoped to admin's organization (if set)
+    from sqlalchemy import case
+    stmt_dist = select(
+        func.sum(case((Activity.trust_score >= 80, 1), else_=0)).label("high"),
+        func.sum(case((Activity.trust_score.between(50, 79.99), 1), else_=0)).label("medium"),
+        func.sum(case((Activity.trust_score < 50, 1), else_=0)).label("low"),
+        func.sum(case((Activity.trust_score.is_(None), 1), else_=0)).label("unscored")
+    ).join(User, Activity.user_id == User.id)
+
+    if user.organization:
+        stmt_dist = stmt_dist.where(User.organization == user.organization)
+
+    dist_res = await db.execute(stmt_dist)
+    dist_row = dist_res.fetchone()
 
     distribution = TrustDistribution(
-        high=high.scalar() or 0, medium=medium.scalar() or 0,
-        low=low.scalar() or 0, unscored=unscored.scalar() or 0,
+        high=dist_row.high or 0,
+        medium=dist_row.medium or 0,
+        low=dist_row.low or 0,
+        unscored=dist_row.unscored or 0,
     )
 
     return AnalyticsTrends(daily_submissions=daily, activity_types=types, trust_distribution=distribution)
@@ -196,15 +291,25 @@ async def get_trust_distribution(
     user: User = Depends(require_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    """Trust score distribution across all activities."""
-    high = await db.execute(select(func.count(Activity.id)).where(Activity.trust_score >= 80))
-    medium = await db.execute(select(func.count(Activity.id)).where(Activity.trust_score.between(50, 79.99)))
-    low = await db.execute(select(func.count(Activity.id)).where(Activity.trust_score < 50, Activity.trust_score.isnot(None)))
-    unscored = await db.execute(select(func.count(Activity.id)).where(Activity.trust_score.is_(None)))
+    from sqlalchemy import case
+    stmt = select(
+        func.sum(case((Activity.trust_score >= 80, 1), else_=0)).label("high"),
+        func.sum(case((Activity.trust_score.between(50, 79.99), 1), else_=0)).label("medium"),
+        func.sum(case((Activity.trust_score < 50, 1), else_=0)).label("low"),
+        func.sum(case((Activity.trust_score.is_(None), 1), else_=0)).label("unscored")
+    ).join(User, Activity.user_id == User.id)
+
+    if user.organization:
+        stmt = stmt.where(User.organization == user.organization)
+
+    dist_res = await db.execute(stmt)
+    dist_row = dist_res.fetchone()
 
     return TrustDistribution(
-        high=high.scalar() or 0, medium=medium.scalar() or 0,
-        low=low.scalar() or 0, unscored=unscored.scalar() or 0,
+        high=dist_row.high or 0,
+        medium=dist_row.medium or 0,
+        low=dist_row.low or 0,
+        unscored=dist_row.unscored or 0,
     )
 
 
@@ -224,21 +329,23 @@ async def get_agent_performance(
     and suspicious status (agents with avg trust < 50 or > 20% flagged).
     """
     # Get all agents with their activity stats
-    result = await db.execute(
-        select(
-            User.id,
-            User.full_name,
-            User.email,
-            User.role,
-            User.organization,
-            User.status,
-            func.count(Activity.id).label("total_submissions"),
-            func.avg(Activity.trust_score).label("avg_trust_score"),
-        )
-        .outerjoin(Activity, User.id == Activity.user_id)
-        .group_by(User.id)
-        .order_by(func.count(Activity.id).desc())
-    )
+    stmt = select(
+        User.id,
+        User.full_name,
+        User.email,
+        User.role,
+        User.organization,
+        User.status,
+        func.count(Activity.id).label("total_submissions"),
+        func.avg(Activity.trust_score).label("avg_trust_score"),
+    ).outerjoin(Activity, User.id == Activity.user_id)
+
+    if user.organization:
+        stmt = stmt.where(User.organization == user.organization)
+
+    stmt = stmt.where(User.role == "field_agent").group_by(User.id).order_by(func.count(Activity.id).desc())
+
+    result = await db.execute(stmt)
 
     # Fallback: use separate queries for flag count since CASE may vary
     agents_raw = result.all()
@@ -297,12 +404,15 @@ async def get_anomalies(
     db: AsyncSession = Depends(get_db),
 ):
     """Fetch the latest anomaly flags detected by the AI."""
-    result = await db.execute(
-        select(AnomalyFlag, Activity)
-        .join(Activity, AnomalyFlag.activity_id == Activity.id)
-        .order_by(AnomalyFlag.created_at.desc())
-        .limit(limit)
-    )
+    stmt = select(AnomalyFlag, Activity)\
+        .join(Activity, AnomalyFlag.activity_id == Activity.id)\
+        .join(User, Activity.user_id == User.id)
+
+    if user.organization:
+        stmt = stmt.where(User.organization == user.organization)
+
+    stmt = stmt.order_by(AnomalyFlag.created_at.desc()).limit(limit)
+    result = await db.execute(stmt)
     
     anomalies = []
     for flag, activity in result.all():
@@ -377,9 +487,13 @@ async def resolve_anomaly(
         import asyncio
         from app.services.quantification_engine import QuantificationEngine
         async def run_quantification(act_id):
-            async with app.db.session.async_session_factory() as temp_db:
-                engine = QuantificationEngine(temp_db)
-                await engine.process_activity(act_id)
+            try:
+                async with app.db.session.async_session_factory() as temp_db:
+                    engine = QuantificationEngine(temp_db)
+                    await engine.quantify_activity(act_id, None)
+            except Exception as e:
+                import logging
+                logging.getLogger("verifield.api").error(f"Async resolve-quantification failed for {act_id}: {e}")
         
         import app.db.session
         asyncio.create_task(run_quantification(activity.id))

@@ -5,22 +5,109 @@
 // Wraps all main screens (Home, Properties, Profile).
 // =============================================================================
 
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/router/app_router.dart';
 import '../../core/utils/refresh_event_bus.dart';
+import '../../services/api_service.dart';
+import 'shared_widgets.dart';
 
 /// Shell widget providing bottom navigation across main app sections.
-class VFShell extends StatelessWidget {
+class VFShell extends StatefulWidget {
   final Widget child;
 
   const VFShell({super.key, required this.child});
 
   @override
+  State<VFShell> createState() => _VFShellState();
+}
+
+class _VFShellState extends State<VFShell> {
+  Timer? _notificationTimer;
+  final Set<String> _seenAuditIds = {};
+  bool _isFirstFetch = true;
+  String? _myUserId;
+
+  @override
+  void initState() {
+    super.initState();
+    _startNotificationCheck();
+  }
+
+  @override
+  void dispose() {
+    _notificationTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startNotificationCheck() {
+    // Check for new audit tasks periodically (every 10 seconds)
+    _notificationTimer = Timer.periodic(const Duration(seconds: 10), (timer) async {
+      if (!mounted) return;
+      
+      try {
+        // Retrieve my user ID if not cached yet
+        if (_myUserId == null) {
+          try {
+            final user = await ApiService.get('/auth/me');
+            _myUserId = user['id'] as String?;
+          } catch (_) {
+            return; // Exit check if we are not authenticated yet
+          }
+        }
+
+        if (_myUserId == null) return;
+
+        // Query the audits list
+        final response = await ApiService.get('/audits?per_page=20');
+        final audits = response['audits'] as List? ?? [];
+        
+        bool hasNewAudit = false;
+        String? lastNewStoveName;
+
+        for (var audit in audits) {
+          final id = audit['id'] as String?;
+          final assignedAgent = audit['assigned_agent'] as String?;
+          final status = audit['status'] ?? 'pending';
+          
+          if (id == null || assignedAgent != _myUserId) continue;
+          
+          if (!_seenAuditIds.contains(id)) {
+            _seenAuditIds.add(id);
+            
+            // Only notify on subsequent fetches so we don't spam on launch
+            if (!_isFirstFetch) {
+              if (status == 'pending' || status == 'in_progress') {
+                hasNewAudit = true;
+                lastNewStoveName = audit['property_name'] ?? 'Cookstove Asset';
+              }
+            }
+          }
+        }
+
+        if (_isFirstFetch) {
+          _isFirstFetch = false;
+        } else if (hasNewAudit && mounted) {
+          // Trigger floating toast notification in active context!
+          VFNotification.showSuccess(
+            context, 
+            'New Audit Task Assigned! 🛡️\nStove: $lastNewStoveName',
+          );
+          // Auto-trigger audits screen UI update
+          RefreshEventBus.triggerAuditRefresh();
+        }
+      } catch (_) {
+        // Ignore network or auth errors during background check
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: child,
+      body: widget.child,
       // --- Floating Action Button for quick activity creation ---
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () async {
@@ -32,7 +119,7 @@ class VFShell extends StatelessWidget {
             }
           }
         },
-        icon: const Icon(Icons.add_location_alt_rounded),
+        icon: const Icon(Icons.energy_savings_leaf_rounded),
         label: const Text('Register Installation'),
         backgroundColor: AppColors.primary,
         foregroundColor: AppColors.textInverse,
@@ -84,28 +171,28 @@ class VFShell extends StatelessWidget {
         },
         destinations: const [
           NavigationDestination(
-            icon: Icon(Icons.history_rounded, color: AppColors.textTertiary),
-            selectedIcon: Icon(Icons.history_rounded, color: AppColors.primary),
+            icon: Icon(Icons.layers_outlined, color: AppColors.textTertiary),
+            selectedIcon: Icon(Icons.layers_rounded, color: AppColors.primary),
             label: 'Activities',
           ),
           NavigationDestination(
-            icon: Icon(Icons.fact_check_outlined, color: AppColors.textTertiary),
-            selectedIcon: Icon(Icons.fact_check, color: AppColors.primary),
+            icon: Icon(Icons.verified_outlined, color: AppColors.textTertiary),
+            selectedIcon: Icon(Icons.verified_rounded, color: AppColors.primary),
             label: 'Audits',
           ),
           NavigationDestination(
-            icon: Icon(Icons.sensors_rounded, color: AppColors.textTertiary),
-            selectedIcon: Icon(Icons.sensors, color: AppColors.primary),
+            icon: Icon(Icons.hub_outlined, color: AppColors.textTertiary),
+            selectedIcon: Icon(Icons.hub_rounded, color: AppColors.primary),
             label: 'Sensors',
           ),
           NavigationDestination(
-            icon: Icon(Icons.groups_outlined, color: AppColors.textTertiary),
-            selectedIcon: Icon(Icons.groups_rounded, color: AppColors.primary),
+            icon: Icon(Icons.public_outlined, color: AppColors.textTertiary),
+            selectedIcon: Icon(Icons.public_rounded, color: AppColors.primary),
             label: 'Community',
           ),
           NavigationDestination(
-            icon: Icon(Icons.person_outline_rounded, color: AppColors.textTertiary),
-            selectedIcon: Icon(Icons.person_rounded, color: AppColors.primary),
+            icon: Icon(Icons.badge_outlined, color: AppColors.textTertiary),
+            selectedIcon: Icon(Icons.badge_rounded, color: AppColors.primary),
             label: 'Profile',
           ),
         ],

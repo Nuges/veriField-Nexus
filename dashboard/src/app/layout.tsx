@@ -3,10 +3,8 @@
 // =============================================================================
 
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Providers } from "@/components/Providers";
 import "./globals.css";
-
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 export const metadata: Metadata = {
   title: "VeriField Nexus — Admin Dashboard",
@@ -20,8 +18,8 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="dark" suppressHydrationWarning>
-      <body className={`${inter.variable} font-sans antialiased`} suppressHydrationWarning>
-        {children}
+      <body className="font-sans antialiased" suppressHydrationWarning>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

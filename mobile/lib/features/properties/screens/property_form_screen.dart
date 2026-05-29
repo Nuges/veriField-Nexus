@@ -31,11 +31,7 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
   bool _isCapturingLocation = false;
 
   final List<Map<String, dynamic>> _propertyTypes = [
-    {'id': 'cookstove', 'label': 'Cookstove', 'icon': Icons.local_fire_department_rounded},
-    {'id': 'property', 'label': 'Property', 'icon': Icons.home_rounded},
-    {'id': 'agriculture', 'label': 'Agriculture Plot', 'icon': Icons.agriculture_rounded},
-    {'id': 'solar', 'label': 'Solar Installation', 'icon': Icons.solar_power_rounded},
-    {'id': 'other', 'label': 'Other Asset', 'icon': Icons.inventory_2_rounded},
+    {'id': 'cookstove', 'label': 'Cookstove', 'icon': Icons.soup_kitchen_rounded},
   ];
 
   @override
@@ -71,16 +67,12 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Asset created! 📦')),
-        );
+        VFNotification.showSuccess(context, 'Asset created successfully! 📦');
         context.pop();
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}')),
-        );
+        VFNotification.showError(context, 'Failed to create asset: ${e.toString()}');
       }
     } finally {
       if (mounted) setState(() => _isSubmitting = false);

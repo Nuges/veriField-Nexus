@@ -13,6 +13,7 @@ import type {
   Property,
   TrustDistribution,
   TrustScoreBreakdown,
+  User,
 } from "./types";
 
 // Add types for cross verification
@@ -40,6 +41,10 @@ export interface AuditTask {
   status: string;
   deadline: string | null;
   created_at: string;
+  property_name?: string | null;
+  property_address?: string | null;
+  property_type?: string | null;
+  agent_name?: string | null;
 }
 
 // Base URL for the FastAPI backend
@@ -72,7 +77,7 @@ async function apiFetch<T>(
 ): Promise<T> {
   const currentToken = getAuthToken();
   const headers: Record<string, string> = {
-    "Content-Type": "application/json",
+    ...(options.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
     ...(currentToken ? { Authorization: `Bearer ${currentToken}` } : {}),
     ...(options.headers as Record<string, string> || {}),
   };
@@ -100,7 +105,7 @@ async function apiFetch<T>(
 
   if (!response.ok) {
     // Only redirect to login on 401 for non-auth endpoints
-    // This prevents the login → dashboard → 401 → login loop
+    // Never redirect on 503 (service unavailable) or 500 (server error)
     if (
       response.status === 401 &&
       typeof window !== "undefined" &&
@@ -131,6 +136,21 @@ export async function loginAdmin(email: string, password: string) {
     {
       method: "POST",
       body: JSON.stringify({ email, password }),
+    }
+  );
+}
+
+export async function onboardDeveloper(payload: {
+  email: string;
+  password: string;
+  full_name: string;
+  organization_name: string;
+}) {
+  return apiFetch<{ user: any; access_token: string; expires_in: number }>(
+    "/auth/onboard",
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
     }
   );
 }
@@ -182,11 +202,11 @@ export async function fetchTrustScore(
 // Properties API
 // ---------------------------------------------------------------------------
 
-export async function fetchProperties(): Promise<{
+export async function fetchProperties(perPage = 100): Promise<{
   properties: Property[];
   total: number;
 }> {
-  return apiFetch(`/properties?per_page=100`);
+  return apiFetch(`/properties?per_page=${perPage}`);
 }
 
 export async function fetchProperty(id: string): Promise<Property & { total_activities?: number, avg_trust_score?: number, activity_breakdown?: any }> {
@@ -247,11 +267,11 @@ export async function fetchCommunityValidations(assetId: string): Promise<Commun
 }
 
 export async function fetchMyAuditTasks(): Promise<AuditTask[]> {
-  return apiFetch<AuditTask[]>("/verification/audits/my-tasks");
+  return apiFetch<AuditTask[]>("/audits/my-tasks");
 }
 
 export async function createAuditTask(data: { asset_id: string; assigned_agent: string; deadline?: string }): Promise<AuditTask> {
-  return apiFetch<AuditTask>("/verification/audits", {
+  return apiFetch<AuditTask>("/audits", {
     method: "POST",
     body: JSON.stringify(data),
   });
@@ -261,8 +281,8 @@ export async function createAuditTask(data: { asset_id: string; assigned_agent: 
 // Carbon MRV & Registry API
 // ---------------------------------------------------------------------------
 
-export async function fetchCarbonLedger(): Promise<{ data: any[] }> {
-  return apiFetch<{ data: any[] }>(`/carbon/ledger`);
+export async function fetchCarbonLedger(includeLog = false): Promise<{ data: any[] }> {
+  return apiFetch<{ data: any[] }>(`/carbon/ledger?include_log=${includeLog}`);
 }
 
 export async function fetchAnomalies(): Promise<{ anomalies: any[], total: number }> {
@@ -280,9 +300,11 @@ export async function fetchAudits(): Promise<{ audits: any[], total: number }> {
   return apiFetch<{ audits: any[], total: number }>("/audits");
 }
 
-export async function updateAuditStatus(id: string, status: string, deadline?: string): Promise<any> {
-  const body: Record<string, string> = { status };
+export async function updateAuditStatus(id: string, status?: string, deadline?: string, assigned_agent?: string): Promise<any> {
+  const body: Record<string, string> = {};
+  if (status) body.status = status;
   if (deadline) body.deadline = deadline;
+  if (assigned_agent) body.assigned_agent = assigned_agent;
   return apiFetch<any>(`/audits/${id}`, {
     method: "PATCH",
     body: JSON.stringify(body),
@@ -356,21 +378,27 @@ export async function exportVerraCSV(minTrustScore = 80): Promise<void> {
   window.URL.revokeObjectURL(url);
 }
 
-export async function exportGoldStandardJSON(minTrustScore = 80): Promise<any> {
-  return apiFetch<any>(`/registry/export/goldstandard?min_trust_score=${minTrustScore}`);
-}
-
-// ---------------------------------------------------------------------------
-// Satellite NDVI API
-// ---------------------------------------------------------------------------
-
-export async function fetchNdvi(assetId: string, month?: string): Promise<any> {
-  const params = month ? `?month=${month}` : "";
-  return apiFetch<any>(`/satellite/ndvi/${assetId}${params}`, { method: "POST" });
-}
-
-export async function fetchNdviHistory(assetId: string): Promise<import("./types").NdviHistoryResponse> {
-  return apiFetch<import("./types").NdviHistoryResponse>(`/satellite/ndvi/${assetId}/history`);
+export async function exportGoldStandardJSON(minTrustScore = 80): Promise<void> {
+  const currentToken = getAuthToken();
+  const response = await fetch(
+    `${API_V1}/registry/export/goldstandard?min_trust_score=${minTrustScore}`,
+    {
+      headers: {
+        ...(currentToken ? { Authorization: `Bearer ${currentToken}` } : {}),
+      },
+    }
+  );
+  if (!response.ok) throw new Error("Export failed");
+  const data = await response.json();
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `gold_standard_export_${new Date().toISOString().slice(0,10)}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.URL.revokeObjectURL(url);
 }
 
 // ---------------------------------------------------------------------------
@@ -404,14 +432,128 @@ export async function createCarbonProject(data: {
 // System Settings API
 // ---------------------------------------------------------------------------
 
-export async function fetchSettings(): Promise<{ gps_weight: number; image_weight: number; frequency_weight: number }> {
-  return apiFetch<{ gps_weight: number; image_weight: number; frequency_weight: number }>("/settings");
+export async function fetchSettings(): Promise<{
+  gps_weight: number;
+  image_weight: number;
+  frequency_weight: number;
+  gps_max_distance_km: number;
+  max_submissions_per_hour: number;
+  image_hash_threshold: number;
+  suspicious_hours_start: number;
+  suspicious_hours_end: number;
+}> {
+  return apiFetch<{
+    gps_weight: number;
+    image_weight: number;
+    frequency_weight: number;
+    gps_max_distance_km: number;
+    max_submissions_per_hour: number;
+    image_hash_threshold: number;
+    suspicious_hours_start: number;
+    suspicious_hours_end: number;
+  }>("/settings");
 }
 
-export async function updateSettings(data: { gps_weight: number; image_weight: number; frequency_weight: number }): Promise<any> {
+export async function updateSettings(data: {
+  gps_weight: number;
+  image_weight: number;
+  frequency_weight: number;
+  gps_max_distance_km: number;
+  max_submissions_per_hour: number;
+  image_hash_threshold: number;
+  suspicious_hours_start: number;
+  suspicious_hours_end: number;
+}): Promise<any> {
   return apiFetch<any>("/settings", {
     method: "PATCH",
     body: JSON.stringify(data),
   });
 }
+
+// ---------------------------------------------------------------------------
+// Community Feed API
+// ---------------------------------------------------------------------------
+
+export interface CommunityCommentResponse {
+  id: string;
+  validation_id: string;
+  user_id: string;
+  user_name: string;
+  user_role: string;
+  comment: string;
+  timestamp: string;
+}
+
+export interface CommunityFeedItem {
+  id: string;
+  user_name: string;
+  user_role: string;
+  action: string;
+  content: string;
+  property_name: string | null;
+  property_type: string | null;
+  response: string;
+  timestamp: string;
+  upvotes: number;
+  comments: CommunityCommentResponse[];
+}
+
+export interface CommunityFeedResponse {
+  posts: CommunityFeedItem[];
+  total: number;
+  page: number;
+  per_page: number;
+}
+
+export async function fetchCommunityFeed(page = 1, perPage = 20): Promise<CommunityFeedResponse> {
+  return apiFetch<CommunityFeedResponse>(`/community?page=${page}&per_page=${perPage}`);
+}
+
+export async function upvoteCommunityPost(id: string): Promise<CommunityFeedItem> {
+  return apiFetch<CommunityFeedItem>(`/community/${id}/upvote`, {
+    method: "POST",
+  });
+}
+
+export async function addCommunityComment(id: string, comment: string): Promise<any> {
+  return apiFetch<any>(`/community/${id}/comments`, {
+    method: "POST",
+    body: JSON.stringify({ comment }),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// User Profile API
+// ---------------------------------------------------------------------------
+
+export async function fetchMe(): Promise<User> {
+  return apiFetch<User>("/auth/me");
+}
+
+export async function updateProfile(data: {
+  full_name?: string;
+  avatar_url?: string;
+}): Promise<User> {
+  return apiFetch<User>("/auth/profile", {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function changePassword(newPassword: string): Promise<any> {
+  return apiFetch<any>("/auth/change-password", {
+    method: "POST",
+    body: JSON.stringify({ new_password: newPassword }),
+  });
+}
+
+export async function uploadAvatar(file: File): Promise<{ avatar_url: string }> {
+  const formData = new FormData();
+  formData.append("file", file);
+  return apiFetch<{ avatar_url: string }>("/auth/upload-avatar", {
+    method: "POST",
+    body: formData,
+  });
+}
+
 

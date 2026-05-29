@@ -8,6 +8,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { ShieldCheck, Mail, Lock, Loader2 } from "lucide-react";
 import { loginAdmin, setAuthToken } from "@/lib/api";
 
@@ -45,14 +46,20 @@ export default function LoginPage() {
 
       <div className="w-full max-w-md relative animate-fade-in-up">
         {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 mx-auto flex items-center justify-center mb-4 shadow-lg shadow-emerald-500/20">
-            <ShieldCheck size={28} className="text-[var(--color-text-primary)]" />
-          </div>
-          <h1 className="text-2xl font-bold text-[var(--color-text-primary)] tracking-tight">
-            VeriField Nexus
-          </h1>
-          <p className="text-[var(--color-text-secondary)] text-sm mt-1">Admin Dashboard</p>
+        <div className="text-center mb-8 flex flex-col items-center justify-center">
+          <img
+            src="/logo-black.png"
+            alt="VeriField Nexus"
+            className="h-14 w-auto block dark:hidden object-contain mb-2"
+          />
+          <img
+            src="/logo-green.png"
+            alt="VeriField Nexus"
+            className="h-14 w-auto hidden dark:block object-contain mb-2"
+          />
+          <p className="text-[var(--color-text-secondary)] text-xs mt-1 font-semibold uppercase tracking-widest opacity-80">
+            Admin Dashboard
+          </p>
         </div>
 
         {/* Login Card */}
@@ -133,6 +140,14 @@ export default function LoginPage() {
               )}
             </button>
           </form>
+
+          {/* New public onboarding/signup link */}
+          <div className="text-center mt-6 pt-4 border-t border-[var(--color-border)]">
+            <span className="text-xs text-[var(--color-text-muted)] font-medium">New Carbon Developer or NGO? </span>
+            <Link href="/signup" className="text-xs text-emerald-400 font-bold hover:underline">
+              Create Organization Account
+            </Link>
+          </div>
         </div>
 
         <p className="text-center text-slate-600 text-xs mt-6">

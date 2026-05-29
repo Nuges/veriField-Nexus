@@ -6,6 +6,7 @@
 // =============================================================================
 
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 import '../core/config/supabase_config.dart';
@@ -13,10 +14,15 @@ import '../core/config/supabase_config.dart';
 /// Centralized API client for communicating with the FastAPI backend.
 class ApiService {
   static String get baseUrl {
-    // Development: use local backend
+    const envUrl = String.fromEnvironment('API_URL');
+    if (envUrl.isNotEmpty) {
+      return envUrl;
+    }
+    if (kReleaseMode) {
+      return 'https://verifield-nexus.onrender.com/api/v1';
+    }
+    // Local development fallback
     return 'http://localhost:8000/api/v1';
-    // Production: uncomment below and comment above when deploying
-    // return 'https://verifield-nexus.onrender.com/api/v1';
   }
 
   /// Get the current auth token from Supabase session.
@@ -87,6 +93,20 @@ class ApiService {
       Uri.parse('$baseUrl$endpoint'),
       headers: _headers,
     );
+    return _handleResponse(response);
+  }
+
+  /// Upload an avatar image file.
+  static Future<Map<String, dynamic>> uploadAvatar(File file) async {
+    final uri = Uri.parse('$baseUrl/auth/upload-avatar');
+    final request = http.MultipartRequest('POST', uri);
+    if (_authToken != null) {
+      request.headers['Authorization'] = 'Bearer $_authToken';
+    }
+    final multipartFile = await http.MultipartFile.fromPath('file', file.path);
+    request.files.add(multipartFile);
+    final streamedResponse = await request.send();
+    final response = await http.Response.fromStream(streamedResponse);
     return _handleResponse(response);
   }
 

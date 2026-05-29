@@ -7,28 +7,32 @@
 @import "tailwindcss";
 
 :root {
-  /* Standard UI UX (Off-white default) */
-  --color-background: #f8fafc; /* slate-50 - off white */
+  /* Standard UI UX (Off-white default as specified in MRV Design Guidelines) */
+  --color-background: #F8FAF9; /* off-white primary background */
   --color-surface: #ffffff; /* white */
   --color-card: #ffffff; /* white */
-  --color-border: #e2e8f0; /* slate-200 */
-  --color-primary: #10B981; /* emerald-500 - green highlight */
-  --color-text-primary: #1e293b; /* slate-800 - dark grey */
-  --color-text-secondary: #475569; /* slate-600 - grey */
-  --color-text-muted: #64748b; /* slate-500 - light grey */
+  --color-border: #E2E8F0; /* slate-200 */
+  --color-primary: #00B47A; /* VeriField Brand Green #00B47A */
+  --color-text-primary: #0F172A; /* slate-900 - Text Primary */
+  --color-text-secondary: #64748B; /* slate-500 - Text Secondary */
+  --color-text-muted: #94A3B8; /* slate-400 - Muted */
+  --color-warning: #F59E0B; /* Warning State */
+  --color-danger: #EF4444; /* Risk/Fraud State */
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    /* Premium Dark Theme */
-    --color-background: #0B1120;
-    --color-surface: #0F172A;
-    --color-card: #1E293B;
-    --color-border: #334155;
-    --color-primary: #10B981;
-    --color-text-primary: #F8FAFC;
-    --color-text-secondary: #94A3B8;
-    --color-text-muted: #64748B;
+    /* Premium MRV Technical Slate Dark Theme */
+    --color-background: #090F10; /* Technical dark green-tint slate */
+    --color-surface: #0E1617; /* Dark slate surface */
+    --color-card: #141F20; /* Dark slate card background */
+    --color-border: #213233; /* Dark border with brand hue */
+    --color-primary: #00B47A; /* VeriField Brand Green #00B47A */
+    --color-text-primary: #F8FAF9; /* Technical off-white */
+    --color-text-secondary: #8E9E9B; /* Secondary technical slate */
+    --color-text-muted: #5F6F6C; /* Muted tech slate */
+    --color-warning: #F59E0B;
+    --color-danger: #EF4444;
   }
 }
 
@@ -93,3 +97,34 @@ body {
 .stagger-children > *:nth-child(4) { animation-delay: 0.2s; }
 .stagger-children > *:nth-child(5) { animation-delay: 0.25s; }
 .stagger-children > *:nth-child(6) { animation-delay: 0.3s; }
+
+/* --- Toast Notification Animations --- */
+@keyframes toastEnter {
+  from {
+    opacity: 0;
+    transform: translateX(100%) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes toastExit {
+  from {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(100%) scale(0.95);
+  }
+}
+
+.animate-toast-enter {
+  animation: toastEnter 0.35s cubic-bezier(0.21, 1.02, 0.73, 1) forwards;
+}
+
+.animate-toast-exit {
+  animation: toastExit 0.25s cubic-bezier(0.06, 0.71, 0.55, 1) forwards;
+}

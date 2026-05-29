@@ -67,17 +67,21 @@ async def create_property(
 )
 async def list_properties(
     page: int = Query(1, ge=1),
-    per_page: int = Query(20, ge=1, le=100),
+    per_page: int = Query(20, ge=1, le=500),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """List properties. Non-admins only see their own properties."""
-    query = select(Property)
-    count_query = select(func.count(Property.id))
+    query = select(Property).join(User, Property.owner_id == User.id)
+    count_query = select(func.count(Property.id)).join(User, Property.owner_id == User.id)
 
     if user.role != "admin":
         query = query.where(Property.owner_id == user.id)
         count_query = count_query.where(Property.owner_id == user.id)
+    else:
+        if user.organization:
+            query = query.where(User.organization == user.organization)
+            count_query = count_query.where(User.organization == user.organization)
 
     total_result = await db.execute(count_query)
     total = total_result.scalar() or 0

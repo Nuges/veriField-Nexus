@@ -2,7 +2,7 @@
 // VeriField Nexus — Community Feed Screen (Live API)
 // =============================================================================
 // Displays the community validation feed fetched from the backend API.
-// No hardcoded data — fully production-ready.
+// Includes interactive Likes and expandable technical nested Comments threads.
 // =============================================================================
 
 import 'package:flutter/material.dart';
@@ -26,10 +26,23 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen> {
   bool _isLoading = true;
   String? _error;
 
+  // Local session state mapping
+  final Set<String> _likedPostIds = {};
+  final Set<String> _expandedPostIds = {};
+  final Map<String, TextEditingController> _commentControllers = {};
+
   @override
   void initState() {
     super.initState();
     _loadFeed();
+  }
+
+  @override
+  void dispose() {
+    for (var controller in _commentControllers.values) {
+      controller.dispose();
+    }
+    super.dispose();
   }
 
   Future<void> _loadFeed() async {
@@ -50,6 +63,68 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen> {
       });
     } finally {
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  String _formatTime(String timestamp) {
+    try {
+      final date = DateTime.parse(timestamp);
+      return DateFormat('h:mm a').format(date);
+    } catch (_) {
+      return '';
+    }
+  }
+
+  Future<void> _handleUpvote(String postId, Map<String, dynamic> post) async {
+    if (_likedPostIds.contains(postId)) return;
+
+    // Optimistic UI updates
+    setState(() {
+      _likedPostIds.add(postId);
+      post['upvotes'] = (post['upvotes'] ?? 0) + 1;
+    });
+
+    try {
+      await ApiService.post('/community/$postId/upvote');
+    } catch (e) {
+      // Revert local modifications on failure
+      setState(() {
+        _likedPostIds.remove(postId);
+        post['upvotes'] = ((post['upvotes'] ?? 1) - 1).clamp(0, 999999);
+      });
+      if (mounted) {
+        VFNotification.showError(context, 'Like failed: $e');
+      }
+    }
+  }
+
+  Future<void> _handleSubmitComment(String postId, Map<String, dynamic> post) async {
+    final controller = _commentControllers[postId];
+    final text = controller?.text.trim() ?? '';
+    if (text.isEmpty) return;
+
+    // Clear text field immediately for instant feedback
+    controller?.clear();
+
+    try {
+      final commentResponse = await ApiService.post(
+        '/community/$postId/comments',
+        body: {'comment': text},
+      );
+
+      setState(() {
+        final currentComments = post['comments'] as List? ?? [];
+        post['comments'] = [...currentComments, commentResponse];
+        _expandedPostIds.add(postId);
+      });
+
+      if (mounted) {
+        VFNotification.showSuccess(context, 'Reply posted successfully! 🚀');
+      }
+    } catch (e) {
+      if (mounted) {
+        VFNotification.showError(context, 'Failed to post reply: $e');
+      }
     }
   }
 
@@ -92,7 +167,6 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen> {
                     ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          // Future: open a submission dialog
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Submit validations from the asset detail page')),
           );
@@ -135,6 +209,12 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen> {
     final content = post['content'] ?? '';
     final timestamp = post['timestamp'];
     final upvotes = post['upvotes'] ?? 0;
+    
+    final postId = post['id']?.toString() ?? '';
+    final isLiked = _likedPostIds.contains(postId);
+    final isExpanded = _expandedPostIds.contains(postId);
+    final comments = post['comments'] as List? ?? [];
+    final commentCount = comments.length;
 
     // Determine type from response
     Color typeColor;
@@ -250,38 +330,196 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen> {
             const SizedBox(height: AppSpacing.md),
             const Divider(height: 1),
             const SizedBox(height: AppSpacing.sm),
+            
+            // Engagement Actions Row
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    Icon(
-                      upvotes > 0
-                          ? Icons.thumb_up
-                          : Icons.thumb_up_outlined,
-                      size: 18,
-                      color: upvotes > 0
-                          ? AppColors.primary
-                          : AppColors.textSecondary,
+                // Upvote Button
+                InkWell(
+                  onTap: () => _handleUpvote(postId, post),
+                  borderRadius: BorderRadius.circular(AppSpacing.sm),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0),
+                    child: Row(
+                      children: [
+                        Icon(
+                          isLiked ? Icons.thumb_up : Icons.thumb_up_outlined,
+                          size: 18,
+                          color: isLiked ? AppColors.primary : AppColors.textSecondary,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '$upvotes',
+                          style: AppTypography.caption.copyWith(
+                            color: isLiked ? AppColors.primary : AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 4),
-                    Text(
-                      '$upvotes',
-                      style: AppTypography.caption.copyWith(
-                        color: upvotes > 0
-                            ? AppColors.primary
-                            : AppColors.textSecondary,
-                      ),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.lg),
+                
+                // Reply/Drawer Button
+                InkWell(
+                  onTap: () {
+                    setState(() {
+                      if (isExpanded) {
+                        _expandedPostIds.remove(postId);
+                      } else {
+                        _expandedPostIds.add(postId);
+                      }
+                    });
+                  },
+                  borderRadius: BorderRadius.circular(AppSpacing.sm),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.comment_outlined,
+                          size: 18,
+                          color: isExpanded ? AppColors.primary : AppColors.textSecondary,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          commentCount > 0 ? '$commentCount Replies' : 'Reply',
+                          style: AppTypography.caption.copyWith(
+                            color: isExpanded ? AppColors.primary : AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: AppSpacing.lg),
-                    const Icon(Icons.comment_outlined,
-                        size: 18, color: AppColors.textSecondary),
-                    const SizedBox(width: 4),
-                    Text('Reply', style: AppTypography.caption),
-                  ],
+                  ),
                 ),
               ],
             ),
+
+            // Nested Expanded Comment Thread Drawer
+            if (isExpanded) ...[
+              const SizedBox(height: AppSpacing.md),
+              const Divider(height: 1),
+              const SizedBox(height: AppSpacing.md),
+              
+              // Comments List
+              if (comments.isNotEmpty) ...[
+                Padding(
+                  padding: const EdgeInsets.only(left: 8.0),
+                  child: Column(
+                    children: comments.map<Widget>((c) {
+                      final cName = c['user_name'] ?? 'Unknown';
+                      final cRole = c['user_role'] ?? 'member';
+                      final cText = c['comment'] ?? '';
+                      final cTime = c['timestamp'];
+                      
+                      String cRoleLabel = 'Member';
+                      if (cRole == 'admin') cRoleLabel = 'Admin';
+                      if (cRole == 'field_agent') cRoleLabel = 'Agent';
+                      
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(AppSpacing.md),
+                          decoration: BoxDecoration(
+                            color: AppColors.surfaceLight,
+                            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                            border: Border.all(color: AppColors.border.withValues(alpha: 0.1)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Text(
+                                        cName,
+                                        style: AppTypography.title.copyWith(fontSize: 12),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.surface,
+                                          borderRadius: BorderRadius.circular(2),
+                                        ),
+                                        child: Text(
+                                          cRoleLabel,
+                                          style: AppTypography.caption.copyWith(fontSize: 8, fontWeight: FontWeight.bold),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  if (cTime != null)
+                                    Text(
+                                      _formatTime(cTime.toString()),
+                                      style: AppTypography.caption.copyWith(fontSize: 9),
+                                    ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                cText,
+                                style: AppTypography.bodySmall,
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ] else ...[
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+                  child: Text(
+                    'No replies yet. Be the first to start the thread!',
+                    style: AppTypography.caption.copyWith(fontStyle: FontStyle.italic),
+                  ),
+                ),
+              ],
+              
+              const SizedBox(height: AppSpacing.sm),
+              // Write a reply input field
+              Padding(
+                padding: const EdgeInsets.only(left: 8.0),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _commentControllers.putIfAbsent(
+                          postId, 
+                          () => TextEditingController()
+                        ),
+                        style: AppTypography.bodySmall,
+                        decoration: InputDecoration(
+                          hintText: 'Write a technical response...',
+                          hintStyle: AppTypography.caption,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          filled: true,
+                          fillColor: AppColors.surfaceLight,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+                            borderSide: BorderSide.none,
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+                            borderSide: const BorderSide(color: AppColors.primary, width: 1),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    IconButton(
+                      icon: const Icon(Icons.send_rounded, color: AppColors.primary),
+                      onPressed: () => _handleSubmitComment(postId, post),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ],
         ),
       ),

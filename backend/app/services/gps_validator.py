@@ -1,22 +1,16 @@
 """
 =============================================================================
-VeriField Nexus — GPS Validation Service (Smart Installation System)
+VeriField Nexus — GPS Validation Service (Cookstove Installation System)
 =============================================================================
 Adaptive GPS validation engine that:
 1. Detects environment type (URBAN vs RURAL) based on asset density
-2. Applies dynamic duplicate-detection radius per activity type
+2. Applies dynamic duplicate-detection radius for cookstove installations
 3. Returns nearby duplicates with soft warnings (never hard blocks)
 
 Radius Matrix (meters):
   Activity         | Urban   | Rural
   -----------------+---------+------
   CLEAN_COOKING    | 15      | 30
-  AGRICULTURE      | 50      | 200
-  ENERGY_USE       | 30      | 100
-  FORESTRY_LAND_USE| 100     | 500
-  SAFE_WATER       | 50      | 100
-  TRANSPORT_MOBILITY| 200    | 1000
-  OTHER            | 30      | 50
 =============================================================================
 """
 
@@ -33,12 +27,6 @@ from app.models.activity import Activity
 # ---------------------------------------------------------------------------
 RADIUS_MATRIX: Dict[str, Dict[str, float]] = {
     "CLEAN_COOKING":     {"URBAN": 15,  "RURAL": 30},
-    "AGRICULTURE":       {"URBAN": 50,  "RURAL": 200},
-    "ENERGY_USE":        {"URBAN": 30,  "RURAL": 100},
-    "FORESTRY_LAND_USE": {"URBAN": 100, "RURAL": 500},
-    "SAFE_WATER":        {"URBAN": 50,  "RURAL": 100},
-    "TRANSPORT_MOBILITY":{"URBAN": 200, "RURAL": 1000},
-    "OTHER":             {"URBAN": 30,  "RURAL": 50},
 }
 
 # How many existing assets within 200m makes it "urban"

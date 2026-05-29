@@ -22,16 +22,10 @@ from app.db.base import Base
 
 class Activity(Base):
     """
-    Field activity submission model (Smart Installation System).
+    Field activity submission model (Cookstove Installation System).
     
     Activity Types:
-        - "CLEAN_COOKING": Clean cooking activities (stove usage, fuel type)
-        - "AGRICULTURE": Agricultural activities (planting, harvesting, soil management)
-        - "ENERGY_USE": Energy usage monitoring (solar, biogas, grid)
-        - "FORESTRY_LAND_USE": Forestry and land use management
-        - "SAFE_WATER": Safe water supply and purification
-        - "TRANSPORT_MOBILITY": Clean transport and mobility
-        - "OTHER": Custom activity types (fallback)
+        - "CLEAN_COOKING": Clean cooking stove installation & usage logging
     
     Status:
         - "pending": Submitted, awaiting trust score calculation
@@ -150,3 +144,4 @@ class Activity(Base):
             f"<Activity(id={self.id}, type={self.activity_type}, "
             f"trust={self.trust_score}, status={self.status})>"
         )
+

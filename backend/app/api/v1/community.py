@@ -19,12 +19,13 @@ from uuid import UUID
 from app.db.session import get_db
 from app.core.security import get_current_user, get_optional_user
 from app.models.user import User
-from app.models.community_validation import CommunityValidation
+from app.models.community_validation import CommunityValidation, CommunityComment
 from app.models.property import Property
 from app.schemas.community import (
     CommunityValidationCreate,
     CommunityValidationResponse, CommunityValidationListResponse,
     CommunityFeedItem, CommunityFeedResponse,
+    CommunityCommentCreate, CommunityCommentResponse,
 )
 
 router = APIRouter(prefix="/community", tags=["Community"])
@@ -61,6 +62,21 @@ def _to_feed_item(v: CommunityValidation) -> CommunityFeedItem:
     }
     content = content_map.get(v.response, "Shared an update.")
 
+    serialized_comments = []
+    if hasattr(v, "comments") and v.comments:
+        for c in v.comments:
+            serialized_comments.append(
+                CommunityCommentResponse(
+                    id=c.id,
+                    validation_id=c.validation_id,
+                    user_id=c.user_id,
+                    user_name=c.user.full_name if c.user else "Unknown",
+                    user_role=c.user.role if c.user else "member",
+                    comment=c.comment,
+                    timestamp=c.timestamp,
+                )
+            )
+
     return CommunityFeedItem(
         id=v.id,
         user_name=v.validator.full_name if v.validator else "Unknown",
@@ -71,7 +87,8 @@ def _to_feed_item(v: CommunityValidation) -> CommunityFeedItem:
         property_type=v.property.property_type if v.property else None,
         response=v.response,
         timestamp=v.timestamp,
-        upvotes=0,  # Future: track upvotes in a separate table
+        upvotes=v.upvotes or 0,
+        comments=serialized_comments,
     )
 
 
@@ -188,9 +205,14 @@ async def get_community_feed(
         .options(
             selectinload(CommunityValidation.property),
             selectinload(CommunityValidation.validator),
+            selectinload(CommunityValidation.comments).selectinload(CommunityComment.user),
         )
     )
     count_query = select(func.count(CommunityValidation.id))
+
+    if user and user.organization:
+        query = query.join(Property, CommunityValidation.asset_id == Property.id).join(User, Property.owner_id == User.id).where(User.organization == user.organization)
+        count_query = count_query.join(Property, CommunityValidation.asset_id == Property.id).join(User, Property.owner_id == User.id).where(User.organization == user.organization)
 
     total_result = await db.execute(count_query)
     total = total_result.scalar() or 0
@@ -235,6 +257,10 @@ async def list_community_validations(
     conditions = []
     if asset_id:
         conditions.append(CommunityValidation.asset_id == asset_id)
+    if user and user.organization:
+        query = query.join(Property, CommunityValidation.asset_id == Property.id).join(User, Property.owner_id == User.id)
+        count_query = count_query.join(Property, CommunityValidation.asset_id == Property.id).join(User, Property.owner_id == User.id)
+        conditions.append(User.organization == user.organization)
 
     if conditions:
         query = query.where(and_(*conditions))
@@ -252,4 +278,92 @@ async def list_community_validations(
     return CommunityValidationListResponse(
         validations=[_serialize_validation(v) for v in validations],
         total=total, page=page, per_page=per_page,
+    )
+
+
+# =============================================================================
+# POST /api/v1/community/{validation_id}/upvote — Upvote/like validation
+# =============================================================================
+@router.post(
+    "/{validation_id}/upvote",
+    response_model=CommunityFeedItem,
+    summary="Upvote/like a community validation post",
+)
+async def upvote_community_post(
+    validation_id: UUID,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Increment upvotes count for a community validation post."""
+    result = await db.execute(
+        select(CommunityValidation)
+        .options(
+            selectinload(CommunityValidation.property),
+            selectinload(CommunityValidation.validator),
+            selectinload(CommunityValidation.comments).selectinload(CommunityComment.user),
+        )
+        .where(CommunityValidation.id == validation_id)
+    )
+    post = result.scalar_one_or_none()
+    if not post:
+        raise HTTPException(status_code=404, detail="Validation post not found")
+
+    post.upvotes = (post.upvotes or 0) + 1
+    await db.commit()
+    await db.refresh(post)
+
+    return _to_feed_item(post)
+
+
+# =============================================================================
+# POST /api/v1/community/{validation_id}/comments — Add a comment/reply
+# =============================================================================
+@router.post(
+    "/{validation_id}/comments",
+    response_model=CommunityCommentResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Add a comment/reply to a community validation post",
+)
+async def add_community_comment(
+    validation_id: UUID,
+    payload: CommunityCommentCreate,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Add a new comment/reply to a community validation post."""
+    result = await db.execute(
+        select(CommunityValidation).where(CommunityValidation.id == validation_id)
+    )
+    post = result.scalar_one_or_none()
+    if not post:
+        raise HTTPException(status_code=404, detail="Validation post not found")
+
+    import uuid
+    from datetime import datetime, timezone
+    comment = CommunityComment(
+        id=uuid.uuid4(),
+        validation_id=validation_id,
+        user_id=user.id,
+        comment=payload.comment,
+        timestamp=datetime.now(timezone.utc),
+    )
+    db.add(comment)
+    await db.commit()
+
+    # Load comment with user relations
+    comment_result = await db.execute(
+        select(CommunityComment)
+        .options(selectinload(CommunityComment.user))
+        .where(CommunityComment.id == comment.id)
+    )
+    comment = comment_result.scalar_one()
+
+    return CommunityCommentResponse(
+        id=comment.id,
+        validation_id=comment.validation_id,
+        user_id=comment.user_id,
+        user_name=comment.user.full_name if comment.user else "Unknown",
+        user_role=comment.user.role if comment.user else "member",
+        comment=comment.comment,
+        timestamp=comment.timestamp,
     )

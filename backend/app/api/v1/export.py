@@ -101,7 +101,7 @@ async def export_data(
         export_id=export_id,
         record_count=len(export_data_list),
         format=payload.format,
-        data=export_data_list if payload.format == "json" else None,
+        data=export_data_list,
         webhook_status=webhook_status,
     )
 

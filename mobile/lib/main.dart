@@ -22,12 +22,12 @@ void main() async {
     DeviceOrientation.portraitDown,
   ]);
 
-  // Set system UI overlay style for premium light theme
+  // Set system UI overlay style for premium technical dark theme
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
-    statusBarIconBrightness: Brightness.dark,
-    systemNavigationBarColor: Color(0xFFF8FAFC),
-    systemNavigationBarIconBrightness: Brightness.dark,
+    statusBarIconBrightness: Brightness.light,
+    systemNavigationBarColor: Color(0xFF090F10),
+    systemNavigationBarIconBrightness: Brightness.light,
   ));
 
   // Initialize Supabase client

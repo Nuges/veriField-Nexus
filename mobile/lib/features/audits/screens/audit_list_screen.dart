@@ -5,6 +5,7 @@
 // No hardcoded data — fully production-ready.
 // =============================================================================
 
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:intl/intl.dart';
@@ -13,6 +14,7 @@ import '../../../core/theme/app_typography.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../shared/widgets/shared_widgets.dart';
 import '../../../services/api_service.dart';
+import '../../../core/utils/refresh_event_bus.dart';
 
 class AuditListScreen extends StatefulWidget {
   const AuditListScreen({super.key});
@@ -23,14 +25,25 @@ class AuditListScreen extends StatefulWidget {
 
 class _AuditListScreenState extends State<AuditListScreen> {
   List<Map<String, dynamic>> _audits = [];
+  Map<String, dynamic>? _currentUser;
   bool _isLoading = true;
   String? _error;
   String _statusFilter = 'all';
+  StreamSubscription<void>? _refreshSubscription;
 
   @override
   void initState() {
     super.initState();
     _loadAudits();
+    _refreshSubscription = RefreshEventBus.onAuditRefresh.listen((_) {
+      _loadAudits();
+    });
+  }
+
+  @override
+  void dispose() {
+    _refreshSubscription?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadAudits() async {
@@ -40,6 +53,13 @@ class _AuditListScreenState extends State<AuditListScreen> {
     });
 
     try {
+      if (_currentUser == null) {
+        try {
+          final user = await ApiService.get('/auth/me');
+          _currentUser = Map<String, dynamic>.from(user);
+        } catch (_) {}
+      }
+
       final endpoint = _statusFilter == 'all'
           ? '/audits?per_page=50'
           : '/audits?status=$_statusFilter&per_page=50';
@@ -61,16 +81,12 @@ class _AuditListScreenState extends State<AuditListScreen> {
     try {
       await ApiService.patch('/audits/$auditId', body: {'status': newStatus});
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Audit marked as $newStatus')),
-        );
+        VFNotification.showSuccess(context, 'Audit marked as $newStatus successfully! 🛡️');
       }
       await _loadAudits();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to update: $e')),
-        );
+        VFNotification.showError(context, 'Failed to update audit: $e');
       }
     }
   }
@@ -206,6 +222,10 @@ class _AuditListScreenState extends State<AuditListScreen> {
       }
     }
 
+    final assignedAgentId = audit['assigned_agent'];
+    final currentUserId = _currentUser?['id'];
+    final isAssignedToMe = currentUserId != null && assignedAgentId == currentUserId;
+
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.md),
       child: VFCard(
@@ -249,7 +269,7 @@ class _AuditListScreenState extends State<AuditListScreen> {
               children: [
                 if (deadlineStr.isNotEmpty)
                   Text('Due: $deadlineStr', style: AppTypography.caption),
-                if (status == 'pending')
+                if ((status == 'pending' || status == 'in_progress') && isAssignedToMe)
                   SizedBox(
                     height: 32,
                     child: ElevatedButton(
@@ -274,7 +294,7 @@ class _AuditListScreenState extends State<AuditListScreen> {
     IconData icon;
     Color color;
     switch (type) {
-      case 'cooking': icon = Icons.local_fire_department; color = AppColors.warning; break;
+      case 'cooking': icon = Icons.soup_kitchen_rounded; color = AppColors.warning; break;
       case 'farming': icon = Icons.grass; color = AppColors.primary; break;
       case 'energy': icon = Icons.bolt; color = AppColors.accent; break;
       default: icon = Icons.home; color = AppColors.textTertiary;
@@ -296,8 +316,10 @@ class _AuditListScreenState extends State<AuditListScreen> {
     String label;
     switch (status) {
       case 'pending': color = AppColors.warning; label = 'Pending'; break;
+      case 'in_progress': color = AppColors.primary; label = 'In Progress'; break;
       case 'completed': color = AppColors.trustHigh; label = 'Completed'; break;
       case 'failed': color = AppColors.trustLow; label = 'Failed'; break;
+      case 'cancelled': color = AppColors.textTertiary; label = 'Cancelled'; break;
       default: color = AppColors.textTertiary; label = 'Unknown';
     }
     return Container(

@@ -33,8 +33,10 @@ import {
 import StatCard from "@/components/StatCard";
 import { fetchAgentPerformance, setAuthToken, createAgent, updateAgentStatus } from "@/lib/api";
 import type { AgentPerformance, AgentPerformanceResponse } from "@/lib/types";
+import { useToast } from "@/components/Toast";
 
 export default function AgentsPage() {
+  const toast = useToast();
   const [data, setData] = useState<AgentPerformanceResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -65,9 +67,11 @@ export default function AgentsPage() {
   async function handleStatusChange(userId: string, status: "active" | "suspended" | "revoked") {
     try {
       await updateAgentStatus(userId, status);
+      toast.success("Status Updated", `Agent status successfully set to ${status}.`);
       await loadData();
     } catch (err) {
       console.error("Failed to update status", err);
+      toast.error("Update Failed", "Could not update agent status.");
     }
   }
 
@@ -85,9 +89,11 @@ export default function AgentsPage() {
       setNewAgentName("");
       setNewAgentEmail("");
       setNewAgentPassword("");
+      toast.success("Agent Provisioned", `Field agent ${newAgentName} has been successfully provisioned.`);
       await loadData();
     } catch (err) {
       console.error("Failed to create agent", err);
+      toast.error("Provisioning Failed", "Could not provision new agent. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -151,7 +157,7 @@ export default function AgentsPage() {
         <StatCard
           title="Avg Trust Score"
           value={
-            agents.length > 0
+            agents.filter((a) => a.avg_trust_score !== null).length > 0
               ? `${Math.round(agents.reduce((sum, a) => sum + (a.avg_trust_score ?? 0), 0) / agents.filter((a) => a.avg_trust_score !== null).length)}/100`
               : "—"
           }
