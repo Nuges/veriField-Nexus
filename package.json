@@ -4,6 +4,7 @@
   "description": "Verification Infrastructure for Real-World Climate Assets on Solana",
   "main": "index.js",
   "scripts": {
+    "build": "npm run build --prefix dashboard",
     "dashboard:dev": "npm run dev --prefix dashboard",
     "dashboard:build": "npm run build --prefix dashboard",
     "dashboard:start": "npm run start --prefix dashboard",
