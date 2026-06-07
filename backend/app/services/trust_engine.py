@@ -129,16 +129,67 @@ class TrustEngine:
         flags.update(img_flags)
         flags.update(frq_flags)
 
-        final_score = round(gps_score + image_score + freq_score, 2)
+        # --- Base final score calculation ---
+        base_score = round(gps_score + image_score + freq_score, 2)
 
+        # --- Multi-Photo Verification Rules Engine ---
+        mrv_penalties = []
+        mrv_deduction = 0.0
+
+        if activity.activity_type == "HYBRID_ENERGY":
+            act_data = activity.activity_data or {}
+            
+            # Missing baseline photo (baseline_generator_image_url) -> -30 score
+            if not act_data.get("baseline_generator_image_url"):
+                deduction = 30.0
+                mrv_deduction += deduction
+                mrv_penalties.append({
+                    "type": "missing_baseline_generator_photo",
+                    "deduction": deduction,
+                    "label": "Missing Baseline Diesel Generator Photo"
+                })
+                flags["missing_baseline_generator_photo"] = True
+                
+            # Missing inverter label photo (inverter_label_image_url) -> -5 score
+            if not act_data.get("inverter_label_image_url"):
+                deduction = 5.0
+                mrv_deduction += deduction
+                mrv_penalties.append({
+                    "type": "missing_inverter_label_photo",
+                    "deduction": deduction,
+                    "label": "Missing Inverter Label Photo"
+                })
+                flags["missing_inverter_label_photo"] = True
+
+        # GPS mismatch penalty -> -20 score
+        if flags.get("gps_too_far"):
+            deduction = 20.0
+            mrv_deduction += deduction
+            mrv_penalties.append({
+                "type": "gps_mismatch_penalty",
+                "deduction": deduction,
+                "label": "Mismatched GPS coordinates (far from site)"
+            })
+            flags["gps_mismatch_penalty"] = True
+
+        # Duplicate image -> fraud flag
+        if flags.get("image_duplicate"):
+            flags["fraud_flag"] = True
+            
+        final_score = base_score - mrv_deduction
+        
         # Cross-Verification Bonuses (additive, not weight-dependent)
         cross_bonus, cross_flags = await self._calculate_cross_verification_bonus(
             activity
         )
         final_score += cross_bonus
-        final_score = min(100.0, final_score)
+        final_score = max(0.0, min(100.0, final_score))
 
-        status = self._determine_status(final_score)
+        # Status determination (Duplicates automatically flagged as fraud)
+        if flags.get("fraud_flag"):
+            status = "flagged"
+        else:
+            status = self._determine_status(final_score)
 
         # Audit-transparent scoring breakdown
         flags["scoring_breakdown"] = {
@@ -160,6 +211,7 @@ class TrustEngine:
                 "final_score": freq_score,
                 "penalties": frq_pen,
             },
+            "mrv_penalties": mrv_penalties,
             "cross_verification_bonus": cross_bonus,
             "composite_score": final_score,
         }

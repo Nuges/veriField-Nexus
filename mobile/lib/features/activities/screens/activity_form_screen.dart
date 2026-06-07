@@ -1,8 +1,9 @@
 // =============================================================================
-// VeriField Nexus — Cookstove Installation Form (Dynamic Form Engine)
+// VeriField Nexus — Activity Registration Form (Dynamic Form Engine)
 // =============================================================================
-// Progressive step-by-step form (Cookstove Only):
-//   Step 1: Cookstove detail fields
+// Progressive step-by-step form:
+//   Step 0: Activity type selection (Clean Cooking / Hybrid Energy)
+//   Step 1: Dynamic detail fields for the selected type
 //   Step 2: Photo capture + GPS lock
 //   Step 3: Review & submit
 // =============================================================================
@@ -17,6 +18,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../shared/widgets/shared_widgets.dart';
+import '../../../core/config/supabase_config.dart';
 import '../../../services/camera_service.dart';
 import '../../../services/location_service.dart';
 import '../../../services/sync_service.dart';
@@ -37,14 +39,13 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
   final _uuid = const Uuid();
   int _currentStep = 0;
 
-  // Cookstove is the only type — auto-selected
-  String _selectedTypeId = 'CLEAN_COOKING';
-  late ActivityTypeConfig _selectedConfig;
+  // Activity type — selected in step 0
+  String? _selectedTypeId;
+  ActivityTypeConfig? _selectedConfig;
 
   @override
   void initState() {
     super.initState();
-    _selectedConfig = getActivityTypeConfig('CLEAN_COOKING');
     WidgetsBinding.instance.addPostFrameCallback((_) => _captureLocation());
   }
 
@@ -53,7 +54,8 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
   final Map<String, TextEditingController> _textControllers = {};
 
   // Step 3: Photo + GPS
-  File? _capturedImage;
+  final Map<String, File> _capturedImages = {};
+  final Map<String, Map<String, dynamic>> _capturedImagesMetadata = {};
   Map<String, double>? _locationData;
   bool _isCapturingLocation = false;
 
@@ -85,9 +87,18 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
   bool get _canProceed {
     switch (_currentStep) {
       case 0:
-        return _validateDynamicFields();
+        return _selectedTypeId != null && _selectedConfig != null;
       case 1:
-        return _capturedImage != null && _locationData != null;
+        return _validateDynamicFields();
+      case 2:
+        if (_locationData == null) return false;
+        if (_selectedConfig == null) return false;
+        for (final p in _selectedConfig!.photos) {
+          if (p.required && !_capturedImages.containsKey(p.key)) {
+            return false;
+          }
+        }
+        return true;
       default:
         return true;
     }
@@ -95,7 +106,7 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
 
   Future<void> _nextStep() async {
     if (!_canProceed) return;
-    if (_currentStep == 1) {
+    if (_currentStep == 2) {
       // After photo/GPS step, run duplicate check if not done
       if (_duplicateCheckResult == null && _locationData != null) {
         await _runDuplicateCheck();
@@ -115,7 +126,8 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
   // =========================================================================
 
   bool _validateDynamicFields() {
-    for (final field in _selectedConfig.fields) {
+    if (_selectedConfig == null) return false;
+    for (final field in _selectedConfig!.fields) {
       if (field.required) {
         final val = _fieldValues[field.key];
         if (val == null || (val is String && val.isEmpty)) return false;
@@ -159,15 +171,7 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
   // Photo Capture
   // =========================================================================
 
-  Future<void> _capturePhoto() async {
-    final prompts = [
-      'Take a wide-angle shot of the installation',
-      'Capture the asset clearly in focus',
-      'Ensure background context is visible',
-      'Show the installation from a different angle',
-    ];
-    final prompt = prompts[DateTime.now().millisecond % prompts.length];
-
+  Future<void> _capturePhoto(PhotoFieldDef photo) async {
     final proceed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -175,9 +179,9 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
         title: Row(children: [
           const Icon(Icons.camera_alt_rounded, color: AppColors.primary),
           const SizedBox(width: AppSpacing.sm),
-          Text('Photo Required', style: AppTypography.title),
+          Text(photo.label, style: AppTypography.title),
         ]),
-        content: Text('$prompt\n\nThis ensures data authenticity.', style: AppTypography.bodySmall),
+        content: Text('${photo.prompt}\n\nThis is required for audit-grade MRV verification.', style: AppTypography.bodySmall),
         actions: [
           TextButton(onPressed: () => ctx.pop(false), child: const Text('Cancel')),
           VFButton(label: 'Open Camera', icon: Icons.camera_alt_rounded, onPressed: () => ctx.pop(true)),
@@ -185,8 +189,26 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
       ),
     );
     if (proceed != true) return;
-    final photo = await CameraService.capturePhoto();
-    if (photo != null && mounted) setState(() => _capturedImage = photo);
+    final file = await CameraService.capturePhoto();
+    if (file != null && mounted) {
+      final location = await LocationService.getLocationData();
+      final timestamp = DateTime.now().toUtc().toIso8601String();
+      final deviceId = await DeviceService.getDeviceSignature();
+      final uploaderId = SupabaseConfig.client.auth.currentUser?.id ?? 'agent';
+      final hash = await CameraService.generateImageHash(file);
+      
+      setState(() {
+        _capturedImages[photo.key] = file;
+        _capturedImagesMetadata[photo.key] = {
+          'timestamp': timestamp,
+          'latitude': location?['latitude'] ?? _locationData?['latitude'],
+          'longitude': location?['longitude'] ?? _locationData?['longitude'],
+          'device_id': deviceId,
+          'uploader_id': uploaderId,
+          'hash': hash,
+        };
+      });
+    }
   }
 
   // =========================================================================
@@ -194,7 +216,7 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
   // =========================================================================
 
   Future<void> _submitInstallation() async {
-    if (_capturedImage == null || _locationData == null || _isCheckingDuplicate) return;
+    if (_selectedConfig == null || _locationData == null || _isCheckingDuplicate) return;
 
     // Check if duplicate override needs reason
     final isDuplicate = _duplicateCheckResult?['duplicate_flag'] == true;
@@ -203,29 +225,61 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
       return;
     }
 
+    // Determine primary key based on activity type
+    final primaryKey = _selectedTypeId == 'HYBRID_ENERGY' ? 'solar_installation' : 'stove_installation';
+    final primaryImage = _capturedImages[primaryKey];
+    if (primaryImage == null) {
+      setState(() => _errorMessage = 'Primary installation photo is required.');
+      return;
+    }
+
     setState(() { _isSubmitting = true; _errorMessage = null; });
 
     final clientId = _uuid.v4();
     final capturedAt = DateTime.now().toUtc().toIso8601String();
-    final imageHash = await CameraService.generateImageHash(_capturedImage!);
     final deviceSignature = await DeviceService.getDeviceSignature();
 
     final activityData = Map<String, dynamic>.from(_fieldValues);
     activityData['device_signature'] = deviceSignature;
+    activityData['image_metadata'] = _capturedImagesMetadata;
 
     try {
       final isOnline = await SyncService.isOnline();
 
       if (isOnline) {
-        final imageName = '${clientId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
-        final imageUrl = await SyncService.uploadImage(_capturedImage!, imageName);
+        // Atomic Uploads: Upload primary image first
+        final primaryName = '${clientId}_primary.jpg';
+        final primaryUrl = await SyncService.uploadImage(primaryImage, primaryName);
+        if (primaryUrl == null) {
+          throw Exception('Failed to upload primary installation image');
+        }
+        
+        final Map<String, String> uploadedUrls = {
+          '${primaryKey}_image_url': primaryUrl,
+        };
+
+        // Upload additional images
+        for (final key in _capturedImages.keys) {
+          if (key != primaryKey) {
+            final file = _capturedImages[key]!;
+            final fileName = '${clientId}_$key.jpg';
+            final url = await SyncService.uploadImage(file, fileName);
+            if (url == null) {
+              throw Exception('Failed to upload $key image');
+            }
+            uploadedUrls['${key}_image_url'] = url;
+          }
+        }
+
+        // Add all URLs to activityData
+        activityData.addAll(uploadedUrls);
 
         await ApiService.post('/activities', body: {
           'activity_type': _selectedTypeId,
           'activity_data': activityData,
           'description': _descriptionController.text,
-          'image_url': imageUrl,
-          'image_hash': imageHash,
+          'image_url': primaryUrl,
+          'image_hash': _capturedImagesMetadata[primaryKey]?['hash'] ?? '',
           'latitude': _locationData!['latitude'],
           'longitude': _locationData!['longitude'],
           'gps_accuracy': _locationData!['accuracy'],
@@ -242,14 +296,19 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
           context.pop(true);
         }
       } else {
+        // Offline Mode: store local file paths inside activity_data
+        for (final key in _capturedImages.keys) {
+          activityData['${key}_image_path'] = _capturedImages[key]!.path;
+        }
+
         await LocalDbService.savePendingActivity({
           'id': clientId,
           'client_id': clientId,
           'activity_type': _selectedTypeId,
           'activity_data': jsonEncode(activityData),
           'description': _descriptionController.text,
-          'image_path': _capturedImage!.path,
-          'image_hash': imageHash,
+          'image_path': primaryImage.path,
+          'image_hash': _capturedImagesMetadata[primaryKey]?['hash'] ?? '',
           'latitude': _locationData!['latitude'],
           'longitude': _locationData!['longitude'],
           'gps_accuracy': _locationData!['accuracy'],
@@ -272,12 +331,24 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
   // BUILD
   // =========================================================================
 
+  /// Resolve AppBar title based on the selected activity type.
+  String get _appBarTitle {
+    switch (_selectedTypeId) {
+      case 'CLEAN_COOKING':
+        return 'Register Cookstove';
+      case 'HYBRID_ENERGY':
+        return 'Register Energy System';
+      default:
+        return 'New Activity';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final steps = ['Details', 'Capture', 'Review'];
+    final steps = ['Type', 'Details', 'Capture', 'Review'];
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Register Cookstove'),
+        title: Text(_appBarTitle),
         leading: IconButton(icon: const Icon(Icons.close_rounded), onPressed: () => context.pop()),
       ),
       body: Column(
@@ -342,7 +413,7 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
         if (_currentStep > 0) const SizedBox(width: AppSpacing.md),
         Expanded(
           flex: 2,
-          child: _currentStep == 2
+          child: _currentStep == 3
               ? VFButton(label: 'Submit', onPressed: _canProceed ? _submitInstallation : null,
                   isLoading: _isSubmitting, icon: Icons.send_rounded)
               : VFButton(label: 'Continue', onPressed: _canProceed ? _nextStep : null,
@@ -359,27 +430,120 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
 
   Widget _buildCurrentStep() {
     switch (_currentStep) {
-      case 0: return _buildDynamicFields();
-      case 1: return _buildCaptureStep();
-      case 2: return _buildReviewStep();
+      case 0: return _buildTypeSelection();
+      case 1: return _buildDynamicFields();
+      case 2: return _buildCaptureStep();
+      case 3: return _buildReviewStep();
       default: return const SizedBox();
     }
   }
 
+  // --- Step 0: Activity Type Selection ---
+  Widget _buildTypeSelection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Select Activity Type', style: AppTypography.heading).animate().fadeIn(),
+        const SizedBox(height: AppSpacing.sm),
+        Text('Choose the type of field activity you are registering.',
+            style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary)),
+        const SizedBox(height: AppSpacing.xl),
+        ...activityTypes.asMap().entries.map((entry) {
+          final i = entry.key;
+          final config = entry.value;
+          final isSelected = _selectedTypeId == config.id;
+          return Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.base),
+            child: GestureDetector(
+              onTap: () {
+                setState(() {
+                  _selectedTypeId = config.id;
+                  _selectedConfig = config;
+                  // Clear previous field values when switching types
+                  _fieldValues.clear();
+                  for (final c in _textControllers.values) {
+                    c.clear();
+                  }
+                  // Pre-initialize boolean fields to false to prevent required-field null validation failure
+                  for (final field in config.fields) {
+                    if (field.type == 'boolean') {
+                      _fieldValues[field.key] = false;
+                    }
+                  }
+                });
+              },
+              child: Container(
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                decoration: BoxDecoration(
+                  color: isSelected ? config.color.withValues(alpha: 0.08) : AppColors.surface,
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+                  border: Border.all(
+                    color: isSelected ? AppColors.primary : AppColors.border,
+                    width: isSelected ? 2 : 1,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    // Icon container
+                    Container(
+                      width: 52,
+                      height: 52,
+                      decoration: BoxDecoration(
+                        color: config.color.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Icon(config.icon, color: config.color, size: 28),
+                    ),
+                    const SizedBox(width: AppSpacing.base),
+                    // Label, description, methodology
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(config.label, style: AppTypography.title.copyWith(fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 2),
+                          Text(config.description, style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary)),
+                          const SizedBox(height: 4),
+                          Text(config.methodology, style: AppTypography.caption.copyWith(color: AppColors.primary)),
+                        ],
+                      ),
+                    ),
+                    // Selected checkmark
+                    if (isSelected)
+                      Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          color: AppColors.primary,
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: const Icon(Icons.check, size: 16, color: Colors.white),
+                      ),
+                  ],
+                ),
+              ),
+            ).animate().fadeIn(delay: Duration(milliseconds: 120 * i)).slideX(begin: 0.05),
+          );
+        }),
+      ],
+    );
+  }
+
   // --- Step 1: Dynamic Fields ---
   Widget _buildDynamicFields() {
+    final config = _selectedConfig!;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(children: [
-          Icon(_selectedConfig.icon, color: _selectedConfig.color, size: 24),
+          Icon(config.icon, color: config.color, size: 24),
           const SizedBox(width: AppSpacing.sm),
-          Text(_selectedConfig.label, style: AppTypography.heading),
+          Text(config.label, style: AppTypography.heading),
         ]).animate().fadeIn(),
         const SizedBox(height: 4),
-        Text(_selectedConfig.methodology, style: AppTypography.caption.copyWith(color: AppColors.primary)),
+        Text(config.methodology, style: AppTypography.caption.copyWith(color: AppColors.primary)),
         const SizedBox(height: AppSpacing.xl),
-        ..._selectedConfig.fields.asMap().entries.map((entry) {
+        ...config.fields.asMap().entries.map((entry) {
           final i = entry.key;
           final field = entry.value;
           return Padding(
@@ -392,10 +556,12 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
         const SizedBox(height: AppSpacing.lg),
         VFTextField(
           label: "Reporting Agent's Notes",
-          hint: "Stove condition, household reception, or carbon audit notes...",
+          hint: _selectedTypeId == 'HYBRID_ENERGY'
+              ? "System condition, site observations, or energy audit notes..."
+              : "Stove condition, household reception, or carbon audit notes...",
           controller: _descriptionController,
           maxLines: 4,
-        ).animate().fadeIn(delay: Duration(milliseconds: 80 * (_selectedConfig.fields.length + 1))),
+        ).animate().fadeIn(delay: Duration(milliseconds: 80 * (config.fields.length + 1))),
       ],
     );
   }
@@ -489,8 +655,9 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
     );
   }
 
-  // --- Step 3: Capture ---
+  // --- Step 2: Capture ---
   Widget _buildCaptureStep() {
+    final config = _selectedConfig!;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -525,41 +692,80 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
           IconButton(icon: const Icon(Icons.my_location_rounded, color: AppColors.primary), onPressed: _captureLocation),
         ])).animate().fadeIn(),
         const SizedBox(height: AppSpacing.xl),
-        // Photo
-        Text('Photo Proof *', style: AppTypography.bodySmall.copyWith(fontWeight: FontWeight.w600)),
-        const SizedBox(height: AppSpacing.md),
-        GestureDetector(
-          onTap: _capturePhoto,
-          child: Container(
-            height: 200, width: double.infinity,
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-              border: Border.all(color: _capturedImage != null ? AppColors.primary : AppColors.border, width: _capturedImage != null ? 2 : 1),
+        
+        // Dynamic Multi-Photo Cards
+        ...config.photos.asMap().entries.map((entry) {
+          final idx = entry.key;
+          final photoDef = entry.value;
+          final file = _capturedImages[photoDef.key];
+          final isCaptured = file != null;
+          
+          return Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('${photoDef.label}${photoDef.required ? " *" : ""}',
+                        style: AppTypography.bodySmall.copyWith(fontWeight: FontWeight.w600)),
+                    if (isCaptured)
+                      const Text('✅ CAPTURED', style: TextStyle(color: AppColors.primary, fontSize: 10, fontWeight: FontWeight.bold))
+                    else if (photoDef.required)
+                      const Text('* REQUIRED', style: TextStyle(color: AppColors.error, fontSize: 10, fontWeight: FontWeight.bold))
+                    else
+                      const Text('OPTIONAL', style: TextStyle(color: AppColors.textTertiary, fontSize: 10)),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                GestureDetector(
+                  onTap: () => _capturePhoto(photoDef),
+                  child: Container(
+                    height: 150, width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+                      border: Border.all(
+                        color: isCaptured ? AppColors.primary : AppColors.border,
+                        width: isCaptured ? 2 : 1,
+                      ),
+                    ),
+                    child: isCaptured
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(AppSpacing.radiusLg - 1),
+                            child: Stack(fit: StackFit.expand, children: [
+                              kIsWeb ? Image.network(file.path, fit: BoxFit.cover) : Image.file(file, fit: BoxFit.cover),
+                              Positioned(top: 8, right: 8, child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(20)),
+                                child: const Icon(Icons.check, color: Colors.white, size: 14),
+                              )),
+                            ]))
+                        : Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                            const Icon(Icons.camera_alt_rounded, size: 36, color: AppColors.textTertiary),
+                            const SizedBox(height: AppSpacing.xs),
+                            Text('Tap to capture ${photoDef.label.toLowerCase()}', style: AppTypography.bodySmall),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: 4),
+                              child: Text(
+                                photoDef.prompt,
+                                style: AppTypography.caption.copyWith(color: AppColors.textTertiary),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ]),
+                  ),
+                ),
+              ],
             ),
-            child: _capturedImage != null
-                ? ClipRRect(
-                    borderRadius: BorderRadius.circular(AppSpacing.radiusLg - 1),
-                    child: Stack(fit: StackFit.expand, children: [
-                      kIsWeb ? Image.network(_capturedImage!.path, fit: BoxFit.cover) : Image.file(_capturedImage!, fit: BoxFit.cover),
-                      Positioned(top: 8, right: 8, child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(20)),
-                        child: const Icon(Icons.check, color: Colors.white, size: 16),
-                      )),
-                    ]))
-                : Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    const Icon(Icons.camera_alt_rounded, size: 48, color: AppColors.textTertiary),
-                    const SizedBox(height: AppSpacing.sm),
-                    Text('Tap to capture photo', style: AppTypography.bodySmall),
-                  ]),
-          ),
-        ).animate().fadeIn(delay: 200.ms),
+          ).animate().fadeIn(delay: Duration(milliseconds: 100 * idx));
+        }),
       ],
     );
   }
 
-  // --- Step 4: Review ---
+  // --- Step 3: Review ---
   Widget _buildReviewStep() {
     final isDuplicate = _duplicateCheckResult?['duplicate_flag'] == true;
     return Column(
@@ -601,7 +807,7 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
           const Center(child: CircularProgressIndicator(color: AppColors.primary)),
           const SizedBox(height: AppSpacing.xl),
         ],
-        _reviewRow('Type', _selectedConfig?.label ?? ''),
+        _reviewRow('Type', _selectedConfig?.label ?? 'Unknown'),
         _reviewRow('Notes', _descriptionController.text.isNotEmpty ? _descriptionController.text : 'None'),
         _reviewRow('Environment', _duplicateCheckResult?['environment_type'] ?? 'Detecting...'),
         ..._fieldValues.entries.map((e) => _reviewRow(
@@ -611,7 +817,17 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
         _reviewRow('GPS', _locationData != null
             ? '${_locationData!['latitude']!.toStringAsFixed(5)}, ${_locationData!['longitude']!.toStringAsFixed(5)}'
             : 'N/A'),
-        _reviewRow('Photo', _capturedImage != null ? '✅ Captured' : '❌ Missing'),
+        ..._selectedConfig!.photos.map((p) {
+          final isCaptured = _capturedImages.containsKey(p.key);
+          return _reviewRow(
+            p.label,
+            isCaptured
+                ? '✅ Captured'
+                : p.required
+                    ? '❌ Missing (Required)'
+                    : '⚠️ Not Captured (Optional)',
+          );
+        }),
         if (_errorMessage != null) ...[
           const SizedBox(height: AppSpacing.md),
           Container(

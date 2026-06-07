@@ -29,6 +29,12 @@ class ProjectCreate(BaseModel):
     name: str
     methodology_id: str
     baseline_parameters: Dict[str, Any]
+    # New optional fields (forwarded to the expanded Project model)
+    sector: str = "energy"
+    country: str = "Nigeria"
+    baseline_source: str = "diesel_generator"
+    diesel_emission_factor: float = 2.68
+    grid_emission_factor: float = 0.7
 
 
 class QuantifyRequest(BaseModel):
@@ -36,17 +42,28 @@ class QuantifyRequest(BaseModel):
     project_id: Optional[uuid.UUID] = None
 
 
-@router.post("/projects", summary="Create a new Carbon Project")
+@router.post("/projects", summary="Create a new Carbon Project (Deprecated — use POST /projects)")
 async def create_project(
     payload: ProjectCreate,
     db: AsyncSession = Depends(get_db),
     user=Depends(require_admin)
 ):
-    """Register a new project under a specific methodology."""
+    """
+    Register a new project under a specific methodology.
+    
+    NOTE: This endpoint is maintained for backward compatibility.
+    Prefer using POST /api/v1/projects for full project configuration
+    including crediting periods and project codes.
+    """
     proj = Project(
         name=payload.name,
         methodology_id=payload.methodology_id,
-        baseline_parameters=payload.baseline_parameters
+        baseline_parameters=payload.baseline_parameters,
+        sector=payload.sector,
+        country=payload.country,
+        baseline_source=payload.baseline_source,
+        diesel_emission_factor=payload.diesel_emission_factor,
+        grid_emission_factor=payload.grid_emission_factor,
     )
     db.add(proj)
     await db.commit()

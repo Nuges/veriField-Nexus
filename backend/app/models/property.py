@@ -85,7 +85,7 @@ class Property(Base):
 
     # --- Relationships ---
     owner = relationship("User", back_populates="properties")
-    activities = relationship("Activity", back_populates="property", lazy="selectin")
+    activities = relationship("Activity", back_populates="property", lazy="select")
 
     def __repr__(self) -> str:
         return f"<Property(id={self.id}, name={self.name}, type={self.property_type})>"

@@ -6,7 +6,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ShieldCheck, Mail, Lock, Loader2 } from "lucide-react";
@@ -19,6 +19,15 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("error") === "unauthorized") {
+        setError("Access denied. This system is restricted to verification personnel only.");
+      }
+    }
+  }, []);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -26,6 +35,9 @@ export default function LoginPage() {
 
     try {
       const result = await loginAdmin(email, password);
+      if (result.user.role !== "admin" && result.user.role !== "auditor") {
+        throw new Error("Access denied. This system is restricted to verification personnel only.");
+      }
       setAuthToken(result.access_token);
       localStorage.setItem("vf_token", result.access_token);
       router.push("/dashboard");

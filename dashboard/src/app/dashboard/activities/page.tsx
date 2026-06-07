@@ -180,7 +180,7 @@ export default function ActivitiesPage() {
               <ArrowUpRight size={10} /> Active
             </span>
           </div>
-          <span className="text-[8px] text-[var(--color-text-muted)] mt-1">Cookstove records synced</span>
+          <span className="text-[8px] text-[var(--color-text-muted)] mt-1">Registry records synced</span>
         </div>
 
         <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4 flex flex-col justify-between shadow-sm border-l-4 border-l-emerald-500 hover:shadow-md transition-all">
@@ -234,8 +234,9 @@ export default function ActivitiesPage() {
             onChange={(e) => { setActivityType(e.target.value); setPage(1); }}
             className="bg-[var(--color-background)] border border-[var(--color-border)] rounded-xl px-3 py-1.5 text-xs font-semibold text-[var(--color-text-primary)] focus:outline-none focus:border-[#00B47A] focus:ring-1 focus:ring-[#00B47A]/30 transition-all cursor-pointer"
           >
-            <option value="">All Stove Models</option>
+            <option value="">All Activity Types</option>
             <option value="CLEAN_COOKING">Clean Cooking</option>
+            <option value="HYBRID_ENERGY">Hybrid Energy</option>
           </select>
 
           <select 
@@ -280,7 +281,7 @@ export default function ActivitiesPage() {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-[var(--color-background)] border-b border-[var(--color-border)]">
-                <th className="p-4 text-[10px] font-extrabold text-[var(--color-text-secondary)] uppercase tracking-wider">Stove Installation Info</th>
+                <th className="p-4 text-[10px] font-extrabold text-[var(--color-text-secondary)] uppercase tracking-wider">Installation Details</th>
                 <th className="p-4 text-[10px] font-extrabold text-[var(--color-text-secondary)] uppercase tracking-wider">Sync Timestamp</th>
                 <th className="p-4 text-[10px] font-extrabold text-[var(--color-text-secondary)] uppercase tracking-wider">Reporting Field Agent</th>
                 <th className="p-4 text-[10px] font-extrabold text-[var(--color-text-secondary)] uppercase tracking-wider">Geospatial Capture Bounds</th>

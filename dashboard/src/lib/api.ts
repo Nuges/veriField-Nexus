@@ -145,6 +145,9 @@ export async function onboardDeveloper(payload: {
   password: string;
   full_name: string;
   organization_name: string;
+  sector: string;
+  country?: string;
+  project_type?: string;
 }) {
   return apiFetch<{ user: any; access_token: string; expires_in: number }>(
     "/auth/onboard",
@@ -554,6 +557,27 @@ export async function uploadAvatar(file: File): Promise<{ avatar_url: string }> 
     method: "POST",
     body: formData,
   });
+}
+
+// =============================================================================
+// Energy Displacement MRV API
+// =============================================================================
+
+export async function fetchEnergyPortfolio(): Promise<any> {
+  return apiFetch<any>('/energy/portfolio');
+}
+
+export async function fetchEnergyActivities(params: { page?: number; per_page?: number; status?: string } = {}): Promise<any> {
+  const searchParams = new URLSearchParams();
+  if (params.page) searchParams.set('page', String(params.page));
+  if (params.per_page) searchParams.set('per_page', String(params.per_page));
+  if (params.status) searchParams.set('status', params.status);
+  const qs = searchParams.toString();
+  return apiFetch<any>(`/energy/activities${qs ? `?${qs}` : ''}`);
+}
+
+export async function fetchSiteTelemetry(siteId: string, limit: number = 30): Promise<any> {
+  return apiFetch<any>(`/energy/telemetry/${siteId}?limit=${limit}`);
 }
 
 

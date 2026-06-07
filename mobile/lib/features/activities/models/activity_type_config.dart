@@ -1,7 +1,8 @@
 // =============================================================================
-// VeriField Nexus — Activity Type Configuration (Cookstove Only)
+// VeriField Nexus — Activity Type Configuration
 // =============================================================================
-// Defines the Clean Cooking activity type with icons, colors, and form fields.
+// Defines all supported activity types with icons, colors, and form fields.
+// Currently supports: Clean Cooking, Hybrid Energy.
 // Used by the dynamic form engine to render type-specific input fields.
 // =============================================================================
 
@@ -25,6 +26,21 @@ class FormFieldDef {
   });
 }
 
+/// Photo field definition for dynamic evidence capture.
+class PhotoFieldDef {
+  final String key;
+  final String label;
+  final bool required;
+  final String prompt;
+
+  const PhotoFieldDef({
+    required this.key,
+    required this.label,
+    this.required = false,
+    required this.prompt,
+  });
+}
+
 /// Activity type configuration.
 class ActivityTypeConfig {
   final String id;
@@ -34,6 +50,7 @@ class ActivityTypeConfig {
   final Color color;
   final String methodology;
   final List<FormFieldDef> fields;
+  final List<PhotoFieldDef> photos;
 
   const ActivityTypeConfig({
     required this.id,
@@ -43,10 +60,11 @@ class ActivityTypeConfig {
     required this.color,
     required this.methodology,
     required this.fields,
+    required this.photos,
   });
 }
 
-/// All supported activity types (Cookstove only).
+/// All supported activity types.
 final List<ActivityTypeConfig> activityTypes = [
   ActivityTypeConfig(
     id: 'CLEAN_COOKING',
@@ -87,6 +105,89 @@ final List<ActivityTypeConfig> activityTypes = [
       FormFieldDef(key: 'project_cooking_duration', label: 'Daily Cooking Now (hrs)', type: 'float', required: true),
       FormFieldDef(key: 'stove_condition', label: 'Stove Condition', type: 'enum', required: true,
           options: ['good', 'minor_damage', 'needs_repair', 'abandoned']),
+    ],
+    photos: [
+      PhotoFieldDef(
+        key: 'stove_installation',
+        label: 'Stove Installation Photo',
+        required: true,
+        prompt: 'Take a clear photo of the newly installed clean cookstove in the kitchen.',
+      ),
+      PhotoFieldDef(
+        key: 'baseline_fuel_source',
+        label: 'Old Stove / Baseline Fuel Photo',
+        required: false,
+        prompt: 'Capture the traditional open fire or old cooking device (if present).',
+      ),
+    ],
+  ),
+
+  // -------------------------------------------------------------------------
+  // Hybrid Energy — Solar/Gas/Diesel displacement MRV
+  // -------------------------------------------------------------------------
+  ActivityTypeConfig(
+    id: 'HYBRID_ENERGY',
+    label: 'Hybrid Energy',
+    description: 'Solar/Gas/Diesel displacement MRV',
+    icon: Icons.solar_power_rounded,
+    color: Color(0xFFF59E0B), // Amber
+    methodology: 'Verra AMS-I.F / Gold Standard',
+    fields: [
+      // Site & Owner Identity
+      FormFieldDef(key: 'site_id', label: 'Site ID', type: 'string', required: true),
+      FormFieldDef(key: 'owner_name', label: 'Site Owner / Manager Name', type: 'string', required: true),
+      FormFieldDef(key: 'owner_phone', label: 'Owner Phone Number', type: 'string'),
+      FormFieldDef(key: 'site_type', label: 'Site Type', type: 'enum', required: true,
+          options: ['residential', 'commercial', 'industrial', 'institutional', 'telecom_tower', 'agricultural']),
+      // Baseline Generator Details
+      FormFieldDef(key: 'baseline_generator_type', label: 'Baseline Generator Type', type: 'enum', required: true,
+          options: ['diesel', 'petrol', 'heavy_fuel_oil']),
+      FormFieldDef(key: 'baseline_generator_capacity_kva', label: 'Generator Capacity (kVA)', type: 'float', required: true),
+      FormFieldDef(key: 'baseline_fuel_consumption_lph', label: 'Fuel Consumption Rate (L/hr)', type: 'float', required: true),
+      FormFieldDef(key: 'baseline_avg_daily_runtime_hrs', label: 'Avg Daily Runtime (hrs)', type: 'float', required: true),
+      FormFieldDef(key: 'baseline_operating_days_per_year', label: 'Operating Days Per Year', type: 'int', required: true),
+      FormFieldDef(key: 'baseline_monthly_fuel_cost', label: 'Monthly Fuel Cost (₦)', type: 'float'),
+      // Post-Installation Hybrid System
+      FormFieldDef(key: 'solar_capacity_kwp', label: 'Solar PV Capacity (kWp)', type: 'float', required: true),
+      FormFieldDef(key: 'battery_capacity_kwh', label: 'Battery Storage (kWh)', type: 'float'),
+      FormFieldDef(key: 'inverter_capacity_kva', label: 'Inverter Capacity (kVA)', type: 'float', required: true),
+      FormFieldDef(key: 'gas_generator_capacity_kva', label: 'Gas Generator (kVA)', type: 'float'),
+      FormFieldDef(key: 'diesel_backup_capacity_kva', label: 'Diesel Backup (kVA)', type: 'float'),
+      FormFieldDef(key: 'installer_name', label: 'Installer / EPC Company', type: 'string'),
+      FormFieldDef(key: 'installation_date', label: 'Installation Date', type: 'string', required: true),
+      // Data Source Configuration
+      FormFieldDef(key: 'data_source', label: 'Primary Data Source', type: 'enum', required: true,
+          options: ['smart_inverter_api', 'hybrid_inverter_manual', 'analog_manual']),
+      FormFieldDef(key: 'inverter_brand', label: 'Inverter Brand / Model', type: 'string'),
+      FormFieldDef(key: 'inverter_serial_number', label: 'Inverter Serial Number', type: 'string'),
+      FormFieldDef(key: 'avg_sun_hours', label: 'Average Peak Sun Hours (hrs/day)', type: 'float', required: true),
+      FormFieldDef(key: 'system_efficiency', label: 'System Efficiency Factor (0-1)', type: 'float'),
+      // Verification Checklist
+      FormFieldDef(key: 'system_installed', label: 'System Installed & Commissioned?', type: 'boolean', required: true),
+      FormFieldDef(key: 'system_operational', label: 'System Currently Operational?', type: 'boolean', required: true),
+      FormFieldDef(key: 'tamper_signs', label: 'Tampering Signs Detected?', type: 'boolean', required: true),
+      FormFieldDef(key: 'usage_confirmed', label: 'Active Usage Confirmed?', type: 'boolean', required: true),
+      FormFieldDef(key: 'consent_obtained', label: 'Owner Consent Obtained?', type: 'boolean', required: true),
+    ],
+    photos: [
+      PhotoFieldDef(
+        key: 'solar_installation',
+        label: 'Solar PV Installation Photo',
+        required: true,
+        prompt: 'Take a wide-angle shot of the newly installed solar panels or hybrid system.',
+      ),
+      PhotoFieldDef(
+        key: 'baseline_generator',
+        label: 'Baseline Diesel Generator Photo',
+        required: true,
+        prompt: 'Capture the old baseline diesel or petrol generator for displacement proof.',
+      ),
+      PhotoFieldDef(
+        key: 'inverter_label',
+        label: 'Inverter Nameplate Photo',
+        required: false,
+        prompt: 'Capture the brand/serial number printed on the inverter unit.',
+      ),
     ],
   ),
 ];

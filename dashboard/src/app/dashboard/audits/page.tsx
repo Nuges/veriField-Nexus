@@ -23,7 +23,10 @@ import type { AuditTask } from "@/lib/api";
 import type { Property, AgentPerformance } from "@/lib/types";
 import { useToast } from "@/components/Toast";
 
+import { useWorkspace } from "@/context/WorkspaceContext";
+
 export default function AuditsPage() {
+  const { activeSector, filterAudits, filterProperties } = useWorkspace();
   const toast = useToast();
   const [audits, setAudits] = useState<AuditTask[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -139,10 +142,13 @@ export default function AuditsPage() {
     }
   };
 
+  // Filter audits based on active workspace sector context
+  const isolatedAudits = filterAudits(audits);
+
   // Derive dynamic counts for statistics strip
-  const totalTasks = audits.length;
-  const inProgressTasks = audits.filter(a => a.status === "in_progress").length;
-  const completedTasks = audits.filter(a => a.status === "completed").length;
+  const totalTasks = isolatedAudits.length;
+  const inProgressTasks = isolatedAudits.filter(a => a.status === "in_progress").length;
+  const completedTasks = isolatedAudits.filter(a => a.status === "completed").length;
 
   return (
     <div className="space-y-6 animate-fade-in-up" onClick={() => setOpenMenu(null)}>
@@ -233,7 +239,7 @@ export default function AuditsPage() {
         <div className="p-4 border-b border-[var(--color-border)] flex items-center justify-between bg-[var(--color-background)]/50">
           <h2 className="text-xs font-bold uppercase tracking-wider">Active Assignment Roster</h2>
           <div className="text-[9px] font-extrabold text-[#00B47A] bg-[#00B47A]/5 border border-[#00B47A]/15 px-2 py-0.5 rounded uppercase">
-            {audits.length} Registered Tasks
+            {isolatedAudits.length} Registered Tasks
           </div>
         </div>
         
@@ -241,7 +247,12 @@ export default function AuditsPage() {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-[var(--color-background)]/40 border-b border-[var(--color-border)]">
-                <th className="p-4 text-[10px] font-extrabold text-[var(--color-text-muted)] uppercase tracking-wider">Target Asset / Cookstove</th>
+                <th className="p-4 text-[10px] font-extrabold text-[var(--color-text-muted)] uppercase tracking-wider">
+                  {activeSector === "cookstove" ? "Target Asset / Cookstove" :
+                   activeSector === "energy" ? "Target Asset / Energy System" :
+                   activeSector === "transport" ? "Target Asset / Low-Carbon Vehicle" :
+                   "Target Asset / Forestry Zone"}
+                </th>
                 <th className="p-4 text-[10px] font-extrabold text-[var(--color-text-muted)] uppercase tracking-wider">Assigned Agent</th>
                 <th className="p-4 text-[10px] font-extrabold text-[var(--color-text-muted)] uppercase tracking-wider">Ledger Status</th>
                 <th className="p-4 text-[10px] font-extrabold text-[var(--color-text-muted)] uppercase tracking-wider">Scheduled Deadline</th>
@@ -258,7 +269,7 @@ export default function AuditsPage() {
                     </div>
                   </td>
                 </tr>
-              ) : audits.length === 0 ? (
+              ) : isolatedAudits.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="p-16 text-center">
                     <div className="flex flex-col items-center justify-center max-w-sm mx-auto">
@@ -273,7 +284,7 @@ export default function AuditsPage() {
                   </td>
                 </tr>
               ) : (
-                audits.map((audit) => (
+                isolatedAudits.map((audit) => (
                   <tr key={audit.id} className="hover:bg-[var(--color-background)]/20 transition-colors group">
                     
                     {/* Target Cookstove */}
@@ -425,7 +436,10 @@ export default function AuditsPage() {
               
               <div>
                 <label className="block text-[10px] font-extrabold text-[var(--color-text-muted)] uppercase tracking-wider mb-1.5">
-                  Target Clean Cookstove Spec
+                  {activeSector === "cookstove" ? "Target Clean Cookstove Spec" :
+                   activeSector === "energy" ? "Target Hybrid Energy System Spec" :
+                   activeSector === "transport" ? "Target Low-Carbon Vehicle Spec" :
+                   "Target AFOLU Forestry Zone Spec"}
                 </label>
                 <select 
                   className="w-full bg-[var(--color-background)] border border-[var(--color-border)] rounded-xl px-3 py-2.5 text-xs text-[var(--color-text-primary)] outline-none focus:border-[#00B47A]/50 transition-all font-semibold"
@@ -434,7 +448,7 @@ export default function AuditsPage() {
                   required
                 >
                   <option value="">Select monitored asset...</option>
-                  {properties.map(p => (
+                  {filterProperties(properties).map(p => (
                     <option key={p.id} value={p.id}>{p.name} ({p.address || "Unspecified"})</option>
                   ))}
                 </select>

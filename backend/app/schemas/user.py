@@ -24,6 +24,9 @@ class UserCreate(BaseModel):
     password: str = Field(..., min_length=8, description="Account password (min 8 characters)")
     role: str = Field(default="field_agent", description="User role: field_agent or admin")
     organization: Optional[str] = Field(None, max_length=255, description="Organization name")
+    sector: str = Field(default="cookstove", description="Assigned sector: cookstove, energy, transport, afolu")
+    country: Optional[str] = Field(None, max_length=100, description="Operation country")
+    project_type: Optional[str] = Field(None, max_length=100, description="Project subtype")
 
 
 class UserUpdate(BaseModel):
@@ -53,6 +56,9 @@ class UserResponse(BaseModel):
     role: str
     avatar_url: Optional[str] = None
     organization: Optional[str] = None
+    sector: str
+    country: Optional[str] = None
+    project_type: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 

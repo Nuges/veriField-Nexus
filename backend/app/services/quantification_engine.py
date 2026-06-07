@@ -106,10 +106,16 @@ class QuantificationEngine:
             if not project:
                 raise ValueError("Project not found")
         else:
-            # Auto-find project matching cookstove methodologies
-            cookstove_methods = ["VM0006", "VMR0050", "GS_TPDDTEC", "GS_MECD"]
+            # Auto-find project matching the activity type
+            if activity.activity_type == "HYBRID_ENERGY":
+                # Energy displacement activities → search energy methodology
+                search_methods = ["ENERGY_DISPLACEMENT"]
+            else:
+                # Cookstove activities → search cookstove methodologies
+                search_methods = ["VM0006", "VMR0050", "GS_TPDDTEC", "GS_MECD"]
+
             project = None
-            for m in cookstove_methods:
+            for m in search_methods:
                 proj_res = await self.db.execute(
                     select(Project).where(Project.methodology_id == m).limit(1)
                 )
@@ -117,11 +123,20 @@ class QuantificationEngine:
                 if project:
                     break
             if not project:
-                raise ValueError(f"No cookstove project found for activity type '{activity.activity_type}'")
+                raise ValueError(
+                    f"No project found for activity type '{activity.activity_type}'"
+                )
 
-        # Route to the correct cookstove calculation by methodology
+        # Route to the correct calculation engine by methodology
         methodology = project.methodology_id
 
+        # --- Energy Displacement: Delegate to dedicated engine ---
+        if methodology == "ENERGY_DISPLACEMENT":
+            from app.services.energy_displacement_engine import EnergyDisplacementEngine
+            energy_engine = EnergyDisplacementEngine(self.db)
+            return await energy_engine.quantify_activity(activity_id, project.id)
+
+        # --- Cookstove methodologies (unchanged) ---
         if methodology in ["VM0006", "VMR0050"]:
             tco2e, log = await self._calculate_verra_cookstove(activity, project)
         elif methodology == "GS_MECD":

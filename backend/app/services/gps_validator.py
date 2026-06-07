@@ -27,6 +27,8 @@ from app.models.activity import Activity
 # ---------------------------------------------------------------------------
 RADIUS_MATRIX: Dict[str, Dict[str, float]] = {
     "CLEAN_COOKING":     {"URBAN": 15,  "RURAL": 30},
+    "HYBRID_ENERGY":     {"URBAN": 50,  "RURAL": 100},
+    "OTHER":             {"URBAN": 20,  "RURAL": 50},
 }
 
 # How many existing assets within 200m makes it "urban"

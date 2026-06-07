@@ -25,12 +25,15 @@ import {
   fetchActivities,
   fetchCommunityFeed,
   fetchSensorDevices,
-  fetchAgentPerformance
+  fetchAgentPerformance,
+  fetchEnergyActivities
 } from "@/lib/api";
 import type { AuditTask } from "@/lib/api";
 import { useToast } from "@/components/Toast";
+import { useWorkspace } from "@/context/WorkspaceContext";
 
 export default function VerificationsPage() {
+  const { activeSector, filterProperties, filterAudits } = useWorkspace();
   const toast = useToast();
   const [activeTab, setActiveTab] = useState<'sensors' | 'community' | 'audits'>('audits');
   const [audits, setAudits] = useState<AuditTask[]>([]);
@@ -50,7 +53,7 @@ export default function VerificationsPage() {
     setIsLoading(true);
     try {
       const tasks = await fetchMyAuditTasks();
-      setAudits(tasks);
+      setAudits(filterAudits(tasks));
     } catch (err) {
       console.error(err);
     } finally {
@@ -75,8 +78,20 @@ export default function VerificationsPage() {
   const loadSensorData = async () => {
     setIsLoadingSensors(true);
     try {
-      const res = await fetchSensorDevices();
-      setSensorDevices(res.devices || []);
+      const [devicesRes, propertiesRes] = await Promise.all([
+        fetchSensorDevices(),
+        fetchProperties()
+      ]);
+      const devicesList = devicesRes.devices || [];
+      const propertiesList = propertiesRes.properties || [];
+      
+      // Filter properties matching activeSector
+      const filteredProps = filterProperties(propertiesList);
+      const filteredPropIds = new Set(filteredProps.map(p => p.id));
+      
+      // Only show devices belonging to filtered properties
+      const activeDevices = devicesList.filter((dev: any) => filteredPropIds.has(dev.asset_id));
+      setSensorDevices(activeDevices);
     } catch (err) {
       console.error(err);
     } finally {
@@ -381,9 +396,13 @@ export default function VerificationsPage() {
         {activeTab === 'sensors' && (
           <div className="space-y-4 animate-fade-in-up">
             <div className="bg-[var(--color-surface)] p-4.5 rounded-2xl border border-[var(--color-border)] shadow-sm">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-primary)]">Bluetooth & IoT Temperature Sync</h3>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-primary)]">
+                {activeSector === "cookstove" ? "Bluetooth & IoT Temperature Sync" : `${activeSector.charAt(0).toUpperCase() + activeSector.slice(1)} IoT Sensors Sync`}
+              </h3>
               <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">
-                Analyze local telemetry logs synchronized directly from cookstove microcontrollers.
+                {activeSector === "cookstove" 
+                  ? "Analyze local telemetry logs synchronized directly from cookstove microcontrollers."
+                  : `Analyze local telemetry logs synchronized directly from ${activeSector} microcontrollers.`}
               </p>
             </div>
             
@@ -397,7 +416,9 @@ export default function VerificationsPage() {
                 <Cpu size={36} className="mx-auto mb-3 text-[var(--color-text-muted)] opacity-60" />
                 <h3 className="text-xs font-bold uppercase tracking-wider">IoT Array Idle</h3>
                 <p className="text-[var(--color-text-secondary)] text-xs mt-1 leading-relaxed">
-                  No active cookstove BLE sync logs detected in this cluster range.
+                  {activeSector === "cookstove" 
+                    ? "No active cookstove BLE sync logs detected in this cluster range."
+                    : `No active ${activeSector} IoT sync logs detected in this cluster range.`}
                 </p>
               </div>
             ) : (
@@ -421,7 +442,9 @@ export default function VerificationsPage() {
                       
                       <div className="bg-[var(--color-background)] border border-[var(--color-border)]/70 rounded-xl p-3 grid grid-cols-2 gap-2 text-[10px] font-bold text-[var(--color-text-secondary)]">
                         <div>
-                          <span className="text-[9px] text-[var(--color-text-muted)] font-extrabold uppercase block tracking-wider mb-0.5">Stove Name</span>
+                          <span className="text-[9px] text-[var(--color-text-muted)] font-extrabold uppercase block tracking-wider mb-0.5">
+                            {activeSector === "energy" ? "Site Name" : "Stove Name"}
+                          </span>
                           <span className="text-[var(--color-text-primary)] truncate block">{dev.property_name || "Unknown"}</span>
                         </div>
                         <div>

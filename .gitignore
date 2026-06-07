@@ -29,3 +29,12 @@ build/
 *.swo
 *.iml
 .DS_Store
+
+# SDK output
+dist/
+sdk/dist/
+target/
+
+# Local logs
+*.log
+backend/uvicorn.log

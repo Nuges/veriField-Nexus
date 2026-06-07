@@ -185,7 +185,8 @@ export default function AssetDetailPage() {
             activities.map(activity => (
               <div 
                 key={activity.id} 
-                className="p-4.5 flex flex-col sm:flex-row gap-4 items-start sm:items-center hover:bg-[var(--color-background)]/35 transition-colors duration-200"
+                onClick={() => router.push(`/dashboard/activities/${activity.id}`)}
+                className="p-4.5 flex flex-col sm:flex-row gap-4 items-start sm:items-center hover:bg-[var(--color-background)]/35 transition-colors duration-200 cursor-pointer border-l-2 border-l-transparent hover:border-l-[#00B47A]"
               >
                 {activity.image_url ? (
                   <img 

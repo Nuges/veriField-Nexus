@@ -142,7 +142,6 @@ async def get_current_user(
     # Look up the user in our database
     import uuid as _uuid
     import asyncio
-    
     try:
         result = await asyncio.wait_for(
             db.execute(select(User).where(User.id == user_id)),

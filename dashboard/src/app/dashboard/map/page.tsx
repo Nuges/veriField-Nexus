@@ -12,6 +12,7 @@
 import { useEffect, useState } from "react";
 import { fetchProperties } from "@/lib/api";
 import type { Property } from "@/lib/types";
+import { useWorkspace } from "@/context/WorkspaceContext";
 
 // Fallback data — ONLY used when the backend API is completely unreachable.
 // In normal operation, the map shows exclusively real data from the database.
@@ -31,6 +32,7 @@ const OFFLINE_FALLBACK: Property[] = [
 ];
 
 export default function MapPage() {
+  const { activeSector, filterProperties } = useWorkspace();
   const [properties, setProperties] = useState<Property[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
@@ -197,7 +199,7 @@ export default function MapPage() {
                 const popupContent = \`
                   <div>
                     <h3>\${p.name}</h3>
-                    <p><strong>Type:</strong> \${p.type} Stove</p>
+                    <p><strong>Type:</strong> \${p.type === 'CLEAN_COOKING' ? 'Clean Cookstove' : p.type === 'HYBRID_ENERGY' ? 'Hybrid Energy System' : p.type === 'LOW_CARBON_TRANSPORT' ? 'Low-Carbon Vehicle' : 'AFOLU Forestry Plot'}</p>
                     <p><strong>Carbon Offset:</strong> \${p.offset} tCO2e/yr</p>
                     <p><strong>Registered:</strong> \${p.created}</p>
                     <p><strong>Coords:</strong> \${p.lat.toFixed(6)}, \${p.lng.toFixed(6)}</p>
@@ -299,7 +301,7 @@ export default function MapPage() {
     return "AI Verified";
   };
 
-  const activeProps = properties.length > 0 ? properties : OFFLINE_FALLBACK;
+  const activeProps = filterProperties(properties.length > 0 ? properties : OFFLINE_FALLBACK);
 
   // Classify coordinates to country names dynamically (Lagos -> Nigeria, Nairobi/Mombasa -> Kenya)
   const getCountryName = (lat: number | null, lng: number | null) => {
@@ -362,9 +364,12 @@ export default function MapPage() {
           </div>
         )}
         {/* No GPS data state */}
-        {!isLoading && !apiOffline && properties.length === 0 && (
+        {!isLoading && !apiOffline && activeProps.length === 0 && (
           <div className="mt-2 px-3 py-1.5 bg-blue-500/10 border border-blue-500/20 rounded-lg text-[10px] text-blue-400 font-semibold">
-            No GPS-tagged cookstoves found. Register assets with GPS coordinates from the mobile app to see them here.
+            No GPS-tagged {activeSector === "cookstove" ? "cookstoves" : 
+                            activeSector === "energy" ? "hybrid energy systems" : 
+                            activeSector === "transport" ? "low-carbon vehicles" : 
+                            "AFOLU forestry plots"} found. Register assets with GPS coordinates from the mobile app to see them here.
           </div>
         )}
       </div>

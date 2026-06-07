@@ -14,6 +14,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.api.v1 import auth, activities, properties, analytics, export, cross_verification, carbon, audits, sensors, community
 from app.api.v1 import registry, settings as api_settings
+from app.api.v1 import energy as energy_api
+from app.api.v1 import projects as projects_api
 
 
 # ---------------------------------------------------------------------------
@@ -64,6 +66,22 @@ async def lifespan(app: FastAPI):
                 await session.execute(text("ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS suspicious_hours_end INTEGER DEFAULT 5"))
                 await session.commit()
                 logger.info("Community upvotes and comments database schema updates synced successfully!")
+
+                # === Project Configuration Layer (3-Layer MRV Architecture) ===
+                await session.execute(text("ALTER TABLE projects ADD COLUMN IF NOT EXISTS project_code VARCHAR(20) UNIQUE"))
+                await session.execute(text("ALTER TABLE projects ADD COLUMN IF NOT EXISTS sector VARCHAR(30) DEFAULT 'energy'"))
+                await session.execute(text("ALTER TABLE projects ADD COLUMN IF NOT EXISTS country VARCHAR(100) DEFAULT 'Nigeria'"))
+                await session.execute(text("ALTER TABLE projects ADD COLUMN IF NOT EXISTS baseline_source VARCHAR(30) DEFAULT 'diesel_generator'"))
+                await session.execute(text("ALTER TABLE projects ADD COLUMN IF NOT EXISTS diesel_emission_factor FLOAT DEFAULT 2.68"))
+                await session.execute(text("ALTER TABLE projects ADD COLUMN IF NOT EXISTS grid_emission_factor FLOAT DEFAULT 0.7"))
+                await session.execute(text("ALTER TABLE projects ADD COLUMN IF NOT EXISTS crediting_start DATE"))
+                await session.execute(text("ALTER TABLE projects ADD COLUMN IF NOT EXISTS crediting_end DATE"))
+                await session.execute(text("ALTER TABLE projects ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT now()"))
+                # Add index on project_code for fast lookups
+                await session.execute(text("CREATE INDEX IF NOT EXISTS ix_projects_project_code ON projects (project_code)"))
+                await session.execute(text("CREATE INDEX IF NOT EXISTS ix_projects_sector ON projects (sector)"))
+                await session.commit()
+                logger.info("Project configuration schema (3-Layer MRV) synced successfully!")
         except Exception as e:
             logger.error(f"Failed to auto-run community database schema updates: {e}")
 
@@ -185,6 +203,8 @@ app.include_router(sensors.router, prefix=API_PREFIX)
 app.include_router(community.router, prefix=API_PREFIX)
 app.include_router(registry.router, prefix=API_PREFIX)
 app.include_router(api_settings.router, prefix=API_PREFIX)
+app.include_router(energy_api.router, prefix=API_PREFIX)
+app.include_router(projects_api.router, prefix=API_PREFIX)
 
 
 # ---------------------------------------------------------------------------

@@ -20,6 +20,7 @@ from enum import Enum
 
 class ActivityType(str, Enum):
     CLEAN_COOKING = "CLEAN_COOKING"
+    HYBRID_ENERGY = "HYBRID_ENERGY"
 
 
 # ---------------------------------------------------------------------------
@@ -64,6 +65,51 @@ ACTIVITY_SCHEMAS: Dict[str, Dict[str, Any]] = {
         "icon": "soup_kitchen",
         "description": "Clean cooking stove installation & usage logging",
         "methodology": "Gold Standard TPDDTEC v3.1",
+    },
+    # -----------------------------------------------------------------------
+    # HYBRID ENERGY DISPLACEMENT — Solar / Gas / Diesel Conversion Projects
+    # -----------------------------------------------------------------------
+    "HYBRID_ENERGY": {
+        "fields": [
+            # --- Site & Owner Identity ---
+            {"key": "site_id", "label": "Site ID", "type": "string", "required": True},
+            {"key": "owner_name", "label": "Site Owner / Manager Name", "type": "string", "required": True},
+            {"key": "owner_phone", "label": "Owner Phone Number", "type": "string", "required": False},
+            {"key": "site_type", "label": "Site Type", "type": "enum", "required": True,
+             "options": ["residential", "commercial", "industrial", "institutional", "telecom_tower", "agricultural"]},
+            # --- Baseline Generator Details (Pre-Installation) ---
+            {"key": "baseline_generator_type", "label": "Baseline Generator Type", "type": "enum", "required": True,
+             "options": ["diesel", "petrol", "heavy_fuel_oil"]},
+            {"key": "baseline_generator_capacity_kva", "label": "Generator Capacity (kVA)", "type": "float", "required": True},
+            {"key": "baseline_fuel_consumption_lph", "label": "Fuel Consumption Rate (L/hr)", "type": "float", "required": True},
+            {"key": "baseline_avg_daily_runtime_hrs", "label": "Avg Daily Runtime (hrs)", "type": "float", "required": True},
+            {"key": "baseline_operating_days_per_year", "label": "Operating Days Per Year", "type": "int", "required": True},
+            {"key": "baseline_monthly_fuel_cost", "label": "Monthly Fuel Cost (₦)", "type": "float", "required": False},
+            # --- Post-Installation Hybrid System Components ---
+            {"key": "solar_capacity_kwp", "label": "Solar PV Capacity (kWp)", "type": "float", "required": True},
+            {"key": "battery_capacity_kwh", "label": "Battery Storage (kWh)", "type": "float", "required": False},
+            {"key": "inverter_capacity_kva", "label": "Inverter Capacity (kVA)", "type": "float", "required": True},
+            {"key": "gas_generator_capacity_kva", "label": "Gas Generator Capacity (kVA)", "type": "float", "required": False},
+            {"key": "diesel_backup_capacity_kva", "label": "Diesel Backup Capacity (kVA)", "type": "float", "required": False},
+            {"key": "installer_name", "label": "Installer / EPC Company", "type": "string", "required": False},
+            {"key": "installation_date", "label": "Installation Date", "type": "string", "required": True},
+            # --- Data Source Configuration ---
+            {"key": "data_source", "label": "Primary Data Source", "type": "enum", "required": True,
+             "options": ["smart_inverter_api", "hybrid_inverter_manual", "analog_manual"]},
+            {"key": "inverter_brand", "label": "Inverter Brand / Model", "type": "string", "required": False},
+            {"key": "inverter_serial_number", "label": "Inverter Serial Number", "type": "string", "required": False},
+            {"key": "avg_sun_hours", "label": "Average Peak Sun Hours (hrs/day)", "type": "float", "required": True},
+            {"key": "system_efficiency", "label": "System Efficiency Factor (0-1)", "type": "float", "required": False},
+            # --- Verification Checklist ---
+            {"key": "system_installed", "label": "System Installed & Commissioned?", "type": "boolean", "required": True},
+            {"key": "system_operational", "label": "System Currently Operational?", "type": "boolean", "required": True},
+            {"key": "tamper_signs", "label": "Tampering Signs Detected?", "type": "boolean", "required": True},
+            {"key": "usage_confirmed", "label": "Active Usage Confirmed?", "type": "boolean", "required": True},
+            {"key": "consent_obtained", "label": "Owner Consent Obtained?", "type": "boolean", "required": True},
+        ],
+        "icon": "bolt",
+        "description": "Hybrid energy displacement system — Solar/Gas/Diesel conversion for carbon credits",
+        "methodology": "Verra AMS-I.F / Gold Standard Renewable Energy",
     },
 }
 

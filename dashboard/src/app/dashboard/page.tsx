@@ -39,6 +39,9 @@ import {
   Filter,
   ChevronDown,
   ChevronUp,
+  Fuel,
+  Leaf,
+  DollarSign,
 } from "lucide-react";
 import {
   AreaChart,
@@ -71,21 +74,37 @@ import type {
   AgentPerformance,
   Property,
 } from "@/lib/types";
+import { useWorkspace } from "@/context/WorkspaceContext";
+import { SECTOR_CONFIGS, getSectorConfig } from "@/lib/sectorConfig";
+
+const ICON_MAP: Record<string, any> = {
+  Leaf,
+  Home,
+  Flame,
+  DollarSign,
+  Zap,
+  Layers,
+  Globe,
+  TrendingUp,
+  Fuel
+};
 
 export default function RedesignedDashboardPage() {
+  const { activeSector, changeSector, user, isSandboxed, allowedSectors, filterProperties, filterActivities, filterCarbonLedger } = useWorkspace();
   const [overview, setOverview] = useState<AnalyticsOverview | null>(null);
   const [trends, setTrends] = useState<AnalyticsTrends | null>(null);
   const [agents, setAgents] = useState<AgentPerformance[]>([]);
   const [anomalies, setAnomalies] = useState<any[]>([]);
   const [properties, setProperties] = useState<Property[]>([]);
   const [carbonLedger, setCarbonLedger] = useState<any[]>([]);
+  const [activities, setActivities] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // --- INTERACTION & LAYOUT STATES (AG EXECUTION ADD-ON) ---
   const [dashboardMode, setDashboardMode] = useState<"executive" | "operations">("executive");
   const [activeTab, setActiveTab] = useState<"activity" | "trust" | "risk" | "agents">("activity");
-  const [selectedPipelineStage, setSelectedPipelineStage] = useState<string>("AI Verified");
+  const [selectedPipelineStage, setSelectedPipelineStage] = useState<string>("");
   const [mapUrbanToggle, setMapUrbanToggle] = useState<boolean>(true);
   const [mapSelectedPoint, setMapSelectedPoint] = useState<any | null>(null);
   
@@ -139,10 +158,10 @@ export default function RedesignedDashboardPage() {
           props = props.map((p: any) => {
             const rawType = (p.property_type || "").toLowerCase();
             const normalizedType = (rawType === "clean_cooking" || rawType === "sustainability" || rawType === "energy" || rawType === "transport_mobility") ? "URBAN" : "RURAL";
-            const vStatus = propStatusMap[p.id] || (p.property_type === "farming" ? "Manual Review" : (p.property_type === "sustainability" ? "Approved" : "Pending"));
+            const vStatus = propStatusMap[p.id] || (rawType === "farming" ? "Manual Review" : (rawType === "sustainability" ? "Approved" : "Pending"));
             return {
               ...p,
-              property_type: normalizedType,
+              environment_type: normalizedType,
               verification_status: vStatus,
             };
           });
@@ -152,7 +171,7 @@ export default function RedesignedDashboardPage() {
             const normalizedType = (rawType === "clean_cooking" || rawType === "sustainability" || rawType === "energy" || rawType === "transport_mobility") ? "URBAN" : "RURAL";
             return {
               ...p,
-              property_type: normalizedType,
+              environment_type: normalizedType,
               verification_status: idx % 5 === 0 ? "Flagged" : (idx % 3 === 0 ? "Manual Review" : (idx % 2 === 0 ? "AI Verified" : "Pending")),
             };
           });
@@ -161,6 +180,7 @@ export default function RedesignedDashboardPage() {
       }
       
       if (ledgerData && ledgerData.data) setCarbonLedger(ledgerData.data);
+      if (activityData && activityData.activities) setActivities(activityData.activities);
     } catch (err: any) {
       console.error("Dashboard reload failed", err);
       setError(err?.message || "Failed to retrieve real-time digital MRV data feed.");
@@ -186,9 +206,274 @@ export default function RedesignedDashboardPage() {
     trust_distribution: { high: 0, medium: 0, low: 0, unscored: 0 },
   };
 
+  const currentConfig = getSectorConfig(activeSector);
+
+  const isolatedActivities = filterActivities(activities);
+  const isolatedProperties = filterProperties(properties);
+  const isolatedLedger = filterCarbonLedger(carbonLedger);
+
+  const totalReductions = isolatedLedger.reduce((acc, item) => acc + (item.tco2e_generated || item.tco2e || item.tco2 || 0), 0);
+  const totalInstallations = isolatedProperties.length;
+
+  // Cookstove calculations
+  const cookstoveUsageRate = () => {
+    const usageActs = isolatedActivities.filter(a => {
+      const ad = a.activity_data || {};
+      return ad.utilization_rate != null;
+    });
+    if (usageActs.length === 0) return 0;
+    const sum = usageActs.reduce((acc, a) => acc + Number((a.activity_data as any).utilization_rate), 0);
+    return sum / usageActs.length;
+  };
+
+  const calculateSolarKwh = (ad: any) => {
+    const solarCapacity = Number(ad.solar_capacity_kwp ?? ad.solar_kwp ?? 0.0);
+    const sunHours = Number(ad.avg_sun_hours ?? ad.sun_hours ?? 5.0);
+    const efficiency = Number(ad.system_efficiency ?? ad.efficiency ?? 0.80);
+    return solarCapacity * sunHours * efficiency;
+  };
+
+  // Energy calculations
+  const totalEnergyGeneratedMWh = () => {
+    if (activeSector === "energy") {
+      const sumKwh = isolatedActivities.reduce((acc, a) => {
+        if (a.status !== "verified" && a.status !== "approved") return acc;
+        const ad = a.activity_data || {};
+        if (ad.system_operational === true && ad.system_installed === true && ad.tamper_signs === false) {
+          const annual_solar_kwh = calculateSolarKwh(ad) * 365;
+          return acc + annual_solar_kwh;
+        }
+        return acc;
+      }, 0);
+      return sumKwh / 1000.0;
+    }
+    const sumKwh = isolatedActivities.reduce((acc, a) => {
+      const ad = a.activity_data || {};
+      return acc + Number(ad.generation_kwh || ad.solar_generation_kwh || 0);
+    }, 0);
+    return sumKwh / 1000.0;
+  };
+
+  const totalDieselAvoidedLiters = () => {
+    if (activeSector === "energy") {
+      return isolatedActivities.reduce((acc, a) => {
+        if (a.status !== "verified" && a.status !== "approved") return acc;
+        const ad = a.activity_data || {};
+        if (ad.system_operational === true && ad.system_installed === true && ad.tamper_signs === false) {
+          const annual_diesel_avoided = (calculateSolarKwh(ad) / 3.6) * 365;
+          return acc + annual_diesel_avoided;
+        }
+        return acc;
+      }, 0);
+    }
+    return isolatedActivities.reduce((acc, a) => {
+      const ad = a.activity_data || {};
+      return acc + Number(ad.fuel_displaced_liters || ad.fuel_displaced || ad.diesel_saved_liters || 0);
+    }, 0);
+  };
+
+  const totalCO2Displaced = () => {
+    return isolatedActivities.reduce((acc, a) => {
+      if (a.status !== "verified" && a.status !== "approved") return acc;
+      const ad = a.activity_data || {};
+      if (ad.system_operational === true && ad.system_installed === true && ad.tamper_signs === false) {
+        const annual_diesel_avoided = (calculateSolarKwh(ad) / 3.6) * 365;
+        const co2_reduction_kg = annual_diesel_avoided * 2.68;
+        const co2_reduction_tonnes = co2_reduction_kg / 1000.0;
+        return acc + co2_reduction_tonnes;
+      }
+      return acc;
+    }, 0);
+  };
+
+  const verifiedEnergySitesCount = () => {
+    return isolatedActivities.filter(a => {
+      if (a.status !== "verified" && a.status !== "approved") return false;
+      const ad = a.activity_data || {};
+      return ad.system_operational === true && ad.system_installed === true && ad.tamper_signs === false;
+    }).length;
+  };
+
+  // Transport calculations
+  const totalFuelDisplacedLiters = () => {
+    return isolatedActivities.reduce((acc, a) => {
+      const ad = a.activity_data || {};
+      return acc + Number(ad.fuel_displaced_liters || ad.fuel_displaced || ad.diesel_saved_liters || 0);
+    }, 0);
+  };
+
+  // AFOLU calculations
+  const meanCanopyDensityNDVI = () => {
+    const afoluActs = isolatedActivities.filter(a => {
+      const ad = a.activity_data || {};
+      return ad.ndvi_value != null || ad.canopy != null;
+    });
+    if (afoluActs.length === 0) return 0;
+    const sum = afoluActs.reduce((acc, a) => {
+      const ad = a.activity_data || {};
+      return acc + Number(ad.ndvi_value || ad.canopy || 0);
+    }, 0);
+    return sum / afoluActs.length;
+  };
+
+  const getKPIValue = (key: string) => {
+    if (key === "total_reductions_tco2e") {
+      if (activeSector === "energy") {
+        return totalCO2Displaced().toLocaleString(undefined, { maximumFractionDigits: 2 }) + " tCO₂e";
+      }
+      return totalReductions.toLocaleString(undefined, { maximumFractionDigits: 2 }) + " tCO₂e";
+    }
+    if (key === "total_installations") {
+      if (activeSector === "energy") {
+        return verifiedEnergySitesCount().toLocaleString();
+      }
+      return totalInstallations.toLocaleString();
+    }
+    if (key === "active_utilization_rate") {
+      const rate = cookstoveUsageRate();
+      return rate > 0 ? `${rate.toFixed(1)}%` : "—";
+    }
+    if (key === "portfolio_value_usd") {
+      let price = 15;
+      if (activeSector === "energy") price = 30;
+      else if (activeSector === "transport") price = 20;
+      else if (activeSector === "afolu") price = 25;
+      return "$" + (totalReductions * price).toLocaleString(undefined, { maximumFractionDigits: 0 });
+    }
+    if (key === "total_generation_mwh") {
+      return totalEnergyGeneratedMWh().toLocaleString(undefined, { maximumFractionDigits: 1 }) + " MWh";
+    }
+    if (key === "total_fuel_displaced_liters") {
+      return totalFuelDisplacedLiters().toLocaleString(undefined, { maximumFractionDigits: 0 }) + " Liters";
+    }
+    if (key === "total_diesel_avoided_liters") {
+      return totalDieselAvoidedLiters().toLocaleString(undefined, { maximumFractionDigits: 0 }) + " Liters";
+    }
+    if (key === "mean_canopy_density") {
+      const ndvi = meanCanopyDensityNDVI();
+      return ndvi > 0 ? `${ndvi.toFixed(2)} NDVI` : "—";
+    }
+    return "0";
+  };
+
+  // Generate dynamic chart data based on isolatedActivities and isolatedLedger
+  const getChartData = () => {
+    const groups: Record<string, any> = {};
+    
+    // Find the oldest activity date to dynamically set the start date if needed
+    let startDate = new Date();
+    startDate.setDate(startDate.getDate() - 29); // Default to last 30 days
+    
+    isolatedActivities.forEach((act) => {
+      const ad = act.activity_data || {};
+      const dateVal = ((activeSector === "energy" && ad.installation_date)
+        ? ad.installation_date
+        : (act.captured_at ? act.captured_at.split("T")[0] : (act.created_at ? act.created_at.split("T")[0] : null))) as string | null;
+      if (dateVal) {
+        const d = new Date(dateVal);
+        if (!isNaN(d.getTime()) && d < startDate) {
+          startDate = d;
+        }
+      }
+    });
+
+    const today = new Date();
+    const current = new Date(startDate);
+    while (current <= today) {
+      const dateStr = current.toISOString().split("T")[0];
+      groups[dateStr] = {
+        date: dateStr,
+        reductions: 0,
+        avg_hours: 0,
+        generation_kwh: 0,
+        diesel_displaced_liters: 0,
+        total_km: 0,
+        gasoline_displaced_l: 0,
+        sequestration_tco2e: 0,
+        ndvi_value: 0,
+        count: 0,
+        usage_hours_sum: 0,
+        usage_hours_count: 0,
+        ndvi_sum: 0,
+        ndvi_count: 0
+      };
+      current.setDate(current.getDate() + 1);
+    }
+
+    isolatedActivities.forEach((act) => {
+      const ad = act.activity_data || {};
+      const dateStr = ((activeSector === "energy" && ad.installation_date)
+        ? ad.installation_date
+        : (act.captured_at ? act.captured_at.split("T")[0] : (act.created_at ? act.created_at.split("T")[0] : null))) as string | null;
+        
+      if (!dateStr || !groups[dateStr]) return;
+
+      const group = groups[dateStr];
+      group.count += 1;
+
+      const calc = isolatedLedger.find(l => l.activity_id === act.id);
+      const co2 = calc ? (calc.tco2e_generated || calc.tco2e || 0) : 0;
+      group.reductions += co2;
+      group.sequestration_tco2e += co2;
+
+      if (ad.usage_hours != null) {
+        group.usage_hours_sum += Number(ad.usage_hours);
+        group.usage_hours_count += 1;
+      } else if (ad.utilization_rate != null) {
+        group.usage_hours_sum += (Number(ad.utilization_rate) / 100.0) * 12.0;
+        group.usage_hours_count += 1;
+      }
+
+      if (activeSector === "energy") {
+        if (act.status === "verified" || act.status === "approved") {
+          if (ad.system_operational === true && ad.system_installed === true && ad.tamper_signs === false) {
+            const kWh = calculateSolarKwh(ad);
+            const diesel_liters = kWh / 3.6;
+
+            group.generation_kwh += kWh;
+            group.diesel_displaced_liters += diesel_liters;
+
+            const daily_diesel_avoided = diesel_liters;
+            const daily_co2_reduction_tonnes = (daily_diesel_avoided * 2.68) / 1000.0;
+            group.reductions = daily_co2_reduction_tonnes;
+            group.sequestration_tco2e = daily_co2_reduction_tonnes;
+          }
+        }
+      } else {
+        group.generation_kwh += Number(ad.generation_kwh || ad.solar_generation_kwh || 0);
+        group.diesel_displaced_liters += Number(ad.fuel_displaced_liters || ad.fuel_displaced || ad.diesel_saved_liters || 0);
+      }
+
+      group.total_km += Number(ad.distance_km || ad.daily_mileage || ad.mileage || 0);
+      group.gasoline_displaced_l += Number(ad.fuel_displaced_liters || ad.fuel_displaced || ad.fuel_saved || 0);
+
+      if (ad.ndvi_value != null || ad.canopy != null) {
+        group.ndvi_sum += Number(ad.ndvi_value || ad.canopy || 0);
+        group.ndvi_count += 1;
+      }
+    });
+
+    return Object.values(groups).map((g: any) => {
+      return {
+        date: g.date,
+        reductions: parseFloat(g.reductions.toFixed(2)),
+        avg_hours: g.usage_hours_count > 0 ? parseFloat((g.usage_hours_sum / g.usage_hours_count).toFixed(1)) : 0,
+        generation_kwh: parseFloat(g.generation_kwh.toFixed(1)),
+        diesel_displaced_liters: parseFloat(g.diesel_displaced_liters.toFixed(1)),
+        total_km: parseFloat(g.total_km.toFixed(1)),
+        gasoline_displaced_l: parseFloat(g.gasoline_displaced_l.toFixed(1)),
+        sequestration_tco2e: parseFloat(g.sequestration_tco2e.toFixed(2)),
+        ndvi_value: g.ndvi_count > 0 ? parseFloat((g.ndvi_sum / g.ndvi_count).toFixed(3)) : 0,
+        count: g.count
+      };
+    }).sort((a, b) => a.date.localeCompare(b.date));
+  };
+
+  const chartData = getChartData();
+
   const defaultAgents = agents;
   const defaultAnomalies = anomalies;
-  const defaultProperties = properties;
+  const defaultProperties = isolatedProperties;
 
   // Helper functions to get dynamic pipeline stage metrics
   const getStageCount = (stageName: string) => {
@@ -245,8 +530,10 @@ export default function RedesignedDashboardPage() {
         lat: p.latitude || 6.5244,
         lng: p.longitude || 3.3792,
         trust: 92,
-        type: p.property_type || "RURAL",
-        co2e: p.sustainability_metrics?.tco2e || 4.8,
+        type: p.environment_type || "RURAL",
+        co2e: p.sustainability_metrics?.carbon_offset_kg 
+          ? (Number(p.sustainability_metrics.carbon_offset_kg) / 1000.0) 
+          : (p.sustainability_metrics?.tco2e || 4.8),
       });
     }
   }, [properties]);
@@ -280,7 +567,7 @@ export default function RedesignedDashboardPage() {
       setLastExportMessage(`Gold Standard manifest created.`);
     } catch (err: any) {
       console.error(err);
-      const mockData = {
+      const fallbackData = {
         registry: "Gold Standard",
         methodology: "Gold Standard TPDDTEC v3.1",
         stove_id: "Baikuc-cooker-334rre",
@@ -289,7 +576,7 @@ export default function RedesignedDashboardPage() {
         quantification_confidence: "High",
         timestamp: new Date().toISOString()
       };
-      const blob = new Blob([JSON.stringify(mockData, null, 2)], { type: "application/json" });
+      const blob = new Blob([JSON.stringify(fallbackData, null, 2)], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
@@ -327,105 +614,94 @@ export default function RedesignedDashboardPage() {
         <div>
           <div className="flex items-center gap-2">
             <span className="px-2.5 py-0.5 rounded bg-[#00B47A]/10 text-[#00B47A] text-[9px] font-extrabold tracking-wider uppercase">
-              Gold Standard TPDDTEC v3.1
+              {currentConfig.badge}
             </span>
-            <span className="text-[10px] text-[var(--color-text-secondary)] font-medium">Digital Verification Engine</span>
+            <span className="text-[10px] text-[var(--color-text-secondary)] font-medium">Digital MRV Workspace</span>
           </div>
           <h1 className="text-xl font-bold tracking-tight text-[var(--color-text-primary)] mt-0.5">
-            Carbon Ledger & Verification Hub
+            {currentConfig.label}
           </h1>
         </div>
         
-        {/* Dual Dashboard Modes Selector (AG EXECUTION ADD-ON) */}
-        <div className="flex items-center gap-2 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-1 shadow-sm">
-          <button
-            onClick={() => setDashboardMode("executive")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all duration-200 ${
-              dashboardMode === "executive"
-                ? "bg-[#00B47A] text-white shadow"
-                : "text-[var(--color-text-secondary)] hover:text-[#00B47A]"
-            }`}
-          >
-            <Shield size={13} />
-            Executive view
-          </button>
-          <button
-            onClick={() => setDashboardMode("operations")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all duration-200 ${
-              dashboardMode === "operations"
-                ? "bg-[#00B47A] text-white shadow"
-                : "text-[var(--color-text-secondary)] hover:text-[#00B47A]"
-            }`}
-          >
-            <Settings2 size={13} />
-            Operations View
-          </button>
+        <div className="flex items-center gap-3">
+          {/* Workspace Switcher Toggle (Admins & Auditors Only) */}
+          {!isSandboxed && (
+            <div className="flex items-center gap-2 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-1 shadow-sm">
+              <span className="text-[9px] text-[var(--color-text-muted)] font-bold uppercase pl-2">Workspace:</span>
+              <select
+                value={activeSector}
+                onChange={(e) => changeSector(e.target.value)}
+                className="bg-transparent border-0 text-xs font-bold text-[#00B47A] focus:outline-none focus:ring-0 pr-8 py-1 cursor-pointer"
+              >
+                <option value="cookstove" className="bg-[var(--color-surface)] text-[var(--color-text-primary)]">Clean Cooking</option>
+                <option value="energy" className="bg-[var(--color-surface)] text-[var(--color-text-primary)]">Hybrid Energy</option>
+                <option value="transport" className="bg-[var(--color-surface)] text-[var(--color-text-primary)]">Low-Carbon Transport</option>
+                <option value="afolu" className="bg-[var(--color-surface)] text-[var(--color-text-primary)]">AFOLU Forestry</option>
+              </select>
+            </div>
+          )}
+
+          {/* Dual Dashboard Modes Selector (AG EXECUTION ADD-ON) */}
+          <div className="flex items-center gap-2 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-1 shadow-sm">
+            <button
+              onClick={() => setDashboardMode("executive")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all duration-200 ${
+                dashboardMode === "executive"
+                  ? "bg-[#00B47A] text-white shadow"
+                  : "text-[var(--color-text-secondary)] hover:text-[#00B47A]"
+              }`}
+            >
+              <Shield size={13} />
+              Executive view
+            </button>
+            <button
+              onClick={() => setDashboardMode("operations")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all duration-200 ${
+                dashboardMode === "operations"
+                  ? "bg-[#00B47A] text-white shadow"
+                  : "text-[var(--color-text-secondary)] hover:text-[#00B47A]"
+              }`}
+            >
+              <Settings2 size={13} />
+              Operations View
+            </button>
+          </div>
         </div>
       </div>
 
       {/* ========================================================================= */}
       {/* 🧭 SYSTEM HEALTH STRIP (Top Strategic Bar) */}
       {/* ========================================================================= */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 animate-fade-in-up stagger-children">
-        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-3.5 flex flex-col justify-between shadow-sm border-l-4 border-l-[#00B47A]">
-          <span className="text-[9px] uppercase font-extrabold tracking-wider text-[var(--color-text-muted)]">Verified Rate</span>
-          <div className="flex items-baseline gap-1.5 mt-1">
-            <span className="text-xl font-black tracking-tight text-[#00B47A]">
-              {defaultOverview.total_submissions > 0 
-                ? `${Math.round((defaultTrends.trust_distribution.high / defaultOverview.total_submissions) * 100)}%` 
-                : "0%"}
-            </span>
-            {defaultOverview.total_submissions > 0 && (
-              <span className="text-[#00B47A] text-[9px] font-bold flex items-center gap-0.5">
-                <ArrowUpRight size={9} /> +3.4%
-              </span>
-            )}
-          </div>
-          <span className="text-[8px] text-[var(--color-text-muted)]">Passes trust threshold</span>
-        </div>
-
-        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-3.5 flex flex-col justify-between shadow-sm border-l-4 border-l-amber-500">
-          <span className="text-[9px] uppercase font-extrabold tracking-wider text-[var(--color-text-muted)]">Avg Trust Score</span>
-          <div className="flex items-baseline gap-0.5 mt-1">
-            <span className="text-xl font-black tracking-tight text-amber-500">
-              {defaultOverview.avg_trust_score ? defaultOverview.avg_trust_score.toFixed(1) : "0.0"}
-            </span>
-            <span className="text-[9px] font-semibold text-[var(--color-text-secondary)]">/100</span>
-          </div>
-          <span className="text-[8px] text-[var(--color-text-muted)]">Aggregate verification index</span>
-        </div>
-
-        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-3.5 flex flex-col justify-between shadow-sm border-l-4 border-l-red-500">
-          <span className="text-[9px] uppercase font-extrabold tracking-wider text-[var(--color-text-muted)]">Active Risks</span>
-          <div className="flex items-baseline gap-1.5 mt-1">
-            <span className="text-xl font-black tracking-tight text-red-500">{defaultOverview.flagged_activities}</span>
-            {defaultOverview.flagged_activities > 0 && (
-              <span className="text-red-500 text-[9px] font-bold flex items-center gap-0.5">
-                <ArrowDownRight size={9} /> -1.2%
-              </span>
-            )}
-          </div>
-          <span className="text-[8px] text-[var(--color-text-muted)]">Alerts pending review</span>
-        </div>
-
-        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-3.5 flex flex-col justify-between shadow-sm">
-          <span className="text-[9px] uppercase font-extrabold tracking-wider text-[var(--color-text-muted)]">Total Submissions</span>
-          <div className="flex items-baseline mt-1">
-            <span className="text-xl font-bold tracking-tight">{defaultOverview.total_submissions}</span>
-          </div>
-          <span className="text-[8px] text-[var(--color-text-muted)]">Cookstoves registered</span>
-        </div>
-
-        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-3.5 flex flex-col justify-between shadow-sm col-span-2 md:col-span-1">
-          <span className="text-[9px] uppercase font-extrabold tracking-wider text-[var(--color-text-muted)]">Active Agents</span>
-          <div className="flex items-baseline gap-1.5 mt-1">
-            <span className="text-xl font-bold tracking-tight">{defaultOverview.total_users}</span>
-            {defaultOverview.total_users > 0 && (
-              <span className="text-[#00B47A] text-[9px] font-bold">+2 syncs</span>
-            )}
-          </div>
-          <span className="text-[8px] text-[var(--color-text-muted)]">Operatives synced</span>
-        </div>
+      {/* ========================================================================= */}
+      {/* 🚀 DYNAMIC WORKSPACE KPI STRIP */}
+      {/* ========================================================================= */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 animate-fade-in-up stagger-children">
+        {currentConfig.kpis.map((kpi) => {
+          const Icon = ICON_MAP[kpi.iconName] || Leaf;
+          const themeMap = {
+            green: "border-l-green-500 text-green-400 bg-green-500/5 border-green-500/10",
+            emerald: "border-l-emerald-500 text-emerald-400 bg-emerald-500/5 border-emerald-500/10",
+            blue: "border-l-blue-500 text-blue-400 bg-blue-500/5 border-blue-500/10",
+            amber: "border-l-amber-500 text-amber-400 bg-amber-500/5 border-amber-500/10",
+            purple: "border-l-purple-500 text-purple-400 bg-purple-500/5 border-purple-500/10"
+          };
+          const theme = themeMap[kpi.colorTheme] || themeMap.green;
+          
+          return (
+            <div key={kpi.key} className={`bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-3.5 flex items-center justify-between shadow-sm border-l-4 ${theme}`}>
+              <div className="space-y-1">
+                <span className="text-[9px] uppercase font-extrabold text-[var(--color-text-muted)] tracking-wider block">{kpi.label}</span>
+                <p className="text-xl font-black tracking-tight text-[var(--color-text-primary)]">
+                  {getKPIValue(kpi.valueField)}
+                </p>
+                <span className="text-[8px] text-[var(--color-text-muted)] block">{kpi.description}</span>
+              </div>
+              <div className={`p-2 rounded-xl border ${theme} shrink-0`}>
+                <Icon size={14} />
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       {/* ========================================================================= */}
@@ -526,14 +802,17 @@ export default function RedesignedDashboardPage() {
               {/* Point plots */}
               <div className="absolute inset-0">
                 {defaultProperties.filter((p: any) => {
-                  if (mapUrbanToggle && p.property_type !== "URBAN") return false;
-                  if (!mapUrbanToggle && p.property_type !== "RURAL") return false;
+                  if (mapUrbanToggle && p.environment_type !== "URBAN") return false;
+                  if (!mapUrbanToggle && p.environment_type !== "RURAL") return false;
                   if (selectedPipelineStage && p.verification_status !== selectedPipelineStage) return false;
                   return true;
                 }).length === 0 && (
                   <div className="absolute inset-0 flex items-center justify-center p-4 text-center bg-black/5 dark:bg-white/5 backdrop-blur-[1px] z-10 animate-fade-in">
                     <p className="text-[10px] font-bold text-[var(--color-text-secondary)] bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-2.5 shadow-sm">
-                      No cookstoves registered for stage:<br />
+                      No {activeSector === "cookstove" ? "cookstoves" : 
+                          activeSector === "energy" ? "hybrid energy systems" : 
+                          activeSector === "transport" ? "low-carbon vehicles" : 
+                          "AFOLU forestry plots"} registered for stage:<br />
                       <span className="text-[#00B47A]">{selectedPipelineStage}</span> ({mapUrbanToggle ? "Urban" : "Rural"})
                     </p>
                   </div>
@@ -544,8 +823,8 @@ export default function RedesignedDashboardPage() {
                   if (p.verification_status === "Flagged") colorClass = "bg-red-500";
                   if (p.verification_status === "Manual Review" || p.verification_status === "Pending") colorClass = "bg-amber-500";
                   
-                  if (mapUrbanToggle && p.property_type !== "URBAN") return null;
-                  if (!mapUrbanToggle && p.property_type !== "RURAL") return null;
+                  if (mapUrbanToggle && p.environment_type !== "URBAN") return null;
+                  if (!mapUrbanToggle && p.environment_type !== "RURAL") return null;
 
                   // Active Verification Stage Filter
                   if (selectedPipelineStage && p.verification_status !== selectedPipelineStage) return null;
@@ -560,8 +839,10 @@ export default function RedesignedDashboardPage() {
                         lat: p.latitude || 6.5244 + idx * 0.005,
                         lng: p.longitude || 3.3792 - idx * 0.005,
                         trust: p.verification_status === "Flagged" ? 41 : (p.verification_status === "Manual Review" ? 68 : 94),
-                        type: p.property_type,
-                        co2e: p.sustainability_metrics?.tco2e || 4.8,
+                        type: p.environment_type,
+                        co2e: p.sustainability_metrics?.carbon_offset_kg 
+                          ? (Number(p.sustainability_metrics.carbon_offset_kg) / 1000.0) 
+                          : (p.sustainability_metrics?.tco2e || 4.8),
                       })}
                       className="absolute p-0.5 focus:outline-none transition-transform hover:scale-125"
                       style={{
@@ -701,7 +982,17 @@ export default function RedesignedDashboardPage() {
         {/* Navigation Tabs */}
         <div className="flex border-b border-[var(--color-border)] bg-[var(--color-background)] p-1 gap-1">
           {[
-            { id: "activity", label: "Offset reductions & cookstoves", icon: Flame },
+            { 
+              id: "activity", 
+              label: activeSector === "energy" ? "Offset reductions & generation" :
+                     activeSector === "transport" ? "Offset reductions & fleet" :
+                     activeSector === "afolu" ? "Carbon sequestration & forestry" :
+                     "Offset reductions & cookstoves", 
+              icon: activeSector === "energy" ? Zap :
+                    activeSector === "transport" ? Fuel :
+                    activeSector === "afolu" ? Leaf :
+                    Flame 
+            },
             { id: "trust", label: "Trust Engine weighted variables", icon: Shield },
             { id: "risk", label: `Anomaly center (${defaultOverview.flagged_activities} alerts)`, icon: AlertTriangle },
             { id: "agents", label: "Field Agent analytics", icon: Users },
@@ -730,48 +1021,272 @@ export default function RedesignedDashboardPage() {
           
           {/* TAB 1: ACTIVITY & CARBON REDUCTION */}
           {activeTab === "activity" && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5 items-stretch stagger-children">
+            <div className="space-y-5">
               
-              {/* Carbon Ledger statistics */}
-              <div className="bg-[var(--color-background)] border border-[var(--color-border)] rounded-lg p-4 flex flex-col justify-between">
-                <div>
-                  <h4 className="text-[10px] uppercase font-bold text-[var(--color-text-muted)] mb-2">Offset quantification</h4>
-                  <div className="space-y-3">
-                    <div>
-                      <span className="text-[9px] text-[var(--color-text-secondary)] font-medium">Estimated reductions:</span>
-                      <p className="text-lg font-black mt-0.5">{totalEstimatedCO2.toFixed(2)} <span className="text-xs font-semibold">tCO₂e</span></p>
+              {/* Dynamic Sector Charts */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-stretch stagger-children">
+                {currentConfig.charts.map((chart) => {
+                  return (
+                    <div key={chart.key} className="bg-[var(--color-background)] border border-[var(--color-border)] rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-3 border-b border-[var(--color-border)] pb-2">
+                        <h4 className="text-[10px] uppercase font-bold text-[var(--color-text-muted)]">{chart.title}</h4>
+                      </div>
+                      <div className="h-[160px] w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                          {chart.type === "area" ? (
+                            <AreaChart data={chartData} margin={{ left: -25, right: 10, top: 5, bottom: 5 }}>
+                              <defs>
+                                <linearGradient id={`color-${chart.key}`} x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="5%" stopColor={chart.strokeColor} stopOpacity={0.2} />
+                                  <stop offset="95%" stopColor={chart.strokeColor} stopOpacity={0} />
+                                </linearGradient>
+                              </defs>
+                              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+                              <XAxis dataKey="date" tick={{ fontSize: 8 }} />
+                              <YAxis tick={{ fontSize: 8 }} />
+                              <RechartsTooltip />
+                              <Area type="monotone" dataKey={chart.dataKeyY} stroke={chart.strokeColor} strokeWidth={2} fill={`url(#color-${chart.key})`} />
+                            </AreaChart>
+                          ) : chart.type === "bar" ? (
+                            <RechartsBarChart data={chartData} margin={{ left: -25, right: 10, top: 5, bottom: 5 }}>
+                              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+                              <XAxis dataKey="date" tick={{ fontSize: 8 }} />
+                              <YAxis tick={{ fontSize: 8 }} />
+                              <RechartsTooltip />
+                              <RechartsBar dataKey={chart.dataKeyY} fill={chart.strokeColor} radius={[3, 3, 0, 0]} />
+                            </RechartsBarChart>
+                          ) : (
+                            <LineChart data={chartData} margin={{ left: -25, right: 10, top: 5, bottom: 5 }}>
+                              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+                              <XAxis dataKey="date" tick={{ fontSize: 8 }} />
+                              <YAxis tick={{ fontSize: 8 }} />
+                              <RechartsTooltip />
+                              <Line type="monotone" dataKey={chart.dataKeyY} stroke={chart.strokeColor} strokeWidth={2} dot={{ r: 3 }} />
+                            </LineChart>
+                          )}
+                        </ResponsiveContainer>
+                      </div>
                     </div>
-                    <div>
-                      <span className="text-[9px] text-[var(--color-text-secondary)] font-medium">Verified carbon offsets:</span>
-                      <p className="text-lg font-black text-[#00B47A] mt-0.5">{totalVerifiedCO2.toFixed(2)} <span className="text-xs font-semibold text-[var(--color-text-secondary)]">tCO₂e</span></p>
-                    </div>
-                    <div>
-                      <span className="text-[9px] text-[var(--color-text-secondary)] font-medium">Ready registry credits:</span>
-                      <p className="text-lg font-black text-[#00B47A] mt-0.5">{readyRegistryCredits} <span className="text-xs font-semibold text-[var(--color-text-secondary)]">VERs</span></p>
-                    </div>
-                  </div>
-                </div>
-                <div className="border-t border-[var(--color-border)] pt-2 mt-2 text-[8px] text-[var(--color-text-muted)]">
-                  Protocol: Gold Standard TPDDTEC v3.1
-                </div>
+                  );
+                })}
               </div>
 
-              {/* Daily submissions trend */}
-              <div className="md:col-span-2 bg-[var(--color-background)] border border-[var(--color-border)] rounded-lg p-4">
-                <div className="flex items-center justify-between mb-3 border-b border-[var(--color-border)] pb-2">
-                  <h4 className="text-[10px] uppercase font-bold text-[var(--color-text-muted)]">Submission trend line</h4>
-                  <span className="text-[8px] text-[var(--color-text-muted)]">Last 60 days</span>
+              {/* Dynamic Sector Activity Feed table */}
+              <div className="bg-[var(--color-background)] border border-[var(--color-border)] rounded-lg overflow-hidden shadow-sm">
+                <div className="flex items-center justify-between p-4 border-b border-[var(--color-border)]">
+                  <span className="text-[10px] uppercase font-bold text-[var(--color-text-muted)]">Live Field Activity Feed</span>
+                  <span className="text-[8px] text-[var(--color-text-muted)]">Methodology: {currentConfig.methodology}</span>
                 </div>
-                <div className="h-[140px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={defaultTrends.daily_submissions} margin={{ left: -25, right: 10, top: 5, bottom: 5 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-                      <XAxis dataKey="date" tick={{ fontSize: 8 }} />
-                      <YAxis tick={{ fontSize: 8 }} />
-                      <RechartsTooltip />
-                      <Line type="monotone" dataKey="count" stroke="#00B47A" strokeWidth={2} dot={{ r: 3 }} />
-                    </LineChart>
-                  </ResponsiveContainer>
+                <div className="overflow-x-auto">
+                  {activeSector === "cookstove" && (
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-[var(--color-background)]/40 border-b border-[var(--color-border)] text-[9px] uppercase font-bold text-[var(--color-text-muted)]">
+                          <th className="p-3">Stove ID</th>
+                          <th className="p-3">Stove Model</th>
+                          <th className="p-3">Fuel Saved</th>
+                          <th className="p-3">Thermal Efficiency</th>
+                          <th className="p-3 text-center">Trust Index</th>
+                          <th className="p-3 text-center">Status</th>
+                          <th className="p-3 text-right">Captured</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[var(--color-border)]/70 text-xs">
+                        {isolatedActivities.length === 0 ? (
+                          <tr>
+                            <td colSpan={7} className="p-6 text-center text-[var(--color-text-muted)]">No active clean cooking logs found.</td>
+                          </tr>
+                        ) : (
+                          isolatedActivities.map((act) => {
+                            const ad = act.activity_data || {};
+                            const stoveId = ad.stove_id || act.client_id || act.id;
+                            const model = (ad.stove_model as string) || (ad.stove_type as string) || act.activity_type || "—";
+                            const fuel = (ad.fuel_saved as string) || (ad.fuel_displaced as string) || "—";
+                            const eff = (ad.thermal_efficiency as string) || (ad.efficiency as string) || "—";
+                            const trust = act.trust_score ?? 0;
+                            const date = act.captured_at ? act.captured_at.split("T")[0] : (act.created_at ? act.created_at.split("T")[0] : "—");
+                            return (
+                              <tr key={act.id} className="hover:bg-[var(--color-background)]/30 transition-colors">
+                                <td className="p-3 font-mono font-bold text-[#00B47A]">{String(stoveId).substring(0, 10)}</td>
+                                <td className="p-3 font-semibold text-[var(--color-text-primary)]">{model}</td>
+                                <td className="p-3 text-[var(--color-text-secondary)]">{fuel}</td>
+                                <td className="p-3 text-[var(--color-text-secondary)]">{eff}</td>
+                                <td className="p-3 text-center text-[#00B47A] font-bold">{trust > 0 ? `${trust}%` : "—"}</td>
+                                <td className="p-3 text-center">
+                                  <span className={`px-2 py-0.5 rounded text-[8px] font-extrabold border ${
+                                    act.status === "verified" || act.status === "approved"
+                                      ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                                      : "bg-amber-500/10 text-amber-400 border-amber-500/20"
+                                  }`}>
+                                    {(act.status || "pending").toUpperCase()}
+                                  </span>
+                                </td>
+                                <td className="p-3 text-right text-[var(--color-text-secondary)]">{date}</td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  )}
+
+                  {activeSector === "energy" && (
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-[var(--color-background)]/40 border-b border-[var(--color-border)] text-[9px] uppercase font-bold text-[var(--color-text-muted)]">
+                          <th className="p-3">Site ID</th>
+                          <th className="p-3">Solar capacity</th>
+                          <th className="p-3">Diesel Displaced</th>
+                          <th className="p-3 text-center">Uptime</th>
+                          <th className="p-3 text-center">Trust Index</th>
+                          <th className="p-3 text-center">Status</th>
+                          <th className="p-3 text-right">Captured</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[var(--color-border)]/70 text-xs">
+                        {isolatedActivities.length === 0 ? (
+                          <tr>
+                            <td colSpan={7} className="p-6 text-center text-[var(--color-text-muted)]">No active hybrid energy logs found.</td>
+                          </tr>
+                        ) : (
+                          isolatedActivities.map((act) => {
+                            const ad = act.activity_data || {};
+                            const solarVal = ad.solar_kwp ?? ad.solar_capacity_kwp ?? ad.solar_capacity_kw;
+                            const solar = solarVal != null ? `${solarVal} kWp` : "—";
+                            const dieselVal = ad.diesel_litres ?? ad.diesel_displaced_l ?? ad.diesel_displaced_liters ?? ad.fuel_displaced_liters;
+                            const diesel = dieselVal != null ? `${dieselVal} Liters` : "—";
+                            const uptime = ad.uptime_pct ? `${ad.uptime_pct}%` : "—";
+                            const trust = act.trust_score ?? 0;
+                            const siteId = (ad.site_id as string) ?? act.client_id ?? act.id ?? "—";
+                            const date = act.captured_at ? act.captured_at.split("T")[0] : (act.created_at ? act.created_at.split("T")[0] : "—");
+                            return (
+                              <tr key={act.id} className="hover:bg-[var(--color-background)]/30 transition-colors">
+                                <td className="p-3 font-mono font-bold text-amber-500">{String(siteId).substring(0, 10)}</td>
+                                <td className="p-3 font-semibold text-[var(--color-text-primary)]">{solar}</td>
+                                <td className="p-3 text-[var(--color-text-secondary)]">{diesel}</td>
+                                <td className="p-3 text-center text-[var(--color-text-secondary)]">{uptime}</td>
+                                <td className="p-3 text-center font-bold text-amber-500">{trust > 0 ? `${trust}%` : "—"}</td>
+                                <td className="p-3 text-center">
+                                  <span className={`px-2 py-0.5 rounded text-[8px] font-extrabold border ${
+                                    act.status === "verified" || act.status === "approved"
+                                      ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                                      : "bg-amber-500/10 text-amber-400 border-amber-500/20"
+                                  }`}>
+                                    {(act.status || "pending").toUpperCase()}
+                                  </span>
+                                </td>
+                                <td className="p-3 text-right text-[var(--color-text-secondary)]">{date}</td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  )}
+
+                  {activeSector === "transport" && (
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-[var(--color-background)]/40 border-b border-[var(--color-border)] text-[9px] uppercase font-bold text-[var(--color-text-muted)]">
+                          <th className="p-3">Vehicle ID</th>
+                          <th className="p-3">Drivetrain Type</th>
+                          <th className="p-3">Daily Mileage</th>
+                          <th className="p-3">Displacement</th>
+                          <th className="p-3 text-center">Trust Index</th>
+                          <th className="p-3 text-center">Status</th>
+                          <th className="p-3 text-right">Captured</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[var(--color-border)]/70 text-xs">
+                        {isolatedActivities.length === 0 ? (
+                          <tr>
+                            <td colSpan={7} className="p-6 text-center text-[var(--color-text-muted)]">No active low-carbon transport logs found.</td>
+                          </tr>
+                        ) : (
+                          isolatedActivities.map((act) => {
+                            const ad = act.activity_data || {};
+                            const vehicleId = ad.vehicle_id || act.client_id || act.id;
+                            const type = (ad.drivetrain_type as string) || (ad.vehicle_type as string) || act.activity_type || "—";
+                            const mileage = (ad.daily_mileage as string) || (ad.mileage as string) || "—";
+                            const fuel = (ad.fuel_displaced as string) || (ad.fuel as string) || "—";
+                            const trust = act.trust_score ?? 0;
+                            const date = act.captured_at ? act.captured_at.split("T")[0] : (act.created_at ? act.created_at.split("T")[0] : "—");
+                            return (
+                              <tr key={act.id} className="hover:bg-[var(--color-background)]/30 transition-colors">
+                                <td className="p-3 font-mono font-bold text-blue-500">{String(vehicleId).substring(0, 10)}</td>
+                                <td className="p-3 font-semibold text-[var(--color-text-primary)]">{type}</td>
+                                <td className="p-3 text-[var(--color-text-secondary)]">{mileage} km</td>
+                                <td className="p-3 text-[var(--color-text-secondary)]">{fuel}</td>
+                                <td className="p-3 text-center text-blue-400 font-bold">{trust > 0 ? `${trust}%` : "—"}</td>
+                                <td className="p-3 text-center">
+                                  <span className={`px-2 py-0.5 rounded text-[8px] font-extrabold border ${
+                                    act.status === "verified" || act.status === "approved"
+                                      ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                                      : "bg-blue-500/10 text-blue-400 border-blue-500/20"
+                                  }`}>
+                                    {(act.status || "pending").toUpperCase()}
+                                  </span>
+                                </td>
+                                <td className="p-3 text-right text-[var(--color-text-secondary)]">{date}</td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  )}
+
+                  {activeSector === "afolu" && (
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-[var(--color-background)]/40 border-b border-[var(--color-border)] text-[9px] uppercase font-bold text-[var(--color-text-muted)]">
+                          <th className="p-3">Zone ID</th>
+                          <th className="p-3">Activity Type</th>
+                          <th className="p-3">NDVI Index</th>
+                          <th className="p-3">Hectares</th>
+                          <th className="p-3 text-center">Trust Index</th>
+                          <th className="p-3 text-center">Status</th>
+                          <th className="p-3 text-right">Captured</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[var(--color-border)]/70 text-xs">
+                        {isolatedActivities.length === 0 ? (
+                          <tr>
+                            <td colSpan={7} className="p-6 text-center text-[var(--color-text-muted)]">No active AFOLU forestry logs found.</td>
+                          </tr>
+                        ) : (
+                          isolatedActivities.map((act) => {
+                            const ad = act.activity_data || {};
+                            const zoneId = ad.zone_id || act.client_id || act.id;
+                            const type = (ad.project_type as string) || (ad.activity_type as string) || act.activity_type || "—";
+                            const canopy = (ad.ndvi_value as string) || (ad.canopy as string) || "—";
+                            const area = (ad.hectares as string) || (ad.area as string) || "—";
+                            const trust = act.trust_score ?? 0;
+                            const date = act.captured_at ? act.captured_at.split("T")[0] : (act.created_at ? act.created_at.split("T")[0] : "—");
+                            return (
+                              <tr key={act.id} className="hover:bg-[var(--color-background)]/30 transition-colors">
+                                <td className="p-3 font-mono font-bold text-emerald-500">{String(zoneId).substring(0, 10)}</td>
+                                <td className="p-3 font-semibold text-[var(--color-text-primary)]">{type}</td>
+                                <td className="p-3 text-[var(--color-text-secondary)]">{canopy}</td>
+                                <td className="p-3 text-[var(--color-text-secondary)]">{area} Hectares</td>
+                                <td className="p-3 text-center text-emerald-400 font-bold">{trust > 0 ? `${trust}%` : "—"}</td>
+                                <td className="p-3 text-center">
+                                  <span className={`px-2 py-0.5 rounded text-[8px] font-extrabold border ${
+                                    act.status === "verified" || act.status === "approved"
+                                      ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                                      : "bg-amber-500/10 text-amber-400 border-amber-500/20"
+                                  }`}>
+                                    {(act.status || "pending").toUpperCase()}
+                                  </span>
+                                </td>
+                                <td className="p-3 text-right text-[var(--color-text-secondary)]">{date}</td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  )}
                 </div>
               </div>
 
@@ -824,7 +1339,12 @@ export default function RedesignedDashboardPage() {
               {/* Cookstove Model distribution bar chart */}
               <div className="bg-[var(--color-background)] border border-[var(--color-border)] rounded-lg p-4">
                 <div className="flex items-center justify-between mb-3 border-b border-[var(--color-border)] pb-2">
-                  <h4 className="text-[10px] uppercase font-bold text-[var(--color-text-muted)]">Installed cookstove model types</h4>
+                  <h4 className="text-[10px] uppercase font-bold text-[var(--color-text-muted)]">
+                    {activeSector === "cookstove" ? "Installed cookstove model types" :
+                     activeSector === "energy" ? "Installed hybrid energy system types" :
+                     activeSector === "transport" ? "Installed low-carbon vehicle types" :
+                     "Installed AFOLU forestry project types"}
+                  </h4>
                   <span className="text-[8px] text-[var(--color-text-muted)]">Methodology Compliant</span>
                 </div>
                 <div className="h-[120px] w-full">

@@ -206,21 +206,41 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
       } catch (_) {}
     }
 
-    // Resolve a highly-descriptive dynamic title instead of hardcoded "Clean Cooking"
-    String displayTitle = 'Clean Cooking Stove';
-    if (activityData != null) {
-      final headName = activityData['head_name']?.toString() ?? '';
-      final stoveModel = activityData['stove_model']?.toString() ?? '';
-      final serialNumber = activityData['serial_number']?.toString() ?? '';
-      
-      if (headName.isNotEmpty && stoveModel.isNotEmpty) {
-        displayTitle = '${_formatStoveModel(stoveModel)} • $headName';
-      } else if (headName.isNotEmpty) {
-        displayTitle = 'Stove: $headName';
-      } else if (stoveModel.isNotEmpty) {
-        displayTitle = '${_formatStoveModel(stoveModel)} Installation';
-      } else if (serialNumber.isNotEmpty) {
-        displayTitle = 'Stove SN: $serialNumber';
+    // Resolve a highly-descriptive dynamic title based on activity type
+    String displayTitle;
+    if (activityType.toUpperCase() == 'HYBRID_ENERGY') {
+      // Hybrid Energy display title
+      displayTitle = 'Hybrid Energy System';
+      if (activityData != null) {
+        final ownerName = activityData['owner_name']?.toString() ?? '';
+        final solarCapacity = activityData['solar_capacity_kwp']?.toString() ?? '';
+        final siteId = activityData['site_id']?.toString() ?? '';
+
+        if (ownerName.isNotEmpty && solarCapacity.isNotEmpty) {
+          displayTitle = '$ownerName • ${solarCapacity}kWp Solar';
+        } else if (ownerName.isNotEmpty) {
+          displayTitle = 'Energy: $ownerName';
+        } else if (siteId.isNotEmpty) {
+          displayTitle = 'Site: $siteId';
+        }
+      }
+    } else {
+      // Clean Cooking display title (default)
+      displayTitle = 'Clean Cooking Stove';
+      if (activityData != null) {
+        final headName = activityData['head_name']?.toString() ?? '';
+        final stoveModel = activityData['stove_model']?.toString() ?? '';
+        final serialNumber = activityData['serial_number']?.toString() ?? '';
+
+        if (headName.isNotEmpty && stoveModel.isNotEmpty) {
+          displayTitle = '${_formatStoveModel(stoveModel)} • $headName';
+        } else if (headName.isNotEmpty) {
+          displayTitle = 'Stove: $headName';
+        } else if (stoveModel.isNotEmpty) {
+          displayTitle = '${_formatStoveModel(stoveModel)} Installation';
+        } else if (serialNumber.isNotEmpty) {
+          displayTitle = 'Stove SN: $serialNumber';
+        }
       }
     }
 
@@ -293,14 +313,16 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
     ).animate().fadeIn(delay: Duration(milliseconds: 50 * index)).slideX(begin: 0.05);
   }
 
-  /// Get activity type display info (cookstove only).
+  /// Get activity type display info.
   Map<String, dynamic> _getTypeInfo(String type) {
     switch (type.toUpperCase()) {
       case 'CLEAN_COOKING':
       case 'COOKING':
         return {'label': 'Clean Cooking', 'icon': Icons.soup_kitchen_rounded, 'color': AppColors.warning};
+      case 'HYBRID_ENERGY':
+        return {'label': 'Hybrid Energy', 'icon': Icons.solar_power_rounded, 'color': Color(0xFFF59E0B)};
       default:
-        return {'label': 'Clean Cooking', 'icon': Icons.soup_kitchen_rounded, 'color': AppColors.warning};
+        return {'label': 'Activity', 'icon': Icons.assignment_outlined, 'color': AppColors.textSecondary};
     }
   }
 

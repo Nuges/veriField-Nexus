@@ -35,6 +35,7 @@ class FakeActivity:
         self.created_at = kwargs.get("created_at", datetime.now(timezone.utc))
         self.submitted_at = kwargs.get("submitted_at", datetime.now(timezone.utc))
         self.activity_type = kwargs.get("activity_type", "CLEAN_COOKING")
+        self.activity_data = kwargs.get("activity_data", {})
         self.trust_score = None
         self.trust_flags = {}
         self.status = "pending"
@@ -276,6 +277,139 @@ class TestExampleOutputs:
         total = gps + img + freq
         assert total == 61.25
         assert TrustEngine._determine_status(total) == "review"
+
+
+# ===========================================================================
+# 6. Multi-Photo Verification Rules Engine Tests
+# ===========================================================================
+
+class TestMultiPhotoVerificationRules:
+    """Verify trust engine deductions for the new Multi-Photo Verification Rules."""
+
+    @pytest.mark.anyio
+    @patch("app.services.trust_engine.select")
+    async def test_hybrid_energy_all_photos_present(self, mock_select):
+        mock_db = AsyncMock()
+        mock_setting = MagicMock()
+        mock_setting.gps_weight = 30.0
+        mock_setting.image_weight = 40.0
+        mock_setting.frequency_weight = 30.0
+        mock_setting.gps_max_distance_km = 5.0
+        mock_setting.image_hash_threshold = 12
+        mock_setting.max_submissions_per_hour = 10
+        mock_setting.suspicious_hours_start = 22
+        mock_setting.suspicious_hours_end = 5
+        
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = mock_setting
+        mock_db.execute.return_value = mock_result
+        
+        engine = TrustEngine(mock_db)
+        
+        activity = FakeActivity(
+            activity_type="HYBRID_ENERGY",
+            activity_data={
+                "baseline_generator_image_url": "https://example.com/diesel.jpg",
+                "inverter_label_image_url": "https://example.com/label.jpg"
+            }
+        )
+        
+        with patch.object(engine, "_calculate_gps_score", return_value=(30.0, {}, [])), \
+             patch.object(engine, "_calculate_image_score", return_value=(40.0, {}, [])), \
+             patch.object(engine, "_calculate_frequency_score", return_value=(30.0, {}, [])), \
+             patch.object(engine, "_calculate_cross_verification_bonus", return_value=(0.0, {})):
+             
+            score, flags = await engine.calculate_trust_score(activity)
+            
+            assert score == 100.0
+            assert "missing_baseline_generator_photo" not in flags
+            assert "missing_inverter_label_photo" not in flags
+            assert flags["scoring_breakdown"]["mrv_penalties"] == []
+
+    @pytest.mark.anyio
+    @patch("app.services.trust_engine.select")
+    async def test_hybrid_energy_missing_baseline_and_inverter(self, mock_select):
+        mock_db = AsyncMock()
+        mock_setting = MagicMock()
+        mock_setting.gps_weight = 30.0
+        mock_setting.image_weight = 40.0
+        mock_setting.frequency_weight = 30.0
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = mock_setting
+        mock_db.execute.return_value = mock_result
+        
+        engine = TrustEngine(mock_db)
+        
+        activity = FakeActivity(
+            activity_type="HYBRID_ENERGY",
+            activity_data={}
+        )
+        
+        with patch.object(engine, "_calculate_gps_score", return_value=(30.0, {}, [])), \
+             patch.object(engine, "_calculate_image_score", return_value=(40.0, {}, [])), \
+             patch.object(engine, "_calculate_frequency_score", return_value=(30.0, {}, [])), \
+             patch.object(engine, "_calculate_cross_verification_bonus", return_value=(0.0, {})):
+             
+            score, flags = await engine.calculate_trust_score(activity)
+            
+            assert score == 65.0
+            assert flags["missing_baseline_generator_photo"] is True
+            assert flags["missing_inverter_label_photo"] is True
+            
+            penalties = flags["scoring_breakdown"]["mrv_penalties"]
+            assert len(penalties) == 2
+            assert penalties[0]["deduction"] == 30.0
+            assert penalties[1]["deduction"] == 5.0
+
+    @pytest.mark.anyio
+    @patch("app.services.trust_engine.select")
+    async def test_gps_mismatch_penalty(self, mock_select):
+        mock_db = AsyncMock()
+        mock_setting = MagicMock()
+        mock_setting.gps_weight = 30.0
+        mock_setting.image_weight = 40.0
+        mock_setting.frequency_weight = 30.0
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = mock_setting
+        mock_db.execute.return_value = mock_result
+        
+        engine = TrustEngine(mock_db)
+        activity = FakeActivity(activity_type="CLEAN_COOKING")
+        
+        with patch.object(engine, "_calculate_gps_score", return_value=(10.0, {"gps_too_far": True}, [])), \
+             patch.object(engine, "_calculate_image_score", return_value=(40.0, {}, [])), \
+             patch.object(engine, "_calculate_frequency_score", return_value=(30.0, {}, [])), \
+             patch.object(engine, "_calculate_cross_verification_bonus", return_value=(0.0, {})):
+             
+            score, flags = await engine.calculate_trust_score(activity)
+            
+            assert score == 60.0
+            assert flags["gps_mismatch_penalty"] is True
+
+    @pytest.mark.anyio
+    @patch("app.services.trust_engine.select")
+    async def test_duplicate_image_fraud_status(self, mock_select):
+        mock_db = AsyncMock()
+        mock_setting = MagicMock()
+        mock_setting.gps_weight = 30.0
+        mock_setting.image_weight = 40.0
+        mock_setting.frequency_weight = 30.0
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = mock_setting
+        mock_db.execute.return_value = mock_result
+        
+        engine = TrustEngine(mock_db)
+        activity = FakeActivity(activity_type="CLEAN_COOKING")
+        
+        with patch.object(engine, "_calculate_gps_score", return_value=(30.0, {}, [])), \
+             patch.object(engine, "_calculate_image_score", return_value=(8.0, {"image_duplicate": True}, [])), \
+             patch.object(engine, "_calculate_frequency_score", return_value=(30.0, {}, [])), \
+             patch.object(engine, "_calculate_cross_verification_bonus", return_value=(0.0, {})):
+             
+            score, flags = await engine.calculate_trust_score(activity)
+            
+            assert flags["fraud_flag"] is True
+            assert activity.status == "flagged"
 
 
 # ===========================================================================

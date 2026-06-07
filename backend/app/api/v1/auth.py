@@ -113,6 +113,9 @@ async def register(
         full_name=payload.full_name,
         role=payload.role,
         organization=admin_user.organization or "VeriField",  # AUTO-CONNECTED INHERITANCE!
+        sector=payload.sector or "cookstove",
+        country=payload.country,
+        project_type=payload.project_type,
     )
     db.add(user)
     await db.commit()
@@ -128,6 +131,7 @@ async def register(
 # ---------------------------------------------------------------------------
 # Request Payload for Public Onboarding
 # ---------------------------------------------------------------------------
+from typing import Optional
 from pydantic import BaseModel, Field
 
 class OnboardPayload(BaseModel):
@@ -135,6 +139,9 @@ class OnboardPayload(BaseModel):
     password: str = Field(..., min_length=8, description="Primary account password")
     full_name: str = Field(..., description="Developer's full name")
     organization_name: str = Field(..., description="Name of the carbon methodology developer organization")
+    sector: str = Field(default="cookstove", description="Assigned sector: cookstove, energy, transport, afolu")
+    country: Optional[str] = Field(None, description="Country of operations")
+    project_type: Optional[str] = Field(None, description="Optional project subtype")
 
 
 # =============================================================================
@@ -212,7 +219,10 @@ async def onboard(
         full_name=payload.full_name,
         role="admin",  # Org Admin
         organization=payload.organization_name,
-        status="active"
+        status="active",
+        sector=payload.sector or "cookstove",
+        country=payload.country,
+        project_type=payload.project_type,
     )
     db.add(user)
     await db.commit()
@@ -280,6 +290,7 @@ async def login(
                     role="admin",
                     full_name=payload.email.split("@")[0].replace(".", " ").title() if payload.email else "Dev Admin",
                     status="active",
+                    sector="cookstove",
                 )
                 db.add(user)
                 await asyncio.wait_for(db.commit(), timeout=20.0)
@@ -405,6 +416,7 @@ async def login(
                         role="admin",
                         full_name=payload.email.split("@")[0].replace(".", " ").title() if payload.email else "Dev Admin",
                         status="active",
+                        sector="cookstove",
                     )
                     db.add(user)
                     await db.commit()
@@ -459,6 +471,7 @@ async def login(
             full_name="Admin User" if "admin" in (user_email or "").lower() else (
                 user_email.split("@")[0].replace(".", " ").replace("_", " ").replace("-", " ").title() if user_email else "Field Agent"
             ),
+            sector="cookstove",
         )
         db.add(user)
         try:

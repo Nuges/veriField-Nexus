@@ -19,15 +19,6 @@ import {
 import { useToast } from "@/components/Toast";
 import type { User } from "@/lib/types";
 
-const PRESET_AVATARS = [
-  { name: "Eco Emerald", url: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&h=150&q=80" },
-  { name: "Teal Canopy", url: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&h=150&q=80" },
-  { name: "Ocean Carbon", url: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&h=150&q=80" },
-  { name: "Amber Solar", url: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&h=150&q=80" },
-  { name: "Royal Registry", url: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=150&h=150&q=80" },
-  { name: "Deep Earth", url: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=150&h=150&q=80" }
-];
-
 export default function SettingsPage() {
   const toast = useToast();
   const [activeTab, setActiveTab] = useState<"profile" | "system">("profile");
@@ -307,32 +298,6 @@ export default function SettingsPage() {
                           {isUploading ? <Loader2 className="animate-spin" size={12} /> : <Camera size={12} />}
                           <span>Upload Custom Photo</span>
                         </button>
-                        <span className="text-[9px] text-[var(--color-text-secondary)]">or select one of our theme presets:</span>
-                      </div>
-                      
-                      {/* Presets Grid */}
-                      <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-                        {PRESET_AVATARS.map((p, idx) => (
-                          <button
-                            key={idx}
-                            type="button"
-                            onClick={() => {
-                              setAvatarUrl(p.url);
-                              setCustomAvatarInput(false);
-                            }}
-                            className={`relative rounded-lg overflow-hidden h-10 border transition-all ${
-                              avatarUrl === p.url ? "border-emerald-500 scale-95" : "border-slate-800 opacity-60 hover:opacity-100"
-                            }`}
-                            title={p.name}
-                          >
-                            <img src={p.url} alt={p.name} className="w-full h-full object-cover" />
-                            {avatarUrl === p.url && (
-                              <div className="absolute inset-0 bg-emerald-500/30 flex items-center justify-center">
-                                <Check size={14} className="text-emerald-300 font-bold" />
-                              </div>
-                            )}
-                          </button>
-                        ))}
                       </div>
 
                       {/* Custom URL switch */}
@@ -342,7 +307,7 @@ export default function SettingsPage() {
                           onClick={() => setCustomAvatarInput(!customAvatarInput)}
                           className="text-[10px] text-emerald-400 hover:text-emerald-300 transition-colors font-medium flex items-center gap-1"
                         >
-                          {customAvatarInput ? "Use preset selections" : "Provide custom picture URL..."}
+                          {customAvatarInput ? "Hide custom URL field" : "Provide custom picture URL..."}
                         </button>
                         {customAvatarInput && (
                           <input
@@ -540,7 +505,7 @@ export default function SettingsPage() {
                   <span>Profile Customization</span>
                 </div>
                 <p className="text-[var(--color-text-secondary)] leading-relaxed">
-                  Upload a custom avatar file, choose from theme presets, or paste a URL. Click <strong>Save Profile Details</strong> to persist your name and image globally.
+                  Upload a custom avatar file or paste a URL. Click <strong>Save Profile Details</strong> to persist your name and image globally.
                 </p>
               </div>
 

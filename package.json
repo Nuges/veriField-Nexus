@@ -1,0 +1,31 @@
+{
+  "name": "verifield-nexus",
+  "version": "1.0.0",
+  "description": "Verification Infrastructure for Real-World Climate Assets on Solana",
+  "main": "index.js",
+  "scripts": {
+    "dashboard:dev": "npm run dev --prefix dashboard",
+    "dashboard:build": "npm run build --prefix dashboard",
+    "dashboard:start": "npm run start --prefix dashboard",
+    "sdk:build": "tsc --project sdk/tsconfig.json",
+    "backend:dev": "cd backend && venv/bin/uvicorn src.main:app --reload --port 8000"
+  },
+  "keywords": [
+    "solana",
+    "mrv",
+    "climate",
+    "depin",
+    "rwa",
+    "verification"
+  ],
+  "author": "VeriField Nexus Contributors",
+  "license": "MIT",
+  "workspaces": [
+    "dashboard",
+    "sdk"
+  ],
+  "devDependencies": {
+    "@types/node": "^25.9.2",
+    "typescript": "^6.0.3"
+  }
+}

@@ -25,6 +25,9 @@ const TAB_GROUPS = {
     { href: "/dashboard/carbon", label: "Carbon Ledger" },
     { href: "/dashboard/registry", label: "Registry Export" },
   ],
+  energy: [
+    { href: "/dashboard/energy", label: "Energy Portfolio" },
+  ],
   settings: [
     { href: "/dashboard/settings", label: "General Settings" },
     { href: "/dashboard/agents", label: "Team & Agents" },

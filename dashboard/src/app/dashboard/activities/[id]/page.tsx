@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { 
   ArrowLeft, 
@@ -16,12 +16,208 @@ import {
   Shield,
   ShieldAlert,
   Layers,
-  Lock
+  Lock,
+  Info,
+  Cpu,
+  Fingerprint,
+  Copy,
+  Check,
+  Search,
+  Download,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 import { fetchActivity, fetchTrustScore } from "@/lib/api";
 import type { Activity, TrustScoreBreakdown } from "@/lib/types";
 import TrustBadge from "@/components/TrustBadge";
 import { useToast } from "@/components/Toast";
+
+const getDeviceString = (sig: any): string => {
+  if (!sig) return "N/A";
+  if (typeof sig === "string") return sig;
+  if (typeof sig === "object") {
+    return sig.device_id || sig.os || "N/A";
+  }
+  return "N/A";
+};
+
+const getFallbackMeta = (meta: any, isBefore: boolean, activity: any) => {
+  const actData = (activity.activity_data as Record<string, any>) || {};
+  const devId = getDeviceString(meta?.device_id);
+  return {
+    timestamp: meta?.timestamp || activity.captured_at,
+    latitude: meta?.latitude !== undefined && meta?.latitude !== null ? Number(meta.latitude) : activity.latitude,
+    longitude: meta?.longitude !== undefined && meta?.longitude !== null ? Number(meta.longitude) : activity.longitude,
+    device_id: devId !== "N/A" ? devId : getDeviceString(actData.device_signature),
+    uploader_id: meta?.uploader_id || activity.user_id,
+    hash: meta?.hash || (isBefore ? "" : activity.image_hash) || "N/A"
+  };
+};
+
+function ImagePanel({ 
+  url, 
+  label, 
+  isBefore, 
+  meta, 
+  missingKey, 
+  penaltyMsg,
+  activity
+}: { 
+  url: string; 
+  label: string; 
+  isBefore: boolean; 
+  meta: any; 
+  missingKey?: string; 
+  penaltyMsg?: string;
+  activity: any;
+}) {
+  const [copied, setCopied] = useState(false);
+  const [isLocked, setIsLocked] = useState(false);
+
+  const finalMeta = getFallbackMeta(meta, isBefore, activity);
+
+  const handleCopyHash = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (finalMeta.hash) {
+      navigator.clipboard.writeText(finalMeta.hash);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  if (!url) {
+    const isPenalized = missingKey && activity.trust_flags?.[missingKey] === true;
+    return (
+      <div className="aspect-[4/3] w-full bg-[var(--color-surface)] flex flex-col items-center justify-center border border-dashed border-[var(--color-border)] rounded-xl p-6 text-center relative overflow-hidden">
+        <div className={`p-3 rounded-full mb-3 ${isPenalized ? "bg-red-500/10 text-red-500 animate-pulse" : "bg-[var(--color-background)] text-[var(--color-text-muted)]"}`}>
+          <ShieldAlert size={28} />
+        </div>
+        <h4 className="text-xs font-bold text-[var(--color-text-primary)]">{label}</h4>
+        <p className="text-[var(--color-text-muted)] text-[10px] mt-1 max-w-[200px]">
+          {isBefore ? "No baseline operational proof was submitted." : "No verification photo provided."}
+        </p>
+        {isPenalized && penaltyMsg && (
+          <span className="mt-3 px-2 py-0.5 rounded bg-red-500/10 text-red-500 text-[9px] font-extrabold tracking-wider uppercase border border-red-500/20">
+            {penaltyMsg}
+          </span>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="aspect-[4/3] w-full bg-slate-950 relative rounded-xl border border-[var(--color-border)] overflow-hidden group">
+      <img 
+        src={url} 
+        alt={label} 
+        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.02]" 
+      />
+      
+      {/* Photo Label (Top Left) */}
+      <div className="absolute top-3 left-3 bg-slate-900/90 backdrop-blur border border-slate-700/50 rounded-lg px-2.5 py-1 text-[9px] font-bold text-white uppercase tracking-wider flex items-center gap-1.5 z-10 shadow-lg">
+        <span className={`w-1.5 h-1.5 rounded-full ${isBefore ? "bg-amber-500" : "bg-[#00B47A]"}`} />
+        <span>{label}</span>
+      </div>
+
+      {/* Toggle Info Button (Bottom Right) */}
+      <button 
+        onClick={() => setIsLocked(!isLocked)}
+        className={`absolute bottom-3 right-3 z-10 rounded-lg p-1.5 text-xs border transition-all shadow-lg flex items-center justify-center ${
+          isLocked 
+            ? "bg-[#00B47A] border-[#00B47A]/30 text-white" 
+            : "bg-slate-900/80 border-slate-700/50 text-slate-300 hover:text-white"
+        }`}
+        title="Toggle Audit Metadata"
+      >
+        <Info size={14} />
+      </button>
+
+      {/* Metadata Overlay (Hover / Toggle Lock) */}
+      <div className={`absolute inset-0 bg-slate-950/90 backdrop-blur-sm transition-opacity duration-300 flex flex-col justify-between p-4 text-white z-0 ${
+        isLocked ? "opacity-100 font-semibold" : "opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto"
+      }`}>
+        <div className="space-y-3 mt-8">
+          <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-[#00B47A] border-b border-slate-800 pb-1.5">
+            MRV Secure Audit Metadata
+          </h4>
+          
+          <div className="grid grid-cols-1 gap-2.5 font-mono text-[9px]">
+            {/* Timestamp */}
+            <div className="flex items-start gap-2 text-slate-300">
+              <Clock size={11} className="text-[#00B47A] shrink-0 mt-0.5" />
+              <div>
+                <span className="text-slate-500 block font-bold">CAPTURED EPOCH</span>
+                <span>{finalMeta.timestamp ? new Date(finalMeta.timestamp).toUTCString() : "N/A"}</span>
+              </div>
+            </div>
+            
+            {/* GPS Bounds */}
+            <div className="flex items-start gap-2 text-slate-300">
+              <MapPin size={11} className="text-blue-400 shrink-0 mt-0.5" />
+              <div>
+                <span className="text-slate-500 block font-bold">SPATIAL ACCURACY COORDS</span>
+                <span>
+                  {finalMeta.latitude && finalMeta.longitude 
+                    ? `${finalMeta.latitude.toFixed(6)}, ${finalMeta.longitude.toFixed(6)}` 
+                    : "N/A"}
+                </span>
+              </div>
+            </div>
+
+            {/* Device ID */}
+            <div className="flex items-start gap-2 text-slate-300">
+              <Cpu size={11} className="text-purple-400 shrink-0 mt-0.5" />
+              <div>
+                <span className="text-slate-500 block font-bold">DEVICE ID SIGNATURE</span>
+                <span className="truncate block max-w-[200px]" title={finalMeta.device_id}>
+                  {finalMeta.device_id}
+                </span>
+              </div>
+            </div>
+
+            {/* Uploader ID */}
+            <div className="flex items-start gap-2 text-slate-300">
+              <UserIcon size={11} className="text-amber-500 shrink-0 mt-0.5" />
+              <div>
+                <span className="text-slate-500 block font-bold">UPLOADER ID</span>
+                <span className="truncate block max-w-[200px]" title={finalMeta.uploader_id}>
+                  {finalMeta.uploader_id}
+                </span>
+              </div>
+            </div>
+
+            {/* Hash */}
+            {finalMeta.hash && finalMeta.hash !== "N/A" && (
+              <div className="flex items-start gap-2 text-slate-300">
+                <Fingerprint size={11} className="text-emerald-400 shrink-0 mt-0.5" />
+                <div className="w-full">
+                  <span className="text-slate-500 block font-bold">PERCEPTUAL IMAGE HASH</span>
+                  <div className="flex items-center gap-1.5 mt-0.5 w-full">
+                    <span className="font-mono text-slate-300 truncate max-w-[140px] block" title={finalMeta.hash}>
+                      {finalMeta.hash}
+                    </span>
+                    <button 
+                      onClick={handleCopyHash}
+                      className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors"
+                      title="Copy full hash"
+                    >
+                      {copied ? <Check size={8} className="text-[#00B47A]" /> : <Copy size={8} />}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="text-[8px] text-[#00B47A] font-extrabold tracking-wider uppercase bg-[#00B47A]/10 border border-[#00B47A]/20 px-2 py-1 rounded text-center w-full flex items-center justify-center gap-1.5">
+          <Shield size={10} />
+          <span>Immutable Ledger Integrity Secured</span>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function ActivityDetailPage() {
   const toast = useToast();
@@ -32,6 +228,15 @@ export default function ActivityDetailPage() {
   const [activity, setActivity] = useState<Activity | null>(null);
   const [trustDetails, setTrustDetails] = useState<TrustScoreBreakdown | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [dateRange, setDateRange] = useState("all"); // 7d | 30d | all
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, dateRange]);
 
   useEffect(() => {
     async function loadData() {
@@ -80,6 +285,129 @@ export default function ActivityDetailPage() {
   const isVerified = activity.status === "verified";
   const isFlagged = activity.status === "flagged";
   const isReview = activity.status === "review" || activity.status === "pending";
+
+  const actData = (activity.activity_data as Record<string, any>) || {};
+  const imageMetadata = (actData.image_metadata as Record<string, any>) || {};
+
+  const rawLogs = useMemo(() => {
+    return Array.isArray(actData.telemetry_log) ? actData.telemetry_log : [];
+  }, [actData.telemetry_log]);
+
+  const filteredLogs = useMemo(() => {
+    // 1. Sort by date descending
+    const sorted = [...rawLogs].sort((a: any, b: any) => {
+      const dateA = a.date || a.timestamp || "";
+      const dateB = b.date || b.timestamp || "";
+      return dateB.localeCompare(dateA);
+    });
+
+    // 2. Filter by range
+    let rangeFiltered = sorted;
+    const now = new Date();
+    const isWithinDays = (dateStr: string, days: number) => {
+      if (!dateStr) return false;
+      const date = new Date(dateStr);
+      const diffTime = Math.abs(now.getTime() - date.getTime());
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      return diffDays <= days;
+    };
+
+    if (dateRange === "7d") {
+      rangeFiltered = sorted.filter(l => isWithinDays(l.date || l.timestamp, 7));
+    } else if (dateRange === "30d") {
+      rangeFiltered = sorted.filter(l => isWithinDays(l.date || l.timestamp, 30));
+    }
+
+    // 3. Search filter
+    if (!searchQuery) return rangeFiltered;
+    const query = searchQuery.toLowerCase();
+    return rangeFiltered.filter(log =>
+      JSON.stringify(log).toLowerCase().includes(query)
+    );
+  }, [rawLogs, searchQuery, dateRange]);
+
+  const totalPages = Math.ceil(filteredLogs.length / pageSize) || 1;
+  const paginatedLogs = useMemo(() => {
+    return filteredLogs.slice(
+      (currentPage - 1) * pageSize,
+      currentPage * pageSize
+    );
+  }, [filteredLogs, currentPage, pageSize]);
+
+  const exportToCSV = () => {
+    if (filteredLogs.length === 0) return;
+    const headers = ["Date", "Solar Generation (kWh)", "Grid (kWh)", "Diesel Backup (hrs)", "Battery SOC (%)", "Uptime (%)", "Inverter Temp (°C)"];
+    const csvRows = [
+      headers.join(","),
+      ...filteredLogs.map((log: any) => [
+        log.date || log.timestamp || "—",
+        log.solar_kwh != null ? log.solar_kwh : "—",
+        log.grid_kwh != null ? log.grid_kwh : "—",
+        log.diesel_hrs != null ? log.diesel_hrs : "—",
+        log.battery_soc != null ? log.battery_soc : "—",
+        log.uptime_pct != null ? log.uptime_pct : "—",
+        log.temp_c != null ? log.temp_c : "—"
+      ].map(val => `"${val}"`).join(","))
+    ];
+    const blob = new Blob([csvRows.join("\n")], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `telemetry_logs_${id}.csv`);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  let beforeUrl = "";
+  let beforeLabel = "Baseline Proof";
+  let beforeMeta = null;
+  let beforeMissingKey = "";
+  let beforePenaltyMsg = "";
+
+  let afterUrl = activity.image_url || "";
+  let afterLabel = "Installation Proof";
+  let afterMeta = null;
+
+  let optionalUrl = "";
+  let optionalLabel = "";
+  let optionalMeta = null;
+
+  if (activity.activity_type === "HYBRID_ENERGY") {
+    beforeUrl = actData.baseline_generator_image_url || "";
+    beforeLabel = "Diesel Generator (Baseline)";
+    beforeMeta = imageMetadata.baseline_generator;
+    beforeMissingKey = "missing_baseline_generator_photo";
+    beforePenaltyMsg = "-30 Trust Score Penalty";
+
+    afterUrl = actData.solar_installation_image_url || activity.image_url || "";
+    afterLabel = "Solar PV Installation (Project)";
+    afterMeta = imageMetadata.solar_installation;
+
+    optionalUrl = actData.inverter_label_image_url || "";
+    optionalLabel = "Inverter Nameplate (Secondary)";
+    optionalMeta = imageMetadata.inverter_label;
+  } else if (activity.activity_type === "CLEAN_COOKING") {
+    beforeUrl = actData.baseline_fuel_source_image_url || "";
+    beforeLabel = "Old Stove / Baseline (Before)";
+    beforeMeta = imageMetadata.baseline_fuel_source;
+
+    afterUrl = actData.stove_installation_image_url || activity.image_url || "";
+    afterLabel = "Clean Cookstove (After)";
+    afterMeta = imageMetadata.stove_installation;
+  } else {
+    afterUrl = activity.image_url || "";
+    afterLabel = "Installation Proof";
+    afterMeta = {
+      timestamp: activity.captured_at,
+      latitude: activity.latitude,
+      longitude: activity.longitude,
+      hash: activity.image_hash,
+      device_id: getDeviceString(actData.device_signature) || "N/A",
+      uploader_id: activity.user_id
+    };
+  }
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto pb-12 animate-fade-in-up text-[var(--color-text-primary)]">
@@ -140,33 +468,57 @@ export default function ActivityDetailPage() {
             <div className="p-4 border-b border-[var(--color-border)] flex items-center justify-between bg-[var(--color-background)]/50">
               <div className="flex items-center gap-2">
                 <Camera size={16} className="text-[#00B47A]" />
-                <h2 className="text-xs font-bold uppercase tracking-wider">Photographic Proof of Installation</h2>
+                <h2 className="text-xs font-bold uppercase tracking-wider">MRV Visual Evidence: Before vs After</h2>
               </div>
-              <span className="text-[9px] text-[#00B47A] font-extrabold tracking-wider bg-[#00B47A]/5 border border-[#00B47A]/15 px-2 py-0.5 rounded uppercase">
-                Immutability proof
+              <span className="text-[9px] text-[#00B47A] font-extrabold tracking-wider bg-[#00B47A]/5 border border-[#00B47A]/15 px-2 py-0.5 rounded uppercase flex items-center gap-1">
+                <Shield size={10} /> Audit Trail Proof
               </span>
             </div>
             
-            {activity.image_url ? (
-              <div className="aspect-video w-full bg-slate-950 relative border-b border-[var(--color-border)] overflow-hidden group">
-                <img 
-                  src={activity.image_url} 
-                  alt="Activity Proof" 
-                  className="w-full h-full object-contain group-hover:scale-[1.01] transition-transform duration-500" 
+            <div className="p-4 bg-[var(--color-background)]/10 space-y-4">
+              {/* BEFORE/AFTER side-by-side grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* BEFORE Image Panel */}
+                <ImagePanel 
+                  url={beforeUrl} 
+                  label={beforeLabel} 
+                  isBefore={true} 
+                  meta={beforeMeta} 
+                  missingKey={beforeMissingKey}
+                  penaltyMsg={beforePenaltyMsg}
+                  activity={activity}
                 />
-                <div className="absolute bottom-3 left-3 bg-slate-900/80 backdrop-blur border border-slate-700/50 rounded-lg px-2.5 py-1 text-[9px] font-mono text-slate-300 flex items-center gap-1.5 shadow-lg">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#00B47A] animate-pulse" />
-                  <span>Verified Photo Signature Secure</span>
+                
+                {/* AFTER Image Panel */}
+                <ImagePanel 
+                  url={afterUrl} 
+                  label={afterLabel} 
+                  isBefore={false} 
+                  meta={afterMeta}
+                  activity={activity}
+                />
+              </div>
+
+              {/* Optional secondary photos (e.g. Inverter Label) */}
+              {optionalUrl && (
+                <div className="border-t border-[var(--color-border)] pt-4 mt-2">
+                  <h3 className="text-[10px] font-extrabold uppercase tracking-wider text-[var(--color-text-secondary)] mb-3 flex items-center gap-1.5">
+                    <Layers size={12} className="text-[#00B47A]" /> Secondary Evidence Records
+                  </h3>
+                  <div className="max-w-md">
+                    <ImagePanel 
+                      url={optionalUrl} 
+                      label={optionalLabel} 
+                      isBefore={false} 
+                      meta={optionalMeta}
+                      activity={activity}
+                    />
+                  </div>
                 </div>
-              </div>
-            ) : (
-              <div className="aspect-video w-full bg-[var(--color-surface)] flex flex-col items-center justify-center border-b border-[var(--color-border)] gap-2">
-                <ShieldAlert size={28} className="text-[var(--color-text-muted)] animate-pulse" />
-                <span className="text-[var(--color-text-muted)] text-xs font-semibold">No photographic evidence provided</span>
-              </div>
-            )}
+              )}
+            </div>
             
-            <div className="p-4.5 bg-[var(--color-background)]/35">
+            <div className="p-4.5 bg-[var(--color-background)]/35 border-t border-[var(--color-border)]">
               <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-primary)] mb-1.5 flex items-center gap-1.5">
                 <Layers size={13} className="text-[#00B47A]" /> Reporting Agent's Notes
               </h3>
@@ -185,19 +537,186 @@ export default function ActivityDetailPage() {
               </div>
               
               <div className="p-4.5 grid grid-cols-1 md:grid-cols-2 gap-3.5">
-                {Object.entries(activity.activity_data).map(([key, value]) => (
-                  <div 
-                    key={key} 
-                    className="bg-[var(--color-background)] border border-[var(--color-border)] hover:border-[#00B47A]/30 transition-all rounded-xl p-3.5 flex flex-col justify-between shadow-inner group"
-                  >
-                    <p className="text-[9px] text-[var(--color-text-muted)] group-hover:text-[#00B47A] font-extrabold uppercase tracking-wider transition-colors mb-1">
-                      {key.replace(/_/g, ' ')}
-                    </p>
-                    <p className="text-xs font-bold text-[var(--color-text-primary)] font-mono break-words">
-                      {String(value)}
-                    </p>
+                 {Object.entries(activity.activity_data)
+                   .filter(([key]) => {
+                     return (
+                       key !== "telemetry_log" &&
+                       key !== "image_metadata" &&
+                       key !== "device_signature" &&
+                       !key.endsWith("_url") &&
+                       !key.endsWith("_image_url")
+                     );
+                   })
+                  .map(([key, value]) => {
+                    let displayVal = String(value);
+                    if (typeof value === "object" && value !== null) {
+                      if (key === "device_signature") {
+                        displayVal = (value as any).device_id || (value as any).os || JSON.stringify(value);
+                      } else {
+                        displayVal = JSON.stringify(value);
+                      }
+                    }
+                    return (
+                      <div 
+                        key={key} 
+                        className="bg-[var(--color-background)] border border-[var(--color-border)] hover:border-[#00B47A]/30 transition-all rounded-xl p-3.5 flex flex-col justify-between shadow-inner group"
+                      >
+                        <p className="text-[9px] text-[var(--color-text-muted)] group-hover:text-[#00B47A] font-extrabold uppercase tracking-wider transition-colors mb-1">
+                          {key.replace(/_/g, ' ')}
+                        </p>
+                        <p className="text-xs font-bold text-[var(--color-text-primary)] font-mono break-words">
+                          {displayVal}
+                        </p>
+                      </div>
+                    );
+                  })}
+                
+                {actData.telemetry_log && (
+                  <div className="bg-[var(--color-background)] border border-[var(--color-border)] rounded-xl p-4.5 flex flex-col justify-between shadow-inner md:col-span-2 space-y-4">
+                    {/* Header with Title & Export Button */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[var(--color-border)]/50">
+                      <div className="flex items-center gap-2">
+                        <Cpu size={16} className="text-[#00B47A]" />
+                        <div>
+                          <p className="text-[10px] text-[#00B47A] font-extrabold uppercase tracking-wider">
+                            Telemetry Log Registry
+                          </p>
+                          <p className="text-[9px] text-[var(--color-text-muted)] mt-0.5">
+                            Showing {filteredLogs.length} total entries
+                          </p>
+                        </div>
+                      </div>
+                      
+                      <button
+                        onClick={exportToCSV}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-[#00B47A]/10 hover:bg-[#00B47A]/25 border border-[#00B47A]/20 text-[#00B47A] text-[9px] font-extrabold rounded-lg uppercase tracking-wider transition-all self-start sm:self-auto active:scale-95"
+                      >
+                        <Download size={12} /> Export CSV
+                      </button>
+                    </div>
+
+                    {/* Filter and Search Bar */}
+                    <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
+                      {/* Search Bar */}
+                      <div className="relative flex-1">
+                        <span className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-[var(--color-text-muted)]">
+                          <Search size={12} />
+                        </span>
+                        <input
+                          type="text"
+                          placeholder="Search logs by date..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="w-full pl-8 pr-3 py-1.5 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg text-[10px] text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[#00B47A]/40 transition-colors font-mono"
+                        />
+                      </div>
+
+                      {/* Range Selector */}
+                      <div className="flex bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-0.5 self-start sm:self-auto gap-0.5">
+                        {[
+                          { id: "7d", label: "7 Days" },
+                          { id: "30d", label: "30 Days" },
+                          { id: "all", label: "All Logs" }
+                        ].map((btn) => (
+                          <button
+                            key={btn.id}
+                            onClick={() => setDateRange(btn.id)}
+                            className={`px-2.5 py-1 text-[9px] font-extrabold rounded-md uppercase tracking-wider transition-all ${
+                              dateRange === btn.id
+                                ? "bg-[#00B47A] text-white shadow-sm font-black"
+                                : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+                            }`}
+                          >
+                            {btn.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    {/* The Table */}
+                    {paginatedLogs.length === 0 ? (
+                      <p className="text-xs text-[var(--color-text-muted)] italic p-8 text-center bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)]/50">
+                        No telemetry logs match the selected filters.
+                      </p>
+                    ) : (
+                      <div className="border border-[var(--color-border)]/50 rounded-xl overflow-hidden bg-[var(--color-surface)] shadow-inner">
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-left text-[10px] border-collapse font-mono">
+                            <thead>
+                              <tr className="bg-[var(--color-background)] border-b border-[var(--color-border)]/50 text-[8px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
+                                <th className="p-2.5">Date</th>
+                                <th className="p-2.5 text-right">Solar</th>
+                                <th className="p-2.5 text-right">Diesel</th>
+                                <th className="p-2.5 text-right">Battery</th>
+                                <th className="p-2.5 text-right">Temp</th>
+                                <th className="p-2.5 text-right">Uptime</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-[var(--color-border)]/50">
+                              {paginatedLogs.map((log: any, idx: number) => (
+                                <tr key={idx} className="hover:bg-[var(--color-background)]/20 transition-colors">
+                                  <td className="p-2.5 font-bold text-[var(--color-text-secondary)]">
+                                    {log.date || log.timestamp || "—"}
+                                  </td>
+                                  <td className="p-2.5 text-right text-amber-500 font-extrabold">
+                                    {log.solar_kwh != null ? `${Number(log.solar_kwh).toFixed(1)} kWh` : "—"}
+                                  </td>
+                                  <td className="p-2.5 text-right text-rose-500 font-semibold">
+                                    {log.diesel_hrs != null ? `${Number(log.diesel_hrs).toFixed(1)} hrs` : "—"}
+                                  </td>
+                                  <td className="p-2.5 text-right text-[#00B47A] font-extrabold">
+                                    {log.battery_soc != null ? `${Number(log.battery_soc).toFixed(0)}%` : "—"}
+                                  </td>
+                                  <td className="p-2.5 text-right text-orange-400 font-semibold">
+                                    {log.temp_c != null ? `${Number(log.temp_c).toFixed(1)}°C` : "—"}
+                                  </td>
+                                  <td className="p-2.5 text-right text-blue-400 font-semibold">
+                                    {log.uptime_pct != null ? `${Number(log.uptime_pct).toFixed(1)}%` : "—"}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Pagination Controls */}
+                    {totalPages > 1 && (
+                      <div className="flex items-center justify-between pt-2 border-t border-[var(--color-border)]/30 text-[9px] font-extrabold uppercase tracking-wider text-[var(--color-text-muted)]">
+                        <span>
+                          Showing {((currentPage - 1) * pageSize) + 1}–{Math.min(currentPage * pageSize, filteredLogs.length)} of {filteredLogs.length}
+                        </span>
+                        
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                            disabled={currentPage === 1}
+                            className={`p-1.5 rounded-lg border border-[var(--color-border)] transition-all bg-[var(--color-surface)] hover:text-[var(--color-text-primary)] active:scale-95 ${
+                              currentPage === 1 ? "opacity-40 cursor-not-allowed" : ""
+                            }`}
+                          >
+                            <ChevronLeft size={10} />
+                          </button>
+                          
+                          <span className="font-mono px-2 py-1 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg text-[var(--color-text-primary)]">
+                            {currentPage} / {totalPages}
+                          </span>
+                          
+                          <button
+                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                            disabled={currentPage === totalPages}
+                            className={`p-1.5 rounded-lg border border-[var(--color-border)] transition-all bg-[var(--color-surface)] hover:text-[var(--color-text-primary)] active:scale-95 ${
+                              currentPage === totalPages ? "opacity-40 cursor-not-allowed" : ""
+                            }`}
+                          >
+                            <ChevronRight size={10} />
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                ))}
+                )}
               </div>
             </div>
           )}

@@ -67,22 +67,65 @@ class SyncService {
 
     for (final activity in pending) {
       try {
-        // Upload image if there's a local path
-        String? imageUrl;
+        Map<String, dynamic> actData = {};
+        if (activity['activity_data'] is Map) {
+          actData = Map<String, dynamic>.from(activity['activity_data'] as Map);
+        } else if (activity['activity_data'] is String) {
+          try {
+            actData = jsonDecode(activity['activity_data'] as String) as Map<String, dynamic>;
+          } catch (_) {}
+        }
+
+        // Upload primary image if present
+        String? primaryUrl;
         if (activity['image_path'] != null) {
           final file = File(activity['image_path']);
           if (await file.exists()) {
-            final fileName =
-                '${activity['client_id']}_${DateTime.now().millisecondsSinceEpoch}.jpg';
-            imageUrl = await uploadImage(file, fileName);
+            final fileName = '${activity['client_id']}_primary.jpg';
+            primaryUrl = await uploadImage(file, fileName);
+            if (primaryUrl == null) {
+              throw Exception('Primary image upload failed');
+            }
           }
+        }
+
+        // Scan activity_data for additional local image paths to upload
+        final keysToUpload = actData.keys.where((k) => k.endsWith('_image_path')).toList();
+        final Map<String, String> uploadedUrls = {};
+
+        for (final key in keysToUpload) {
+          final localPath = actData[key] as String?;
+          if (localPath != null && localPath.isNotEmpty) {
+            final file = File(localPath);
+            if (await file.exists()) {
+              final cleanKey = key.replaceAll('_image_path', '');
+              final fileName = '${activity['client_id']}_$cleanKey.jpg';
+              final url = await uploadImage(file, fileName);
+              if (url == null) {
+                throw Exception('Additional image $cleanKey upload failed');
+              }
+              uploadedUrls['${cleanKey}_image_url'] = url;
+            }
+          }
+        }
+
+        // Clean up paths and merge URL keys
+        for (final key in keysToUpload) {
+          actData.remove(key);
+        }
+        actData.addAll(uploadedUrls);
+
+        // Map primary key URL in activity_data too (e.g. solar_installation_image_url)
+        final primaryKey = activity['activity_type'] == 'HYBRID_ENERGY' ? 'solar_installation' : 'stove_installation';
+        if (primaryUrl != null) {
+          actData['${primaryKey}_image_url'] = primaryUrl;
         }
 
         activitiesBatch.add({
           'activity_type': activity['activity_type'],
-          'activity_data': activity['activity_data'] != null ? jsonDecode(activity['activity_data'] as String) : null,
+          'activity_data': actData,
           'description': activity['description'],
-          'image_url': imageUrl,
+          'image_url': primaryUrl,
           'image_hash': activity['image_hash'],
           'latitude': activity['latitude'],
           'longitude': activity['longitude'],

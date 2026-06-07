@@ -1,0 +1,15 @@
+{
+  "assetType": "hybrid_energy",
+  "gps": {
+    "latitude": 4.824167,
+    "longitude": 7.030556,
+    "accuracy": 4.5
+  },
+  "timestamp": 1780824000,
+  "imageHash": "a855f7bacc153b82f6a855f7bacc153b82f6a855f7bacc153b82f6a855f7d2f4",
+  "deviceSignature": {
+    "deviceId": "ESP32-EN-PORT-HARCOURT-1001",
+    "os": "FreeRTOSv10.4.3",
+    "appVersion": "v1.2.4"
+  }
+}

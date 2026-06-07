@@ -25,7 +25,10 @@ import {
 import { fetchProperties } from "@/lib/api";
 import type { Property } from "@/lib/types";
 
+import { useWorkspace } from "@/context/WorkspaceContext";
+
 export default function PropertiesPage() {
+  const { filterProperties } = useWorkspace();
   const [properties, setProperties] = useState<Property[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -53,19 +56,22 @@ export default function PropertiesPage() {
     }
   };
 
+  // Filter properties by active workspace sector context
+  const isolatedProperties = filterProperties(properties);
+
   // Derive dynamic dashboard stats from the assets
-  const totalAssetsCount = properties.length;
-  const verifiedAssetsCount = properties.filter(
+  const totalAssetsCount = isolatedProperties.length;
+  const verifiedAssetsCount = isolatedProperties.filter(
     p => (p.sustainability_metrics as any)?.status?.toLowerCase().includes("verif")
   ).length;
   
-  const totalCarbonOffset = properties.reduce(
+  const totalCarbonOffset = isolatedProperties.reduce(
     (acc, p) => acc + (Number((p.sustainability_metrics as any)?.carbon_offset_kg) || 0), 
     0
   );
 
   // Snappy client-side search query matching
-  const filteredProperties = properties.filter(p => {
+  const filteredProperties = isolatedProperties.filter(p => {
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
     return (

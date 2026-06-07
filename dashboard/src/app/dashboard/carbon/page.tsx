@@ -19,7 +19,10 @@ import {
 import { fetchCarbonLedger, issueVerraCredits, issueGoldStandardCredits } from "@/lib/api";
 import { useToast } from "@/components/Toast";
 
+import { useWorkspace } from "@/context/WorkspaceContext";
+
 export default function CarbonLedgerPage() {
+  const { filterCarbonLedger } = useWorkspace();
   const toast = useToast();
   const [ledger, setLedger] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -69,16 +72,19 @@ export default function CarbonLedgerPage() {
 
   const getPrice = (methodology: string) => PRICING_MAP[methodology] || PRICING_MAP["DEFAULT"];
 
+  // Filter ledger calculations based on active sector context
+  const isolatedLedger = filterCarbonLedger(ledger);
+
   // Aggregate Metrics
-  const totalTco2e = ledger.reduce((acc, c) => acc + (c.tco2e || c.tco2 || c.tco2e_generated || 0), 0);
+  const totalTco2e = isolatedLedger.reduce((acc, c) => acc + (c.tco2e || c.tco2 || c.tco2e_generated || 0), 0);
   
-  const estimatedRevenue = ledger.reduce((acc, c) => {
+  const estimatedRevenue = isolatedLedger.reduce((acc, c) => {
     const volume = c.tco2e || c.tco2 || c.tco2e_generated || 0;
     const price = getPrice(c.methodology);
     return acc + (volume * price);
   }, 0);
 
-  const pendingCount = ledger.filter(l => l.status === "calculated").length;
+  const pendingCount = isolatedLedger.filter(l => l.status === "calculated").length;
 
   return (
     <>
@@ -222,7 +228,7 @@ export default function CarbonLedgerPage() {
                     </div>
                   </td>
                 </tr>
-              ) : ledger.length === 0 ? (
+              ) : isolatedLedger.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="p-16 text-center">
                     <div className="flex flex-col items-center justify-center max-w-sm mx-auto">
@@ -237,7 +243,7 @@ export default function CarbonLedgerPage() {
                   </td>
                 </tr>
               ) : (
-                ledger.map((row) => (
+                isolatedLedger.map((row) => (
                   <tr key={row.id} className="hover:bg-[var(--color-background)]/20 transition-colors group">
                     
                     {/* ID */}

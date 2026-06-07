@@ -12,6 +12,9 @@ export interface User {
   role: string;
   avatar_url: string | null;
   organization: string | null;
+  sector: string;
+  country: string | null;
+  project_type: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -25,6 +28,7 @@ export interface Activity {
   activity_data: Record<string, unknown> | null;
   description: string | null;
   image_url: string | null;
+  image_hash?: string | null;
   latitude: number | null;
   longitude: number | null;
   gps_accuracy: number | null;
@@ -58,6 +62,8 @@ export interface Property {
   latitude: number | null;
   longitude: number | null;
   sustainability_metrics: Record<string, unknown> | null;
+  environment_type?: string;
+  verification_status?: string;
   created_at: string;
   updated_at: string;
 }

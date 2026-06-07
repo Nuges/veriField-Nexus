@@ -54,6 +54,13 @@ class User(Base):
         String(20), nullable=False, default="active"
     )
 
+    # Sector-Based Workspace config
+    sector: Mapped[str] = mapped_column(
+        String(50), nullable=False, default="cookstove"
+    )
+    country: Mapped[str] = mapped_column(String(100), nullable=True)
+    project_type: Mapped[str] = mapped_column(String(100), nullable=True)
+
     # Profile metadata
     avatar_url: Mapped[str] = mapped_column(String(500), nullable=True)
     organization: Mapped[str] = mapped_column(String(255), nullable=True)
@@ -72,8 +79,8 @@ class User(Base):
     )
 
     # --- Relationships ---
-    activities = relationship("Activity", back_populates="user", lazy="selectin")
-    properties = relationship("Property", back_populates="owner", lazy="selectin")
+    activities = relationship("Activity", back_populates="user", lazy="select")
+    properties = relationship("Property", back_populates="owner", lazy="select")
 
     def __repr__(self) -> str:
         return f"<User(id={self.id}, name={self.full_name}, role={self.role})>"

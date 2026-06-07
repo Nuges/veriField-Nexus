@@ -65,8 +65,8 @@ def activity_to_response(activity: Activity) -> ActivityResponse:
 
 def calculate_carbon_offset(activity_type: str, data: dict) -> dict:
     """
-    Calculate estimated CO2 reduction for cookstove activities.
-    All activities are implicitly clean cooking installations.
+    Calculate estimated CO2 reduction for activity submissions.
+    Supports both cookstove and hybrid energy displacement types.
     """
     activity_type_upper = activity_type.upper()
     
@@ -77,6 +77,18 @@ def calculate_carbon_offset(activity_type: str, data: dict) -> dict:
         return {
             "emission_reduction_value_kg": round(base_reduction.get(fuel, 2.0) * household_size * 0.5, 2),
             "methodology_reference": "Gold Standard TPDDTEC v3.1",
+        }
+    elif activity_type_upper == "HYBRID_ENERGY":
+        # Quick estimate: baseline diesel displacement by solar capacity
+        solar_kwp = float(data.get("solar_capacity_kwp", 0.0))
+        sun_hours = float(data.get("avg_sun_hours", 5.0))
+        efficiency = float(data.get("system_efficiency", 0.80))
+        # Annual solar generation displaces grid/diesel at ~0.43 kgCO2/kWh (Nigeria grid factor)
+        annual_kwh = solar_kwp * sun_hours * efficiency * 365
+        estimated_kg = round(annual_kwh * 0.43, 2)
+        return {
+            "emission_reduction_value_kg": estimated_kg,
+            "methodology_reference": "Verra AMS-I.F / Gold Standard Renewable Energy",
         }
     # Fallback for any legacy data
     return {
@@ -157,6 +169,11 @@ async def create_activity(
         existing = result.scalar_one_or_none()
         if existing:
             return activity_to_response(existing)
+    if payload.activity_type == "HYBRID_ENERGY" and not payload.image_url:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Missing required Solar PV Installation image proof"
+        )
 
     phash = await compute_phash(payload.image_url)
     
@@ -299,6 +316,15 @@ async def batch_create_activities(
                     duplicates += 1
                     results.append({"client_id": activity_data.client_id, "status": "duplicate"})
                     continue
+
+            if activity_data.activity_type == "HYBRID_ENERGY" and not activity_data.image_url:
+                errors += 1
+                results.append({
+                    "client_id": activity_data.client_id,
+                    "status": "error",
+                    "error": "Missing required Solar PV Installation image proof"
+                })
+                continue
 
             phash = await compute_phash(activity_data.image_url)
             

@@ -229,24 +229,32 @@ async def list_devices(
     result = await db.execute(agg_query)
     rows = result.all()
 
+    # Batch-fetch latest readings for each device in a single query to avoid N+1 bottleneck
+    subq_select = select(
+        SensorReading.id,
+        func.row_number().over(
+            partition_by=[SensorReading.device_id, SensorReading.asset_id],
+            order_by=SensorReading.timestamp.desc()
+        ).label("rn")
+    )
+    if ownership_filter:
+        subq_select = subq_select.where(and_(*ownership_filter))
+    subq = subq_select.subquery()
+
+    latest_readings_q = (
+        select(SensorReading)
+        .options(selectinload(SensorReading.property))
+        .join(subq, SensorReading.id == subq.c.id)
+        .where(subq.c.rn == 1)
+    )
+
+    latest_result = await db.execute(latest_readings_q)
+    latest_readings = latest_result.scalars().all()
+    latest_lookup = {(r.device_id, r.asset_id): r for r in latest_readings}
+
     devices = []
     for row in rows:
-        # Fetch latest reading for this device to get temperature/battery
-        latest_q = (
-            select(SensorReading)
-            .options(selectinload(SensorReading.property))
-            .where(
-                and_(
-                    SensorReading.device_id == row.device_id,
-                    SensorReading.asset_id == row.asset_id,
-                )
-            )
-            .order_by(SensorReading.timestamp.desc())
-            .limit(1)
-        )
-        latest_result = await db.execute(latest_q)
-        latest = latest_result.scalar_one_or_none()
-
+        latest = latest_lookup.get((row.device_id, row.asset_id))
         usage_rate = (row.usage_true_count / row.reading_count * 100) if row.reading_count > 0 else 0
 
         devices.append(DeviceSummary(

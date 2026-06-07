@@ -14,46 +14,39 @@ import {
   Home,
   ShieldCheck,
   Leaf,
+  Zap,
   Settings,
   Menu,
   X,
+  Compass,
 } from "lucide-react";
 import { useState, useEffect } from "react";
-import { fetchMe } from "@/lib/api";
+import { useWorkspace } from "@/context/WorkspaceContext";
 
-// Primary sidebar navigation items
-const navItems = [
-  { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
-  { href: "/dashboard/properties", label: "Field Operations", icon: Home },
-  { href: "/dashboard/audits", label: "Verification Hub", icon: ShieldCheck },
-  { href: "/dashboard/carbon", label: "Carbon Ledger", icon: Leaf },
-  { href: "/dashboard/settings", label: "Administration", icon: Settings },
-];
+// Helper to resolve dynamic sidebar nav items based on role
+function getNavItems(role: string | null) {
+  const items = [
+    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/dashboard/properties", label: "Field Data", icon: Home },
+    { href: "/dashboard/audits", label: "Verification", icon: ShieldCheck },
+    { href: "/dashboard/carbon", label: "Reports", icon: Leaf },
+  ];
+
+  if (role === "admin" || role === "auditor") {
+    items.push({ href: "/dashboard/poa", label: "POA Portfolio", icon: Compass });
+  }
+
+  items.push({ href: "/dashboard/settings", label: "Administration", icon: Settings });
+  return items;
+}
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const { user } = useWorkspace();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const [user, setUser] = useState<any>(null);
 
-  useEffect(() => {
-    loadUser();
-    
-    if (typeof window !== "undefined") {
-      const handleUpdate = () => loadUser();
-      window.addEventListener("vf_profile_updated", handleUpdate);
-      return () => window.removeEventListener("vf_profile_updated", handleUpdate);
-    }
-  }, []);
-
-  const loadUser = async () => {
-    try {
-      const u = await fetchMe();
-      setUser(u);
-    } catch (err) {
-      console.error("Failed to load user in sidebar:", err);
-    }
-  };
+  const navItems = getNavItems(user ? user.role : null);
 
   // Close mobile drawer automatically when route changes
   useEffect(() => {
@@ -76,6 +69,10 @@ export default function Sidebar() {
              pathname.startsWith("/dashboard/community");
     } else if (href === "/dashboard/carbon") {
       return pathname.startsWith("/dashboard/carbon") || pathname.startsWith("/dashboard/registry");
+    } else if (href === "/dashboard/poa") {
+      return pathname.startsWith("/dashboard/poa");
+    } else if (href === "/dashboard/energy") {
+      return pathname.startsWith("/dashboard/energy");
     } else if (href === "/dashboard/settings") {
       return pathname.startsWith("/dashboard/settings") || pathname.startsWith("/dashboard/agents");
     }

@@ -1,41 +1,58 @@
 // =============================================================================
 // VeriField Nexus — Dashboard Layout
 // =============================================================================
-// Wraps all dashboard pages with the sidebar navigation.
+// Wraps all dashboard pages with the Sidebar navigation and Workspace Resolver.
 // Supports mobile responsive spacing offsets and renders the global desktop top header.
 // =============================================================================
 
 "use client";
 
-import { useState, useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
 import TopTabs from "@/components/TopTabs";
-import { fetchMe } from "@/lib/api";
 import Link from "next/link";
+import { WorkspaceProvider, useWorkspace } from "@/context/WorkspaceContext";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const [user, setUser] = useState<any>(null);
+  return (
+    <WorkspaceProvider>
+      <DashboardLayoutContent>{children}</DashboardLayoutContent>
+    </WorkspaceProvider>
+  );
+}
+
+function DashboardLayoutContent({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const { user, isLoading } = useWorkspace();
+  const router = useRouter();
 
   useEffect(() => {
-    loadUser();
-    
-    if (typeof window !== "undefined") {
-      const handleUpdate = () => loadUser();
-      window.addEventListener("vf_profile_updated", handleUpdate);
-      return () => window.removeEventListener("vf_profile_updated", handleUpdate);
-    }
-  }, []);
+    if (!user) return;
 
-  const loadUser = async () => {
-    try {
-      const u = await fetchMe();
-      setUser(u);
-    } catch (_) {}
-  };
+    if (!["admin", "auditor"].includes(user.role)) {
+      localStorage.clear();
+      router.push("/login?error=unauthorized");
+    }
+  }, [user, router]);
+
+  if (isLoading && !user) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-[var(--color-background)] space-y-3">
+        <div className="w-8 h-8 border-2 border-[#00B47A] border-t-transparent rounded-full animate-spin" />
+        <p className="text-[var(--color-text-secondary)] text-xs font-semibold tracking-tight animate-pulse">
+          Connecting to secure digital MRV ledger...
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen bg-[var(--color-background)]">
@@ -60,7 +77,7 @@ export default function DashboardLayout({
               <div className="text-right">
                 <p className="text-xs font-bold text-[var(--color-text-primary)]">{user.full_name}</p>
                 <p className="text-[9px] text-[var(--color-text-secondary)] font-bold uppercase tracking-wider">
-                  {user.role === "admin" ? "Org Admin" : "Field Agent"}
+                  {user.role === "admin" ? "Org Admin" : user.role === "auditor" ? "Auditor" : "Field Agent"}
                 </p>
               </div>
               <div className="w-9 h-9 rounded-full border border-emerald-500/20 overflow-hidden bg-emerald-500/5 flex items-center justify-center shrink-0 shadow-sm">

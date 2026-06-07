@@ -19,6 +19,9 @@ export default function SignupPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [orgName, setOrgName] = useState("");
+  const [sector, setSector] = useState("cookstove");
+  const [country, setCountry] = useState("");
+  const [projectType, setProjectType] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
@@ -34,6 +37,9 @@ export default function SignupPage() {
         password,
         full_name: fullName,
         organization_name: orgName,
+        sector,
+        country: country || undefined,
+        project_type: projectType || undefined,
       });
 
       // 1. Injected JWT token into client services
@@ -180,6 +186,55 @@ export default function SignupPage() {
                       transition-all duration-200"
                   />
                 </div>
+              </div>
+
+              {/* Industry / Sector */}
+              <div>
+                <label className="text-xs font-bold text-[var(--color-text-secondary)] mb-1.5 block">Industry / Sector</label>
+                <select
+                  value={sector}
+                  onChange={(e) => setSector(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] 
+                    text-[var(--color-text-primary)] text-xs
+                    focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/50
+                    transition-all duration-200"
+                >
+                  <option value="cookstove">Clean Cooking (Cookstove)</option>
+                  <option value="energy">Hybrid Energy (Solar/Gas/Diesel)</option>
+                  <option value="transport">Low-Carbon Transport (Fleet telemetry)</option>
+                  <option value="afolu">AFOLU (Agriculture & Forestry)</option>
+                </select>
+              </div>
+
+              {/* Country of Operations */}
+              <div>
+                <label className="text-xs font-bold text-[var(--color-text-secondary)] mb-1.5 block">Country of Operations</label>
+                <input
+                  type="text"
+                  value={country}
+                  onChange={(e) => setCountry(e.target.value)}
+                  placeholder="e.g. Nigeria"
+                  required
+                  className="w-full px-4 py-2.5 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] 
+                    text-[var(--color-text-primary)] placeholder:text-slate-600 text-xs
+                    focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/50
+                    transition-all duration-200"
+                />
+              </div>
+
+              {/* Project Subtype */}
+              <div>
+                <label className="text-xs font-bold text-[var(--color-text-secondary)] mb-1.5 block">Project Subtype (Optional)</label>
+                <input
+                  type="text"
+                  value={projectType}
+                  onChange={(e) => setProjectType(e.target.value)}
+                  placeholder="e.g. Improved Biomass Cookstoves"
+                  className="w-full px-4 py-2.5 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] 
+                    text-[var(--color-text-primary)] placeholder:text-slate-600 text-xs
+                    focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/50
+                    transition-all duration-200"
+                />
               </div>
 
               {/* Register Action Button */}
