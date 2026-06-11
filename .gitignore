@@ -40,3 +40,7 @@ target/
 backend/uvicorn.log
 .vercel
 .env*.local
+
+# Ignored scratch and cache
+scratch/
+.cache/
