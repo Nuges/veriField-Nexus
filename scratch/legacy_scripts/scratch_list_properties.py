@@ -18,15 +18,15 @@ async def main():
     for t in types:
         print(dict(t))
         
-    print("\n--- Sample Properties ---")
-    props = await conn.fetch("SELECT id, name, property_type FROM properties LIMIT 20;")
+    print("\n--- Properties with Owner Details ---")
+    props = await conn.fetch("SELECT p.id, p.name, p.property_type, p.owner_id, u.email, u.organization FROM properties p JOIN users u ON p.owner_id = u.id LIMIT 30;")
     for p in props:
         print(dict(p))
         
-    print("\n--- Activity Type counts ---")
-    act_types = await conn.fetch("SELECT activity_type, count(*) FROM activities GROUP BY activity_type;")
-    for at in act_types:
-        print(dict(at))
+    print("\n--- Carbon Methodology counts ---")
+    meth_counts = await conn.fetch("SELECT methodology_used, count(*) FROM carbon_calculations GROUP BY methodology_used;")
+    for mc in meth_counts:
+        print(dict(mc))
         
     await conn.close()
 

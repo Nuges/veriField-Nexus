@@ -12,7 +12,7 @@ CRUD operations for field activity / installation submissions. Supports:
 =============================================================================
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_
 from sqlalchemy.orm import selectinload
@@ -32,6 +32,69 @@ from app.schemas.activity import (
     ACTIVITY_SCHEMAS,
 )
 from app.schemas.analytics import TrustScoreResponse
+
+# =============================================================================
+# Background SMS Dispatch helper
+# =============================================================================
+
+async def dispatch_sms_verification(activity_id: UUID, db_session_factory):
+    """
+    Asynchronously queries the activity and dispatches a Twilio SMS confirmation
+    request to the beneficiary or owner phone number.
+    """
+    import logging
+    logger = logging.getLogger("verifield.jobs.sms_dispatch")
+    
+    async with db_session_factory() as session:
+        # Load activity with user and property relationships
+        result = await session.execute(
+            select(Activity)
+            .options(selectinload(Activity.user), selectinload(Activity.property))
+            .where(Activity.id == activity_id)
+        )
+        act = result.scalar_one_or_none()
+        if not act:
+            return
+
+        phone = None
+        name = "Beneficiary"
+        
+        # 1. First, check if custom phone number is inside activity_data
+        data = act.activity_data or {}
+        if data.get("beneficiary_phone"):
+            phone = str(data.get("beneficiary_phone")).strip()
+            name = data.get("beneficiary_name", "Beneficiary")
+        
+        # 2. Fall back to property owner/tenant phone number
+        elif act.property and act.property.owner_id:
+            from app.models.user import User
+            owner_res = await session.execute(select(User).where(User.id == act.property.owner_id))
+            owner = owner_res.scalar_one_or_none()
+            if owner and owner.phone:
+                phone = str(owner.phone).strip()
+                name = owner.full_name
+        
+        # 3. Fall back to the agent who logged the activity
+        elif act.user and act.user.phone:
+            phone = str(act.user.phone).strip()
+            name = act.user.full_name
+            
+        if not phone:
+            logger.info(f"No phone number resolved for activity {activity_id}. Skipping SMS.")
+            return
+            
+        # Format outbound SMS with verification code (first 8 characters of property UUID)
+        from app.services.sms_service import send_twilio_sms
+        code_suffix = f" {str(act.property_id)[:8]}" if act.property_id else ""
+        
+        body = (
+            f"VeriField: Did you receive the {act.activity_type.replace('_', ' ').lower()} installation? "
+            f"Reply YES{code_suffix} to verify, or NO{code_suffix} if not."
+        )
+        
+        logger.info(f"Dispatching verification SMS to {name} ({phone}) for activity {activity_id}...")
+        await send_twilio_sms(phone, body)
+
 
 router = APIRouter(prefix="/activities", tags=["Activities"])
 
@@ -153,6 +216,7 @@ async def check_duplicate(
 )
 async def create_activity(
     payload: ActivityCreate,
+    background_tasks: BackgroundTasks,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -280,6 +344,11 @@ async def create_activity(
             import logging
             logging.getLogger("verifield.api").error(f"Auto-quantification failed for {activity.id}: {e}")
 
+    # Dispatch SMS verification request to beneficiary
+    if activity.activity_type in ("CLEAN_COOKING", "HYBRID_ENERGY"):
+        from app.db.session import async_session_factory
+        background_tasks.add_task(dispatch_sms_verification, activity.id, async_session_factory)
+
     await db.refresh(activity)
     return activity_to_response(activity)
 
@@ -294,6 +363,7 @@ async def create_activity(
 )
 async def batch_create_activities(
     payload: ActivityBatchCreate,
+    background_tasks: BackgroundTasks,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -422,6 +492,11 @@ async def batch_create_activities(
 
             submitted += 1
             results.append({"client_id": activity_data.client_id, "status": "submitted", "id": str(activity.id)})
+            
+            # Dispatch SMS verification request to beneficiary for each successfully synced activity
+            if activity.activity_type in ("CLEAN_COOKING", "HYBRID_ENERGY"):
+                from app.db.session import async_session_factory
+                background_tasks.add_task(dispatch_sms_verification, activity.id, async_session_factory)
         except Exception as e:
             errors += 1
             results.append({"client_id": activity_data.client_id, "status": "error", "error": str(e)})

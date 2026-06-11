@@ -9,7 +9,7 @@
     "dashboard:build": "npm run build --prefix dashboard",
     "dashboard:start": "npm run start --prefix dashboard",
     "sdk:build": "tsc --project sdk/tsconfig.json",
-    "backend:dev": "cd backend && venv/bin/uvicorn src.main:app --reload --port 8000"
+    "backend:dev": "cd backend && venv/bin/uvicorn app.main:app --reload --port 8000"
   },
   "keywords": [
     "solana",
@@ -28,5 +28,9 @@
   "devDependencies": {
     "@types/node": "^25.9.2",
     "typescript": "^6.0.3"
+  },
+  "optionalDependencies": {
+    "@next/swc-darwin-arm64": "16.2.4",
+    "@next/swc-darwin-x64": "16.2.4"
   }
 }

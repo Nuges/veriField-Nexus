@@ -3,7 +3,7 @@
 // =============================================================================
 // Drives the dynamic /dashboard UI elements, metric card mappings, recharts,
 // methodologies, and data queries based on the user's active sector context.
-// Supports: Cookstove, Energy, Transport, and AFOLU sectors.
+// Supports: Cookstove and Energy sectors.
 // =============================================================================
 
 export interface KPICardDef {
@@ -167,138 +167,6 @@ export const SECTOR_CONFIGS: Record<string, SectorConfig> = {
         dataKeyY: "diesel_displaced_liters",
         fillColor: "rgba(245, 158, 11, 0.15)",
         strokeColor: "#f59e0b"
-      }
-    ]
-  },
-  transport: {
-    id: "transport",
-    label: "Low-Carbon Transport Sector",
-    badge: "Transport Fleet Telemetry MRV",
-    description: "Fleet tracking, electric vehicle displacement of fossil combustion, and route efficiency validation.",
-    methodology: "Verra VM0038 / Gold Standard Transport",
-    registryReference: "Verra VM0038 / CDM AMS-III.C",
-    kpis: [
-      {
-        key: "co2_reduced",
-        label: "Net CO₂ Reduced",
-        valueField: "total_reductions_tco2e",
-        unit: "tCO₂e",
-        iconName: "Leaf",
-        colorTheme: "blue",
-        description: "Vehicle emissions displaced"
-      },
-      {
-        key: "fuel_displaced",
-        label: "Fossil Fuel Displaced",
-        valueField: "total_fuel_displaced_liters",
-        unit: "Liters",
-        iconName: "Fuel",
-        colorTheme: "amber",
-        description: "Gasoline / petrol diesel saved"
-      },
-      {
-        key: "fleet_size",
-        label: "Active Fleet Size",
-        valueField: "total_installations",
-        unit: "Vehicles",
-        iconName: "TrendingUp",
-        colorTheme: "purple",
-        description: "Verified low-emission vehicles"
-      },
-      {
-        key: "portfolio_value",
-        label: "Portfolio Credit Value",
-        valueField: "portfolio_value_usd",
-        unit: "$",
-        iconName: "DollarSign",
-        colorTheme: "emerald",
-        description: "At transport rate of $20/tCO2e"
-      }
-    ],
-    charts: [
-      {
-        key: "mileage_trends",
-        title: "Daily Low-Emission Travel (Mileage)",
-        type: "area",
-        dataKeyX: "date",
-        dataKeyY: "total_km",
-        fillColor: "rgba(59, 130, 246, 0.1)",
-        strokeColor: "#3b82f6"
-      },
-      {
-        key: "fuel_displacement_trend",
-        title: "Daily Gasoline Displaced (Liters)",
-        type: "bar",
-        dataKeyX: "date",
-        dataKeyY: "gasoline_displaced_l",
-        fillColor: "rgba(16, 185, 129, 0.15)",
-        strokeColor: "#10b981"
-      }
-    ]
-  },
-  afolu: {
-    id: "afolu",
-    label: "AFOLU Forestry Sector",
-    badge: "AFOLU Carbon Sequestration MRV",
-    description: "Satellite NDVI canopy tracking, biomass sequestration monitoring, and afforestation verification.",
-    methodology: "Verra VM0007 REDD+ / Gold Standard A/R",
-    registryReference: "Verra AR-ACM0003 & VM0007",
-    kpis: [
-      {
-        key: "sequestration",
-        label: "Total Sequestration",
-        valueField: "total_reductions_tco2e",
-        unit: "tCO₂e",
-        iconName: "Leaf",
-        colorTheme: "green",
-        description: "Carbon sequestered in tree biomass"
-      },
-      {
-        key: "managed_land",
-        label: "Land Under Management",
-        valueField: "total_installations",
-        unit: "Hectares",
-        iconName: "Globe",
-        colorTheme: "emerald",
-        description: "Monitored forest canopy area"
-      },
-      {
-        key: "canopy_density",
-        label: "Mean Canopy Density",
-        valueField: "mean_canopy_density",
-        unit: "NDVI",
-        iconName: "Layers",
-        colorTheme: "blue",
-        description: "Satellite spectral canopy value"
-      },
-      {
-        key: "portfolio_value",
-        label: "Portfolio Credit Value",
-        valueField: "portfolio_value_usd",
-        unit: "$",
-        iconName: "DollarSign",
-        colorTheme: "purple",
-        description: "At forestry rate of $25/tCO2e"
-      }
-    ],
-    charts: [
-      {
-        key: "sequestration_trends",
-        title: "Biomass Growth & Carbon Sequestration (tCO₂e/yr)",
-        type: "area",
-        dataKeyX: "date",
-        dataKeyY: "sequestration_tco2e",
-        fillColor: "rgba(16, 185, 129, 0.1)",
-        strokeColor: "#10b981"
-      },
-      {
-        key: "ndvi_changes",
-        title: "NDVI Mean Vegetation Index Trend",
-        type: "line",
-        dataKeyX: "date",
-        dataKeyY: "ndvi_value",
-        fillColor: "rgba(59, 130, 246, 0.1)",
-        strokeColor: "#3b82f6"
       }
     ]
   }

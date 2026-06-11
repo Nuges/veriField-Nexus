@@ -14,7 +14,7 @@ import type { User, Property, Activity } from "@/lib/types";
 
 export interface WorkspaceContextType {
   user: User | null;
-  activeSector: string; // "cookstove" | "energy" | "transport" | "afolu"
+  activeSector: string; // "cookstove" | "energy"
   isSandboxed: boolean;
   allowedSectors: string[];
   isLoading: boolean;
@@ -29,14 +29,168 @@ export interface WorkspaceContextType {
 
 const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefined);
 
+const normalize = (value?: string) =>
+  (value || "").toLowerCase().trim();
+
 // Normalizes sector strings from DB user sector
 export function normalizeSector(sec: string): string {
-  const s = (sec || "cookstove").toLowerCase();
+  const s = (sec || "cookstove").toLowerCase().trim();
   if (s.includes("cookstove") || s.includes("clean cooking")) return "cookstove";
   if (s.includes("energy") || s.includes("hybrid")) return "energy";
-  if (s.includes("transport") || s.includes("fleet") || s.includes("mobility")) return "transport";
-  if (s.includes("afolu") || s.includes("forestry") || s.includes("farming")) return "afolu";
+  if (s.includes("transport") || s.includes("fleet") || s.includes("mobility")) return "energy"; // Fallback to energy
+  if (s.includes("afolu") || s.includes("forestry") || s.includes("farming") || s.includes("agri") || s.includes("agriculture")) return "cookstove"; // Fallback to cookstove
   return "cookstove";
+}
+
+// Smart classification mapping layer
+export function mapToWorkspace(record: any): "cookstove" | "energy" | null {
+  if (!record) return null;
+
+  const normalizeVal = (value?: any) => {
+    if (typeof value !== "string") return "";
+    return value.toLowerCase().trim();
+  };
+
+  const methodology = normalizeVal(record.methodology || record.methodology_used);
+  const type = normalizeVal(record.property_type || record.activity_type || record.type);
+  const category = normalizeVal(record.category);
+  const desc = normalizeVal(record.description || record.name || record.address || "");
+  
+  // Extract tags if present
+  let tagsStr = "";
+  if (record.tags) {
+    if (Array.isArray(record.tags)) {
+      tagsStr = record.tags.map((t: any) => normalizeVal(String(t))).join(" ");
+    } else {
+      tagsStr = normalizeVal(record.tags);
+    }
+  }
+
+  // ─── STEP 1: Explicit property_type / activity_type (highest priority) ───
+  // These are the authoritative DB fields — check them first before any heuristics.
+  if (
+    type === "clean_cooking" ||
+    type === "cookstove" ||
+    type === "clean cooking"
+  ) {
+    return "cookstove";
+  }
+
+  if (
+    type === "hybrid_energy" ||
+    type === "energy" ||
+    type === "solar" ||
+    type === "energy_displacement"
+  ) {
+    return "energy";
+  }
+
+  // ─── STEP 2: Methodology-based (reliable secondary signal) ───
+  const allText = `${type} ${category} ${desc} ${tagsStr} ${methodology}`.toLowerCase();
+
+  if (
+    methodology.includes("gs_mecd") ||
+    methodology.includes("mecd") ||
+    methodology.includes("tpddtec") ||
+    methodology.includes("vmr0050") ||
+    methodology.includes("vm0006") ||
+    allText.includes("gs_mecd") ||
+    allText.includes("mecd") ||
+    allText.includes("tpddtec") ||
+    allText.includes("vmr0050") ||
+    allText.includes("vm0006")
+  ) {
+    return "cookstove";
+  }
+
+  if (
+    methodology.includes("ams-i.f") ||
+    methodology.includes("renewable") ||
+    methodology.includes("energy_displacement") ||
+    allText.includes("ams-i.f") ||
+    allText.includes("renewable") ||
+    allText.includes("energy_displacement")
+  ) {
+    return "energy";
+  }
+
+  // Reject transport / afolu methodologies
+  if (
+    methodology.includes("vm0038") ||
+    methodology.includes("ams-iii.c") ||
+    allText.includes("vm0038") ||
+    allText.includes("ams-iii.c")
+  ) {
+    return null;
+  }
+
+  if (
+    methodology.includes("vm0007") ||
+    methodology.includes("ar-acm0003") ||
+    allText.includes("vm0007") ||
+    allText.includes("ar-acm0003")
+  ) {
+    return null;
+  }
+
+  // Reject transport sector keywords
+  if (
+    allText.includes("transport") ||
+    allText.includes("mobility") ||
+    allText.includes("vehicle") ||
+    allText.includes("fleet") ||
+    allText.includes("electric vehicle") ||
+    category.includes("transport") ||
+    category.includes("mobility")
+  ) {
+    return null;
+  }
+
+  // Reject afolu sector keywords
+  if (
+    allText.includes("afolu") ||
+    allText.includes("forestry") ||
+    allText.includes("farming") ||
+    allText.includes("agricultural") ||
+    allText.includes("tree") ||
+    allText.includes("canopy") ||
+    allText.includes("ndvi") ||
+    category.includes("afolu") ||
+    category.includes("forestry")
+  ) {
+    return null;
+  }
+
+  // ─── STEP 3: Keyword-based heuristics (only reached if type field was unrecognized) ───
+  const hasCookstoveKeywords = 
+    allText.includes("cookstove") || 
+    allText.includes("biomass") || 
+    allText.includes("clean cooking") ||
+    allText.includes("cooking") ||
+    allText.includes("stove");
+
+  if (hasCookstoveKeywords) {
+    return "cookstove";
+  }
+
+  const hasEnergyKeywords = 
+    allText.includes("solar") || 
+    allText.includes("inverter") || 
+    allText.includes("battery") || 
+    allText.includes("mini-grid") || 
+    allText.includes("hybrid") ||
+    allText.includes("energy") ||
+    allText.includes("diesel") ||
+    allText.includes("infrastructure") ||
+    allText.includes("electricity") ||
+    allText.includes("power");
+
+  if (hasEnergyKeywords) {
+    return "energy";
+  }
+
+  // Default fallback: return null to avoid incorrect auto-mapping
+  return null;
 }
 
 export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -91,88 +245,102 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // Sector Data Isolation helpers
   const filterProperties = useCallback((properties: Property[]): Property[] => {
     if (!properties || !Array.isArray(properties)) return [];
-    return properties.filter((p) => {
-      const type = (p.property_type || "").toLowerCase();
-      if (activeSector === "cookstove") {
-        return type.includes("cooking") || type.includes("cookstove") || type.includes("residential");
+    
+    console.log("TOTAL RECORDS:", properties.length);
+    
+    const activeWorkspace = activeSector;
+    const filtered = properties.filter((record) => {
+      const mapped = mapToWorkspace(record);
+      console.log("RECORD MAPPED:", record.id, mapped);
+      
+      const keep = mapped === activeWorkspace;
+      if (!keep) {
+        console.log("DROPPED RECORD:", {
+          id: record.id,
+          reason: mapped !== activeWorkspace ? "workspace_mismatch" : "null_mapping"
+        });
       }
-      if (activeSector === "energy") {
-        return type.includes("energy") || type.includes("commercial") || type.includes("industrial");
-      }
-      if (activeSector === "transport") {
-        return type.includes("transport") || type.includes("mobility") || type.includes("vehicle");
-      }
-      if (activeSector === "afolu") {
-        return type.includes("afolu") || type.includes("forestry") || type.includes("farming") || type.includes("agricultural");
-      }
-      return false;
+      return keep;
     });
+    
+    console.log("AFTER FILTER:", filtered.length);
+    return filtered;
   }, [activeSector]);
 
   const filterActivities = useCallback((activities: Activity[]): Activity[] => {
     if (!activities || !Array.isArray(activities)) return [];
-    return activities.filter((act) => {
-      const type = (act.activity_type || "").toLowerCase();
-      if (activeSector === "cookstove") {
-        return type.includes("cooking") || type.includes("cookstove") || type.includes("biomass");
+    
+    console.log("TOTAL RECORDS:", activities.length);
+    
+    const activeWorkspace = activeSector;
+    const filtered = activities.filter((record) => {
+      const mapped = mapToWorkspace(record);
+      console.log("RECORD MAPPED:", record.id, mapped);
+      
+      const keep = mapped === activeWorkspace;
+      if (!keep) {
+        console.log("DROPPED RECORD:", {
+          id: record.id,
+          reason: mapped !== activeWorkspace ? "workspace_mismatch" : "null_mapping"
+        });
       }
-      if (activeSector === "energy") {
-        return type.includes("energy") || type.includes("hybrid_energy");
-      }
-      if (activeSector === "transport") {
-        return type.includes("transport") || type.includes("mobility") || type.includes("vehicle");
-      }
-      if (activeSector === "afolu") {
-        return type.includes("afolu") || type.includes("forestry") || type.includes("farming");
-      }
-      return false;
+      return keep;
     });
+    
+    console.log("AFTER FILTER:", filtered.length);
+    return filtered;
   }, [activeSector]);
 
   const filterCarbonLedger = useCallback((ledger: any[]): any[] => {
     if (!ledger || !Array.isArray(ledger)) return [];
-    return ledger.filter((item) => {
-      const meth = (item.methodology || item.methodology_used || "").toLowerCase();
-      const type = (item.activity_type || "").toLowerCase();
+    
+    console.log("TOTAL RECORDS:", ledger.length);
+    
+    const activeWorkspace = activeSector;
+    const filtered = ledger.filter((record) => {
+      const mapped = mapToWorkspace(record);
+      console.log("RECORD MAPPED:", record.id, mapped);
       
-      if (activeSector === "cookstove") {
-        return meth.includes("tpddtec") || meth.includes("vm0006") || meth.includes("vmr0050") || type.includes("cookstove") || type.includes("cooking");
+      const keep = mapped === activeWorkspace;
+      if (!keep) {
+        console.log("DROPPED RECORD:", {
+          id: record.id,
+          reason: mapped !== activeWorkspace ? "workspace_mismatch" : "null_mapping"
+        });
       }
-      if (activeSector === "energy") {
-        return meth.includes("ams-i.f") || meth.includes("renewable") || meth.includes("energy") || type.includes("energy");
-      }
-      if (activeSector === "transport") {
-        return meth.includes("vm0038") || meth.includes("ams-iii.c") || type.includes("transport") || type.includes("mobility");
-      }
-      if (activeSector === "afolu") {
-        return meth.includes("vm0007") || meth.includes("ar-acm0003") || type.includes("afolu") || type.includes("forestry") || type.includes("farming");
-      }
-      return false;
+      return keep;
     });
+    
+    console.log("AFTER FILTER:", filtered.length);
+    return filtered;
   }, [activeSector]);
 
   const filterAudits = useCallback((audits: any[]): any[] => {
     if (!audits || !Array.isArray(audits)) return [];
-    return audits.filter((item) => {
-      const type = (item.property_type || item.activity_type || "").toLowerCase();
-      if (activeSector === "cookstove") {
-        return type.includes("cooking") || type.includes("cookstove") || type.includes("residential");
+    
+    console.log("TOTAL RECORDS:", audits.length);
+    
+    const activeWorkspace = activeSector;
+    const filtered = audits.filter((record) => {
+      const mapped = mapToWorkspace(record);
+      console.log("RECORD MAPPED:", record.id, mapped);
+      
+      const keep = mapped === activeWorkspace;
+      if (!keep) {
+        console.log("DROPPED RECORD:", {
+          id: record.id,
+          reason: mapped !== activeWorkspace ? "workspace_mismatch" : "null_mapping"
+        });
       }
-      if (activeSector === "energy") {
-        return type.includes("energy") || type.includes("commercial") || type.includes("industrial");
-      }
-      if (activeSector === "transport") {
-        return type.includes("transport") || type.includes("mobility") || type.includes("vehicle");
-      }
-      if (activeSector === "afolu") {
-        return type.includes("afolu") || type.includes("forestry") || type.includes("farming") || type.includes("agricultural");
-      }
-      return false;
+      return keep;
     });
+    
+    console.log("AFTER FILTER:", filtered.length);
+    return filtered;
   }, [activeSector]);
 
   const isSandboxed = user ? (user.role !== "admin" && user.role !== "auditor") : true;
-  const allowedSectors = isSandboxed && user ? [normalizeSector(user.sector)] : ["cookstove", "energy", "transport", "afolu"];
+  const allowedSectors = isSandboxed && user ? [normalizeSector(user.sector)] : ["cookstove", "energy"];
 
   return (
     <WorkspaceContext.Provider

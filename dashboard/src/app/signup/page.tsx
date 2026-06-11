@@ -201,8 +201,6 @@ export default function SignupPage() {
                 >
                   <option value="cookstove">Clean Cooking (Cookstove)</option>
                   <option value="energy">Hybrid Energy (Solar/Gas/Diesel)</option>
-                  <option value="transport">Low-Carbon Transport (Fleet telemetry)</option>
-                  <option value="afolu">AFOLU (Agriculture & Forestry)</option>
                 </select>
               </div>
 

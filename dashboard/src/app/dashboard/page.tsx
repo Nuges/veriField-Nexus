@@ -90,7 +90,7 @@ const ICON_MAP: Record<string, any> = {
 };
 
 export default function RedesignedDashboardPage() {
-  const { activeSector, changeSector, user, isSandboxed, allowedSectors, filterProperties, filterActivities, filterCarbonLedger } = useWorkspace();
+  const { activeSector, changeSector, user, isSandboxed, allowedSectors, filterProperties, filterActivities, filterCarbonLedger, filterAudits } = useWorkspace();
   const [overview, setOverview] = useState<AnalyticsOverview | null>(null);
   const [trends, setTrends] = useState<AnalyticsTrends | null>(null);
   const [agents, setAgents] = useState<AgentPerformance[]>([]);
@@ -143,8 +143,12 @@ export default function RedesignedDashboardPage() {
       
       if (propertyData && propertyData.properties) {
         let props = propertyData.properties;
+        const propStatusMap: Record<string, string> = {};
+        const propEnvMap: Record<string, string> = {};
+        
         if (activityData && activityData.activities) {
-          const propStatusMap: Record<string, string> = {};
+          const envTypesByProp: Record<string, string[]> = {};
+          
           activityData.activities.forEach((act: any) => {
             if (act.property_id) {
               let stage = "Pending";
@@ -153,29 +157,41 @@ export default function RedesignedDashboardPage() {
               else if (act.status === "flagged") stage = "Flagged";
               else if (act.status === "approved") stage = "Approved";
               propStatusMap[act.property_id] = stage;
+              
+              if (act.environment_type) {
+                if (!envTypesByProp[act.property_id]) {
+                  envTypesByProp[act.property_id] = [];
+                }
+                envTypesByProp[act.property_id].push(act.environment_type);
+              }
             }
           });
-          props = props.map((p: any) => {
-            const rawType = (p.property_type || "").toLowerCase();
-            const normalizedType = (rawType === "clean_cooking" || rawType === "sustainability" || rawType === "energy" || rawType === "transport_mobility") ? "URBAN" : "RURAL";
-            const vStatus = propStatusMap[p.id] || (rawType === "farming" ? "Manual Review" : (rawType === "sustainability" ? "Approved" : "Pending"));
-            return {
-              ...p,
-              environment_type: normalizedType,
-              verification_status: vStatus,
-            };
-          });
-        } else {
-          props = props.map((p: any, idx: number) => {
-            const rawType = (p.property_type || "").toLowerCase();
-            const normalizedType = (rawType === "clean_cooking" || rawType === "sustainability" || rawType === "energy" || rawType === "transport_mobility") ? "URBAN" : "RURAL";
-            return {
-              ...p,
-              environment_type: normalizedType,
-              verification_status: idx % 5 === 0 ? "Flagged" : (idx % 3 === 0 ? "Manual Review" : (idx % 2 === 0 ? "AI Verified" : "Pending")),
-            };
+          
+          Object.keys(envTypesByProp).forEach((propId) => {
+            const list = envTypesByProp[propId];
+            const counts: Record<string, number> = {};
+            let maxCount = 0;
+            let winner = "RURAL";
+            list.forEach((type) => {
+              counts[type] = (counts[type] || 0) + 1;
+              if (counts[type] > maxCount) {
+                maxCount = counts[type];
+                winner = type;
+              }
+            });
+            propEnvMap[propId] = winner;
           });
         }
+        
+        props = props.map((p: any) => {
+          const envType = propEnvMap[p.id] || "RURAL";
+          const vStatus = propStatusMap[p.id] || "Pending";
+          return {
+            ...p,
+            environment_type: envType,
+            verification_status: vStatus,
+          };
+        });
         setProperties(props);
       }
       
@@ -213,7 +229,8 @@ export default function RedesignedDashboardPage() {
   const isolatedLedger = filterCarbonLedger(carbonLedger);
 
   const totalReductions = isolatedLedger.reduce((acc, item) => acc + (item.tco2e_generated || item.tco2e || item.tco2 || 0), 0);
-  const totalInstallations = isolatedProperties.length;
+  const uniquePropertyIds = Array.from(new Set(isolatedActivities.map(a => a.property_id).filter(Boolean)));
+  const totalInstallations = uniquePropertyIds.length;
 
   // Cookstove calculations
   const cookstoveUsageRate = () => {
@@ -331,13 +348,11 @@ export default function RedesignedDashboardPage() {
     }
     if (key === "active_utilization_rate") {
       const rate = cookstoveUsageRate();
-      return rate > 0 ? `${rate.toFixed(1)}%` : "—";
+      return rate > 0 ? `${rate.toFixed(1)}%` : "No data yet";
     }
     if (key === "portfolio_value_usd") {
       let price = 15;
       if (activeSector === "energy") price = 30;
-      else if (activeSector === "transport") price = 20;
-      else if (activeSector === "afolu") price = 25;
       return "$" + (totalReductions * price).toLocaleString(undefined, { maximumFractionDigits: 0 });
     }
     if (key === "total_generation_mwh") {
@@ -469,10 +484,63 @@ export default function RedesignedDashboardPage() {
     }).sort((a, b) => a.date.localeCompare(b.date));
   };
 
+  // Helper to compute dynamic trust scores from active workspace activities
+  const getDynamicTrustBreakdown = () => {
+    let totalGps = 0;
+    let maxGps = 0;
+    let totalImage = 0;
+    let maxImage = 0;
+    let totalFreq = 0;
+    let maxFreq = 0;
+    let count = 0;
+
+    isolatedActivities.forEach((act) => {
+      const breakdown = act.trust_flags?.scoring_breakdown as any;
+      if (breakdown) {
+        if (breakdown.gps) {
+          totalGps += breakdown.gps.final_score ?? 0;
+          maxGps += breakdown.gps.max_weight ?? 30.0;
+        }
+        if (breakdown.image) {
+          totalImage += breakdown.image.final_score ?? 0;
+          maxImage += breakdown.image.max_weight ?? 40.0;
+        }
+        if (breakdown.frequency) {
+          totalFreq += breakdown.frequency.final_score ?? 0;
+          maxFreq += breakdown.frequency.max_weight ?? 30.0;
+        }
+        count++;
+      }
+    });
+
+    if (count === 0) {
+      return {
+        gpsScore: 0,
+        gpsMax: 30,
+        imageScore: 0,
+        imageMax: 40,
+        freqScore: 0,
+        freqMax: 30,
+      };
+    }
+
+    return {
+      gpsScore: totalGps / count,
+      gpsMax: maxGps / count,
+      imageScore: totalImage / count,
+      imageMax: maxImage / count,
+      freqScore: totalFreq / count,
+      freqMax: maxFreq / count,
+    };
+  };
+
+  const dynamicTrust = getDynamicTrustBreakdown();
+
   const chartData = getChartData();
 
   const defaultAgents = agents;
-  const defaultAnomalies = anomalies;
+  const isolatedAnomalies = filterAudits(anomalies);
+  const defaultAnomalies = isolatedAnomalies;
   const defaultProperties = isolatedProperties;
 
   // Helper functions to get dynamic pipeline stage metrics
@@ -525,18 +593,27 @@ export default function RedesignedDashboardPage() {
   useEffect(() => {
     if (defaultProperties.length > 0 && !mapSelectedPoint) {
       const p = defaultProperties[0];
+      const matchingActivity = activities.find((act: any) => act.property_id === p.id);
+      const realTrustScore = matchingActivity
+        ? (matchingActivity.trust_score ?? 100)
+        : (p.sustainability_metrics?.trust_score ?? 100);
+      const matchingLedger = matchingActivity ? isolatedLedger.find((item: any) => item.activity_id === matchingActivity.id) : null;
+      const realCo2 = matchingLedger 
+        ? (matchingLedger.tco2e_generated || matchingLedger.tco2e || 0)
+        : (p.sustainability_metrics?.tco2e || 0);
+      const realDuplicateFlag = matchingActivity ? matchingActivity.duplicate_flag : false;
+      
       setMapSelectedPoint({
         name: p.name,
-        lat: p.latitude || 6.5244,
-        lng: p.longitude || 3.3792,
-        trust: 92,
+        lat: p.latitude || 9.0820,
+        lng: p.longitude || 8.6753,
+        trust: Math.round(realTrustScore),
         type: p.environment_type || "RURAL",
-        co2e: p.sustainability_metrics?.carbon_offset_kg 
-          ? (Number(p.sustainability_metrics.carbon_offset_kg) / 1000.0) 
-          : (p.sustainability_metrics?.tco2e || 4.8),
+        co2e: realCo2,
+        duplicateFlag: realDuplicateFlag,
       });
     }
-  }, [properties]);
+  }, [properties, activities, isolatedLedger]);
 
   const triggerVerraExport = async () => {
     setIsExportingVerra(true);
@@ -635,8 +712,6 @@ export default function RedesignedDashboardPage() {
               >
                 <option value="cookstove" className="bg-[var(--color-surface)] text-[var(--color-text-primary)]">Clean Cooking</option>
                 <option value="energy" className="bg-[var(--color-surface)] text-[var(--color-text-primary)]">Hybrid Energy</option>
-                <option value="transport" className="bg-[var(--color-surface)] text-[var(--color-text-primary)]">Low-Carbon Transport</option>
-                <option value="afolu" className="bg-[var(--color-surface)] text-[var(--color-text-primary)]">AFOLU Forestry</option>
               </select>
             </div>
           )}
@@ -786,18 +861,30 @@ export default function RedesignedDashboardPage() {
               </div>
 
               {/* Validation circular boundaries */}
-              {mapSelectedPoint && (
-                <div 
-                  className="absolute rounded-full border border-dashed border-[#00B47A]/30 bg-[#00B47A]/5"
-                  style={{
-                    width: "120px",
-                    height: "120px",
-                    left: "35%",
-                    top: "22%",
-                    transform: "translate(-50%, -50%)",
-                  }}
-                />
-              )}
+              {mapSelectedPoint && (() => {
+                const minLat = 4.0;
+                const maxLat = 14.0;
+                const minLng = 2.0;
+                const maxLng = 15.0;
+                const clampedLat = Math.max(minLat, Math.min(maxLat, mapSelectedPoint.lat));
+                const clampedLng = Math.max(minLng, Math.min(maxLng, mapSelectedPoint.lng));
+                const leftPct = ((clampedLng - minLng) / (maxLng - minLng)) * 100;
+                const topPct = (1.0 - (clampedLat - minLat) / (maxLat - minLat)) * 100;
+                const styleLeft = `${Math.max(5, Math.min(95, leftPct))}%`;
+                const styleTop = `${Math.max(5, Math.min(95, topPct))}%`;
+                return (
+                  <div 
+                    className="absolute rounded-full border border-dashed border-[#00B47A]/30 bg-[#00B47A]/5 pointer-events-none"
+                    style={{
+                      width: "120px",
+                      height: "120px",
+                      left: styleLeft,
+                      top: styleTop,
+                      transform: "translate(-50%, -50%)",
+                    }}
+                  />
+                );
+              })()}
 
               {/* Point plots */}
               <div className="absolute inset-0">
@@ -809,10 +896,7 @@ export default function RedesignedDashboardPage() {
                 }).length === 0 && (
                   <div className="absolute inset-0 flex items-center justify-center p-4 text-center bg-black/5 dark:bg-white/5 backdrop-blur-[1px] z-10 animate-fade-in">
                     <p className="text-[10px] font-bold text-[var(--color-text-secondary)] bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-2.5 shadow-sm">
-                      No {activeSector === "cookstove" ? "cookstoves" : 
-                          activeSector === "energy" ? "hybrid energy systems" : 
-                          activeSector === "transport" ? "low-carbon vehicles" : 
-                          "AFOLU forestry plots"} registered for stage:<br />
+                      No {activeSector === "cookstove" ? "cookstoves" : "hybrid energy systems"} registered for stage:<br />
                       <span className="text-[#00B47A]">{selectedPipelineStage}</span> ({mapUrbanToggle ? "Urban" : "Rural"})
                     </p>
                   </div>
@@ -831,23 +915,52 @@ export default function RedesignedDashboardPage() {
 
                   const isSelected = mapSelectedPoint && mapSelectedPoint.name === p.name;
 
+                  // Project coordinates dynamically onto the Nigeria visual bounding box (for CSS left/top)
+                  const minLat = 4.0;
+                  const maxLat = 14.0;
+                  const minLng = 2.0;
+                  const maxLng = 15.0;
+
+                  const lat = p.latitude || (9.0820 + (idx % 5 - 2) * 1.5);
+                  const lng = p.longitude || (8.6753 + (Math.floor(idx / 5) % 5 - 2) * 1.5);
+
+                  const clampedLat = Math.max(minLat, Math.min(maxLat, lat));
+                  const clampedLng = Math.max(minLng, Math.min(maxLng, lng));
+
+                  const leftPct = ((clampedLng - minLng) / (maxLng - minLng)) * 100;
+                  const topPct = (1.0 - (clampedLat - minLat) / (maxLat - minLat)) * 100;
+
+                  const styleLeft = `${Math.max(5, Math.min(95, leftPct))}%`;
+                  const styleTop = `${Math.max(5, Math.min(95, topPct))}%`;
+
                   return (
                     <button
                       key={p.id}
-                      onClick={() => setMapSelectedPoint({
-                        name: p.name,
-                        lat: p.latitude || 6.5244 + idx * 0.005,
-                        lng: p.longitude || 3.3792 - idx * 0.005,
-                        trust: p.verification_status === "Flagged" ? 41 : (p.verification_status === "Manual Review" ? 68 : 94),
-                        type: p.environment_type,
-                        co2e: p.sustainability_metrics?.carbon_offset_kg 
-                          ? (Number(p.sustainability_metrics.carbon_offset_kg) / 1000.0) 
-                          : (p.sustainability_metrics?.tco2e || 4.8),
-                      })}
+                      onClick={() => {
+                        const matchingActivity = activities.find((act: any) => act.property_id === p.id);
+                        const realTrustScore = matchingActivity
+                          ? (matchingActivity.trust_score ?? 100)
+                          : (p.sustainability_metrics?.trust_score ?? 100);
+                        const matchingLedger = matchingActivity ? isolatedLedger.find((item: any) => item.activity_id === matchingActivity.id) : null;
+                        const realCo2 = matchingLedger 
+                          ? (matchingLedger.tco2e_generated || matchingLedger.tco2e || 0)
+                          : (p.sustainability_metrics?.tco2e || 0);
+                        const realDuplicateFlag = matchingActivity ? matchingActivity.duplicate_flag : false;
+
+                        setMapSelectedPoint({
+                          name: p.name,
+                          lat: p.latitude || 9.0820,
+                          lng: p.longitude || 8.6753,
+                          trust: Math.round(realTrustScore),
+                          type: p.environment_type,
+                          co2e: realCo2,
+                          duplicateFlag: realDuplicateFlag,
+                        });
+                      }}
                       className="absolute p-0.5 focus:outline-none transition-transform hover:scale-125"
                       style={{
-                        left: `${25 + (idx * 20)}%`,
-                        top: `${30 + (idx * 15)}%`,
+                        left: styleLeft,
+                        top: styleTop,
                       }}
                     >
                       <div className={`w-2.5 h-2.5 rounded-full ${colorClass} ring-1 ring-white shadow relative`}>
@@ -890,7 +1003,9 @@ export default function RedesignedDashboardPage() {
                       </div>
                       <div className="flex justify-between">
                         <span className="text-[var(--color-text-muted)]">Overlap check:</span>
-                        <span className="text-[#00B47A] font-semibold">Valid</span>
+                        <span className={mapSelectedPoint.duplicateFlag ? "text-red-500 font-bold" : "text-[#00B47A] font-semibold"}>
+                          {mapSelectedPoint.duplicateFlag ? "Duplicate Match" : "Valid"}
+                        </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-[var(--color-text-muted)]">Emission reduction:</span>
@@ -984,17 +1099,11 @@ export default function RedesignedDashboardPage() {
           {[
             { 
               id: "activity", 
-              label: activeSector === "energy" ? "Offset reductions & generation" :
-                     activeSector === "transport" ? "Offset reductions & fleet" :
-                     activeSector === "afolu" ? "Carbon sequestration & forestry" :
-                     "Offset reductions & cookstoves", 
-              icon: activeSector === "energy" ? Zap :
-                    activeSector === "transport" ? Fuel :
-                    activeSector === "afolu" ? Leaf :
-                    Flame 
+              label: activeSector === "energy" ? "Offset reductions & generation" : "Offset reductions & cookstoves", 
+              icon: activeSector === "energy" ? Zap : Flame 
             },
             { id: "trust", label: "Trust Engine weighted variables", icon: Shield },
-            { id: "risk", label: `Anomaly center (${defaultOverview.flagged_activities} alerts)`, icon: AlertTriangle },
+            { id: "risk", label: `Anomaly center (${defaultAnomalies.filter(a => !a.resolved).length} alerts)`, icon: AlertTriangle },
             { id: "agents", label: "Field Agent analytics", icon: Users },
           ].map((tab) => {
             const Icon = tab.icon;
@@ -1184,109 +1293,7 @@ export default function RedesignedDashboardPage() {
                     </table>
                   )}
 
-                  {activeSector === "transport" && (
-                    <table className="w-full text-left border-collapse">
-                      <thead>
-                        <tr className="bg-[var(--color-background)]/40 border-b border-[var(--color-border)] text-[9px] uppercase font-bold text-[var(--color-text-muted)]">
-                          <th className="p-3">Vehicle ID</th>
-                          <th className="p-3">Drivetrain Type</th>
-                          <th className="p-3">Daily Mileage</th>
-                          <th className="p-3">Displacement</th>
-                          <th className="p-3 text-center">Trust Index</th>
-                          <th className="p-3 text-center">Status</th>
-                          <th className="p-3 text-right">Captured</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-[var(--color-border)]/70 text-xs">
-                        {isolatedActivities.length === 0 ? (
-                          <tr>
-                            <td colSpan={7} className="p-6 text-center text-[var(--color-text-muted)]">No active low-carbon transport logs found.</td>
-                          </tr>
-                        ) : (
-                          isolatedActivities.map((act) => {
-                            const ad = act.activity_data || {};
-                            const vehicleId = ad.vehicle_id || act.client_id || act.id;
-                            const type = (ad.drivetrain_type as string) || (ad.vehicle_type as string) || act.activity_type || "—";
-                            const mileage = (ad.daily_mileage as string) || (ad.mileage as string) || "—";
-                            const fuel = (ad.fuel_displaced as string) || (ad.fuel as string) || "—";
-                            const trust = act.trust_score ?? 0;
-                            const date = act.captured_at ? act.captured_at.split("T")[0] : (act.created_at ? act.created_at.split("T")[0] : "—");
-                            return (
-                              <tr key={act.id} className="hover:bg-[var(--color-background)]/30 transition-colors">
-                                <td className="p-3 font-mono font-bold text-blue-500">{String(vehicleId).substring(0, 10)}</td>
-                                <td className="p-3 font-semibold text-[var(--color-text-primary)]">{type}</td>
-                                <td className="p-3 text-[var(--color-text-secondary)]">{mileage} km</td>
-                                <td className="p-3 text-[var(--color-text-secondary)]">{fuel}</td>
-                                <td className="p-3 text-center text-blue-400 font-bold">{trust > 0 ? `${trust}%` : "—"}</td>
-                                <td className="p-3 text-center">
-                                  <span className={`px-2 py-0.5 rounded text-[8px] font-extrabold border ${
-                                    act.status === "verified" || act.status === "approved"
-                                      ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                                      : "bg-blue-500/10 text-blue-400 border-blue-500/20"
-                                  }`}>
-                                    {(act.status || "pending").toUpperCase()}
-                                  </span>
-                                </td>
-                                <td className="p-3 text-right text-[var(--color-text-secondary)]">{date}</td>
-                              </tr>
-                            );
-                          })
-                        )}
-                      </tbody>
-                    </table>
-                  )}
 
-                  {activeSector === "afolu" && (
-                    <table className="w-full text-left border-collapse">
-                      <thead>
-                        <tr className="bg-[var(--color-background)]/40 border-b border-[var(--color-border)] text-[9px] uppercase font-bold text-[var(--color-text-muted)]">
-                          <th className="p-3">Zone ID</th>
-                          <th className="p-3">Activity Type</th>
-                          <th className="p-3">NDVI Index</th>
-                          <th className="p-3">Hectares</th>
-                          <th className="p-3 text-center">Trust Index</th>
-                          <th className="p-3 text-center">Status</th>
-                          <th className="p-3 text-right">Captured</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-[var(--color-border)]/70 text-xs">
-                        {isolatedActivities.length === 0 ? (
-                          <tr>
-                            <td colSpan={7} className="p-6 text-center text-[var(--color-text-muted)]">No active AFOLU forestry logs found.</td>
-                          </tr>
-                        ) : (
-                          isolatedActivities.map((act) => {
-                            const ad = act.activity_data || {};
-                            const zoneId = ad.zone_id || act.client_id || act.id;
-                            const type = (ad.project_type as string) || (ad.activity_type as string) || act.activity_type || "—";
-                            const canopy = (ad.ndvi_value as string) || (ad.canopy as string) || "—";
-                            const area = (ad.hectares as string) || (ad.area as string) || "—";
-                            const trust = act.trust_score ?? 0;
-                            const date = act.captured_at ? act.captured_at.split("T")[0] : (act.created_at ? act.created_at.split("T")[0] : "—");
-                            return (
-                              <tr key={act.id} className="hover:bg-[var(--color-background)]/30 transition-colors">
-                                <td className="p-3 font-mono font-bold text-emerald-500">{String(zoneId).substring(0, 10)}</td>
-                                <td className="p-3 font-semibold text-[var(--color-text-primary)]">{type}</td>
-                                <td className="p-3 text-[var(--color-text-secondary)]">{canopy}</td>
-                                <td className="p-3 text-[var(--color-text-secondary)]">{area} Hectares</td>
-                                <td className="p-3 text-center text-emerald-400 font-bold">{trust > 0 ? `${trust}%` : "—"}</td>
-                                <td className="p-3 text-center">
-                                  <span className={`px-2 py-0.5 rounded text-[8px] font-extrabold border ${
-                                    act.status === "verified" || act.status === "approved"
-                                      ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                                      : "bg-amber-500/10 text-amber-400 border-amber-500/20"
-                                  }`}>
-                                    {(act.status || "pending").toUpperCase()}
-                                  </span>
-                                </td>
-                                <td className="p-3 text-right text-[var(--color-text-secondary)]">{date}</td>
-                              </tr>
-                            );
-                          })
-                        )}
-                      </tbody>
-                    </table>
-                  )}
                 </div>
               </div>
 
@@ -1306,31 +1313,31 @@ export default function RedesignedDashboardPage() {
                 <div className="space-y-2 text-[10px]">
                   <div>
                     <div className="flex justify-between font-semibold mb-0.5">
-                      <span>GPS Overlap (Weight: 30%)</span>
-                      <span className="text-[#00B47A]">{defaultOverview.total_submissions > 0 ? "28 / 30" : "0 / 30"}</span>
+                      <span>GPS Overlap (Weight: {dynamicTrust.gpsMax.toFixed(0)}%)</span>
+                      <span className="text-[#00B47A]">{isolatedActivities.length > 0 ? `${dynamicTrust.gpsScore.toFixed(1)} / ${dynamicTrust.gpsMax.toFixed(0)}` : `0 / ${dynamicTrust.gpsMax.toFixed(0)}`}</span>
                     </div>
                     <div className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-full h-1.5">
-                      <div className="bg-[#00B47A] h-1.5 rounded-full" style={{ width: defaultOverview.total_submissions > 0 ? "93%" : "0%" }} />
+                      <div className="bg-[#00B47A] h-1.5 rounded-full" style={{ width: isolatedActivities.length > 0 ? `${(dynamicTrust.gpsScore / (dynamicTrust.gpsMax || 1)) * 100}%` : "0%" }} />
                     </div>
                   </div>
 
                   <div>
                     <div className="flex justify-between font-semibold mb-0.5">
-                      <span>Photo authenticity Hash (Weight: 35%)</span>
-                      <span className="text-[#00B47A]">{defaultOverview.total_submissions > 0 ? "32 / 35" : "0 / 35"}</span>
+                      <span>Photo authenticity Hash (Weight: {dynamicTrust.imageMax.toFixed(0)}%)</span>
+                      <span className="text-[#00B47A]">{isolatedActivities.length > 0 ? `${dynamicTrust.imageScore.toFixed(1)} / ${dynamicTrust.imageMax.toFixed(0)}` : `0 / ${dynamicTrust.imageMax.toFixed(0)}`}</span>
                     </div>
                     <div className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-full h-1.5">
-                      <div className="bg-[#00B47A] h-1.5 rounded-full" style={{ width: defaultOverview.total_submissions > 0 ? "91%" : "0%" }} />
+                      <div className="bg-[#00B47A] h-1.5 rounded-full" style={{ width: isolatedActivities.length > 0 ? `${(dynamicTrust.imageScore / (dynamicTrust.imageMax || 1)) * 100}%` : "0%" }} />
                     </div>
                   </div>
 
                   <div>
                     <div className="flex justify-between font-semibold mb-0.5">
-                      <span>Agent Behavior Speed (Weight: 20%)</span>
-                      <span className="text-[#00B47A]">{defaultOverview.total_submissions > 0 ? "18 / 20" : "0 / 20"}</span>
+                      <span>Agent Behavior Speed (Weight: {dynamicTrust.freqMax.toFixed(0)}%)</span>
+                      <span className="text-[#00B47A]">{isolatedActivities.length > 0 ? `${dynamicTrust.freqScore.toFixed(1)} / ${dynamicTrust.freqMax.toFixed(0)}` : `0 / ${dynamicTrust.freqMax.toFixed(0)}`}</span>
                     </div>
                     <div className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-full h-1.5">
-                      <div className="bg-[#00B47A] h-1.5 rounded-full" style={{ width: defaultOverview.total_submissions > 0 ? "90%" : "0%" }} />
+                      <div className="bg-[#00B47A] h-1.5 rounded-full" style={{ width: isolatedActivities.length > 0 ? `${(dynamicTrust.freqScore / (dynamicTrust.freqMax || 1)) * 100}%` : "0%" }} />
                     </div>
                   </div>
                 </div>
@@ -1341,9 +1348,7 @@ export default function RedesignedDashboardPage() {
                 <div className="flex items-center justify-between mb-3 border-b border-[var(--color-border)] pb-2">
                   <h4 className="text-[10px] uppercase font-bold text-[var(--color-text-muted)]">
                     {activeSector === "cookstove" ? "Installed cookstove model types" :
-                     activeSector === "energy" ? "Installed hybrid energy system types" :
-                     activeSector === "transport" ? "Installed low-carbon vehicle types" :
-                     "Installed AFOLU forestry project types"}
+                     "Installed hybrid energy system types"}
                   </h4>
                   <span className="text-[8px] text-[var(--color-text-muted)]">Methodology Compliant</span>
                 </div>

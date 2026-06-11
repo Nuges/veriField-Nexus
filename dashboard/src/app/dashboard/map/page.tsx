@@ -199,7 +199,7 @@ export default function MapPage() {
                 const popupContent = \`
                   <div>
                     <h3>\${p.name}</h3>
-                    <p><strong>Type:</strong> \${p.type === 'CLEAN_COOKING' ? 'Clean Cookstove' : p.type === 'HYBRID_ENERGY' ? 'Hybrid Energy System' : p.type === 'LOW_CARBON_TRANSPORT' ? 'Low-Carbon Vehicle' : 'AFOLU Forestry Plot'}</p>
+                    <p><strong>Type:</strong> \${p.type === 'CLEAN_COOKING' ? 'Clean Cookstove' : 'Hybrid Energy System'}</p>
                     <p><strong>Carbon Offset:</strong> \${p.offset} tCO2e/yr</p>
                     <p><strong>Registered:</strong> \${p.created}</p>
                     <p><strong>Coords:</strong> \${p.lat.toFixed(6)}, \${p.lng.toFixed(6)}</p>
@@ -367,9 +367,7 @@ export default function MapPage() {
         {!isLoading && !apiOffline && activeProps.length === 0 && (
           <div className="mt-2 px-3 py-1.5 bg-blue-500/10 border border-blue-500/20 rounded-lg text-[10px] text-blue-400 font-semibold">
             No GPS-tagged {activeSector === "cookstove" ? "cookstoves" : 
-                            activeSector === "energy" ? "hybrid energy systems" : 
-                            activeSector === "transport" ? "low-carbon vehicles" : 
-                            "AFOLU forestry plots"} found. Register assets with GPS coordinates from the mobile app to see them here.
+                            "hybrid energy systems"} found. Register assets with GPS coordinates from the mobile app to see them here.
           </div>
         )}
       </div>

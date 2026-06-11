@@ -249,9 +249,7 @@ export default function AuditsPage() {
               <tr className="bg-[var(--color-background)]/40 border-b border-[var(--color-border)]">
                 <th className="p-4 text-[10px] font-extrabold text-[var(--color-text-muted)] uppercase tracking-wider">
                   {activeSector === "cookstove" ? "Target Asset / Cookstove" :
-                   activeSector === "energy" ? "Target Asset / Energy System" :
-                   activeSector === "transport" ? "Target Asset / Low-Carbon Vehicle" :
-                   "Target Asset / Forestry Zone"}
+                   "Target Asset / Energy System"}
                 </th>
                 <th className="p-4 text-[10px] font-extrabold text-[var(--color-text-muted)] uppercase tracking-wider">Assigned Agent</th>
                 <th className="p-4 text-[10px] font-extrabold text-[var(--color-text-muted)] uppercase tracking-wider">Ledger Status</th>
@@ -437,9 +435,7 @@ export default function AuditsPage() {
               <div>
                 <label className="block text-[10px] font-extrabold text-[var(--color-text-muted)] uppercase tracking-wider mb-1.5">
                   {activeSector === "cookstove" ? "Target Clean Cookstove Spec" :
-                   activeSector === "energy" ? "Target Hybrid Energy System Spec" :
-                   activeSector === "transport" ? "Target Low-Carbon Vehicle Spec" :
-                   "Target AFOLU Forestry Zone Spec"}
+                   "Target Hybrid Energy System Spec"}
                 </label>
                 <select 
                   className="w-full bg-[var(--color-background)] border border-[var(--color-border)] rounded-xl px-3 py-2.5 text-xs text-[var(--color-text-primary)] outline-none focus:border-[#00B47A]/50 transition-all font-semibold"

@@ -30,8 +30,13 @@ import {
 import { fetchActivities } from "@/lib/api";
 import type { Activity, ActivityListResponse } from "@/lib/types";
 import TrustBadge from "@/components/TrustBadge";
+import { useWorkspace } from "@/context/WorkspaceContext";
+import { getSectorConfig } from "@/lib/sectorConfig";
 
 export default function ActivitiesPage() {
+  const { activeSector } = useWorkspace();
+  const sectorConfig = getSectorConfig(activeSector);
+
   const [data, setData] = useState<ActivityListResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
@@ -45,11 +50,27 @@ export default function ActivitiesPage() {
 
   const router = useRouter();
 
+  // Reset filters when active sector changes
+  useEffect(() => {
+    setActivityType("");
+    setStatus("");
+    setPage(1);
+    setSearchQuery("");
+  }, [activeSector]);
+
   const loadActivities = async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const res = await fetchActivities({ page, per_page: 20, activity_type: activityType, status });
+      let typeParam = activityType;
+      if (!typeParam) {
+        if (activeSector === "cookstove") {
+          typeParam = "CLEAN_COOKING";
+        } else if (activeSector === "energy") {
+          typeParam = "HYBRID_ENERGY";
+        }
+      }
+      const res = await fetchActivities({ page, per_page: 20, activity_type: typeParam, status });
       setData(res);
       setLastUpdated(new Date());
     } catch (err: any) {
@@ -69,14 +90,8 @@ export default function ActivitiesPage() {
     }, 5000);
     
     return () => clearInterval(interval);
-  }, [page, activityType, status]);
+  }, [page, activityType, status, activeSector]);
 
-  // Derived metrics from current activities view
-  const totalSubmissionsCount = data?.total || 0;
-  const highTrustActivitiesCount = data?.activities.filter(a => (a.trust_score ?? 0) >= 80).length || 0;
-  const flaggedCount = data?.activities.filter(a => a.status === "flagged" || a.duplicate_flag).length || 0;
-  const reviewCount = data?.activities.filter(a => a.status === "review" || a.status === "pending").length || 0;
-  
   // Client-side search query logic
   const filteredActivities = data?.activities.filter(a => {
     if (!searchQuery) return true;
@@ -87,6 +102,12 @@ export default function ActivitiesPage() {
     const idStr = (a.id || "").toLowerCase();
     return agentName.includes(query) || userId.includes(query) || actType.includes(query) || idStr.includes(query);
   }) || [];
+
+  // Derived metrics from current activities view (filtered client-side by query)
+  const totalSubmissionsCount = filteredActivities.length;
+  const highTrustActivitiesCount = filteredActivities.filter(a => (a.trust_score ?? 0) >= 80).length || 0;
+  const flaggedCount = filteredActivities.filter(a => a.status === "flagged" || a.duplicate_flag).length || 0;
+  const reviewCount = filteredActivities.filter(a => a.status === "review" || a.status === "pending").length || 0;
 
   // Dynamic labelling formatter matching Flutter logic
   const formatStoveModel = (model: string) => {
@@ -135,17 +156,19 @@ export default function ActivitiesPage() {
         <div>
           <div className="flex items-center gap-2">
             <span className="px-2.5 py-0.5 rounded bg-[#00B47A]/10 text-[#00B47A] text-[9px] font-extrabold tracking-wider uppercase">
-              Gold Standard TPDDTEC v3.1
+              {sectorConfig.methodology}
             </span>
             <span className="text-[10px] text-[var(--color-text-secondary)] font-semibold flex items-center gap-1">
               <Sparkles size={11} className="text-[#00B47A]" /> Digital MRV Capture Ledger
             </span>
           </div>
           <h1 className="text-xl font-bold tracking-tight text-[var(--color-text-primary)] mt-1">
-            Field Installation Records
+            {activeSector === "cookstove" ? "Field Installation Records" : "Energy Telemetry & Site Records"}
           </h1>
           <p className="text-[var(--color-text-secondary)] text-xs mt-0.5">
-            Review, filter, and audit near real-time field installation uploads, verification logs, and trust scores.
+            {activeSector === "cookstove" 
+              ? "Review, filter, and audit near real-time field installation uploads, verification logs, and trust scores."
+              : "Review, filter, and audit smart hybrid energy inverter telemetry records, solar metrics, and logs."}
           </p>
         </div>
         
@@ -234,9 +257,17 @@ export default function ActivitiesPage() {
             onChange={(e) => { setActivityType(e.target.value); setPage(1); }}
             className="bg-[var(--color-background)] border border-[var(--color-border)] rounded-xl px-3 py-1.5 text-xs font-semibold text-[var(--color-text-primary)] focus:outline-none focus:border-[#00B47A] focus:ring-1 focus:ring-[#00B47A]/30 transition-all cursor-pointer"
           >
-            <option value="">All Activity Types</option>
-            <option value="CLEAN_COOKING">Clean Cooking</option>
-            <option value="HYBRID_ENERGY">Hybrid Energy</option>
+            {activeSector === "cookstove" ? (
+              <>
+                <option value="">All Cookstove Types</option>
+                <option value="CLEAN_COOKING">Clean Cooking</option>
+              </>
+            ) : (
+              <>
+                <option value="">All Energy Types</option>
+                <option value="HYBRID_ENERGY">Hybrid Energy</option>
+              </>
+            )}
           </select>
 
           <select 

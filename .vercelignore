@@ -1,0 +1,24 @@
+# Exclude backend and virtual environment
+backend/
+venv/
+.pytest_cache/
+
+# Exclude mobile Flutter application
+mobile/
+
+# Exclude smart contracts
+contracts/
+
+# Exclude scratch scripts
+scratch/
+
+# Exclude local build artifacts and node modules
+node_modules/
+**/node_modules/
+.next/
+out/
+build/
+dist/
+*.log
+.git/
+.vercel/

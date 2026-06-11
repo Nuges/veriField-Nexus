@@ -38,3 +38,5 @@ target/
 # Local logs
 *.log
 backend/uvicorn.log
+.vercel
+.env*.local

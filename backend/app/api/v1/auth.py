@@ -323,6 +323,7 @@ async def login(
                 email=user_email,
                 full_name=payload.email.split("@")[0].replace(".", " ").title() if payload.email else "Dev Admin",
                 role="admin",
+                sector="cookstove",
                 created_at=now,
                 updated_at=now,
             )

@@ -64,8 +64,6 @@ export default function POAPortfolioPage() {
   // Aggregated data states
   const [cookstoveCO2, setCookstoveCO2] = useState<number>(0);
   const [energyCO2, setEnergyCO2] = useState<number>(0);
-  const [transportCO2, setTransportCO2] = useState<number>(0);
-  const [afoluCO2, setAfoluCO2] = useState<number>(0);
 
   const [creditsIssued, setCreditsIssued] = useState<number>(0);
   const [pendingVerification, setPendingVerification] = useState<number>(0);
@@ -101,8 +99,6 @@ export default function POAPortfolioPage() {
       // Dynamic grouping by methodology
       let cookstoveTotal = 0;
       let energyTotal = 0;
-      let transportTotal = 0;
-      let afoluTotal = 0;
 
       let actualIssued = 0;
       let actualPending = 0;
@@ -123,12 +119,6 @@ export default function POAPortfolioPage() {
               meth.includes("gs_")
             ) {
               cookstoveTotal += val;
-            } else if (meth.includes("energy") || meth.includes("ams-i.f") || meth.includes("renewable")) {
-              energyTotal += val;
-            } else if (meth.includes("vm0038") || meth.includes("ams-iii.c") || meth.includes("transport")) {
-              transportTotal += val;
-            } else if (meth.includes("vm0007") || meth.includes("ar-acm0003") || meth.includes("afolu") || meth.includes("forestry")) {
-              afoluTotal += val;
             } else {
               // Fallback
               cookstoveTotal += val;
@@ -154,8 +144,6 @@ export default function POAPortfolioPage() {
 
       setCookstoveCO2(cookstoveTotal);
       setEnergyCO2(energyTotal);
-      setTransportCO2(transportTotal);
-      setAfoluCO2(afoluTotal);
 
       setCreditsIssued(actualIssued);
       setPendingVerification(actualPending);
@@ -179,8 +167,6 @@ export default function POAPortfolioPage() {
       const rows = [];
       if (cookstoveCO2 > 0) rows.push(`"POA-NEXUS-01","Cookstove","Gold Standard TPDDTEC v3.1",${cookstoveCO2.toFixed(2)},"verified"`);
       if (energyCO2 > 0) rows.push(`"POA-NEXUS-02","Energy","Verra AMS-I.F",${energyCO2.toFixed(2)},"verified"`);
-      if (transportCO2 > 0) rows.push(`"POA-NEXUS-03","Transport","Verra VM0038",${transportCO2.toFixed(2)},"verified"`);
-      if (afoluCO2 > 0) rows.push(`"POA-NEXUS-04","AFOLU","Verra VM0007",${afoluCO2.toFixed(2)},"verified"`);
 
       const blob = new Blob([[headers, ...rows].join("\n")], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
@@ -210,8 +196,6 @@ export default function POAPortfolioPage() {
       };
       if (cookstoveCO2 > 0) mockData.sectors.cookstove = cookstoveCO2;
       if (energyCO2 > 0) mockData.sectors.energy = energyCO2;
-      if (transportCO2 > 0) mockData.sectors.transport = transportCO2;
-      if (afoluCO2 > 0) mockData.sectors.afolu = afoluCO2;
 
       const blob = new Blob([JSON.stringify(mockData, null, 2)], { type: "application/json" });
       const url = URL.createObjectURL(blob);
@@ -253,23 +237,19 @@ export default function POAPortfolioPage() {
   }
 
   // Derive metrics
-  const totalYield = cookstoveCO2 + energyCO2 + transportCO2 + afoluCO2;
+  const totalYield = cookstoveCO2 + energyCO2;
 
   // Active project sectors calculation dynamically
   const activeSectorsList = [
     { name: "Cookstove", yield: cookstoveCO2 },
-    { name: "Energy", yield: energyCO2 },
-    { name: "Transport", yield: transportCO2 },
-    { name: "AFOLU", yield: afoluCO2 }
+    { name: "Energy", yield: energyCO2 }
   ].filter(s => s.yield > 0);
   const activeSectorsCount = activeSectorsList.length;
 
   // Sector mix data
   const pieData = [
     { name: "Cookstove (Clean Cooking)", value: parseFloat(cookstoveCO2.toFixed(2)) },
-    { name: "Hybrid Energy Systems", value: parseFloat(energyCO2.toFixed(2)) },
-    { name: "Low-Carbon Transport", value: parseFloat(transportCO2.toFixed(2)) },
-    { name: "AFOLU Forestry", value: parseFloat(afoluCO2.toFixed(2)) }
+    { name: "Hybrid Energy Systems", value: parseFloat(energyCO2.toFixed(2)) }
   ].filter(d => d.value > 0);
 
   const rings = pieData.map((item, idx) => {
@@ -285,8 +265,6 @@ export default function POAPortfolioPage() {
       icon = Flame;
     } else if (item.name.toLowerCase().includes("energy") || item.name.toLowerCase().includes("inverter")) {
       icon = Zap;
-    } else if (item.name.toLowerCase().includes("transport") || item.name.toLowerCase().includes("vehicle")) {
-      icon = Compass;
     }
     
     return {
@@ -329,7 +307,7 @@ export default function POAPortfolioPage() {
             POA Portfolio Performance
           </h1>
           <p className="text-[var(--color-text-secondary)] text-xs mt-0.5">
-            Consolidated analytics across Clean Cooking, Hybrid Energy, Transport, and Forestry modules.
+            Consolidated analytics across Clean Cooking and Hybrid Energy modules.
           </p>
         </div>
       </div>

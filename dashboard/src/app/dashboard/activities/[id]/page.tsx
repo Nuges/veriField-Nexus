@@ -256,38 +256,8 @@ export default function ActivityDetailPage() {
     loadData();
   }, [id]);
 
-  if (isLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center h-[400px] space-y-3">
-        <div className="w-8 h-8 border-2 border-[#00B47A] border-t-transparent rounded-full animate-spin" />
-        <p className="text-[var(--color-text-secondary)] text-xs font-semibold tracking-tight animate-pulse">
-          Retrieving secure digital MRV record...
-        </p>
-      </div>
-    );
-  }
-
-  if (!activity) {
-    return (
-      <div className="p-12 text-center max-w-md mx-auto">
-        <div className="p-3 bg-red-500/10 rounded-full text-red-500 w-fit mx-auto mb-3">
-          <ShieldAlert size={28} />
-        </div>
-        <h3 className="text-sm font-bold text-[var(--color-text-primary)]">Record Not Found</h3>
-        <p className="text-[var(--color-text-secondary)] text-xs mt-1">The specified activity ID is invalid or missing in the registry.</p>
-        <button onClick={() => router.back()} className="mt-4 px-4 py-2 bg-[#00B47A]/10 text-[#00B47A] rounded-xl text-xs font-bold border border-[#00B47A]/20">
-          Return to Ledger
-        </button>
-      </div>
-    );
-  }
-
-  const isVerified = activity.status === "verified";
-  const isFlagged = activity.status === "flagged";
-  const isReview = activity.status === "review" || activity.status === "pending";
-
-  const actData = (activity.activity_data as Record<string, any>) || {};
-  const imageMetadata = (actData.image_metadata as Record<string, any>) || {};
+  // --- HOOKS (must be called unconditionally, before any early return) ---
+  const actData = (activity?.activity_data as Record<string, any>) || {};
 
   const rawLogs = useMemo(() => {
     return Array.isArray(actData.telemetry_log) ? actData.telemetry_log : [];
@@ -333,6 +303,39 @@ export default function ActivityDetailPage() {
       currentPage * pageSize
     );
   }, [filteredLogs, currentPage, pageSize]);
+
+  // --- EARLY RETURNS (after all hooks) ---
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[400px] space-y-3">
+        <div className="w-8 h-8 border-2 border-[#00B47A] border-t-transparent rounded-full animate-spin" />
+        <p className="text-[var(--color-text-secondary)] text-xs font-semibold tracking-tight animate-pulse">
+          Retrieving secure digital MRV record...
+        </p>
+      </div>
+    );
+  }
+
+  if (!activity) {
+    return (
+      <div className="p-12 text-center max-w-md mx-auto">
+        <div className="p-3 bg-red-500/10 rounded-full text-red-500 w-fit mx-auto mb-3">
+          <ShieldAlert size={28} />
+        </div>
+        <h3 className="text-sm font-bold text-[var(--color-text-primary)]">Record Not Found</h3>
+        <p className="text-[var(--color-text-secondary)] text-xs mt-1">The specified activity ID is invalid or missing in the registry.</p>
+        <button onClick={() => router.back()} className="mt-4 px-4 py-2 bg-[#00B47A]/10 text-[#00B47A] rounded-xl text-xs font-bold border border-[#00B47A]/20">
+          Return to Ledger
+        </button>
+      </div>
+    );
+  }
+
+  const isVerified = activity.status === "verified";
+  const isFlagged = activity.status === "flagged";
+  const isReview = activity.status === "review" || activity.status === "pending";
+
+  const imageMetadata = (actData.image_metadata as Record<string, any>) || {};
 
   const exportToCSV = () => {
     if (filteredLogs.length === 0) return;

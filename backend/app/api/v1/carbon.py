@@ -10,8 +10,13 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import defer
-from typing import List, Dict, Any, Optional
 import uuid
+import httpx
+import asyncio
+import logging
+from typing import List, Dict, Any, Optional
+
+from app.core.config import settings
 
 from app.db.session import get_db
 from app.core.security import require_admin
@@ -152,9 +157,14 @@ async def get_ledger(
     }
 
 
-@router.post("/registry/verra/issue", summary="Mock Verra Registry API Push")
+@router.post("/registry/verra/issue", summary="Issue Credits to Verra Registry")
 async def push_to_verra_registry(db: AsyncSession = Depends(get_db), user=Depends(require_admin)):
-    """Mock integration: Packs the calculation logs into a JSON ready for Verra API."""
+    """
+    Submits pending carbon credit calculations to the Verra Registry API.
+    Utilizes httpx with a 3-attempt exponential backoff retry loop.
+    """
+    logger = logging.getLogger("verifield.registry.verra")
+    
     stmt = select(CarbonCalculation)\
         .join(Activity, CarbonCalculation.activity_id == Activity.id)\
         .join(User, Activity.user_id == User.id)
@@ -171,7 +181,95 @@ async def push_to_verra_registry(db: AsyncSession = Depends(get_db), user=Depend
 
     total_tco2e = sum(c.tco2e_generated for c in calcs)
 
-    # Update status
+    # Prepare real integration payload
+    payload = {
+        "issuance_request": {
+            "source": "VeriField Nexus dMRV Platform",
+            "timestamp": datetime.now(timezone.utc).isoformat() if hasattr(datetime, "now") else None,
+            "organization": user.organization or "VeriField",
+            "total_tco2e": round(total_tco2e, 4),
+            "payload_size": len(calcs),
+            "credits": [
+                {
+                    "calculation_id": str(c.id),
+                    "activity_id": str(c.activity_id),
+                    "tco2e": float(c.tco2e_generated),
+                    "methodology": c.methodology_used,
+                    "created_at": c.created_at.isoformat() if c.created_at else None
+                }
+                for c in calcs
+            ]
+        }
+    }
+
+    # Verify if registry API endpoint is configured
+    url = settings.verra_api_url
+    api_key = settings.verra_api_key
+
+    if not url or not api_key:
+        # Dry-run / Configuration Missing Mode: Return generated payload
+        logger.warning("Verra API credentials not configured. Returning payload for dry-run/manual upload.")
+        # Mark as pending_issuance locally so it's tracked as processed
+        for c in calcs:
+            c.status = "pending_issuance"
+        await db.commit()
+
+        return {
+            "registry": "Verra",
+            "action": "Dry-run (Configuration Missing)",
+            "status": "warning",
+            "warning": "Verra API endpoint or key is not set in backend settings. Outputting generated audit payload.",
+            "total_tco2e": round(total_tco2e, 4),
+            "payload_size": len(calcs),
+            "payload": payload,
+            "audit_pack_generated": True
+        }
+
+    # Execute HTTP call with retry logic
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+        "X-VeriField-Audit-Trace": str(uuid.uuid4())
+    }
+
+    success = False
+    api_response = None
+    
+    # 3 attempts with exponential backoff: 2s, 4s, 8s
+    for attempt in range(3):
+        try:
+            logger.info(f"Posting to Verra API (attempt {attempt + 1}/3) at {url}...")
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                resp = await client.post(url, json=payload, headers=headers)
+                if resp.status_code in (200, 201, 202):
+                    success = True
+                    api_response = resp.json()
+                    logger.info("Successfully posted carbon calculations to Verra API.")
+                    break
+                else:
+                    logger.warning(
+                        f"Verra API returned error status {resp.status_code}: {resp.text}. "
+                        f"Attempt {attempt + 1}/3."
+                    )
+                    api_response = {"status_code": resp.status_code, "error": resp.text}
+        except Exception as e:
+            logger.warning(f"Connection error when calling Verra API: {e}. Attempt {attempt + 1}/3.")
+            api_response = {"error": str(e)}
+
+        if attempt < 2:
+            await asyncio.sleep(2.0 * (2 ** attempt))
+
+    if not success:
+        logger.error("Failed to push carbon calculations to Verra API after 3 retries.")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail={
+                "message": "Failed to connect to Verra Registry API terminal.",
+                "last_response": api_response
+            }
+        )
+
+    # Update state in DB upon successful API submission
     for c in calcs:
         c.status = "pending_issuance"
     await db.commit()
@@ -179,15 +277,22 @@ async def push_to_verra_registry(db: AsyncSession = Depends(get_db), user=Depend
     return {
         "registry": "Verra",
         "action": "Issue Request Sent",
+        "status": "success",
         "total_tco2e": round(total_tco2e, 4),
         "payload_size": len(calcs),
+        "api_response": api_response,
         "audit_pack_generated": True
     }
 
 
-@router.post("/registry/goldstandard/issue", summary="Mock Gold Standard Registry API Push")
+@router.post("/registry/goldstandard/issue", summary="Issue Credits to Gold Standard Registry")
 async def push_to_goldstandard_registry(db: AsyncSession = Depends(get_db), user=Depends(require_admin)):
-    """Mock integration: Packs the calculation logs into a JSON ready for Gold Standard API."""
+    """
+    Submits pending carbon credit calculations to the Gold Standard Registry API.
+    Utilizes httpx with a 3-attempt exponential backoff retry loop.
+    """
+    logger = logging.getLogger("verifield.registry.goldstandard")
+    
     stmt = select(CarbonCalculation)\
         .join(Activity, CarbonCalculation.activity_id == Activity.id)\
         .join(User, Activity.user_id == User.id)
@@ -204,7 +309,95 @@ async def push_to_goldstandard_registry(db: AsyncSession = Depends(get_db), user
 
     total_tco2e = sum(c.tco2e_generated for c in calcs)
 
-    # Update status
+    # Prepare real integration payload
+    payload = {
+        "issuance_request": {
+            "source": "VeriField Nexus dMRV Platform",
+            "timestamp": datetime.now(timezone.utc).isoformat() if hasattr(datetime, "now") else None,
+            "organization": user.organization or "VeriField",
+            "total_tco2e": round(total_tco2e, 4),
+            "payload_size": len(calcs),
+            "credits": [
+                {
+                    "calculation_id": str(c.id),
+                    "activity_id": str(c.activity_id),
+                    "tco2e": float(c.tco2e_generated),
+                    "methodology": c.methodology_used,
+                    "created_at": c.created_at.isoformat() if c.created_at else None
+                }
+                for c in calcs
+            ]
+        }
+    }
+
+    # Verify if registry API endpoint is configured
+    url = settings.goldstandard_api_url
+    api_key = settings.goldstandard_api_key
+
+    if not url or not api_key:
+        # Dry-run / Configuration Missing Mode: Return generated payload
+        logger.warning("Gold Standard API credentials not configured. Returning payload for dry-run/manual upload.")
+        # Mark as pending_issuance locally so it's tracked as processed
+        for c in calcs:
+            c.status = "pending_issuance"
+        await db.commit()
+
+        return {
+            "registry": "Gold Standard",
+            "action": "Dry-run (Configuration Missing)",
+            "status": "warning",
+            "warning": "Gold Standard API endpoint or key is not set in backend settings. Outputting generated audit payload.",
+            "total_tco2e": round(total_tco2e, 4),
+            "payload_size": len(calcs),
+            "payload": payload,
+            "audit_pack_generated": True
+        }
+
+    # Execute HTTP call with retry logic
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+        "X-VeriField-Audit-Trace": str(uuid.uuid4())
+    }
+
+    success = False
+    api_response = None
+    
+    # 3 attempts with exponential backoff: 2s, 4s, 8s
+    for attempt in range(3):
+        try:
+            logger.info(f"Posting to Gold Standard API (attempt {attempt + 1}/3) at {url}...")
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                resp = await client.post(url, json=payload, headers=headers)
+                if resp.status_code in (200, 201, 202):
+                    success = True
+                    api_response = resp.json()
+                    logger.info("Successfully posted carbon calculations to Gold Standard API.")
+                    break
+                else:
+                    logger.warning(
+                        f"Gold Standard API returned error status {resp.status_code}: {resp.text}. "
+                        f"Attempt {attempt + 1}/3."
+                    )
+                    api_response = {"status_code": resp.status_code, "error": resp.text}
+        except Exception as e:
+            logger.warning(f"Connection error when calling Gold Standard API: {e}. Attempt {attempt + 1}/3.")
+            api_response = {"error": str(e)}
+
+        if attempt < 2:
+            await asyncio.sleep(2.0 * (2 ** attempt))
+
+    if not success:
+        logger.error("Failed to push carbon calculations to Gold Standard API after 3 retries.")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail={
+                "message": "Failed to connect to Gold Standard Registry API terminal.",
+                "last_response": api_response
+            }
+        )
+
+    # Update state in DB upon successful API submission
     for c in calcs:
         c.status = "pending_issuance"
     await db.commit()
@@ -212,7 +405,9 @@ async def push_to_goldstandard_registry(db: AsyncSession = Depends(get_db), user
     return {
         "registry": "Gold Standard",
         "action": "Issue Request Sent",
+        "status": "success",
         "total_tco2e": round(total_tco2e, 4),
         "payload_size": len(calcs),
+        "api_response": api_response,
         "audit_pack_generated": True
     }

@@ -17,6 +17,8 @@ async def main():
             res = await session.execute(select(User))
             users = res.scalars().all()
             print("Successfully queried users! Count:", len(users))
+            for u in users:
+                print(f"ID: {u.id}, Email: {u.email}, Role: {u.role}, Org: {u.organization}, Sector: {u.sector}")
     except Exception as e:
         print("Error querying users:", e)
 

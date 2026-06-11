@@ -54,6 +54,18 @@ class Settings(BaseSettings):
     trust_suspicious_hours_start: int = 2           # Night window start (2 AM)
     trust_suspicious_hours_end: int = 5             # Night window end (5 AM)
 
+    # --- Twilio Configuration ---
+    twilio_account_sid: str = ""
+    twilio_auth_token: str = ""
+    twilio_phone_number: str = ""
+    twilio_validate_signature: bool = True
+
+    # --- Registry Configuration ---
+    verra_api_url: str = ""
+    verra_api_key: str = ""
+    goldstandard_api_url: str = ""
+    goldstandard_api_key: str = ""
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

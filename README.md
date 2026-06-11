@@ -1,127 +1,65 @@
 # VeriField Nexus
 
-> Verification Infrastructure for Real-World Climate Assets on Solana
+VeriField Nexus is a Measurement, Reporting, and Verification (MRV) system for tracking and validating real-world climate assets.
 
-VeriField Nexus is a decentralized Measurement, Reporting, and Verification (MRV) infrastructure framework. It enables climate projects, DePIN hardware networks, and environmental asset developers to standardise, trust-score, and cryptographically anchor real-world asset (RWA) data directly onto the Solana blockchain.
+## Overview
 
----
+VeriField Nexus provides a structured, automated framework to verify climate payloads from real-world installations. By validating physical parameters—such as GPS coordinates, proof photos, and hardware telemetry—the system mitigates risks of double-counting and inaccurate reporting in climate projects, replacing manual audits with automated, trust-scored digital ledger records.
 
-## 📣 Public Goods Declaration
+## Core Modules
 
-**This project is partially open-source and designed as public infrastructure for Solana developers building real-world asset verification and environmental DePIN systems.**
+### Cookstove Module
+- Tracks biomass utilization and usage rates.
+- Validates household deployment and associated emissions reduction.
 
-To encourage collaborative ecosystem building while protecting proprietary operational intelligence, the codebase is structured as follows:
+### Hybrid Energy Module
+- Tracks solar PV capacity, inverter telemetry, and backup diesel generator runtimes.
+- Validates clean energy generation and avoided diesel fuel displacement.
 
-| Layer / Component | Licensing / Open-Source Status |
-| :--- | :--- |
-| **TypeScript SDK (`/sdk`)** | **Fully Open-Source (MIT)** — Integrations, captures, and client validation helpers. |
-| **JSON Schemas (`/docs/schema.json`)** | **Public Domain** — Asset specifications for climate metrics. |
-| **FastAPI REST API (`/backend/src`)** | **Open-Source Core (MIT)** — Payload validation routes and transaction builders. |
-| **Anchor Program (`/contracts`)** | **Open-Source (MIT)** — On-chain state logs for environmental evidence. |
-| *Scoring Rules Tuning* | *Proprietary* — Deep-learning anomaly weights and specific scoring thresholds. |
-| *Operational Dashboards* | *Proprietary* — Local monitoring and alerting integration configs. |
+## System Architecture
 
----
+The system consists of three layers:
 
-## ❌ The Problem
+- **Capture**: Client-side SDK and IoT devices capture field data, record GPS coordinates, and compute perceptual hashes of proof images.
+- **Validation**: REST API services execute the verification engine rules to detect duplicates, validate location ranges, and assign a trust score (0-100).
+- **Storage**: Verified logs and trust scores are permanently recorded in a database or anchored on-chain for immutable auditability.
 
-Traditional MRV systems in voluntary carbon markets and green finance suffer from structural bottlenecks:
-- **Opaque & Siloed Data**: Field data calculations are hidden inside proprietary databases, leading to double-counting and carbon credit trust issues.
-- **Slow & Expensive**: Auditing verification records manually can take months and cost tens of thousands of dollars.
-- **Incompatible with DeFi**: Climate tokens and green bonds cannot dynamically query verified evidence, preventing automated capital markets from scaling.
+## Project Structure
 
----
+- `/sdk`: TypeScript SDK containing verification schemas, validation helpers, and client integration utilities.
+- `/backend`: FastAPI service that processes submissions, scores integrity, and executes verification algorithms.
+- `/contracts`: Rust smart contracts for logging verified evidence and anchoring proof hashes.
+- `/dashboard`: Next.js web application for monitoring telemetry feeds, viewing trust metrics, and auditing installations.
+- `/docs`: Technical schemas and system configuration documentation.
 
-## 🚀 The Solution
+## Getting Started
 
-VeriField Nexus solves this via a unified **Capture ➔ Validate ➔ Anchor** pipeline:
-1. **Secure Capture**: Edge IoT devices and mobile field kits structure proof data locally.
-2. **Deterministic Validation**: The Verification Engine scores the data based on location boundaries, timestamp continuity, and image uniqueness.
-3. **Solana Anchoring**: Validated evidence hashes and trust scores are permanently written on-chain to Solana Program Derived Addresses (PDAs).
+### Prerequisites
 
----
+- Node.js (v18+)
+- Python (3.10+)
 
-## ⚡ Why Solana?
+### Setup
 
-VeriField Nexus is engineered to leverage Solana's high-performance blockchain network:
+Install the workspace dependencies:
 
-- **Sub-Second Finality**: Streaming telemetry from millions of DePIN IoT sensors requires sub-second processing and confirmation times to prevent network ingestion delays.
-- **Ultra-Low Cost**: Logging hourly device heartbeats or clean cookstove sessions on-chain requires transaction costs to be fractions of a cent ($0.00025 avg), making micro-MRV operations economically viable.
-- **Composability**: Storing RWA validation metrics directly in Solana accounts allows downstream DeFi applications (carbon offset pools, green lending protocol yield vaults) to read verification metrics instantly without trusting a centralized intermediary.
-
----
-
-## 🏛️ System Architecture
-
-```
-┌────────────────────────────────────────────────────────┐
-│                      1. SDK LAYER                      │
-│      (Data Capture, GPS Logging & SHA-256 Hashing)     │
-└───────────────────────────┬────────────────────────────┘
-                            │
-                            ▼
-┌────────────────────────────────────────────────────────┐
-│                   2. VERIFICATION LAYER                │
-│       (FastAPI API, Anomaly Detection & Trust Scoring)  │
-└───────────────────────────┬────────────────────────────┘
-                            │
-                            ▼
-┌────────────────────────────────────────────────────────┐
-│                    3. ON-CHAIN LAYER                   │
-│         (Solana Program, Immutable Proof Anchor)       │
-└────────────────────────────────────────────────────────┘
-```
-
-Detailed architectural blueprints are available in [docs/architecture.md](file:///Users/segun/Documents/Verifield%20nexus/docs/architecture.md).
-
----
-
-## 📦 Use Cases
-
-### 1. Solar Hybrid Energy Systems
-Verifying solar output generation, grid usage ratios, and diesel backup displacement logs to issue clean energy offset tokens.
-### 2. Clean Cookstoves (TPDDTEC & VMR0050)
-Validating local microcontroller thermal readings from biomass stoves to confirm household emissions avoidance.
-### 3. DePIN Hardware Networks
-Securing a trust score layer for decentralised networks logging environmental factors (temperature, air quality, soil moisture).
-
----
-
-## 🌍 Live Pilot
-Our production deployment is currently running a live pilot verifying hybrid solar microgrid installations in **Port Harcourt, Nigeria**, processing real-time telemetry inputs and ensuring carbon avoidance logs match physical generator displacement.
-
----
-
-## 🛠️ Quick Start
-
-### 1. Installation
-Install project dependencies at the root:
 ```bash
 npm install
 ```
 
-### 2. Run the Backend API
-Start the FastAPI verification service (running on `http://localhost:8000`):
+Start the FastAPI backend service:
+
 ```bash
 npm run backend:dev
 ```
 
-### 3. Run the E2E Verification Demo
-Execute the demo script to send a mock climate payload to the Verification Engine:
-```bash
-./scripts/demo.sh
-```
+## Example Usage
 
----
-
-## 🔗 Example verification Flow
-
-The following example structures a payload using the SDK, validates it, and posts it to the verification ledger:
+The following example structures a validation payload using the SDK:
 
 ```typescript
 import { createVerificationPayload, validatePayload } from "verifield-nexus-sdk";
 
-// 1. Structure the evidence payload
 const payload = createVerificationPayload(
   "hybrid_energy",
   { latitude: 4.8241, longitude: 7.0305, accuracy: 4.5 },
@@ -129,21 +67,24 @@ const payload = createVerificationPayload(
   "a855f7bacc153b82f6a855f7bacc153b82f6a855f7bacc153b82f6a855f7d2f4"
 );
 
-// 2. Validate format integrity
 const { valid, errors } = validatePayload(payload);
 if (!valid) {
   throw new Error(`Validation failed: ${errors?.join(", ")}`);
 }
-
-// 3. Dispatch to Ledger
-// POST /api/v1/verify
 ```
 
----
+## Use Cases
 
-## 🗺️ Roadmap & Grant Milestones
+### Cookstove MRV
+Validating local microcontroller and usage survey data from biomass stoves to verify household emission reductions under methodology templates like GS TPDDTEC or Verra VMR0050.
 
-- [x] **Milestone 1**: 3-Layer MRV Architecture Specification & SDK Core.
-- [x] **Milestone 2**: Ingestion engine with Trust Scoring and simulated Anchor transactions.
-- [ ] **Milestone 3**: Anchor Rust program deployment on Solana Devnet.
-- [ ] **Milestone 4**: Downstream DeFi token pool integration.
+### Hybrid Energy MRV
+Monitoring real-time telemetry inputs from solar microgrids to verify grid/diesel displacement and issue verified displacement metrics under methodology templates like Verra AMS-I.F.
+
+## Contributing
+
+Contributions are welcome. Please open an issue first to discuss the changes you would like to make.
+
+## License
+
+MIT
