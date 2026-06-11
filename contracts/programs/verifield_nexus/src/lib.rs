@@ -2,16 +2,11 @@
  * =============================================================================
  * VeriField Nexus — Solana Anchor Program (On-Chain State Ledger)
  * =============================================================================
- * [STATUS: IN PROGRESS]
- * 
- * Intended logic and state layouts for logging climate asset verification
- * records directly onto the Solana Blockchain devnet/mainnet.
- * =============================================================================
  */
 
 use anchor_lang::prelude::*;
 
-declare_id!("VeriFieldNexus1111111111111111111111111111");
+declare_id!("Fg6PaFsp7w5ybzGqGL3qcTi24CjOQERAJ29fkc29fkc");
 
 #[program]
 pub mod verifield_nexus {
