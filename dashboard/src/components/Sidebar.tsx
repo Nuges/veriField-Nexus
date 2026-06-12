@@ -19,6 +19,7 @@ import {
   Menu,
   X,
   Compass,
+  Camera,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useWorkspace } from "@/context/WorkspaceContext";
@@ -27,6 +28,7 @@ import { useWorkspace } from "@/context/WorkspaceContext";
 function getNavItems(role: string | null) {
   const items = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/dashboard/capture", label: "Field Capture", icon: Camera },
     { href: "/dashboard/properties", label: "Field Data", icon: Home },
     { href: "/dashboard/audits", label: "Verification", icon: ShieldCheck },
     { href: "/dashboard/carbon", label: "Reports", icon: Leaf },
@@ -56,6 +58,8 @@ export default function Sidebar() {
   const getIsActive = (href: string) => {
     if (href === "/dashboard") {
       return pathname === "/dashboard" || pathname.startsWith("/dashboard/analytics");
+    } else if (href === "/dashboard/capture") {
+      return pathname === "/dashboard/capture" || pathname.startsWith("/dashboard/capture");
     } else if (href === "/dashboard/properties") {
       return pathname.startsWith("/dashboard/properties") || 
              pathname.startsWith("/dashboard/activities") || 

@@ -12,7 +12,10 @@ CRUD operations for field activity / installation submissions. Supports:
 =============================================================================
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, Query, status, BackgroundTasks, Request, UploadFile, File
+import os
+import shutil
+import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_
 from sqlalchemy.orm import selectinload
@@ -206,6 +209,49 @@ async def check_duplicate(
 
 
 # =============================================================================
+# POST /api/v1/activities/upload-proof — Upload installation proof image
+# =============================================================================
+@router.post(
+    "/upload-proof",
+    summary="Upload installation proof image",
+    description="Uploads a photo proof and returns the hosting static URL.",
+)
+async def upload_proof(
+    request: Request,
+    file: UploadFile = File(...),
+    user: User = Depends(get_current_user),
+):
+    # Validate file extension
+    file_ext = os.path.splitext(file.filename)[1].lower()
+    if file_ext not in (".jpg", ".jpeg", ".png", ".gif", ".webp"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only JPG, JPEG, PNG, GIF, and WEBP images are supported.",
+        )
+    
+    # Create unique filename
+    os.makedirs(os.path.join("static", "proofs"), exist_ok=True)
+    unique_filename = f"{uuid.uuid4()}{file_ext}"
+    target_path = os.path.join("static", "proofs", unique_filename)
+    
+    # Save the file
+    try:
+        with open(target_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Could not save uploaded file: {str(e)}",
+        )
+        
+    # Build absolute URL using base_url
+    base_url = str(request.base_url).rstrip("/")
+    proof_url = f"{base_url}/static/proofs/{unique_filename}"
+    
+    return {"image_url": proof_url}
+
+
+# =============================================================================
 # POST /api/v1/activities — Submit a single activity
 # =============================================================================
 @router.post(
@@ -343,6 +389,13 @@ async def create_activity(
         except Exception as e:
             import logging
             logging.getLogger("verifield.api").error(f"Auto-quantification failed for {activity.id}: {e}")
+
+        try:
+            from app.services.blockchain import anchor_activity_on_chain
+            await anchor_activity_on_chain(activity, db)
+        except Exception as e:
+            import logging
+            logging.getLogger("verifield.api").error(f"Auto-blockchain anchoring failed for {activity.id}: {e}")
 
     # Dispatch SMS verification request to beneficiary
     if activity.activity_type in ("CLEAN_COOKING", "HYBRID_ENERGY"):
@@ -484,6 +537,13 @@ async def batch_create_activities(
                     except Exception as e:
                         import logging
                         logging.getLogger("verifield.api").error(f"Auto-quantification failed for {activity.id}: {e}")
+
+                    try:
+                        from app.services.blockchain import anchor_activity_on_chain
+                        await anchor_activity_on_chain(activity, db)
+                    except Exception as e:
+                        import logging
+                        logging.getLogger("verifield.api").error(f"Auto-blockchain anchoring failed for {activity.id}: {e}")
                         
             except Exception as e:
                 await db.rollback()
@@ -673,6 +733,13 @@ async def update_activity_status(
             # but we should log it for debugging
             import logging
             logging.getLogger("verifield.api").error(f"Manual quantification failed for {activity.id}: {e}")
+
+        try:
+            from app.services.blockchain import anchor_activity_on_chain
+            await anchor_activity_on_chain(activity, db)
+        except Exception as e:
+            import logging
+            logging.getLogger("verifield.api").error(f"Manual blockchain anchoring failed for {activity.id}: {e}")
 
     # Re-fetch with user relationship to ensure response has agent_name
     # (quantification engine may have committed and invalidated the session state)

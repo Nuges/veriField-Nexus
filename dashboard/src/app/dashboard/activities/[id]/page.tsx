@@ -837,6 +837,64 @@ export default function ActivityDetailPage() {
             </div>
           </div>
 
+          {/* Solana On-Chain Anchor Receipt */}
+          {actData.on_chain && (
+            <div className="bg-[var(--color-surface)] border border-emerald-500/25 rounded-2xl p-5 shadow-sm relative overflow-hidden border-l-4 border-l-emerald-500">
+              <div className="absolute top-0 right-0 p-3 text-emerald-500 opacity-10">
+                <CheckCircle size={45} />
+              </div>
+              
+              <h2 className="text-xs font-bold uppercase tracking-wider text-emerald-400 mb-1 flex items-center gap-1.5">
+                <Fingerprint size={14} className="text-emerald-400" /> Solana On-Chain Anchor
+              </h2>
+              <p className="text-[var(--color-text-secondary)] text-[10px] mb-4">Verified environmental asset anchored to Solana Devnet ledger (Simulated).</p>
+              
+              <div className="space-y-3 font-mono text-[10px] text-[var(--color-text-secondary)]">
+                <div>
+                  <span className="text-[var(--color-text-muted)] block font-bold text-[8px] uppercase">Transaction Signature</span>
+                  <div className="flex items-center gap-1.5 mt-0.5 w-full">
+                    <span className="text-emerald-400 truncate max-w-[170px] block font-bold" title={actData.on_chain.signature}>
+                      {actData.on_chain.signature}
+                    </span>
+                    <button 
+                      onClick={() => {
+                        navigator.clipboard.writeText(actData.on_chain.signature);
+                        toast.success("Signature Copied", "Transaction signature copied to clipboard.");
+                      }}
+                      className="p-1 rounded bg-[var(--color-background)] hover:bg-[var(--color-border)] text-slate-300 hover:text-white transition-colors"
+                      title="Copy Tx Signature"
+                    >
+                      <Copy size={10} />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <span className="text-[var(--color-text-muted)] block font-bold text-[8px] uppercase">Block Height</span>
+                    <span className="font-bold text-[var(--color-text-primary)]">{Number(actData.on_chain.block_height).toLocaleString()}</span>
+                  </div>
+                  <div>
+                    <span className="text-[var(--color-text-muted)] block font-bold text-[8px] uppercase">Slot</span>
+                    <span className="font-bold text-[var(--color-text-primary)]">{Number(actData.on_chain.slot).toLocaleString()}</span>
+                  </div>
+                </div>
+
+                <div>
+                  <span className="text-[var(--color-text-muted)] block font-bold text-[8px] uppercase">Payload Hash (SHA-256)</span>
+                  <span className="font-bold text-[var(--color-text-primary)] break-all truncate block max-w-[240px]" title={actData.on_chain.payload_hash}>
+                    {actData.on_chain.payload_hash}
+                  </span>
+                </div>
+
+                <div>
+                  <span className="text-[var(--color-text-muted)] block font-bold text-[8px] uppercase">Timestamp</span>
+                  <span>{new Date(actData.on_chain.timestamp).toUTCString()}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Trust Engine Analysis */}
           {trustDetails && (
             <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-5 shadow-sm">

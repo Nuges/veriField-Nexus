@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VeriField Nexus — Test Environment</title>
+  
+  <!-- Modern Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Leaflet Map CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  
+  <!-- Inline Styles (Core layout tokens, styles.css loaded next) -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="dark-theme">
+  <div class="app-container">
+    
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <div class="brand-section">
+        <div class="logo-box">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="logo-icon">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <div class="brand-text">
+          <h1>VeriField Nexus</h1>
+          <span>Test Environment</span>
+        </div>
+      </div>
+      
+      <nav class="sidebar-nav">
+        <button class="nav-item active" data-tab="dashboard">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="nav-icon"><path d="M3 3h7v9H3zm11 0h7v5h-7zm0 9h7v9h-7zm-11 4h7v5H3z"/></svg>
+          Dashboard
+        </button>
+        <button class="nav-item" data-tab="capture" id="btn-nav-capture">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="nav-icon"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          Field Capture
+        </button>
+        <button class="nav-item" data-tab="verification">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="nav-icon"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          Verification rules
+        </button>
+        <button class="nav-item" data-tab="ledger">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="nav-icon"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><path d="M22 6l-10 7L2 6"/></svg>
+          On-Chain Ledger
+        </button>
+      </nav>
+      
+      <div class="sidebar-footer">
+        <div class="status-indicator">
+          <span class="pulse-dot"></span>
+          <span>Solana Devnet Mock: Connected</span>
+        </div>
+      </div>
+    </aside>
+    
+    <!-- Main Content Wrapper -->
+    <main class="main-content">
+      
+      <!-- Top Action Header -->
+      <header class="top-header">
+        <div class="header-left">
+          <h2 id="view-title">MRV Control Center</h2>
+          <p id="view-description">Monitor and verify clean climate asset installations in real-time.</p>
+        </div>
+        
+        <div class="header-right">
+          <!-- Role Selector Switch -->
+          <div class="role-selector">
+            <span class="role-label">Active Role:</span>
+            <div class="role-switch-container">
+              <button class="role-btn active" data-role="agent">Field Agent</button>
+              <button class="role-btn" data-role="verifier">Verifier (Admin)</button>
+              <button class="role-btn" data-role="viewer">Viewer</button>
+            </div>
+          </div>
+          
+          <!-- Theme Toggle -->
+          <button class="theme-toggle-btn" id="theme-toggle" title="Toggle Light/Dark Mode">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="sun-icon"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="moon-icon"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+          </button>
+        </div>
+      </header>
+      
+      <!-- Panes Container -->
+      <div class="panes-container">
+        
+        <!-- ==================== TAB 1: DASHBOARD ==================== -->
+        <section class="pane active" id="pane-dashboard">
+          
+          <!-- KPI Metrics Row -->
+          <div class="kpi-grid">
+            <div class="kpi-card">
+              <div class="kpi-header">
+                <h3>Total Submissions</h3>
+                <span class="kpi-icon blue">∑</span>
+              </div>
+              <p class="kpi-value" id="kpi-total">0</p>
+              <span class="kpi-subtext">All captured installations</span>
+            </div>
+            
+            <div class="kpi-card">
+              <div class="kpi-header">
+                <h3>Verified Assets</h3>
+                <span class="kpi-icon green">✓</span>
+              </div>
+              <p class="kpi-value" id="kpi-verified">0</p>
+              <span class="kpi-subtext" id="kpi-verified-percentage">0% success rate</span>
+            </div>
+            
+            <div class="kpi-card">
+              <div class="kpi-header">
+                <h3>Flagged Anomalies</h3>
+                <span class="kpi-icon red">⚠</span>
+              </div>
+              <p class="kpi-value text-red" id="kpi-flagged">0</p>
+              <span class="kpi-subtext" id="kpi-flagged-text">Low trust / duplicates</span>
+            </div>
+            
+            <div class="kpi-card">
+              <div class="kpi-header">
+                <h3>Average Trust Score</h3>
+                <span class="kpi-icon amber">✦</span>
+              </div>
+              <div class="kpi-flex">
+                <p class="kpi-value" id="kpi-avg-trust">0%</p>
+                <div class="mini-progress-bar">
+                  <div class="mini-progress-fill" id="kpi-avg-trust-fill" style="width: 0%"></div>
+                </div>
+              </div>
+              <span class="kpi-subtext">Methodology compliance rating</span>
+            </div>
+          </div>
+          
+          <!-- Mid Section: Map & Charts -->
+          <div class="dashboard-mid-grid">
+            
+            <!-- Map Card -->
+            <div class="card map-card">
+              <div class="card-header">
+                <div>
+                  <h3 class="card-title">Live Installation Registry Map</h3>
+                  <p class="card-subtitle">GPS coordinates mapped directly from verified captures.</p>
+                </div>
+                <div class="map-legend">
+                  <span class="legend-item"><span class="legend-color bg-green"></span>Verified</span>
+                  <span class="legend-item"><span class="legend-color bg-red"></span>Flagged</span>
+                  <span class="legend-item"><span class="legend-color bg-yellow"></span>Pending</span>
+                </div>
+              </div>
+              <div class="map-container" id="map"></div>
+            </div>
+            
+            <!-- Analytics Chart Card -->
+            <div class="card chart-card">
+              <div class="card-header">
+                <h3 class="card-title">Telemetry Submissions Trend</h3>
+                <p class="card-subtitle">Installation volume and verification rates over time.</p>
+              </div>
+              <div class="chart-container">
+                <canvas id="submissions-chart"></canvas>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Bottom Section: Table List -->
+          <div class="card table-card">
+            <div class="card-header table-header-flex">
+              <div>
+                <h3 class="card-title">MRV Records Log</h3>
+                <p class="card-subtitle">Search, filter, and inspect verified environmental installations.</p>
+              </div>
+              
+              <div class="table-actions">
+                <input type="text" id="table-search" placeholder="Search by ID or Agent..." class="search-input" />
+                
+                <select id="filter-type" class="filter-select">
+                  <option value="all">All Modules</option>
+                  <option value="cookstove">Clean Cooking</option>
+                  <option value="solar">Solar Energy</option>
+                  <option value="hybrid">Hybrid Energy</option>
+                </select>
+                
+                <select id="filter-status" class="filter-select">
+                  <option value="all">All Statuses</option>
+                  <option value="verified">Verified</option>
+                  <option value="flagged">Flagged</option>
+                  <option value="pending">Pending</option>
+                </select>
+                
+                <button class="btn btn-secondary" id="btn-export-csv">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4m4-5l5 5 5-5m-5 5V3"/></svg>
+                  Export CSV
+                </button>
+              </div>
+            </div>
+            
+            <div class="table-responsive">
+              <table class="mrv-table" id="mrv-table">
+                <thead>
+                  <tr>
+                    <th>Installation ID</th>
+                    <th>Module Type</th>
+                    <th>GPS Coordinates</th>
+                    <th>Capture Time</th>
+                    <th>Trust Rating</th>
+                    <th>Status</th>
+                    <th class="text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="mrv-table-body">
+                  <!-- Dynamic rows injected here -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+          
+        </section>
+        
+        <!-- ==================== TAB 2: FIELD CAPTURE FORM ==================== -->
+        <section class="pane" id="pane-capture">
+          <div class="form-container-flex">
+            
+            <!-- Installation Form Card -->
+            <div class="card form-card">
+              <div class="card-header border-bottom">
+                <h3 class="card-title">New Environmental Asset Entry</h3>
+                <p class="card-subtitle">Complete installation telemetry capture form. Geolocation will be cryptographically hashed.</p>
+              </div>
+              
+              <form id="field-capture-form" class="mrv-form">
+                
+                <!-- Installation Type Selector -->
+                <div class="form-group">
+                  <label class="form-label">Installation Module Type *</label>
+                  <div class="module-selector-grid">
+                    <label class="module-card">
+                      <input type="radio" name="installation-type" value="cookstove" checked />
+                      <div class="module-card-content">
+                        <div class="module-icon">🔥</div>
+                        <h4>Clean Cookstove</h4>
+                        <p>Biomass reduction offsets</p>
+                      </div>
+                    </label>
+                    
+                    <label class="module-card">
+                      <input type="radio" name="installation-type" value="solar" />
+                      <div class="module-card-content">
+                        <div class="module-icon">☀️</div>
+                        <h4>Solar Power</h4>
+                        <p>Micro-grid deployment</p>
+                      </div>
+                    </label>
+                    
+                    <label class="module-card">
+                      <input type="radio" name="installation-type" value="hybrid" />
+                      <div class="module-card-content">
+                        <div class="module-icon">⚡</div>
+                        <h4>Hybrid Energy</h4>
+                        <p>Solar + Battery + Diesel backup</p>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+                
+                <div class="form-row">
+                  <!-- Auto-Generate ID and Timestamp info -->
+                  <div class="form-group col-6">
+                    <label class="form-label">Installation UUID (Auto)</label>
+                    <input type="text" id="capture-uuid" class="form-control" readonly />
+                  </div>
+                  
+                  <div class="form-group col-6">
+                    <label class="form-label">Captured Timestamp (Auto)</label>
+                    <input type="text" id="capture-time" class="form-control" readonly />
+                  </div>
+                </div>
+                
+                <!-- GPS Section -->
+                <div class="form-group">
+                  <label class="form-label">GPS Geolocation *</label>
+                  <div class="gps-input-wrapper">
+                    <div class="form-row w-100">
+                      <div class="form-group col-6 mb-0">
+                        <input type="number" step="any" id="capture-lat" placeholder="Latitude" class="form-control" required />
+                      </div>
+                      <div class="form-group col-6 mb-0">
+                        <input type="number" step="any" id="capture-lon" placeholder="Longitude" class="form-control" required />
+                      </div>
+                    </div>
+                    <button type="button" class="btn btn-secondary btn-gps" id="btn-gps-detect">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon"><circle cx="12" cy="12" r="3"/><path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+                      Auto Detect GPS
+                    </button>
+                  </div>
+                  <span class="form-subtext">Click Auto Detect or override manually. Values must represent decimal degrees coordinates.</span>
+                </div>
+                
+                <!-- Mock Image Selector -->
+                <div class="form-group">
+                  <label class="form-label">Upload Photographic Evidence *</label>
+                  <div class="upload-dropzone" id="upload-dropzone">
+                    <input type="file" id="capture-file" accept="image/*" class="file-hidden" />
+                    <div class="dropzone-prompt">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="upload-icon"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4m4-5l5 5 5-5m-5 5V3"/></svg>
+                      <span>Drag & Drop photo evidence or <strong class="text-green">Browse</strong></span>
+                      <p class="text-muted text-xs">Simulates cryptographic SHA-256 image hashing on select.</p>
+                    </div>
+                    
+                    <!-- Pre-selected mock image selections for easy testing -->
+                    <div class="mock-images-container">
+                      <span class="mock-images-title">Quick Test Mock Images:</span>
+                      <div class="mock-image-options">
+                        <div class="mock-img-item" data-hash="img_cookstove_001" data-url="assets/cookstove1.jpg">
+                          <span class="img-preview-avatar">🔥 A</span>
+                          <span>Cookstove A</span>
+                        </div>
+                        <div class="mock-img-item" data-hash="img_cookstove_001" data-url="assets/cookstove1.jpg">
+                          <span class="img-preview-avatar bg-red-opacity">🔥 A (Dup)</span>
+                          <span>Cookstove A Duplicate</span>
+                        </div>
+                        <div class="mock-img-item" data-hash="img_solar_001" data-url="assets/solar1.jpg">
+                          <span class="img-preview-avatar">☀️ B</span>
+                          <span>Solar Cell B</span>
+                        </div>
+                        <div class="mock-img-item" data-hash="img_hybrid_001" data-url="assets/hybrid1.jpg">
+                          <span class="img-preview-avatar">⚡ C</span>
+                          <span>Hybrid System C</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <!-- File Selected Indicator -->
+                  <div class="selected-file-banner hidden" id="selected-file-banner">
+                    <span class="file-name" id="selected-file-name">cookstove1.jpg</span>
+                    <span class="file-hash" id="selected-file-hash">SHA-256: img_cookstove_001</span>
+                    <button type="button" class="btn-remove-file" id="btn-remove-file">✕</button>
+                  </div>
+                </div>
+                
+                <!-- Notes Field -->
+                <div class="form-group">
+                  <label class="form-label">Field Installation Notes (Optional)</label>
+                  <textarea id="capture-notes" rows="3" placeholder="e.g. Model type, family size, battery capacity details..." class="form-control"></textarea>
+                </div>
+                
+                <!-- Submit Action Button -->
+                <button type="submit" class="btn btn-primary w-100 mt-2" id="btn-submit-capture">
+                  Submit Telemetry Packet
+                </button>
+              </form>
+            </div>
+            
+            <!-- Capturing Help Guide -->
+            <aside class="form-help-aside">
+              <div class="card help-card">
+                <div class="card-header border-bottom">
+                  <h3 class="card-title">MRV Capture Protocol</h3>
+                </div>
+                <div class="card-body">
+                  <ul class="help-list">
+                    <li>
+                      <strong>Cryptographic Hashing</strong>
+                      <p>Every submitted telemetry packet calculates a unique SHA-256-like hash of the entire payload state. This guarantees evidence remains untampered before entering the verification engine.</p>
+                    </li>
+                    <li>
+                      <strong>GPS Spoofing & Drift</strong>
+                      <p>The system tracks the time and distance elapsed between submissions. Submitting telemetry from a location too far (>1km) in a short interval will flag an anomaly check.</p>
+                    </li>
+                    <li>
+                      <strong>Duplicate Image Defense</strong>
+                      <p>If you upload an image with a signature already anchored on the ledger, the Verification engine will flag it as a duplicate credit fraud attempt.</p>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </aside>
+          </div>
+        </section>
+        
+        <!-- ==================== TAB 3: VERIFICATION RULES ==================== -->
+        <section class="pane" id="pane-verification">
+          <div class="verification-engine-flex">
+            
+            <!-- Core Engine Details -->
+            <div class="card engine-card">
+              <div class="card-header border-bottom">
+                <h3 class="card-title">Verification Core Parameters</h3>
+                <p class="card-subtitle">Configure thresholds and review the verification logic scoring coefficients.</p>
+              </div>
+              
+              <div class="engine-rules-list">
+                <div class="rule-item">
+                  <div class="rule-meta">
+                    <h4>GPS Jump Variance Limit</h4>
+                    <p>Flags coordinate jumps between consecutive session submissions.</p>
+                  </div>
+                  <span class="rule-badge">1.0 km Threshold</span>
+                </div>
+                
+                <div class="rule-item">
+                  <div class="rule-meta">
+                    <h4>Duplicate Image Hash Guard</h4>
+                    <p>Detects identical photographic evidence uploads against local history.</p>
+                  </div>
+                  <span class="rule-badge">Strict Match</span>
+                </div>
+                
+                <div class="rule-item">
+                  <div class="rule-meta">
+                    <h4>Completeness Weight (20%)</h4>
+                    <p>Scores the presence of notes, image uploads, and override descriptions.</p>
+                  </div>
+                  <span class="rule-badge">20 Points</span>
+                </div>
+                
+                <div class="rule-item">
+                  <div class="rule-meta">
+                    <h4>GPS Integrity Weight (30%)</h4>
+                    <p>Evaluates location feasibility and accuracy bounds.</p>
+                  </div>
+                  <span class="rule-badge">30 Points</span>
+                </div>
+                
+                <div class="rule-item">
+                  <div class="rule-meta">
+                    <h4>Uniqueness Verification Weight (50%)</h4>
+                    <p>Guarantees no duplication or recycling of physical assets.</p>
+                  </div>
+                  <span class="rule-badge">50 Points</span>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Dynamic Simulator Inspector -->
+            <div class="card simulation-inspector-card">
+              <div class="card-header border-bottom">
+                <h3 class="card-title">Interactive Verification Testbed</h3>
+                <p class="card-subtitle">Select a pending or logged record in the dashboard to execute the validation engine rules in real-time.</p>
+              </div>
+              
+              <div class="card-body empty-state-body" id="verification-inspector-empty">
+                <div class="empty-icon">⚙️</div>
+                <h4>No installation selected</h4>
+                <p class="text-muted text-xs">Navigate to the Dashboard, click on any installation row, and review its verification report to run live analysis.</p>
+              </div>
+              
+              <div class="card-body hidden" id="verification-inspector-content">
+                <div class="inspector-header-flex">
+                  <div>
+                    <h4 id="inspect-inst-id">UUID: --</h4>
+                    <span class="badge" id="inspect-inst-type">Clean Cooking</span>
+                  </div>
+                  <div class="gauge-container">
+                    <svg class="gauge" viewBox="0 0 100 50">
+                      <path class="gauge-bg" d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke-width="8" />
+                      <path class="gauge-fill" id="inspect-gauge-fill" d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke-width="8" stroke-dasharray="125.6" stroke-dashoffset="125.6" />
+                    </svg>
+                    <div class="gauge-label">
+                      <span id="inspect-trust-score">0%</span>
+                      <span class="sub">Trust Score</span>
+                    </div>
+                  </div>
+                </div>
+                
+                <div class="verification-checks-grid">
+                  <div class="check-result-card" id="check-unique">
+                    <span class="check-icon">✓</span>
+                    <div class="check-meta">
+                      <h5>Image Uniqueness Check</h5>
+                      <p id="check-unique-desc">Image hash signature is unique.</p>
+                    </div>
+                  </div>
+                  
+                  <div class="check-result-card" id="check-gps">
+                    <span class="check-icon">✓</span>
+                    <div class="check-meta">
+                      <h5>GPS Drift Check</h5>
+                      <p id="check-gps-desc">No impossible distance jump detected.</p>
+                    </div>
+                  </div>
+                  
+                  <div class="check-result-card" id="check-completeness">
+                    <span class="check-icon">✓</span>
+                    <div class="check-meta">
+                      <h5>Completeness Check</h5>
+                      <p id="check-completeness-desc">Required fields and notes filled.</p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div class="inspector-actions border-top">
+                  <div class="inspector-status-banner" id="inspect-status-banner">
+                    <span>STATUS:</span>
+                    <strong id="inspect-status-badge">PASS</strong>
+                  </div>
+                  
+                  <div class="inspector-action-buttons">
+                    <button class="btn btn-secondary" id="btn-inspector-replay">Replay Verification</button>
+                    <button class="btn btn-primary" id="btn-inspector-anchor">Anchor On Solana</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+        
+        <!-- ==================== TAB 4: ON-CHAIN LEDGER ==================== -->
+        <section class="pane" id="pane-ledger">
+          <div class="card ledger-card">
+            <div class="card-header border-bottom">
+              <h3 class="card-title">Solana Simulated State Ledger</h3>
+              <p class="card-subtitle">Immutable registry of cryptographic proof anchors and methodology trust scores.</p>
+            </div>
+            
+            <div class="table-responsive">
+              <table class="mrv-table">
+                <thead>
+                  <tr>
+                    <th>Asset ID</th>
+                    <th>Transaction Signature (Base58)</th>
+                    <th>Block Height</th>
+                    <th>Slot</th>
+                    <th>Timestamp</th>
+                    <th>On-Chain Status</th>
+                  </tr>
+                </thead>
+                <tbody id="ledger-table-body">
+                  <!-- Dynamic anchored rows here -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+        
+      </div>
+    </main>
+    
+  </div>
+  
+  <!-- Side Detail Drawer -->
+  <div class="side-drawer" id="side-drawer">
+    <div class="drawer-overlay" id="drawer-overlay"></div>
+    <div class="drawer-content">
+      <div class="drawer-header">
+        <div>
+          <h3 id="drawer-title">Installation Details</h3>
+          <span class="badge" id="drawer-badge-type">Cookstove</span>
+        </div>
+        <button class="btn-close-drawer" id="btn-close-drawer">✕</button>
+      </div>
+      
+      <div class="drawer-body">
+        
+        <!-- Quick Status Metrics -->
+        <div class="drawer-stats-row">
+          <div class="drawer-stat-card">
+            <span>Status</span>
+            <strong id="drawer-status">Pending</strong>
+          </div>
+          <div class="drawer-stat-card">
+            <span>Trust Score</span>
+            <strong id="drawer-trust-score">85%</strong>
+          </div>
+          <div class="drawer-stat-card">
+            <span>CO₂ Reduced</span>
+            <strong id="drawer-co2">2.5 t</strong>
+          </div>
+        </div>
+        
+        <!-- Capture Info Section -->
+        <div class="drawer-section">
+          <h4>Field Evidence & Telemetry</h4>
+          
+          <div class="drawer-meta-list">
+            <div class="meta-item">
+              <span class="label">Installation UUID:</span>
+              <span class="value code" id="drawer-uuid">--</span>
+            </div>
+            <div class="meta-item">
+              <span class="label">Payload Hash:</span>
+              <span class="value code text-green" id="drawer-hash">--</span>
+            </div>
+            <div class="meta-item">
+              <span class="label">Captured GPS:</span>
+              <span class="value" id="drawer-gps">--</span>
+            </div>
+            <div class="meta-item">
+              <span class="label">Capture Time:</span>
+              <span class="value" id="drawer-time">--</span>
+            </div>
+            <div class="meta-item">
+              <span class="label">Notes:</span>
+              <p class="value-block" id="drawer-notes">No notes provided.</p>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Verification Log Section -->
+        <div class="drawer-section">
+          <h4>Verification Auditing Log</h4>
+          <ul class="audit-timeline" id="drawer-audit-timeline">
+            <!-- Timeline items injected dynamically -->
+          </ul>
+        </div>
+        
+        <!-- Solana Anchor Log Section -->
+        <div class="drawer-section" id="drawer-blockchain-section">
+          <h4>Solana On-Chain Anchor</h4>
+          <div class="blockchain-card">
+            <div class="meta-item">
+              <span class="label">Transaction Signature:</span>
+              <span class="value code text-blue" id="drawer-tx-sig">--</span>
+            </div>
+            <div class="meta-item">
+              <span class="label">Block Height:</span>
+              <span class="value" id="drawer-block-height">--</span>
+            </div>
+            <div class="meta-item">
+              <span class="label">Timestamp:</span>
+              <span class="value" id="drawer-tx-time">--</span>
+            </div>
+          </div>
+        </div>
+        
+      </div>
+      
+      <div class="drawer-footer border-top">
+        <button class="btn btn-secondary w-50" id="drawer-btn-replay">Replay Verification</button>
+        <button class="btn btn-primary w-50" id="drawer-btn-action">Verify & Anchor</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ChartJS and Leaflet JS Scripts loaded via CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  
+  <!-- App JavaScript logic -->
+  <script src="app.js"></script>
+</body>
+</html>

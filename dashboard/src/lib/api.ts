@@ -184,6 +184,43 @@ export async function fetchActivities(params?: {
   );
 }
 
+export async function createActivity(payload: any): Promise<Activity> {
+  return apiFetch<Activity>("/activities", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function uploadProof(file: File): Promise<{ image_url: string }> {
+  const formData = new FormData();
+  formData.append("file", file);
+  return apiFetch<{ image_url: string }>("/activities/upload-proof", {
+    method: "POST",
+    body: formData,
+  });
+}
+
+export async function checkDuplicate(payload: {
+  latitude: number;
+  longitude: number;
+  activity_type: string;
+}): Promise<{
+  duplicate_flag: boolean;
+  environment_type: string;
+  radius_used_m: number;
+  nearby_installations: any[];
+}> {
+  return apiFetch<{
+    duplicate_flag: boolean;
+    environment_type: string;
+    radius_used_m: number;
+    nearby_installations: any[];
+  }>("/activities/check-duplicate", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
 export async function fetchActivity(id: string): Promise<Activity> {
   return apiFetch<Activity>(`/activities/${id}`);
 }

@@ -120,11 +120,18 @@ export default function RedesignedDashboardPage() {
     const token = localStorage.getItem("vf_token");
     if (token) setAuthToken(token);
     loadData();
+
+    // Set up silent polling every 10 seconds for real-time updates
+    const interval = setInterval(() => {
+      loadData(true);
+    }, 10000);
+
+    return () => clearInterval(interval);
   }, []);
 
-  async function loadData() {
+  async function loadData(silent = false) {
     setError(null);
-    setIsLoading(true);
+    if (!silent) setIsLoading(true);
     try {
       const [overviewData, trendsData, agentData, anomalyData, propertyData, ledgerData, activityData] = await Promise.all([
         fetchAnalyticsOverview().catch(() => null),
@@ -201,7 +208,7 @@ export default function RedesignedDashboardPage() {
       console.error("Dashboard reload failed", err);
       setError(err?.message || "Failed to retrieve real-time digital MRV data feed.");
     } finally {
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
     }
   }
 

@@ -8,6 +8,7 @@ Settings. All secrets and feature flags are managed here.
 """
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import model_validator
 from typing import List
 import json
 
@@ -65,6 +66,12 @@ class Settings(BaseSettings):
     verra_api_key: str = ""
     goldstandard_api_url: str = ""
     goldstandard_api_key: str = ""
+
+    @model_validator(mode="after")
+    def clean_supabase_url(self) -> "Settings":
+        if self.supabase_url:
+            self.supabase_url = self.supabase_url.rstrip("/")
+        return self
 
     model_config = SettingsConfigDict(
         env_file=".env",
