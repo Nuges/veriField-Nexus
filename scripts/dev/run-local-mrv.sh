@@ -28,6 +28,27 @@ backend/venv/bin/pip install -r backend/requirements.txt
 # 3. Start Backend & Dashboard concurrently
 echo "[3/3] Starting backend (port 8000) and dashboard (port 3000)..."
 
+# 3.1. Detect Local IP & configure environment
+LOCAL_IP=$(ipconfig getifaddr en0 || ipconfig getifaddr en1 || ifconfig | grep "inet " | grep -v 127.0.0.1 | head -n 1 | awk '{print $2}')
+if [ -z "$LOCAL_IP" ]; then
+    LOCAL_IP="127.0.0.1"
+fi
+echo "Detected Local IP: $LOCAL_IP"
+
+# Update dashboard/.env.local
+ENV_FILE="dashboard/.env.local"
+if [ -f "$ENV_FILE" ]; then
+    if grep -q "NEXT_PUBLIC_API_URL=" "$ENV_FILE"; then
+        sed -i '' "s|NEXT_PUBLIC_API_URL=.*|NEXT_PUBLIC_API_URL=|g" "$ENV_FILE"
+    else
+        echo "NEXT_PUBLIC_API_URL=" >> "$ENV_FILE"
+    fi
+else
+    echo "NEXT_PUBLIC_API_URL=" > "$ENV_FILE"
+    echo "NEXT_IGNORE_INCORRECT_LOCKFILE=true" >> "$ENV_FILE"
+fi
+echo "Updated $ENV_FILE: NEXT_PUBLIC_API_URL= (using Next.js rewrites proxy)"
+
 # Kill existing uvicorn instances on port 8000 to avoid conflicts
 if lsof -t -i:8000 >/dev/null; then
     echo "Freeing port 8000..."
@@ -40,16 +61,16 @@ if lsof -t -i:3000 >/dev/null; then
     kill -9 $(lsof -t -i:3000) || true
 fi
 
-# Start FastAPI backend in the background
+# Start FastAPI backend in the background (bind to 0.0.0.0)
 echo "Starting FastAPI Backend..."
 cd backend
-venv/bin/uvicorn app.main:app --reload --port 8000 > ../backend.log 2>&1 &
+venv/bin/uvicorn app.main:app --reload --host 0.0.0.0 --port 8000 > ../backend.log 2>&1 &
 BACKEND_PID=$!
 cd ..
 
-# Start Next.js Dashboard in the background
+# Start Next.js Dashboard in the background (bind to 0.0.0.0)
 echo "Starting Next.js Dashboard..."
-npm run dev --prefix dashboard > dashboard.log 2>&1 &
+npm run dev --prefix dashboard -- -H 0.0.0.0 > dashboard.log 2>&1 &
 DASHBOARD_PID=$!
 
 # Trap signals to cleanly kill background processes on exit
@@ -65,8 +86,13 @@ trap cleanup EXIT INT TERM
 echo ""
 echo "============================================="
 echo "Local MRV services are running!"
-echo "- FastAPI API:  http://localhost:8000"
-echo "- Dashboard:    http://localhost:3000"
+echo "- FastAPI API:              http://$LOCAL_IP:8000"
+echo "- Dashboard (Admin Panel):  http://$LOCAL_IP:3000"
+echo "- standalone Capture PWA:    http://$LOCAL_IP:3000/capture"
+echo ""
+echo "📱 OPEN ON IPHONE:"
+echo "http://$LOCAL_IP:3000/capture"
+echo ""
 echo "- Backend log:  tail -f backend.log"
 echo "- Frontend log: tail -f dashboard.log"
 echo "============================================="

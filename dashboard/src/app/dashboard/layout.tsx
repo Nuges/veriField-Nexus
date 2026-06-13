@@ -37,9 +37,11 @@ function DashboardLayoutContent({
   useEffect(() => {
     if (!user) return;
 
-    if (!["admin", "auditor"].includes(user.role)) {
+    if (!["admin", "auditor", "SUPER_ADMIN", "ORG_ADMIN"].includes(user.role)) {
       localStorage.clear();
       router.push("/login?error=unauthorized");
+    } else if (user.role === "SUPER_ADMIN") {
+      router.push("/super-admin");
     }
   }, [user, router]);
 

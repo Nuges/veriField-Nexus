@@ -86,7 +86,7 @@ export default function POAPortfolioPage() {
       const u = await fetchMe();
       setUser(u);
 
-      if (u.role !== "admin" && u.role !== "auditor") {
+      if (u.role !== "admin" && u.role !== "auditor" && u.role !== "ORG_ADMIN" && u.role !== "SUPER_ADMIN") {
         return; // UI handles permission block below
       }
 
@@ -221,7 +221,7 @@ export default function POAPortfolioPage() {
   }
 
   // Restricted Access view for non-admin/non-auditor users
-  if (user && user.role !== "admin" && user.role !== "auditor") {
+  if (user && user.role !== "admin" && user.role !== "auditor" && user.role !== "ORG_ADMIN" && user.role !== "SUPER_ADMIN") {
     return (
       <div className="p-8 bg-red-500/10 border border-red-500/20 rounded-2xl max-w-xl mx-auto mt-14 text-center animate-fade-in-up">
         <Lock className="text-red-500 mx-auto mb-4" size={36} />

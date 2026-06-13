@@ -1,0 +1,22 @@
+{
+  "name": "VeriField Capture",
+  "short_name": "Capture",
+  "description": "Infrastructure-Grade Standalone Digital MRV Capture PWA for climate assets",
+  "start_url": "/capture",
+  "display": "standalone",
+  "background_color": "#0B1220",
+  "theme_color": "#0B1220",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/logo-green.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/logo-green.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

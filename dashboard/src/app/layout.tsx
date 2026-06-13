@@ -9,6 +9,16 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "VeriField Nexus — Admin Dashboard",
   description: "Field data verification and analytics for climate projects",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "VeriField Capture",
+  },
+  icons: {
+    icon: "/favicon.ico",
+    apple: "/logo-green.png",
+  },
 };
 
 export default function RootLayout({

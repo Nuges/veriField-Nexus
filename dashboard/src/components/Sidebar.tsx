@@ -28,13 +28,12 @@ import { useWorkspace } from "@/context/WorkspaceContext";
 function getNavItems(role: string | null) {
   const items = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/dashboard/capture", label: "Field Capture", icon: Camera },
     { href: "/dashboard/properties", label: "Field Data", icon: Home },
     { href: "/dashboard/audits", label: "Verification", icon: ShieldCheck },
     { href: "/dashboard/carbon", label: "Reports", icon: Leaf },
   ];
 
-  if (role === "admin" || role === "auditor") {
+  if (role === "admin" || role === "auditor" || role === "ORG_ADMIN" || role === "SUPER_ADMIN") {
     items.push({ href: "/dashboard/poa", label: "POA Portfolio", icon: Compass });
   }
 
@@ -58,8 +57,6 @@ export default function Sidebar() {
   const getIsActive = (href: string) => {
     if (href === "/dashboard") {
       return pathname === "/dashboard" || pathname.startsWith("/dashboard/analytics");
-    } else if (href === "/dashboard/capture") {
-      return pathname === "/dashboard/capture" || pathname.startsWith("/dashboard/capture");
     } else if (href === "/dashboard/properties") {
       return pathname.startsWith("/dashboard/properties") || 
              pathname.startsWith("/dashboard/activities") || 

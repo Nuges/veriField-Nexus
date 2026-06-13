@@ -10,7 +10,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ShieldCheck, Mail, Lock, Loader2 } from "lucide-react";
-import { loginAdmin, setAuthToken } from "@/lib/api";
+import { loginAdmin, setAuthToken, changePassword } from "@/lib/api";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -19,8 +19,22 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // Forced password change states
+  const [requiresReset, setRequiresReset] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [tempToken, setTempToken] = useState("");
+  const [isResetting, setIsResetting] = useState(false);
+  const [resetError, setResetError] = useState("");
+  const [tempUserRole, setTempUserRole] = useState("");
+  const [tempUserRedirect, setTempUserRedirect] = useState("");
+
   useEffect(() => {
     if (typeof window !== "undefined") {
+      // Clear any stale auth state — user is on the login page, start fresh
+      localStorage.removeItem("vf_token");
+      setAuthToken(null);
+      
       const params = new URLSearchParams(window.location.search);
       if (params.get("error") === "unauthorized") {
         setError("Access denied. This system is restricted to verification personnel only.");
@@ -35,16 +49,62 @@ export default function LoginPage() {
 
     try {
       const result = await loginAdmin(email, password);
-      if (result.user.role !== "admin" && result.user.role !== "auditor") {
+      
+      // Parse redirect parameter dynamically from the search query
+      const params = new URLSearchParams(window.location.search);
+      let targetRedirect = params.get("redirect") || "/dashboard";
+      if (result.user.role === "SUPER_ADMIN") {
+        targetRedirect = "/super-admin";
+      }
+      const isMobileCapture = targetRedirect.startsWith("/capture");
+      
+      if (!isMobileCapture && !["admin", "auditor", "SUPER_ADMIN", "ORG_ADMIN"].includes(result.user.role)) {
         throw new Error("Access denied. This system is restricted to verification personnel only.");
       }
-      setAuthToken(result.access_token);
-      localStorage.setItem("vf_token", result.access_token);
-      router.push("/dashboard");
+      
+      if (result.user.requires_password_change) {
+        setTempToken(result.access_token);
+        setTempUserRole(result.user.role);
+        setTempUserRedirect(targetRedirect);
+        setRequiresReset(true);
+      } else {
+        setAuthToken(result.access_token);
+        localStorage.setItem("vf_token", result.access_token);
+        window.location.href = targetRedirect;
+      }
     } catch (err: any) {
       setError(err.message || "Invalid credentials");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handlePasswordReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setResetError("");
+    
+    if (newPassword.length < 8) {
+      setResetError("New password must be at least 8 characters long.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setResetError("Passwords do not match.");
+      return;
+    }
+    
+    setIsResetting(true);
+    try {
+      setAuthToken(tempToken);
+      await changePassword({ old_password: password, new_password: newPassword });
+      
+      // Save token and route securely
+      localStorage.setItem("vf_token", tempToken);
+      setRequiresReset(false);
+      window.location.href = tempUserRedirect;
+    } catch (err: any) {
+      setResetError(err.message || "Failed to update password. Please try again.");
+    } finally {
+      setIsResetting(false);
     }
   };
 
@@ -166,6 +226,70 @@ export default function LoginPage() {
           VeriField Nexus v1.0 — Climate Data Verification Platform
         </p>
       </div>
+
+      {/* Forced Password Reset Modal */}
+      {requiresReset && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+          <div className="relative w-full max-w-md bg-[var(--color-card)] border border-[var(--color-border)] rounded-2xl p-8 shadow-2xl animate-fade-in-up">
+            <div className="text-center mb-6">
+              <div className="w-12 h-12 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center mx-auto mb-3">
+                <Lock size={24} />
+              </div>
+              <h3 className="text-lg font-bold text-[var(--color-text-primary)]">Password Change Required</h3>
+              <p className="text-xs text-[var(--color-text-secondary)] mt-1.5 leading-relaxed">
+                Your account was provisioned with temporary credentials. You must rotate your password before accessing the system.
+              </p>
+            </div>
+
+            {resetError && (
+              <div className="mb-4 px-4 py-2.5 rounded-xl text-xs bg-red-500/10 border border-red-500/20 text-red-400">
+                {resetError}
+              </div>
+            )}
+
+            <form onSubmit={handlePasswordReset} className="space-y-4">
+              <div>
+                <label className="text-xs font-bold text-[var(--color-text-secondary)] mb-1.5 block">New Password</label>
+                <input
+                  type="password"
+                  required
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="•••••••• (Min 8 characters)"
+                  className="w-full px-4 py-2.5 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] text-xs text-[var(--color-text-primary)] placeholder:text-slate-600 focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-[var(--color-text-secondary)] mb-1.5 block">Confirm New Password</label>
+                <input
+                  type="password"
+                  required
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full px-4 py-2.5 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] text-xs text-[var(--color-text-primary)] placeholder:text-slate-600 focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={isResetting}
+                className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 text-[var(--color-text-primary)] font-bold text-xs uppercase tracking-wide hover:from-emerald-600 hover:to-emerald-700 disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isResetting ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    Updating Password...
+                  </>
+                ) : (
+                  "Change Password & Sign In"
+                )}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

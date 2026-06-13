@@ -48,7 +48,9 @@ export interface AuditTask {
 }
 
 // Base URL for the FastAPI backend
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://verifield-nexus.onrender.com";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL !== undefined && process.env.NEXT_PUBLIC_API_URL !== ""
+  ? process.env.NEXT_PUBLIC_API_URL
+  : (process.env.NODE_ENV === "production" ? "https://verifield-nexus.onrender.com" : "");
 const API_V1 = `${API_BASE}/api/v1`;
 
 // Store the auth token in memory
@@ -131,13 +133,34 @@ async function apiFetch<T>(
 // ---------------------------------------------------------------------------
 
 export async function loginAdmin(email: string, password: string) {
-  return apiFetch<{ user: any; access_token: string; expires_in: number }>(
-    "/auth/login",
-    {
+  // Use direct fetch — login must NEVER send a stale Authorization header
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+  let response: Response;
+  try {
+    response = await fetch(`${API_V1}/auth/login`, {
       method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
+      signal: controller.signal,
+      cache: "no-store",
+    });
+    clearTimeout(timeoutId);
+  } catch (networkError: any) {
+    clearTimeout(timeoutId);
+    if (networkError.name === "AbortError") {
+      throw new Error("Login timed out. The server is taking too long to respond. Please try again.");
     }
-  );
+    throw new Error("Network error: Unable to reach the server. Please check your connection.");
+  }
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.detail || `Login failed: ${response.status} ${response.statusText}`);
+  }
+
+  return response.json() as Promise<{ user: any; access_token: string; expires_in: number }>;
 }
 
 export async function onboardDeveloper(payload: {
@@ -580,10 +603,13 @@ export async function updateProfile(data: {
   });
 }
 
-export async function changePassword(newPassword: string): Promise<any> {
+export async function changePassword(payloadOrPassword: string | { old_password?: string; new_password: string }): Promise<any> {
+  const body = typeof payloadOrPassword === "string"
+    ? { new_password: payloadOrPassword }
+    : payloadOrPassword;
   return apiFetch<any>("/auth/change-password", {
     method: "POST",
-    body: JSON.stringify({ new_password: newPassword }),
+    body: JSON.stringify(body),
   });
 }
 
@@ -616,5 +642,79 @@ export async function fetchEnergyActivities(params: { page?: number; per_page?: 
 export async function fetchSiteTelemetry(siteId: string, limit: number = 30): Promise<any> {
   return apiFetch<any>(`/energy/telemetry/${siteId}?limit=${limit}`);
 }
+
+
+// =============================================================================
+// SaaS Governance & Super Admin API functions
+// =============================================================================
+
+export async function createAccessRequest(payload: {
+  full_name: string;
+  email: string;
+  phone?: string;
+  organization_name: string;
+  country?: string;
+  use_case?: string;
+}) {
+  return apiFetch<{ status: string; message: string }>("/access-requests", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function fetchAccessRequests(params?: { status?: string }) {
+  const searchParams = new URLSearchParams();
+  if (params?.status) searchParams.set("status", params.status);
+  const query = searchParams.toString();
+  return apiFetch<any[]>(`/admin/access-requests${query ? `?${query}` : ""}`);
+}
+
+export async function approveAccessRequest(id: string) {
+  return apiFetch<{
+    message: string;
+    organization_id: string;
+    organization_name: string;
+    org_admin_email: string;
+    temporary_password: string;
+  }>(`/admin/access-requests/${id}/approve`, {
+    method: "POST",
+  });
+}
+
+export async function rejectAccessRequest(id: string) {
+  return apiFetch<any>(`/admin/access-requests/${id}/reject`, {
+    method: "POST",
+  });
+}
+
+export async function fetchAllOrganizations() {
+  return apiFetch<any[]>("/admin/organizations");
+}
+
+export async function fetchAllUsersGlobal() {
+  return apiFetch<any[]>("/admin/users");
+}
+
+export async function toggleUserSuspension(id: string, isActive: boolean) {
+  return apiFetch<any>(`/admin/users/${id}/status`, {
+    method: "PATCH",
+    body: JSON.stringify({ is_active: isActive }),
+  });
+}
+
+export async function fetchAuditLogs() {
+  return apiFetch<any[]>("/admin/audit-logs");
+}
+
+export async function deleteOrganization(id: string) {
+  return apiFetch<void>(`/admin/organizations/${id}`, {
+    method: "DELETE",
+  });
+}
+
+export async function fetchOrganizationAnalytics(id: string) {
+  return apiFetch<any>(`/admin/organizations/${id}/analytics`);
+}
+
 
 

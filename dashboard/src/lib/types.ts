@@ -12,6 +12,9 @@ export interface User {
   role: string;
   avatar_url: string | null;
   organization: string | null;
+  organization_id: string | null;
+  is_active: boolean;
+  requires_password_change: boolean;
   sector: string;
   country: string | null;
   project_type: string | null;

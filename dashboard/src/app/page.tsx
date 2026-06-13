@@ -1,9 +1,828 @@
 // =============================================================================
-// VeriField Nexus — Root Page (Redirect)
+// VeriField Nexus — Premium Landing Page (Exact Replica)
+// =============================================================================
+// Formatted precisely to match the layout, typography, and contrast flow
+// of the uploaded design screenshot. Alternates between premium black
+// and crisp white sections with VeriField brand green (#00B47A) accents.
 // =============================================================================
 
-import { redirect } from "next/navigation";
+"use client";
 
-export default function RootPage() {
-  redirect("/login");
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { 
+  ShieldCheck, 
+  ArrowUpRight, 
+  CheckCircle, 
+  XCircle, 
+  Smartphone, 
+  Cpu, 
+  Database, 
+  Globe, 
+  LineChart, 
+  Zap, 
+  Flame, 
+  Coins, 
+  FileCheck2, 
+  Server, 
+  Wifi, 
+  Check, 
+  ExternalLink, 
+  Clock, 
+  MapPin, 
+  Activity, 
+  Sparkles,
+  Loader2,
+  Lock,
+  Cloud,
+  Link as LinkIcon
+} from "lucide-react";
+import { createAccessRequest } from "@/lib/api";
+
+interface LogEntry {
+  timestamp: string;
+  location: string;
+  capacity: string;
+  type: string;
+  status: "success" | "warning";
+  trustScore: number;
+  txHash: string;
+}
+
+export default function LandingPage() {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    org: "",
+    projectType: "energy",
+    region: "Nigeria",
+    notes: ""
+  });
+  
+  const [submittingState, setSubmittingState] = useState<"idle" | "connecting" | "signing" | "anchoring" | "success">("idle");
+  const [generatedTx, setGeneratedTx] = useState("");
+
+  // Live MRV Log Stream for Purpose-Built Section Map simulation
+  const [logs, setLogs] = useState<LogEntry[]>([
+    {
+      timestamp: "00:44:02",
+      location: "Lagos, NG",
+      capacity: "120kWp",
+      type: "Hybrid Solar",
+      status: "success",
+      trustScore: 98,
+      txHash: "4xQe9v...Z1"
+    },
+    {
+      timestamp: "00:41:15",
+      location: "Abuja, NG",
+      capacity: "85kWp",
+      type: "Solar Mini-Grid",
+      status: "success",
+      trustScore: 95,
+      txHash: "7yRp8m...K5"
+    }
+  ]);
+
+  useEffect(() => {
+    const locations = ["Lagos, NG", "Kano, NG", "Ibadan, NG", "Abuja, NG", "Enugu, NG"];
+    const capacities = ["45kWp", "80kWp", "150kWp", "60kWp", "200kWp"];
+    
+    const interval = setInterval(() => {
+      const date = new Date();
+      const timeStr = date.toTimeString().split(" ")[0];
+      const randomLoc = locations[Math.floor(Math.random() * locations.length)];
+      const randomCap = capacities[Math.floor(Math.random() * capacities.length)];
+      const trustScore = Math.floor(Math.random() * 15) + 85;
+      const randHash = Math.random().toString(36).substring(2, 6) + "..." + Math.random().toString(36).substring(2, 5);
+      
+      const newEntry: LogEntry = {
+        timestamp: timeStr,
+        location: randomLoc,
+        capacity: randomCap,
+        type: "Solar Installation",
+        status: "success",
+        trustScore,
+        txHash: randHash
+      };
+
+      setLogs(prev => [newEntry, ...prev.slice(0, 1)]);
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleRequestAccess = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.name || !formData.email || !formData.org) return;
+
+    setSubmittingState("connecting");
+    try {
+      const payload = {
+        full_name: formData.name,
+        email: formData.email,
+        phone: formData.phone || undefined,
+        organization_name: formData.org,
+        country: formData.region || undefined,
+        use_case: `${formData.projectType.toUpperCase()} - ${formData.notes}`
+      };
+      await createAccessRequest(payload);
+      setSubmittingState("success");
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message || "Failed to submit onboarding request. Please verify connection and try again.");
+      setSubmittingState("idle");
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      name: "",
+      email: "",
+      phone: "",
+      org: "",
+      projectType: "energy",
+      region: "Nigeria",
+      notes: ""
+    });
+    setSubmittingState("idle");
+    setIsModalOpen(false);
+  };
+
+  return (
+    <div className="bg-black text-white font-sans antialiased selection:bg-[#00B47A]/30 selection:text-white">
+
+      {/* HEADER NAVBAR (Black Background) */}
+      <header className="w-full bg-black border-b border-zinc-900 z-45">
+        <div className="max-w-7xl mx-auto px-6 md:px-12 h-20 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <img 
+              src="/logo-green.png" 
+              alt="VeriField Nexus" 
+              className="h-10 w-auto object-contain"
+            />
+          </div>
+
+          {/* Desktop Menu */}
+          <nav className="hidden md:flex items-center gap-8 text-xs font-semibold uppercase tracking-wider text-zinc-400">
+            <a href="#about" className="hover:text-white transition-colors">About Us</a>
+            <a href="#product" className="hover:text-white transition-colors">Product</a>
+            <a href="#how-it-works" className="hover:text-white transition-colors">How It Works</a>
+            <a href="#use-cases" className="hover:text-white transition-colors">Use Cases</a>
+            <a href="#deployments" className="hover:text-white transition-colors">Deployments</a>
+          </nav>
+
+          {/* Header Action Buttons */}
+          <div className="flex items-center gap-6">
+            <Link 
+              href="/login" 
+              className="text-xs font-bold uppercase tracking-wider text-zinc-400 hover:text-white transition-colors"
+            >
+              Sign In
+            </Link>
+            <button 
+              onClick={() => setIsModalOpen(true)}
+              className="text-xs font-bold uppercase tracking-wider py-2.5 px-5 rounded-full border border-zinc-800 hover:border-[#00B47A] text-white hover:text-[#00B47A] transition-all duration-300"
+            >
+              Request Access
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* 1. HERO SECTION (Black Background) */}
+      <section className="bg-black py-12 lg:py-24 border-b border-zinc-900 overflow-hidden">
+        <div className="max-w-7xl mx-auto px-6 md:px-12 flex flex-col lg:flex-row items-center gap-12 lg:gap-16">
+          
+          <div className="flex-1 space-y-8 text-left max-w-xl">
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-white leading-[1.08] font-sans">
+              Verifying real impact. <br />
+              <span className="text-[#00B47A]">Building climate trust.</span>
+            </h1>
+
+            <p className="text-zinc-400 text-base md:text-lg leading-relaxed max-w-lg">
+              VeriField Nexus is a real-time MRV infrastructure that captures, verifies, and anchors clean energy installations as immutable proof on-chain.
+            </p>
+
+            <div className="pt-2">
+              <button 
+                onClick={() => setIsModalOpen(true)}
+                className="inline-flex items-center justify-center py-4 px-8 rounded-full bg-[#00B47A] text-black font-bold text-sm tracking-wider uppercase hover:bg-emerald-400 transition-all duration-300 shadow-lg shadow-[#00B47A]/10"
+              >
+                Request Access
+              </button>
+            </div>
+          </div>
+
+          {/* High-Resolution Mockup Image */}
+          <div className="flex-1 w-full flex items-center justify-center">
+            <img 
+              src="/dashboard-mock.png" 
+              alt="VeriField Nexus Dashboard on Laptop and Capture app on iPhone" 
+              className="w-full max-w-[620px] h-auto object-contain select-none pointer-events-none"
+            />
+          </div>
+
+        </div>
+      </section>
+
+      {/* 2. THE VERIFICATION GAP SECTION (White Background) */}
+      <section id="about" className="bg-white text-black py-20 lg:py-28 border-b border-zinc-100">
+        <div className="max-w-7xl mx-auto px-6 md:px-12 flex flex-col lg:flex-row items-stretch gap-12 lg:gap-16">
+          
+          {/* Left Side: The Gap */}
+          <div className="flex-1 space-y-6 flex flex-col justify-between">
+            <div className="space-y-6">
+              <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-black leading-tight">
+                The verification gap<br />in climate infrastructure
+              </h2>
+              <p className="text-zinc-600 text-sm md:text-base max-w-md leading-relaxed">
+                Manual reporting, delayed audits, and inconsistent data create a broken system.
+              </p>
+            </div>
+
+            <ul className="space-y-4 pt-6">
+              {[
+                "Unverifiable environmental claims",
+                "Duplicate or ghost installations",
+                "Fragmented audit systems",
+                "High cost and slow verification cycles"
+              ].map((item, idx) => (
+                <li key={idx} className="flex items-center gap-3 text-sm font-semibold text-zinc-800">
+                  <span className="w-5 h-5 rounded-full border border-[#00B47A] flex items-center justify-center text-[#00B47A] font-bold text-xs shrink-0 select-none">
+                    ✕
+                  </span>
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Middle Line Separator (only desktop) */}
+          <div className="hidden lg:flex flex-col items-center justify-center py-4 relative">
+            <div className="w-[1px] h-full bg-zinc-200" />
+            <div className="w-2.5 h-2.5 rounded-full border-2 border-[#00B47A] bg-white absolute top-1/2 -translate-y-1/2" />
+          </div>
+
+          {/* Right Side: A New Standard for Trust (Solution Section) */}
+          <div className="flex-1 space-y-8 flex flex-col justify-between">
+            <div className="space-y-6">
+              <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-black leading-tight">
+                A new standard for trust
+              </h2>
+              <p className="text-zinc-600 text-sm md:text-base max-w-md leading-relaxed">
+                We replace manual processes with a real-time verification layer that brings transparency, accuracy, and accountability to every installation.
+              </p>
+            </div>
+
+            {/* 4 Pillars Grid */}
+            <div className="grid grid-cols-2 gap-x-8 gap-y-6 pt-6">
+              {[
+                { title: "Capture", desc: "Collect field data at the source", icon: Smartphone },
+                { title: "Verify", desc: "Automated integrity checks & trust scoring", icon: ShieldCheck },
+                { title: "Anchor", desc: "Immutable proof on-chain", icon: Database },
+                { title: "Visualize", desc: "Real-time dashboard & analytics", icon: LineChart }
+              ].map((pillar, idx) => (
+                <div key={idx} className="space-y-2 text-left">
+                  <div className="w-10 h-10 rounded-full border border-[#00B47A] flex items-center justify-center text-[#00B47A] shrink-0">
+                    <pillar.icon size={18} strokeWidth={2} />
+                  </div>
+                  <h4 className="font-bold text-zinc-900 text-sm">{pillar.title}</h4>
+                  <p className="text-zinc-500 text-xs leading-normal">{pillar.desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      {/* 3. HOW IT WORKS SECTION (White Background, Light Grey Box) */}
+      <section id="how-it-works" className="bg-white text-black py-16 lg:py-24 border-b border-zinc-100">
+        <div className="max-w-7xl mx-auto px-6 md:px-12">
+          
+          <div className="bg-zinc-50 rounded-[28px] p-8 md:p-12 lg:p-16 border border-zinc-100 shadow-sm space-y-12">
+            
+            <div className="text-center">
+              <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-black">
+                How VeriField Nexus Works
+              </h2>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-8 relative pt-4">
+              
+              {/* Dotted Connecting Line (Desktop) */}
+              <div className="absolute top-[28px] left-[12%] right-[12%] h-[1px] border-t-2 border-dotted border-zinc-300 hidden md:block z-0" />
+
+              {[
+                {
+                  step: 1,
+                  label: "Field Capture",
+                  desc: "Field agents capture GPS, photos, timestamps and installation details.",
+                  icon: Smartphone
+                },
+                {
+                  step: 2,
+                  label: "Verification Engine",
+                  desc: "Our system runs automated checks for duplicates, anomalies and completeness.",
+                  icon: ShieldCheck
+                },
+                {
+                  step: 3,
+                  label: "On-Chain Proof",
+                  desc: "Verified records are anchored to Solana as immutable cryptographic proof.",
+                  icon: Database
+                },
+                {
+                  step: 4,
+                  label: "Registry & Analytics",
+                  desc: "Live dashboard provides visibility, insights and audit ready reports.",
+                  icon: LineChart
+                }
+              ].map((stepItem, idx) => (
+                <div key={idx} className="flex flex-col items-center text-center space-y-4 relative z-10">
+                  <div className="w-14 h-14 rounded-full bg-white border border-zinc-200 flex items-center justify-center shadow-sm relative">
+                    <stepItem.icon className="text-zinc-700" size={20} />
+                    <span className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-[#00B47A] text-black font-bold text-xs flex items-center justify-center shadow-sm font-mono">
+                      {stepItem.step}
+                    </span>
+                  </div>
+                  <div className="space-y-1.5 px-2">
+                    <h3 className="font-bold text-zinc-900 text-sm">{stepItem.label}</h3>
+                    <p className="text-zinc-500 text-xs leading-relaxed">{stepItem.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+          </div>
+
+        </div>
+      </section>
+
+      {/* 4. SYSTEM MODULES & APPLICATIONS (White Background) */}
+      <section id="product" className="bg-white text-black py-16 lg:py-24 border-b border-zinc-100">
+        <div className="max-w-7xl mx-auto px-6 md:px-12 space-y-16">
+          
+          {/* Modules Row */}
+          <div className="space-y-8">
+            <div className="text-left border-b border-zinc-100 pb-4">
+              <span className="text-xs uppercase tracking-widest text-[#00B47A] font-bold">04 / Core Modules</span>
+              <h3 className="text-2xl md:text-3xl font-bold tracking-tight text-black mt-1">
+                Core System Components
+              </h3>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+              {[
+                { title: "Mobile Field Capture System", desc: "Flutter client optimized for iPhone capture, biometric location lock, and local-first data caching.", icon: Smartphone },
+                { title: "Automated Verification Engine", desc: "Algorithmic backend analyzing duplicates, coordinate ranges, image hashes, and calculating trust indexes.", icon: Cpu },
+                { title: "Real-Time Analytics Dashboard", desc: "Interactive map, activity lists, verification timelines, and compliance scoring profiles.", icon: LineChart },
+                { title: "On-Chain Proof Layer (Solana)", desc: "Anchor program recording compressed verification nodes as immutable proof states.", icon: Database },
+                { title: "Installation Registry Database", desc: "Secure PostgreSQL ledger indexing structured coordinates, physical tags, and score lineages.", icon: Server }
+              ].map((module, idx) => (
+                <div key={idx} className="p-6 rounded-2xl bg-zinc-50 border border-zinc-100 hover:border-[#00B47A]/30 transition-all duration-300 space-y-3">
+                  <div className="w-8 h-8 rounded-lg bg-white border border-zinc-200 flex items-center justify-center text-zinc-700 shadow-sm">
+                    <module.icon size={16} />
+                  </div>
+                  <h4 className="font-bold text-zinc-900 text-sm leading-snug">{module.title}</h4>
+                  <p className="text-zinc-500 text-xs leading-relaxed">{module.desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Use Cases Row */}
+          <div id="use-cases" className="space-y-8 pt-8">
+            <div className="text-left border-b border-zinc-100 pb-4">
+              <span className="text-xs uppercase tracking-widest text-[#00B47A] font-bold">05 / Use Cases</span>
+              <h3 className="text-2xl md:text-3xl font-bold tracking-tight text-black mt-1">
+                Built for Real-World Climate Infrastructure
+              </h3>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+              {[
+                { title: "Clean cookstove programs", desc: "Verify stove coordinate distributions to validate clean carbon credit claims.", icon: Flame },
+                { title: "Solar & hybrid energy", desc: "Validate generation parameters and installations across off-grid networks.", icon: Zap },
+                { title: "Carbon credit pipelines", desc: "Ingest cryptographically anchored proofs directly to environmental registry adapters.", icon: Coins },
+                { title: "ESG reporting infrastructure", desc: "Collect field-level proof data to satisfy auditor requirements.", icon: FileCheck2 },
+                { title: "Climate finance transparency", desc: "Give capital providers direct visibility into physical asset installation rates.", icon: Globe }
+              ].map((uc, idx) => (
+                <div key={idx} className="p-6 rounded-2xl bg-zinc-50 border border-zinc-100 hover:border-[#00B47A]/30 transition-all duration-300 space-y-3">
+                  <div className="w-8 h-8 rounded-lg bg-white border border-zinc-200 flex items-center justify-center text-zinc-700 shadow-sm">
+                    <uc.icon size={16} />
+                  </div>
+                  <h4 className="font-bold text-zinc-900 text-sm leading-snug">{uc.title}</h4>
+                  <p className="text-zinc-500 text-xs leading-relaxed">{uc.desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      {/* 5. PURPOSE-BUILT SECTION & TECH STACK (Black Background) */}
+      <section id="deployments" className="bg-black py-20 lg:py-28 border-b border-zinc-900">
+        <div className="max-w-7xl mx-auto px-6 md:px-12 space-y-16">
+          
+          <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-16">
+            
+            {/* Left Column: Grid */}
+            <div className="flex-1 space-y-8 max-w-xl text-left">
+              <div className="space-y-4">
+                <span className="text-xs uppercase tracking-widest text-[#00B47A] font-bold">06 / DEPLOYMENT ROBUSTNESS</span>
+                <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-white leading-tight">
+                  Purpose-built for<br />real-world deployment
+                </h2>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                {[
+                  { title: "Offline First", desc: "Capture in low connectivity environments.", icon: Wifi },
+                  { title: "Secure by Design", desc: "End-to-end encryption and hashed data.", icon: Lock },
+                  { title: "Real-Time Sync", desc: "Instant submissions when back online.", icon: Zap },
+                  { title: "Scalable Infrastructure", desc: "Built to support thousands of installations.", icon: Database }
+                ].map((item, idx) => (
+                  <div key={idx} className="flex gap-4 items-start">
+                    <div className="w-9 h-9 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-[#00B47A] shrink-0">
+                      <item.icon size={18} />
+                    </div>
+                    <div className="space-y-1">
+                      <h4 className="font-bold text-white text-sm">{item.title}</h4>
+                      <p className="text-zinc-400 text-xs leading-relaxed">{item.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Right Column: World Map / Simulation Mockup */}
+            <div className="flex-1 w-full bg-zinc-950 rounded-2xl border border-zinc-900 p-6 space-y-4 shadow-xl">
+              <div className="flex items-center justify-between border-b border-zinc-900 pb-3">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-[#00B47A] animate-pulse" />
+                  <span className="text-[10px] font-mono font-bold text-zinc-400 uppercase">ACTIVE DEPLOYMENT MAP</span>
+                </div>
+                <span className="text-[9px] bg-zinc-900 text-[#00B47A] border border-zinc-800 px-2 py-0.5 rounded font-mono font-bold">
+                  NIGERIA WIDE
+                </span>
+              </div>
+
+              {/* Map grid mockup */}
+              <div className="aspect-[16/9] w-full rounded bg-zinc-900/60 border border-zinc-800/40 relative flex items-center justify-center overflow-hidden">
+                {/* Simulated Grid Dots */}
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_#1c2d2f_1px,_transparent_1px)] bg-[size:1rem_1rem] opacity-30" />
+                
+                {/* Nigeria region indicator */}
+                <div className="absolute w-24 h-24 rounded-full border border-[#00B47A]/20 bg-[#00B47A]/5 flex items-center justify-center animate-pulse">
+                  <MapPin size={24} className="text-[#00B47A]" />
+                </div>
+
+                <div className="absolute bottom-4 left-4 right-4 bg-black/80 px-3 py-2 rounded border border-zinc-800/80 font-mono text-[9px] flex justify-between items-center text-zinc-400">
+                  <span>LAT: 6.5244° N | LON: 3.3792° E</span>
+                  <span className="text-[#00B47A]">Verified Node</span>
+                </div>
+              </div>
+
+              {/* Real-time simulation info */}
+              {logs.map((log, index) => (
+                <div key={index} className="bg-black border border-zinc-900 p-3 rounded font-mono text-[10px] flex justify-between items-center">
+                  <div className="space-y-0.5">
+                    <span className="text-zinc-500">INGESTION TIMEOUT: SECURE</span>
+                    <p className="text-white font-bold">{log.location} Mini-Grid Submission</p>
+                  </div>
+                  <span className="text-[#00B47A] font-bold">Score: {log.trustScore}/100</span>
+                </div>
+              ))}
+            </div>
+
+          </div>
+
+          {/* Infrastructure Tech Stack & System Status Info */}
+          <div className="pt-12 border-t border-zinc-900 space-y-8">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <span className="text-xs uppercase tracking-widest text-[#00B47A] font-bold">07 / Infrastructure Stack</span>
+                <p className="text-zinc-400 text-xs mt-1">
+                  Mobile Field Capture (Flutter / Web PWA) • FastAPI Verification Engine • Real-time Dashboard (Next.js / Web) • Solana Anchor Program (Proof Layer) • Local-first data capture with offline support
+                </p>
+              </div>
+              
+              <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-900 font-mono text-[10px] flex items-center gap-3 shrink-0">
+                <span className="w-2 h-2 rounded-full bg-[#00B47A] animate-ping" />
+                <span className="text-zinc-400">System Status: <span className="text-white font-bold">Operational</span></span>
+              </div>
+            </div>
+
+            <p className="text-zinc-500 text-xs leading-relaxed max-w-2xl text-left">
+              VeriField Nexus is currently in active deployment phase with real-world installations being onboarded. The system is operational and processing live field data submissions.
+            </p>
+          </div>
+
+        </div>
+      </section>
+
+      {/* 6. STATS BAR SECTION (White Background) */}
+      <section className="bg-white text-black py-10 border-b border-zinc-100">
+        <div className="max-w-7xl mx-auto px-6 md:px-12">
+          
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-4 divide-y md:divide-y-0 md:divide-x divide-zinc-200">
+            
+            <div className="flex items-center gap-4 px-2 py-4 md:py-0 md:first:pl-0">
+              <div className="w-10 h-10 rounded-full border border-[#00B47A] flex items-center justify-center text-[#00B47A]">
+                <Zap size={18} />
+              </div>
+              <div className="text-left">
+                <div className="text-2xl font-bold text-black tracking-tight leading-none">1,248+</div>
+                <div className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider mt-1">Installations Captured</div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4 px-2 md:pl-6 py-4 md:py-0">
+              <div className="w-10 h-10 rounded-full border border-[#00B47A] flex items-center justify-center text-[#00B47A]">
+                <ShieldCheck size={18} />
+              </div>
+              <div className="text-left">
+                <div className="text-2xl font-bold text-[#00B47A] tracking-tight leading-none">89.4</div>
+                <div className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider mt-1">Average Trust Score</div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4 px-2 md:pl-6 py-4 md:py-0">
+              <div className="w-10 h-10 rounded-full border border-[#00B47A] flex items-center justify-center text-[#00B47A]">
+                <Cloud size={18} />
+              </div>
+              <div className="text-left">
+                <div className="text-2xl font-bold text-black tracking-tight leading-none">3,482 tCO₂</div>
+                <div className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider mt-1">CO₂ Impact Estimated</div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4 px-2 md:pl-6 py-4 md:py-0">
+              <div className="w-10 h-10 rounded-full border border-[#00B47A] flex items-center justify-center text-[#00B47A]">
+                <LinkIcon size={18} />
+              </div>
+              <div className="text-left">
+                <div className="text-2xl font-bold text-black tracking-tight leading-none">100%</div>
+                <div className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider mt-1">On-Chain Verifiable</div>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+      </section>
+
+      {/* 7. READY TO BUILD / CTA SECTION (Black Background) */}
+      <section className="bg-black py-20 lg:py-28 border-b border-zinc-900">
+        <div className="max-w-7xl mx-auto px-6 md:px-12 flex flex-col md:flex-row items-center justify-between gap-12">
+          
+          <div className="space-y-4 max-w-xl text-left">
+            <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-white leading-tight">
+              Ready to build climate<br />infrastructure you can trust?
+            </h2>
+            <p className="text-zinc-400 text-sm md:text-base">
+              Join organizations verifying real impact with VeriField Nexus.
+            </p>
+          </div>
+
+          <div className="flex flex-col items-center md:items-end gap-3 shrink-0">
+            <button 
+              onClick={() => setIsModalOpen(true)}
+              className="inline-flex items-center justify-center gap-2 py-4 px-8 rounded-full bg-[#00B47A] text-black font-bold text-sm tracking-wider uppercase hover:bg-emerald-400 transition-all duration-300 shadow-lg shadow-[#00B47A]/10"
+            >
+              Request Access
+              <ArrowUpRight size={16} strokeWidth={2.5} />
+            </button>
+            <span className="text-[11px] text-zinc-500 font-medium">Get early access to the live system.</span>
+          </div>
+
+        </div>
+      </section>
+
+      {/* FOOTER (Black Background) */}
+      <footer className="bg-black py-16 border-t border-zinc-900">
+        <div className="max-w-7xl mx-auto px-6 md:px-12 flex flex-col md:flex-row items-center justify-between gap-8">
+          
+          <div className="flex flex-col items-center md:items-start gap-2">
+            <img 
+              src="/logo-green.png" 
+              alt="VeriField Nexus" 
+              className="h-10 w-auto object-contain"
+            />
+            <span className="text-[10px] text-zinc-500 font-semibold uppercase tracking-widest mt-1">Lagos, Nigeria</span>
+          </div>
+
+          <div className="text-center">
+            <p className="text-xs text-zinc-400 font-medium">Infrastructure for verifiable climate impact.</p>
+          </div>
+
+          <div>
+            <p className="text-xs text-zinc-500 font-semibold uppercase tracking-wider">
+              © 2024 VeriField Nexus. All rights reserved.
+            </p>
+          </div>
+
+        </div>
+      </footer>
+
+      {/* ON-CHAIN PARTNER ACCESS MODAL */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+          <div className="relative w-full max-w-lg bg-[#0E1617] border border-[#213233] rounded-2xl shadow-2xl overflow-hidden animate-fade-in-up">
+            
+            {/* Modal Title bar */}
+            <div className="bg-[#141F20] px-6 py-4 border-b border-[#213233] flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Sparkles className="text-[#00B47A]" size={18} />
+                <span className="font-bold text-sm text-white">Request Partner Credentials</span>
+              </div>
+              <button 
+                onClick={resetForm}
+                className="text-[#5F6F6C] hover:text-white transition-colors text-sm font-bold px-2 py-1"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal Form body */}
+            <div className="p-6">
+              {submittingState === "idle" && (
+                <form onSubmit={handleRequestAccess} className="space-y-4">
+                  <div>
+                    <label className="text-xs text-[#8E9E9B] font-semibold mb-1 block">Full Name</label>
+                    <input 
+                      type="text" 
+                      required
+                      value={formData.name}
+                      onChange={e => setFormData(prev => ({...prev, name: e.target.value}))}
+                      placeholder="e.g. Segun Adewale"
+                      className="w-full px-4 py-2.5 rounded-xl bg-[#090F10] border border-[#213233] text-white placeholder:text-zinc-700 text-xs focus:outline-none focus:border-[#00B47A] transition-colors"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs text-[#8E9E9B] font-semibold mb-1 block">Business Email</label>
+                    <input 
+                      type="email" 
+                      required
+                      value={formData.email}
+                      onChange={e => setFormData(prev => ({...prev, email: e.target.value}))}
+                      placeholder="e.g. s.adewale@energyco.ng"
+                      className="w-full px-4 py-2.5 rounded-xl bg-[#090F10] border border-[#213233] text-white placeholder:text-zinc-700 text-xs focus:outline-none focus:border-[#00B47A] transition-colors"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs text-[#8E9E9B] font-semibold mb-1 block">Phone Number (Optional)</label>
+                    <input 
+                      type="text" 
+                      value={formData.phone}
+                      onChange={e => setFormData(prev => ({...prev, phone: e.target.value}))}
+                      placeholder="e.g. +234 803 123 4567"
+                      className="w-full px-4 py-2.5 rounded-xl bg-[#090F10] border border-[#213233] text-white placeholder:text-zinc-700 text-xs focus:outline-none focus:border-[#00B47A] transition-colors"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs text-[#8E9E9B] font-semibold mb-1 block">Organization Name</label>
+                    <input 
+                      type="text" 
+                      required
+                      value={formData.org}
+                      onChange={e => setFormData(prev => ({...prev, org: e.target.value}))}
+                      placeholder="e.g. Clean Energy Africa"
+                      className="w-full px-4 py-2.5 rounded-xl bg-[#090F10] border border-[#213233] text-white placeholder:text-zinc-700 text-xs focus:outline-none focus:border-[#00B47A] transition-colors"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs text-[#8E9E9B] font-semibold mb-1 block">Project Sector</label>
+                      <select 
+                        value={formData.projectType}
+                        onChange={e => setFormData(prev => ({...prev, projectType: e.target.value}))}
+                        className="w-full px-4 py-2.5 rounded-xl bg-[#090F10] border border-[#213233] text-white text-xs focus:outline-none focus:border-[#00B47A] transition-colors"
+                      >
+                        <option value="energy">Hybrid Energy</option>
+                        <option value="cookstove">Clean Cookstove</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs text-[#8E9E9B] font-semibold mb-1 block">Operational Region</label>
+                      <input 
+                        type="text" 
+                        value={formData.region}
+                        onChange={e => setFormData(prev => ({...prev, region: e.target.value}))}
+                        placeholder="e.g. Lagos, Nigeria"
+                        className="w-full px-4 py-2.5 rounded-xl bg-[#090F10] border border-[#213233] text-white placeholder:text-zinc-700 text-xs focus:outline-none focus:border-[#00B47A] transition-colors"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs text-[#8E9E9B] font-semibold mb-1 block">Additional Notes (Optional)</label>
+                    <textarea 
+                      rows={3}
+                      value={formData.notes}
+                      onChange={e => setFormData(prev => ({...prev, notes: e.target.value}))}
+                      placeholder="e.g. Integration with 600kWp solar grid project..."
+                      className="w-full px-4 py-2.5 rounded-xl bg-[#090F10] border border-[#213233] text-white placeholder:text-zinc-700 text-xs focus:outline-none focus:border-[#00B47A] transition-colors resize-none"
+                    />
+                  </div>
+
+                  <button 
+                    type="submit"
+                    className="w-full py-3 rounded-xl bg-[#00B47A] text-black font-bold text-xs uppercase hover:bg-emerald-400 transition-all duration-300"
+                  >
+                    Submit Access Request
+                  </button>
+                </form>
+              )}
+
+              {/* Progress Flow Animations */}
+              {submittingState !== "idle" && submittingState !== "success" && (
+                <div className="py-12 flex flex-col items-center justify-center space-y-6 text-center">
+                  <Loader2 className="animate-spin text-[#00B47A]" size={36} />
+                  
+                  <div className="space-y-1 font-mono">
+                    {submittingState === "connecting" && (
+                      <>
+                        <p className="text-sm font-bold text-white">Connecting to VeriField Nexus Gateway...</p>
+                        <p className="text-[10px] text-[#5F6F6C]">Locating active nodes</p>
+                      </>
+                    )}
+                    {submittingState === "signing" && (
+                      <>
+                        <p className="text-sm font-bold text-white">Signing access parameters...</p>
+                        <p className="text-[10px] text-[#5F6F6C]">Generating cryptographic lead signature keypair</p>
+                      </>
+                    )}
+                    {submittingState === "anchoring" && (
+                      <>
+                        <p className="text-sm font-bold text-white">Anchoring lead receipt block...</p>
+                        <p className="text-[10px] text-[#00B47A]">Broadcasting transaction payload to Solana</p>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Success Screen */}
+              {submittingState === "success" && (
+                <div className="py-8 text-center space-y-6">
+                  <div className="w-16 h-16 rounded-full bg-[#00B47A]/10 border border-[#00B47A] flex items-center justify-center mx-auto animate-pulse">
+                    <CheckCircle className="text-[#00B47A]" size={32} />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <h3 className="text-lg font-bold text-white">Onboarding Request Sent</h3>
+                    <p className="text-xs text-[#8E9E9B] max-w-sm mx-auto leading-relaxed">
+                      Thank you. Your request for partner credentials has been successfully submitted and is now in the review queue.
+                    </p>
+                  </div>
+
+                  <div className="bg-[#141F20] p-4 rounded-xl border border-[#213233] max-w-sm mx-auto space-y-2 text-left font-mono">
+                    <div className="flex justify-between items-center text-[10px]">
+                      <span className="text-[#5F6F6C]">EMAIL:</span>
+                      <span className="text-white font-bold">{formData.email}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-[10px]">
+                      <span className="text-[#5F6F6C]">ORGANIZATION:</span>
+                      <span className="text-white font-bold">{formData.org}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-[10px]">
+                      <span className="text-[#5F6F6C]">REGISTRATION STATUS:</span>
+                      <span className="text-yellow-500 font-bold">PENDING_REVIEW</span>
+                    </div>
+                    <div className="flex justify-between items-center text-[10px]">
+                      <span className="text-[#5F6F6C]">REVIEW QUEUE:</span>
+                      <span className="text-[#00B47A] font-bold">SUPER_ADMIN</span>
+                    </div>
+                  </div>
+
+                  <p className="text-[10px] text-[#5F6F6C] max-w-xs mx-auto leading-relaxed">
+                    Our compliance team will review your project credentials and issue login credentials via email once approved.
+                  </p>
+
+                  <button 
+                    onClick={resetForm}
+                    className="py-2.5 px-6 rounded-lg bg-[#141F20] hover:bg-[#213233] text-xs text-white border border-[#213233] transition-colors"
+                  >
+                    Close Window
+                  </button>
+                </div>
+              )}
+
+            </div>
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
 }

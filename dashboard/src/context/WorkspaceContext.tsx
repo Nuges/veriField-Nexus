@@ -205,10 +205,32 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     try {
       const u = await fetchMe();
       setUser(u);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("vf_user", JSON.stringify(u));
+      }
       const normalized = normalizeSector(u.sector);
       setActiveSector(normalized);
     } catch (err: any) {
       console.error("Workspace Resolver failed to load user profile:", err);
+      
+      // Offline fallback: try loading the last successfully loaded user profile from cache
+      if (typeof window !== "undefined") {
+        const cachedUserStr = localStorage.getItem("vf_user");
+        if (cachedUserStr) {
+          try {
+            const cachedUser = JSON.parse(cachedUserStr);
+            setUser(cachedUser);
+            const normalized = normalizeSector(cachedUser.sector);
+            setActiveSector(normalized);
+            console.log("Workspace Resolver restored cached user profile offline.");
+            setIsLoading(false);
+            return;
+          } catch (parseErr) {
+            console.error("Failed to parse cached user profile:", parseErr);
+          }
+        }
+      }
+      
       setError(err?.message || "Failed to load workspace context.");
     } finally {
       setIsLoading(false);
@@ -232,7 +254,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     if (!user) return;
     
     // RBAC: Standard user cannot change sector manually
-    const isStandard = user.role !== "admin" && user.role !== "auditor";
+    const isStandard = user.role !== "admin" && user.role !== "auditor" && user.role !== "ORG_ADMIN" && user.role !== "SUPER_ADMIN";
     if (isStandard) {
       console.warn("Access Denied: Standard user cannot switch workspaces manually.");
       return;
@@ -339,7 +361,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return filtered;
   }, [activeSector]);
 
-  const isSandboxed = user ? (user.role !== "admin" && user.role !== "auditor") : true;
+  const isSandboxed = user ? (user.role !== "admin" && user.role !== "auditor" && user.role !== "ORG_ADMIN" && user.role !== "SUPER_ADMIN") : true;
   const allowedSectors = isSandboxed && user ? [normalizeSector(user.sector)] : ["cookstove", "energy"];
 
   return (
