@@ -66,24 +66,27 @@ async def decode_jwt_token(token: str) -> dict:
         return _token_cache[token]
 
     # =========================================================================
-    # DEV MODE: Try local JWT decode first (HS256 tokens from dev login)
+    # Local Auth: Try local JWT decode first (for Super Admin and database users)
     # =========================================================================
-    if settings.dev_mode:
-        try:
-            jwt_secret = settings.jwt_secret or "verifield-dev-secret-key"
-            decoded = pyjwt.decode(token, jwt_secret, algorithms=["HS256"])
-            if decoded.get("sub") and decoded.get("dev_mode"):
-                payload = {"sub": decoded["sub"], "email": decoded.get("email", "")}
-                _token_cache[token] = payload
-                return payload
-        except pyjwt.ExpiredSignatureError:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Dev token expired. Please login again.",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-        except (pyjwt.InvalidTokenError, Exception):
-            pass  # Not a dev token, fall through to Supabase validation
+    try:
+        jwt_secret = settings.jwt_secret or "verifield-dev-secret-key"
+        decoded = pyjwt.decode(token, jwt_secret, algorithms=["HS256"])
+        if decoded.get("sub"):
+            payload = {
+                "sub": decoded["sub"],
+                "email": decoded.get("email", ""),
+                "role": decoded.get("role", "")
+            }
+            _token_cache[token] = payload
+            return payload
+    except pyjwt.ExpiredSignatureError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session expired. Please login again.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    except Exception:
+        pass  # Not a valid local token, fall through to Supabase validation
 
     # =========================================================================
     # Standard: Validate via Supabase Auth API
