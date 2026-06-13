@@ -14,10 +14,28 @@ import jwt as pyjwt
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import Optional
+from passlib.context import CryptContext
 
 from app.core.config import settings
 from app.db.session import get_db
 from app.models.user import User
+
+import bcrypt
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """Verify a plain password against a bcrypt hash using the raw bcrypt package."""
+    if not hashed_password:
+        return False
+    try:
+        return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
+    except Exception:
+        return False
+
+def get_password_hash(password: str) -> str:
+    """Generate a bcrypt hash from a plain password using the raw bcrypt package."""
+    salt = bcrypt.gensalt()
+    hashed = bcrypt.hashpw(password.encode('utf-8'), salt)
+    return hashed.decode('utf-8')
 
 # Bearer token extractor from Authorization header
 security = HTTPBearer()
@@ -240,18 +258,26 @@ async def require_admin(
     user: User = Depends(get_current_user),
 ) -> User:
     """
-    FastAPI dependency that ensures the current user has admin role.
-    Use this for dashboard/admin-only endpoints.
-    
-    Usage:
-        @router.get("/admin-only")
-        async def admin_route(user: User = Depends(require_admin)):
-            return {"admin": str(user.id)}
+    FastAPI dependency that ensures the current user has admin role
+    (either legacy 'admin', new 'ORG_ADMIN', or global 'SUPER_ADMIN').
     """
-    # Temporarily allow all roles for development/testing
-    # if user.role != "admin":
-    #     raise HTTPException(
-    #         status_code=status.HTTP_403_FORBIDDEN,
-    #         detail="Insufficient permissions. Admin role required.",
-    #     )
+    if user.role not in ("admin", "ORG_ADMIN", "SUPER_ADMIN"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions. Admin role required.",
+        )
+    return user
+
+
+async def require_super_admin(
+    user: User = Depends(get_current_user),
+) -> User:
+    """
+    FastAPI dependency that ensures the current user has SUPER_ADMIN role.
+    """
+    if user.role != "SUPER_ADMIN":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions. Super Admin role required.",
+        )
     return user

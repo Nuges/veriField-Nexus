@@ -9,9 +9,11 @@ from app.models.community_validation import CommunityValidation, CommunityCommen
 from app.models.audit_task import AuditTask
 from app.models.project import Project
 from app.models.carbon_calculation import CarbonCalculation
+from app.models.organization import Organization
+from app.models.access_request import AccessRequest
 
 __all__ = [
     "User", "Activity", "Property", "TrustLog", "AnomalyFlag",
     "SensorReading", "CommunityValidation", "CommunityComment", "AuditTask",
-    "Project", "CarbonCalculation",
+    "Project", "CarbonCalculation", "Organization", "AccessRequest"
 ]

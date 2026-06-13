@@ -53,6 +53,9 @@ class User(Base):
     status: Mapped[str] = mapped_column(
         String(20), nullable=False, default="active"
     )
+    is_active: Mapped[bool] = mapped_column(
+        default=True, server_default=text("true")
+    )
 
     # Sector-Based Workspace config
     sector: Mapped[str] = mapped_column(
@@ -64,6 +67,13 @@ class User(Base):
     # Profile metadata
     avatar_url: Mapped[str] = mapped_column(String(500), nullable=True)
     organization: Mapped[str] = mapped_column(String(255), nullable=True)
+    organization_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=True)
+
+    # Local authentication credentials for Super Admin/Dev fallback
+    password_hash: Mapped[str] = mapped_column(String(255), nullable=True)
+    requires_password_change: Mapped[bool] = mapped_column(
+        default=False, server_default=text("false")
+    )
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(

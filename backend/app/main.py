@@ -12,7 +12,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
-from app.api.v1 import auth, activities, properties, analytics, export, cross_verification, carbon, audits, sensors, community
+from app.api.v1 import auth, activities, properties, analytics, export, cross_verification, carbon, audits, sensors, community, access_requests
 from app.api.v1 import registry, settings as api_settings
 from app.api.v1 import energy as energy_api
 from app.api.v1 import projects as projects_api
@@ -82,8 +82,66 @@ async def lifespan(app: FastAPI):
                 await session.execute(text("CREATE INDEX IF NOT EXISTS ix_projects_sector ON projects (sector)"))
                 await session.commit()
                 logger.info("Project configuration schema (3-Layer MRV) synced successfully!")
+
+                # === SaaS Multi-Tenancy Governance Schema Updates ===
+                logger.info("Syncing SaaS multi-tenancy schema updates...")
+                await session.execute(text("""
+                    CREATE TABLE IF NOT EXISTS organizations (
+                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                        name VARCHAR(255) NOT NULL UNIQUE,
+                        created_by UUID NULL,
+                        status VARCHAR(20) DEFAULT 'ACTIVE',
+                        created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+                    )
+                """))
+                await session.execute(text("""
+                    CREATE TABLE IF NOT EXISTS access_requests (
+                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                        full_name VARCHAR(255) NOT NULL,
+                        email VARCHAR(255) NOT NULL,
+                        phone VARCHAR(20) NULL,
+                        organization_name VARCHAR(255) NOT NULL,
+                        country VARCHAR(100) NULL,
+                        use_case VARCHAR(500) NULL,
+                        status VARCHAR(20) DEFAULT 'PENDING',
+                        created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+                        reviewed_by UUID NULL,
+                        reviewed_at TIMESTAMP WITH TIME ZONE NULL
+                    )
+                """))
+                
+                # Update users table structure for SaaS capability
+                await session.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS organization_id UUID NULL REFERENCES organizations(id) ON DELETE SET NULL"))
+                await session.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true"))
+                await session.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255) NULL"))
+                await session.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS requires_password_change BOOLEAN DEFAULT false"))
+                await session.commit()
+
+                # Seed Default SUPER_ADMIN if not exists
+                result = await session.execute(text("SELECT 1 FROM users WHERE email = 'superadmin@verifield.io'"))
+                if not result.scalar():
+                    from app.core.security import get_password_hash
+                    pw_hash = get_password_hash("CHANGE_THIS_ON_FIRST_LOGIN")
+                    await session.execute(text("""
+                        INSERT INTO users (id, email, full_name, role, status, is_active, password_hash, requires_password_change, sector, created_at, updated_at)
+                        VALUES (
+                            '00000000-0000-5000-a000-000000000000',
+                            'superadmin@verifield.io',
+                            'Super Admin',
+                            'SUPER_ADMIN',
+                            'active',
+                            true,
+                            :pw_hash,
+                            true,
+                            'cookstove',
+                            now(),
+                            now()
+                        )
+                    """), {"pw_hash": pw_hash})
+                    await session.commit()
+                    logger.info("Super Admin 'superadmin@verifield.io' seeded successfully!")
         except Exception as e:
-            logger.error(f"Failed to auto-run community database schema updates: {e}")
+            logger.error(f"Failed to auto-run SaaS database schema updates and seeds: {e}")
 
         async def warm_connection():
             try:
@@ -170,7 +228,7 @@ app.add_middleware(
         "http://192.168.8.200:3000",
         "https://verifield-nexus.vercel.app"
     ],
-    allow_origin_regex=r"(https://.*\.vercel\.app|http://localhost:\d+|http://127\.0\.0\.1:\d+)",
+    allow_origin_regex=r"(https://.*\.vercel\.app|http://localhost:\d+|http://127\.0\.0\.1:\d+|http://192\.168\.\d+\.\d+:\d+|http://10\.\d+\.\d+\.\d+:\d+|http://172\.(1[6-9]|2[0-9]|3[0-1])\.\d+\.\d+:\d+)",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -205,6 +263,7 @@ app.include_router(registry.router, prefix=API_PREFIX)
 app.include_router(api_settings.router, prefix=API_PREFIX)
 app.include_router(energy_api.router, prefix=API_PREFIX)
 app.include_router(projects_api.router, prefix=API_PREFIX)
+app.include_router(access_requests.router, prefix=API_PREFIX)
 
 
 # ---------------------------------------------------------------------------

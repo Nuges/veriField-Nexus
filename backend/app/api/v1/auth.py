@@ -265,6 +265,46 @@ async def login(
     import jwt as pyjwt
     import time
     logger = logging.getLogger("verifield.auth")
+
+    # Intercept login requests for users with local database passwords (like Super Admin or SaaS Org Admins)
+    local_user = None
+    try:
+        result = await db.execute(select(User).where(User.email == identifier))
+        local_user = result.scalar_one_or_none()
+    except Exception as e:
+        logger.warning(f"Error checking local user on login: {e}")
+
+    if local_user and local_user.password_hash:
+        from app.core.security import verify_password
+        if not verify_password(payload.password, local_user.password_hash):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid credentials. Please check your email and password.",
+            )
+        
+        if not local_user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="This account has been disabled. Please contact the administrator.",
+            )
+
+        # Build secure local JWT token
+        token_payload = {
+            "sub": str(local_user.id),
+            "email": local_user.email,
+            "role": local_user.role,
+            "iat": int(time.time()),
+            "exp": int(time.time()) + 86400,
+            "dev_mode": settings.dev_mode,
+        }
+        jwt_secret = settings.jwt_secret or "verifield-dev-secret-key"
+        encoded_token = pyjwt.encode(token_payload, jwt_secret, algorithm="HS256")
+        
+        return AuthResponse(
+            user=UserResponse.model_validate(local_user),
+            access_token=encoded_token,
+            expires_in=86400,
+        )
     
     # =========================================================================
     # DEV MODE: Skip Supabase entirely, use local auth
@@ -601,7 +641,8 @@ async def upload_avatar(
     return {"avatar_url": avatar_url}
 
 
-class ChangePasswordPayload(BaseModel):
+class ChangePasswordRequest(BaseModel):
+    old_password: Optional[str] = None
     new_password: str = Field(..., min_length=8, description="New password (min 8 characters)")
 
 
@@ -610,10 +651,38 @@ class ChangePasswordPayload(BaseModel):
     summary="Change user password",
 )
 async def change_password(
-    payload: ChangePasswordPayload,
+    payload: ChangePasswordRequest,
     user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
-    """Change the password for the currently logged-in user in Supabase Auth."""
+    """
+    Unified password change endpoint.
+    - For users with local password_hash (Super Admin, Org Admins): updates hash locally.
+    - For Supabase-auth users: updates via Supabase Admin API.
+    - Clears requires_password_change flag for forced-reset flows.
+    """
+    import logging
+    logger = logging.getLogger("verifield.auth")
+
+    # ── Local password hash path (Super Admin, seeded Org Admins) ──
+    if user.password_hash:
+        from app.core.security import verify_password, get_password_hash
+
+        # Validate old password if provided
+        if payload.old_password is not None:
+            if not verify_password(payload.old_password, user.password_hash):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Incorrect current password",
+                )
+
+        user.password_hash = get_password_hash(payload.new_password)
+        user.requires_password_change = False
+        await db.commit()
+        logger.info(f"Password rotated for local user {user.email}")
+        return {"message": "Password rotated successfully"}
+
+    # ── Supabase Auth path ──
     import httpx
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
@@ -639,6 +708,10 @@ async def change_password(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=f"Auth server unreachable: {str(e)}",
         )
+    
+    # Clear the flag even for Supabase users
+    user.requires_password_change = False
+    await db.commit()
     return {"message": "Password successfully updated."}
 
 

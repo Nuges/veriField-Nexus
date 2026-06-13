@@ -56,7 +56,10 @@ class UserResponse(BaseModel):
     role: str
     avatar_url: Optional[str] = None
     organization: Optional[str] = None
-    sector: str
+    organization_id: Optional[UUID] = None
+    is_active: Optional[bool] = True
+    requires_password_change: Optional[bool] = False
+    sector: Optional[str] = None
     country: Optional[str] = None
     project_type: Optional[str] = None
     created_at: datetime
