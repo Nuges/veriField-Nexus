@@ -63,7 +63,7 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
         // Sync pending activities first
         if (_pendingCount > 0) await SyncService.syncPendingActivities();
 
-        final response = await ApiService.get('/activities?per_page=50');
+        final response = await ApiService.get('/installations?per_page=50');
         final activitiesList = response['activities'] as List? ?? [];
         _activities = activitiesList.cast<Map<String, dynamic>>();
 

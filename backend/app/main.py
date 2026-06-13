@@ -94,6 +94,10 @@ async def lifespan(app: FastAPI):
                         created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
                     )
                 """))
+                await session.execute(text("ALTER TABLE organizations ADD COLUMN IF NOT EXISTS plan VARCHAR(30) DEFAULT 'FREE'"))
+                await session.execute(text("ALTER TABLE organizations ADD COLUMN IF NOT EXISTS max_installations INTEGER DEFAULT 100"))
+                await session.execute(text("ALTER TABLE organizations ADD COLUMN IF NOT EXISTS max_agents INTEGER DEFAULT 5"))
+                await session.execute(text("ALTER TABLE organizations ADD COLUMN IF NOT EXISTS api_calls_count INTEGER DEFAULT 0"))
                 await session.execute(text("""
                     CREATE TABLE IF NOT EXISTS access_requests (
                         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

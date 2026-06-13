@@ -73,24 +73,30 @@ export function getAuthToken(): string | null {
 // Generic Fetch Wrapper
 // ---------------------------------------------------------------------------
 
+interface CustomRequestInit extends RequestInit {
+  timeout?: number;
+}
+
 async function apiFetch<T>(
   endpoint: string,
-  options: RequestInit = {}
+  options: CustomRequestInit = {}
 ): Promise<T> {
+  const { timeout, ...fetchOptions } = options;
   const currentToken = getAuthToken();
   const headers: Record<string, string> = {
-    ...(options.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
+    ...(fetchOptions.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
     ...(currentToken ? { Authorization: `Bearer ${currentToken}` } : {}),
-    ...(options.headers as Record<string, string> || {}),
+    ...(fetchOptions.headers as Record<string, string> || {}),
   };
 
+  const customTimeout = timeout !== undefined ? timeout : 15000;
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 30000);
+  const timeoutId = setTimeout(() => controller.abort(), customTimeout); // default 15s — fail fast on mobile
 
   let response: Response;
   try {
     response = await fetch(`${API_V1}${endpoint}`, {
-      ...options,
+      ...fetchOptions,
       headers,
       signal: controller.signal,
       cache: "no-store", // Prevents Next.js aggressive caching for dashboard live data
@@ -203,23 +209,25 @@ export async function fetchActivities(params?: {
 
   const query = searchParams.toString();
   return apiFetch<ActivityListResponse>(
-    `/activities${query ? `?${query}` : ""}`
+    `/installations${query ? `?${query}` : ""}`
   );
 }
 
 export async function createActivity(payload: any): Promise<Activity> {
-  return apiFetch<Activity>("/activities", {
+  return apiFetch<Activity>("/installations", {
     method: "POST",
     body: JSON.stringify(payload),
+    timeout: 60000, // 60s for submission (which does duplicate check & trust evaluation)
   });
 }
 
 export async function uploadProof(file: File): Promise<{ image_url: string }> {
   const formData = new FormData();
   formData.append("file", file);
-  return apiFetch<{ image_url: string }>("/activities/upload-proof", {
+  return apiFetch<{ image_url: string }>("/installations/upload-proof", {
     method: "POST",
     body: formData,
+    timeout: 90000, // 90s for image upload on mobile networks
   });
 }
 
@@ -238,18 +246,18 @@ export async function checkDuplicate(payload: {
     environment_type: string;
     radius_used_m: number;
     nearby_installations: any[];
-  }>("/activities/check-duplicate", {
+  }>("/installations/check-duplicate", {
     method: "POST",
     body: JSON.stringify(payload),
   });
 }
 
 export async function fetchActivity(id: string): Promise<Activity> {
-  return apiFetch<Activity>(`/activities/${id}`);
+  return apiFetch<Activity>(`/installations/${id}`);
 }
 
 export async function updateActivityStatus(id: string, status: string): Promise<Activity> {
-  return apiFetch<Activity>(`/activities/${id}/status`, {
+  return apiFetch<Activity>(`/installations/${id}/status`, {
     method: "PATCH",
     body: JSON.stringify({ status }),
   });
@@ -258,7 +266,7 @@ export async function updateActivityStatus(id: string, status: string): Promise<
 export async function fetchTrustScore(
   activityId: string
 ): Promise<TrustScoreBreakdown> {
-  return apiFetch<TrustScoreBreakdown>(`/activities/${activityId}/trust`);
+  return apiFetch<TrustScoreBreakdown>(`/installations/${activityId}/trust`);
 }
 
 // ---------------------------------------------------------------------------

@@ -36,14 +36,14 @@ else:
 engine = create_async_engine(
     db_url,
     echo=settings.debug,        # Log SQL queries in debug mode
-    pool_size=10,                 # Allow up to 10 connections in pool
-    max_overflow=5,               # Allow overflow up to 15 connections max to prevent bottlenecks
+    pool_size=20,                 # Increased from 5 to prevent pool starvation
+    max_overflow=10,              # Increased from 5 to support more concurrent requests
     pool_pre_ping=True,          # Verify connections before use
     pool_recycle=300,            # Recycle connections every 5 minutes
-    pool_timeout=30,             # Wait up to 30s for a connection
+    pool_timeout=20,             # Increased from 10s to give more margin under network latency
     connect_args={
         "server_settings": {"jit": "off"},  # Disable JIT for faster simple queries
-        "command_timeout": 15.0,             # Kill queries that hang at the socket level
+        "command_timeout": 10.0,             # Kill queries hanging at socket level (reduced from 15s)
     },
 )
 

@@ -154,7 +154,7 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
     if (_locationData == null || _selectedTypeId == null) return;
     setState(() => _isCheckingDuplicate = true);
     try {
-      final result = await ApiService.post('/activities/check-duplicate', body: {
+      final result = await ApiService.post('/installations/check-duplicate', body: {
         'latitude': _locationData!['latitude'],
         'longitude': _locationData!['longitude'],
         'activity_type': _selectedTypeId,
@@ -274,7 +274,7 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
         // Add all URLs to activityData
         activityData.addAll(uploadedUrls);
 
-        await ApiService.post('/activities', body: {
+        await ApiService.post('/installations', body: {
           'activity_type': _selectedTypeId,
           'activity_data': activityData,
           'description': _descriptionController.text,

@@ -61,7 +61,7 @@ export default function LandingPage() {
     notes: ""
   });
   
-  const [submittingState, setSubmittingState] = useState<"idle" | "connecting" | "signing" | "anchoring" | "success">("idle");
+  const [submittingState, setSubmittingState] = useState<"idle" | "submitting" | "success">("idle");
   const [generatedTx, setGeneratedTx] = useState("");
 
   // Live MRV Log Stream for Purpose-Built Section Map simulation
@@ -118,7 +118,7 @@ export default function LandingPage() {
     e.preventDefault();
     if (!formData.name || !formData.email || !formData.org) return;
 
-    setSubmittingState("connecting");
+    setSubmittingState("submitting");
     try {
       const payload = {
         full_name: formData.name,
@@ -203,7 +203,7 @@ export default function LandingPage() {
             </h1>
 
             <p className="text-zinc-400 text-base md:text-lg leading-relaxed max-w-lg">
-              VeriField Nexus is a real-time MRV infrastructure that captures, verifies, and anchors clean energy installations as immutable proof on-chain.
+              VeriField Nexus is a real-time MRV infrastructure that captures, verifies, and records clean energy installations as immutable proof in a secure private cryptographic ledger.
             </p>
 
             <div className="pt-2">
@@ -282,7 +282,7 @@ export default function LandingPage() {
               {[
                 { title: "Capture", desc: "Collect field data at the source", icon: Smartphone },
                 { title: "Verify", desc: "Automated integrity checks & trust scoring", icon: ShieldCheck },
-                { title: "Anchor", desc: "Immutable proof on-chain", icon: Database },
+                { title: "Anchor", desc: "Immutable proof in private ledger", icon: Database },
                 { title: "Visualize", desc: "Real-time dashboard & analytics", icon: LineChart }
               ].map((pillar, idx) => (
                 <div key={idx} className="space-y-2 text-left">
@@ -331,8 +331,8 @@ export default function LandingPage() {
                 },
                 {
                   step: 3,
-                  label: "On-Chain Proof",
-                  desc: "Verified records are anchored to Solana as immutable cryptographic proof.",
+                  label: "Ledger Security",
+                  desc: "Verified records are recorded in our private cryptographic ledger as immutable proof.",
                   icon: Database
                 },
                 {
@@ -380,7 +380,7 @@ export default function LandingPage() {
                 { title: "Mobile Field Capture System", desc: "Flutter client optimized for iPhone capture, biometric location lock, and local-first data caching.", icon: Smartphone },
                 { title: "Automated Verification Engine", desc: "Algorithmic backend analyzing duplicates, coordinate ranges, image hashes, and calculating trust indexes.", icon: Cpu },
                 { title: "Real-Time Analytics Dashboard", desc: "Interactive map, activity lists, verification timelines, and compliance scoring profiles.", icon: LineChart },
-                { title: "On-Chain Proof Layer (Solana)", desc: "Anchor program recording compressed verification nodes as immutable proof states.", icon: Database },
+                { title: "Private Cryptographic Ledger", desc: "Proprietary service recording verification nodes as immutable receipts.", icon: Database },
                 { title: "Installation Registry Database", desc: "Secure PostgreSQL ledger indexing structured coordinates, physical tags, and score lineages.", icon: Server }
               ].map((module, idx) => (
                 <div key={idx} className="p-6 rounded-2xl bg-zinc-50 border border-zinc-100 hover:border-[#00B47A]/30 transition-all duration-300 space-y-3">
@@ -407,7 +407,7 @@ export default function LandingPage() {
               {[
                 { title: "Clean cookstove programs", desc: "Verify stove coordinate distributions to validate clean carbon credit claims.", icon: Flame },
                 { title: "Solar & hybrid energy", desc: "Validate generation parameters and installations across off-grid networks.", icon: Zap },
-                { title: "Carbon credit pipelines", desc: "Ingest cryptographically anchored proofs directly to environmental registry adapters.", icon: Coins },
+                { title: "Carbon credit pipelines", desc: "Ingest cryptographically verified proofs directly to environmental registry adapters.", icon: Coins },
                 { title: "ESG reporting infrastructure", desc: "Collect field-level proof data to satisfy auditor requirements.", icon: FileCheck2 },
                 { title: "Climate finance transparency", desc: "Give capital providers direct visibility into physical asset installation rates.", icon: Globe }
               ].map((uc, idx) => (
@@ -508,7 +508,7 @@ export default function LandingPage() {
               <div>
                 <span className="text-xs uppercase tracking-widest text-[#00B47A] font-bold">07 / Infrastructure Stack</span>
                 <p className="text-zinc-400 text-xs mt-1">
-                  Mobile Field Capture (Flutter / Web PWA) • FastAPI Verification Engine • Real-time Dashboard (Next.js / Web) • Solana Anchor Program (Proof Layer) • Local-first data capture with offline support
+                  Mobile Field Capture (Flutter / Web PWA) • FastAPI Verification Engine • Real-time Dashboard (Next.js / Web) • Private Cryptographic Ledger Service • Local-first data capture with offline support
                 </p>
               </div>
               
@@ -568,7 +568,7 @@ export default function LandingPage() {
               </div>
               <div className="text-left">
                 <div className="text-2xl font-bold text-black tracking-tight leading-none">100%</div>
-                <div className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider mt-1">On-Chain Verifiable</div>
+                <div className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider mt-1">Ledger Verifiable</div>
               </div>
             </div>
 
@@ -745,29 +745,13 @@ export default function LandingPage() {
               )}
 
               {/* Progress Flow Animations */}
-              {submittingState !== "idle" && submittingState !== "success" && (
+              {submittingState === "submitting" && (
                 <div className="py-12 flex flex-col items-center justify-center space-y-6 text-center">
                   <Loader2 className="animate-spin text-[#00B47A]" size={36} />
                   
                   <div className="space-y-1 font-mono">
-                    {submittingState === "connecting" && (
-                      <>
-                        <p className="text-sm font-bold text-white">Connecting to VeriField Nexus Gateway...</p>
-                        <p className="text-[10px] text-[#5F6F6C]">Locating active nodes</p>
-                      </>
-                    )}
-                    {submittingState === "signing" && (
-                      <>
-                        <p className="text-sm font-bold text-white">Signing access parameters...</p>
-                        <p className="text-[10px] text-[#5F6F6C]">Generating cryptographic lead signature keypair</p>
-                      </>
-                    )}
-                    {submittingState === "anchoring" && (
-                      <>
-                        <p className="text-sm font-bold text-white">Anchoring lead receipt block...</p>
-                        <p className="text-[10px] text-[#00B47A]">Broadcasting transaction payload to Solana</p>
-                      </>
-                    )}
+                    <p className="text-sm font-bold text-white">Submitting Access Request...</p>
+                    <p className="text-[10px] text-[#5F6F6C]">Awaiting gateway confirmation</p>
                   </div>
                 </div>
               )}

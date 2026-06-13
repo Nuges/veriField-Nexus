@@ -1,85 +1,53 @@
 # VeriField Nexus
 
-Measurement, Reporting, and Verification (MRV) system for tracking and validating real-world climate assets.
+Private Measurement, Reporting, and Verification (MRV) SaaS Platform for tracking and validating environmental assets.
 
 ## Overview
 
-VeriField Nexus provides a local database ledger and smart contract program to verify data payloads from physical cookstove and solar grid installations. The system uses a verification engine to score raw coordinates, device telemetry, and image hashes to check for duplicates and outliers, saving audit logs locally and anchoring proofs on-chain.
+VeriField Nexus is an enterprise-grade private SaaS platform designed for carbon developers and clean energy operators. The platform provides secure multi-tenant scoping, Super Admin governance, a closed approval-based onboarding flow, and a secure local database ledger to verify and audit coordinates, device telemetry, and image hashes from clean cookstove and solar grid installations.
 
 ## Core Modules
 
-### Cookstove Module
-- Logs biomass utilization and usage rates.
-- Validates household deployment and calculates emissions reductions.
+### Clean Cookstove Module
+- Logs biomass utilization, coordinate distributions, and usage rates.
+- Validates household deployment and calculates offset carbon credit metrics.
 
 ### Hybrid Energy Module
 - Logs solar generation telemetry (kWh) and battery capacities.
-- Tracks and verifies diesel backup generator runtime to measure avoided fuel consumption.
+- Tracks and verifies backup diesel generator runtime to quantify avoided fuel consumption.
 
 ## System Architecture
 
-The codebase is split into three main parts:
-1. **Capture (SDK / Clients)**: Packages data payloads locally on edge devices/mobile, computes SHA-256 image hashes, and records GPS coordinates.
-2. **Validation (Backend API)**: Processes submissions, runs location accuracy algorithms, performs duplicate checks, and assigns trust scores.
-3. **Storage (Ledger)**: Persists audit logs in the PostgreSQL database and writes proof anchors and scores to the Solana blockchain via Program Derived Addresses (PDAs).
+The codebase is organized as follows:
+1. **Capture (Web PWA)**: Local-first edge capture client designed for field operations, featuring biometric coordinates locks, canvas-based image compression, and IndexedDB offline drafts caching.
+2. **Verification (Backend API)**: Fast FastAPI verification engine that validates Coordinate accuracy, checks image hash similarity, calculates Trust Scores, and queues background quantification.
+3. **Storage (Secure Ledger)**: PostgreSQL database with multi-tenant workspace isolation. Each verified asset is secured using SHA-256 state hashes and logged in the private audit ledger.
 
 ## Project Structure
 
-- `backend/`: FastAPI REST API service, SQLAlchemy database models, and local validation engine logic.
-- `contracts/`: Anchor Rust workspace for deploying on-chain verification programs and running integration tests.
-- `dashboard/`: Next.js web dashboard for auditing telemetry inputs and monitoring field agent uploads.
+- `backend/`: FastAPI REST API service, SQLAlchemy models, and trust engine logic.
+- `dashboard/`: Next.js web application including the Field Capture PWA and tenant audit dashboards.
 - `sdk/`: TypeScript client SDK containing helper libraries and payload validators.
-- `mobile/`: Flutter field app code for offline captures.
-- `scripts/`: Dev scripts for seeding data, clearing logs, and running local services.
-- `examples/`: Sample JSON payloads for testing endpoint ingestion.
+- `mobile/`: Flutter field app client for offline-first operations.
+- `scripts/`: Development utility scripts.
+- `examples/`: Ingestion sample JSON payloads.
 
 ## Getting Started
 
 ### Prerequisites
 - Node.js (v18+)
 - Python (3.10+)
-- Solana CLI & Anchor CLI (Optional, only needed to compile/test smart contracts)
 
 ### Setup
 
-To spin up the entire local dev environment (FastAPI backend and Next.js dashboard):
+To spin up the local development stack (FastAPI backend and Next.js dashboard):
 
 ```bash
 ./scripts/dev/run-local-mrv.sh
 ```
 
-This script will install npm packages, sync the python virtual environment, clear port conflicts, and start both uvicorn (port 8000) and the dashboard client (port 3000) in the background. Press `Ctrl+C` to cleanly shut down all services.
-
-### Testing Contracts
-
-To run the Solana Anchor integration tests (spins up local validator, builds, deploys, and verifies PDA anchors):
-
-```bash
-cd contracts
-npm install
-anchor test
-```
-
-## Example Usage
-
-Create a new payload:
-
-```typescript
-import { createVerificationPayload, validatePayload } from "verifield-nexus-sdk";
-
-const payload = createVerificationPayload(
-  "hybrid_energy",
-  { latitude: 4.8241, longitude: 7.0305, accuracy: 4.5 },
-  Math.floor(Date.now() / 1000),
-  "a855f7bacc153b82f6a855f7bacc153b82f6a855f7bacc153b82f6a855f7d2f4"
-);
-
-const { valid, errors } = validatePayload(payload);
-if (!valid) {
-  throw new Error(`Validation failed: ${errors?.join(", ")}`);
-}
-```
+This script will install package dependencies, configure python virtual environments, and boot both the backend API (port 8000) and the Next.js web client (port 3000). Press `Ctrl+C` to stop all active services.
 
 ## License
 
-MIT
+Proprietary. Refer to the [LICENSE](file:///Users/segun/Documents/Verifield%20nexus/LICENSE) file for usage terms.

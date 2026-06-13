@@ -12,6 +12,8 @@ const nextConfig: any = {
   allowedDevOrigins: [
     'http://192.168.8.199:3000',
     '192.168.8.199',
+    'probasketball-overcrowdedly-ernestina.ngrok-free.dev',
+    '*.ngrok-free.dev',
   ],
   async rewrites() {
     return [

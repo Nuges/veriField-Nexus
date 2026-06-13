@@ -63,8 +63,21 @@ async def create_sensor_reading(
     """Submit a new IoT sensor reading from a field device."""
     # Validate asset exists
     prop_result = await db.execute(select(Property).where(Property.id == payload.asset_id))
-    if not prop_result.scalar_one_or_none():
+    prop = prop_result.scalar_one_or_none()
+    if not prop:
         raise HTTPException(status_code=404, detail="Property/asset not found")
+
+    # Check permissions
+    if user.role == "SUPER_ADMIN":
+        pass
+    elif user.role in ("ORG_ADMIN", "admin"):
+        owner_result = await db.execute(select(User).where(User.id == prop.owner_id))
+        owner = owner_result.scalar_one_or_none()
+        if not owner or owner.organization != user.organization:
+            raise HTTPException(status_code=403, detail="Access denied")
+    else:
+        if prop.owner_id != user.id:
+            raise HTTPException(status_code=403, detail="Access denied")
 
     reading = SensorReading(
         asset_id=payload.asset_id,
@@ -163,13 +176,31 @@ async def list_sensor_readings(
     if asset_id:
         conditions.append(SensorReading.asset_id == asset_id)
 
-    # Non-admins only see readings for their own properties
-    if user and user.role != "admin":
-        conditions.append(
-            SensorReading.asset_id.in_(
-                select(Property.id).where(Property.owner_id == user.id)
+    # Non-admins only see readings for their own properties; ORG_ADMIN sees their org properties
+    if user:
+        if user.role == "SUPER_ADMIN":
+            pass
+        elif user.role in ("ORG_ADMIN", "admin"):
+            if user.organization:
+                conditions.append(
+                    SensorReading.asset_id.in_(
+                        select(Property.id).join(User, Property.owner_id == User.id)
+                        .where(User.organization == user.organization)
+                    )
+                )
+            else:
+                conditions.append(
+                    SensorReading.asset_id.in_(
+                        select(Property.id).join(User, Property.owner_id == User.id)
+                        .where(User.organization == None)
+                    )
+                )
+        else:
+            conditions.append(
+                SensorReading.asset_id.in_(
+                    select(Property.id).where(Property.owner_id == user.id)
+                )
             )
-        )
 
     if conditions:
         query = query.where(and_(*conditions))
@@ -205,12 +236,30 @@ async def list_devices(
     """Get aggregated summaries of all known sensor devices."""
     # Build the base query with ownership filter for non-admins
     ownership_filter = []
-    if user and user.role != "admin":
-        ownership_filter.append(
-            SensorReading.asset_id.in_(
-                select(Property.id).where(Property.owner_id == user.id)
+    if user:
+        if user.role == "SUPER_ADMIN":
+            pass
+        elif user.role in ("ORG_ADMIN", "admin"):
+            if user.organization:
+                ownership_filter.append(
+                    SensorReading.asset_id.in_(
+                        select(Property.id).join(User, Property.owner_id == User.id)
+                        .where(User.organization == user.organization)
+                    )
+                )
+            else:
+                ownership_filter.append(
+                    SensorReading.asset_id.in_(
+                        select(Property.id).join(User, Property.owner_id == User.id)
+                        .where(User.organization == None)
+                    )
+                )
+        else:
+            ownership_filter.append(
+                SensorReading.asset_id.in_(
+                    select(Property.id).where(Property.owner_id == user.id)
+                )
             )
-        )
 
     # Aggregate per device
     agg_query = (

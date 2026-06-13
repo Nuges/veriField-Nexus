@@ -143,7 +143,7 @@ class SyncService {
     if (activitiesBatch.isNotEmpty) {
       try {
         final response = await ApiService.post(
-          '/activities/batch',
+          '/installations/batch',
           body: {'activities': activitiesBatch},
         );
 

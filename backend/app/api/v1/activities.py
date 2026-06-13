@@ -99,16 +99,97 @@ async def dispatch_sms_verification(activity_id: UUID, db_session_factory):
         await send_twilio_sms(phone, body)
 
 
-router = APIRouter(prefix="/activities", tags=["Activities"])
+async def verify_and_quantify_activity_task(activity_id: UUID, db_session_factory):
+    """
+    Background worker task to calculate trust score, run anomaly detection,
+    quantify carbon credits, and anchor on-chain.
+    """
+    import logging
+    logger = logging.getLogger("verifield.api.background_verification")
+    
+    async with db_session_factory() as db:
+        # Load activity
+        from sqlalchemy import select
+        from app.models.activity import Activity
+        
+        result = await db.execute(select(Activity).where(Activity.id == activity_id))
+        activity = result.scalar_one_or_none()
+        if not activity:
+            logger.error(f"Background verification failed: Activity {activity_id} not found")
+            return
+            
+        # 1. Calculate trust score
+        try:
+            from app.services.trust_engine import TrustEngine
+            trust_engine = TrustEngine(db)
+            await trust_engine.calculate_trust_score(activity)
+            logger.info(f"Background verification: Trust score calculated for {activity_id}: {activity.trust_score}")
+        except Exception as e:
+            logger.error(f"Background verification: Trust score failed for {activity_id}: {e}")
+            activity.status = "review"
+            activity.trust_flags = {"processing_error": str(e)}
+            await db.commit()
+            return
+
+        # 2. Run anomaly detection
+        try:
+            from app.services.ai_detector import AnomalyDetector
+            detector = AnomalyDetector(db)
+            anomaly_flags = await detector.analyze_activity(activity)
+            if anomaly_flags and activity.status == "verified":
+                activity.status = "flagged"
+                activity.trust_flags["anomaly_detected"] = True
+                await db.commit()
+                logger.info(f"Background verification: Anomaly detected for {activity_id}")
+        except Exception as e:
+            logger.warning(f"Background verification: Anomaly detection failed for {activity_id}: {e}")
+
+        # 3. Quantify carbon offset & blockchain anchor if verified
+        if activity.status == "verified":
+            try:
+                from app.services.quantification_engine import QuantificationEngine
+                quant_engine = QuantificationEngine(db)
+                await quant_engine.quantify_activity(activity.id, None)
+                logger.info(f"Background verification: Quantification complete for {activity_id}")
+            except Exception as e:
+                logger.error(f"Background verification: Quantification failed for {activity_id}: {e}")
+
+            try:
+                from app.services.blockchain import anchor_activity_on_chain
+                await anchor_activity_on_chain(activity, db)
+                logger.info(f"Background verification: Solana anchoring complete for {activity_id}")
+            except Exception as e:
+                logger.error(f"Background verification: Solana anchoring failed for {activity_id}: {e}")
+
+        # 4. Dispatch SMS verification request to beneficiary if verified/review
+        if activity.status in ("verified", "review") and activity.activity_type in ("CLEAN_COOKING", "HYBRID_ENERGY"):
+            try:
+                await dispatch_sms_verification(activity.id, db_session_factory)
+                logger.info(f"Background verification: SMS verification dispatched for {activity_id}")
+            except Exception as e:
+                logger.error(f"Background verification: SMS dispatch failed for {activity_id}: {e}")
+
+
+router = APIRouter(prefix="/installations", tags=["Installations"])
 
 async def compute_phash(image_url: str) -> Optional[str]:
     """Download image and compute perceptual hash for similarity detection."""
     if not image_url:
         return None
     try:
-        import httpx
         import imagehash
         from PIL import Image
+
+        # Bypass loopback HTTP request if the image is saved locally on this machine
+        if "/static/proofs/" in image_url:
+            filename = image_url.split("/static/proofs/")[-1]
+            local_path = os.path.join("static", "proofs", filename)
+            if os.path.exists(local_path):
+                img = Image.open(local_path)
+                return str(imagehash.phash(img))
+
+        # Fallback to downloading
+        import httpx
         from io import BytesIO
         async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.get(image_url)
@@ -356,51 +437,13 @@ async def create_activity(
     await db.commit()
     await db.refresh(activity)
 
-    # Calculate trust score asynchronously
-    try:
-        from app.services.trust_engine import TrustEngine
-        trust_engine = TrustEngine(db)
-        await trust_engine.calculate_trust_score(activity)
-    except Exception as e:
-        await db.rollback()
-        import logging
-        logging.getLogger("verifield.api").warning(f"Swallowed trust score calculation error: {e}")
-
-    # Run anomaly detection
-    try:
-        from app.services.ai_detector import AnomalyDetector
-        detector = AnomalyDetector(db)
-        anomaly_flags = await detector.analyze_activity(activity)
-        if anomaly_flags and activity.status == "verified":
-            activity.status = "flagged"
-            activity.trust_flags["anomaly_detected"] = True
-            await db.commit()
-    except Exception as e:
-        await db.rollback()
-        import logging
-        logging.getLogger("verifield.api").warning(f"Swallowed anomaly detection error: {e}")
-
-    # If it passed all automatic checks and is verified, quantify immediately!
-    if activity.status == "verified":
-        try:
-            from app.services.quantification_engine import QuantificationEngine
-            quant_engine = QuantificationEngine(db)
-            await quant_engine.quantify_activity(activity.id, None)
-        except Exception as e:
-            import logging
-            logging.getLogger("verifield.api").error(f"Auto-quantification failed for {activity.id}: {e}")
-
-        try:
-            from app.services.blockchain import anchor_activity_on_chain
-            await anchor_activity_on_chain(activity, db)
-        except Exception as e:
-            import logging
-            logging.getLogger("verifield.api").error(f"Auto-blockchain anchoring failed for {activity.id}: {e}")
-
-    # Dispatch SMS verification request to beneficiary
-    if activity.activity_type in ("CLEAN_COOKING", "HYBRID_ENERGY"):
-        from app.db.session import async_session_factory
-        background_tasks.add_task(dispatch_sms_verification, activity.id, async_session_factory)
+    # Queue full verification, anomaly detection, quantification, and Solana anchoring in background tasks
+    from app.db.session import async_session_factory
+    background_tasks.add_task(
+        verify_and_quantify_activity_task,
+        activity.id,
+        async_session_factory
+    )
 
     await db.refresh(activity)
     return activity_to_response(activity)
@@ -558,6 +601,7 @@ async def batch_create_activities(
                 from app.db.session import async_session_factory
                 background_tasks.add_task(dispatch_sms_verification, activity.id, async_session_factory)
         except Exception as e:
+            await db.rollback()
             errors += 1
             results.append({"client_id": activity_data.client_id, "status": "error", "error": str(e)})
 
@@ -594,15 +638,22 @@ async def list_activities(
     count_query = select(func.count(Activity.id)).join(User, Activity.user_id == User.id)
 
     conditions = []
-    # If the user is a field agent, they only see their own logged activities.
-    # If the user is an admin, they only see activities belonging to their organization.
-    if user.role != "admin":
-        conditions.append(Activity.user_id == user.id)
-    else:
-        if user.organization:
-            conditions.append(User.organization == user.organization)
+    # Role-based scoping:
+    # SUPER_ADMIN: Bypass organization filters (global view)
+    # ORG_ADMIN / admin: Scoped strictly to their assigned organization
+    # field_agent: Scoped strictly to their own submissions
+    if user.role == "SUPER_ADMIN":
         if user_id:
             conditions.append(Activity.user_id == user_id)
+    elif user.role in ("ORG_ADMIN", "admin"):
+        if user.organization:
+            conditions.append(User.organization == user.organization)
+        else:
+            conditions.append(User.organization == None)
+        if user_id:
+            conditions.append(Activity.user_id == user_id)
+    else:
+        conditions.append(Activity.user_id == user.id)
 
     if activity_type:
         conditions.append(Activity.activity_type == activity_type)
@@ -662,8 +713,18 @@ async def get_activity(
     activity = result.scalar_one_or_none()
     if not activity:
         raise HTTPException(status_code=404, detail="Activity not found")
-    if user.role != "admin" and activity.user_id != user.id:
-        raise HTTPException(status_code=403, detail="Access denied")
+    
+    # Check permissions:
+    if user.role == "SUPER_ADMIN":
+        pass
+    elif user.role in ("ORG_ADMIN", "admin"):
+        activity_creator_res = await db.execute(select(User).where(User.id == activity.user_id))
+        activity_creator = activity_creator_res.scalar_one_or_none()
+        if not activity_creator or activity_creator.organization != user.organization:
+            raise HTTPException(status_code=403, detail="Access denied")
+    else:
+        if activity.user_id != user.id:
+            raise HTTPException(status_code=403, detail="Access denied")
     return activity_to_response(activity)
 
 
@@ -680,7 +741,23 @@ async def get_trust_score(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Get the detailed trust score breakdown for an activity."""
+    # Check access permission to activity
+    act_result = await db.execute(select(Activity).where(Activity.id == activity_id))
+    activity = act_result.scalar_one_or_none()
+    if not activity:
+        raise HTTPException(status_code=404, detail="Activity/Installation not found")
+        
+    if user.role == "SUPER_ADMIN":
+        pass
+    elif user.role in ("ORG_ADMIN", "admin"):
+        creator_res = await db.execute(select(User).where(User.id == activity.user_id))
+        creator = creator_res.scalar_one_or_none()
+        if not creator or creator.organization != user.organization:
+            raise HTTPException(status_code=403, detail="Access denied")
+    else:
+        if activity.user_id != user.id:
+            raise HTTPException(status_code=403, detail="Access denied")
+
     result = await db.execute(select(TrustLog).where(TrustLog.activity_id == activity_id))
     trust_log = result.scalar_one_or_none()
     if not trust_log:
@@ -716,6 +793,13 @@ async def update_activity_status(
     if not activity:
         raise HTTPException(status_code=404, detail="Activity not found")
         
+    # Check admin scoping permission
+    if user.role in ("ORG_ADMIN", "admin"):
+        creator_res = await db.execute(select(User).where(User.id == activity.user_id))
+        creator = creator_res.scalar_one_or_none()
+        if not creator or creator.organization != user.organization:
+            raise HTTPException(status_code=403, detail="Access denied. Activity belongs to another organization.")
+
     activity.status = payload.status
     await db.commit()
     await db.refresh(activity)

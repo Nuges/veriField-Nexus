@@ -11,24 +11,36 @@ import { NextResponse } from "next/server";
 export async function GET() {
   const isProd = process.env.NODE_ENV === "production";
 
-  // Development: Self-destructing script that unregisters itself and reloads
+  // Development: Self-destructing script that purges caches, unregisters itself, and reloads
   const devScript = `
     console.log("[SW] Development mode detected. Executing self-destruct cleaner...");
     self.addEventListener("install", (event) => {
       self.skipWaiting();
     });
     self.addEventListener("activate", (event) => {
-      self.registration.unregister().then(() => {
-        console.log("[SW] Service worker unregistered successfully. Reloading clients...");
-        return self.clients.matchAll();
-      }).then((clients) => {
-        clients.forEach((client) => {
-          if (client.url) {
-            client.navigate(client.url);
-          }
-        });
-      });
+      event.waitUntil(
+        caches.keys().then((cacheNames) => {
+          return Promise.all(
+            cacheNames.map((cacheName) => {
+              console.log("[SW] Deleting stale cache:", cacheName);
+              return caches.delete(cacheName);
+            })
+          );
+        }).then(() => {
+          return self.registration.unregister();
+        }).then(() => {
+          console.log("[SW] Service worker unregistered and caches purged. Reloading clients...");
+          return self.clients.matchAll();
+        }).then((clients) => {
+          clients.forEach((client) => {
+            if (client.url) {
+              client.navigate(client.url);
+            }
+          });
+        })
+      );
     });
+    // Do NOT intercept any fetch requests in dev mode
   `;
 
   // Production: Full stale-while-revalidate offline PWA cache

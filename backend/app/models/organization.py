@@ -31,6 +31,10 @@ class Organization(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False, unique=True, index=True)
     created_by: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=True)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="ACTIVE")
+    plan: Mapped[str] = mapped_column(String(30), nullable=False, default="FREE")
+    max_installations: Mapped[int] = mapped_column(nullable=False, default=100)
+    max_agents: Mapped[int] = mapped_column(nullable=False, default=5)
+    api_calls_count: Mapped[int] = mapped_column(nullable=False, default=0)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
@@ -38,4 +42,4 @@ class Organization(Base):
     )
 
     def __repr__(self) -> str:
-        return f"<Organization(id={self.id}, name={self.name}, status={self.status})>"
+        return f"<Organization(id={self.id}, name={self.name}, status={self.status}, plan={self.plan})>"

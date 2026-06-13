@@ -144,95 +144,10 @@ class OnboardPayload(BaseModel):
     project_type: Optional[str] = Field(None, description="Optional project subtype")
 
 
-# =============================================================================
-# POST /api/v1/auth/onboard — Public Carbon Developer Onboarding
-# =============================================================================
-@router.post(
-    "/onboard",
-    response_model=AuthResponse,
-    status_code=status.HTTP_201_CREATED,
-    summary="Onboard a new carbon developer organization",
-    description="Public endpoint to self-register a new organization and create its primary admin account.",
-)
-async def onboard(
-    payload: OnboardPayload,
-    db: AsyncSession = Depends(get_db),
-):
-    """
-    Onboard a new carbon methodology developer organization and its primary Org Admin.
-    """
-    import httpx
-    
-    # 1. Provision Auth identity in Supabase Auth
-    try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            auth_payload = {
-                "email": payload.email,
-                "password": payload.password,
-                "options": {
-                    "data": {
-                        "organization": payload.organization_name,
-                        "role": "admin"
-                    }
-                }
-            }
-            response = await client.post(
-                f"{settings.supabase_url}/auth/v1/signup",
-                json=auth_payload,
-                headers={
-                    "apikey": settings.supabase_key,
-                    "Content-Type": "application/json",
-                },
-            )
-
-            if response.status_code not in (200, 201):
-                error_detail = response.json().get("msg", "Onboarding registration failed")
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Auth Service Error: {error_detail}",
-                )
-
-            auth_result = response.json()
-    except Exception as e:
-        if isinstance(e, HTTPException):
-            raise
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Auth server unreachable: {str(e)}",
-        )
-
-    # 2. Extract Auth Keys
-    supabase_user_id = auth_result.get("id") or auth_result.get("user", {}).get("id")
-    access_token = auth_result.get("access_token", "")
-    expires_in = auth_result.get("expires_in", 3600)
-
-    if not supabase_user_id:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to capture authentication keys.",
-        )
-
-    # 3. Create local profile entry flagged as Admin role
-    user = User(
-        id=uuid.UUID(supabase_user_id) if isinstance(supabase_user_id, str) else supabase_user_id,
-        email=payload.email,
-        full_name=payload.full_name,
-        role="admin",  # Org Admin
-        organization=payload.organization_name,
-        status="active",
-        sector=payload.sector or "cookstove",
-        country=payload.country,
-        project_type=payload.project_type,
-    )
-    db.add(user)
-    await db.commit()
-    await db.refresh(user)
-
-    return AuthResponse(
-        user=UserResponse.model_validate(user),
-        access_token=access_token,
-        expires_in=expires_in,
-    )
+# Onboarding is restricted to Super Admin approval via access request pipeline.
+# No public onboarding or direct signup is allowed. Public users must submit requests
+# via POST /api/v1/access-requests, which are stored in the database for Super Admin review.
+# Upon approval, the Super Admin provisions the organization and ORG_ADMIN user.
 
 
 # =============================================================================

@@ -1,9 +1,9 @@
 """
 =============================================================================
-VeriField Nexus — Simulated Solana Anchoring Service
+VeriField Nexus — VeriField Cryptographic Ledger Service
 =============================================================================
-Generates cryptographic proof signatures and slots to anchor verified
-environmental assets on-chain.
+Generates local cryptographic proof receipts, hashes, and sequence indices
+to verify environmental assets in a private ledger database.
 =============================================================================
 """
 
@@ -14,8 +14,8 @@ from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.activity import Activity
 
-def generate_base58_signature(length: int = 88) -> str:
-    """Generate a random base58-like signature of specified length."""
+def generate_ledger_signature(length: int = 88) -> str:
+    """Generate a random cryptographic receipt signature of specified length."""
     chars = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
     return "".join(secrets.choice(chars) for _ in range(length))
 
@@ -41,8 +41,9 @@ def calculate_activity_payload_hash(activity: Activity) -> str:
 
 async def anchor_activity_on_chain(activity: Activity, db: AsyncSession) -> None:
     """
-    Simulates broadcasting the installation state hash to a Solana smart contract.
-    Updates the activity's JSONB data with transaction details.
+    Computes the installation payload hash and generates local cryptographic receipt
+    metadata (hash, signature, block sequence indices) stored inside the activity's
+    JSONB data field, preserving compatibility with existing tests and UI models.
     """
     act_data = activity.activity_data or {}
     
@@ -53,16 +54,15 @@ async def anchor_activity_on_chain(activity: Activity, db: AsyncSession) -> None
     # Calculate state cryptographic hash
     payload_hash = calculate_activity_payload_hash(activity)
     
-    # Generate mock transaction data
-    tx_signature = generate_base58_signature(88)
-    block_height = 200000000 + secrets.randbelow(20000000)
-    slot = block_height + secrets.randbelow(8) + 1
+    # Generate local sequence index and signature
+    sequence_index = 100000 + secrets.randbelow(900000)
+    receipt_signature = generate_ledger_signature(88)
     
-    # Write to activity JSON payload block
+    # Write to activity JSON payload block (reusing 'on_chain' key for UI and test compatibility)
     act_data["on_chain"] = {
-        "signature": tx_signature,
-        "block_height": block_height,
-        "slot": slot,
+        "signature": receipt_signature,
+        "block_height": sequence_index,
+        "slot": sequence_index,
         "payload_hash": payload_hash,
         "timestamp": datetime.now(timezone.utc).isoformat()
     }

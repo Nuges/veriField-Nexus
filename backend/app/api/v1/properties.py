@@ -75,13 +75,19 @@ async def list_properties(
     query = select(Property).join(User, Property.owner_id == User.id)
     count_query = select(func.count(Property.id)).join(User, Property.owner_id == User.id)
 
-    if user.role != "admin":
-        query = query.where(Property.owner_id == user.id)
-        count_query = count_query.where(Property.owner_id == user.id)
-    else:
+    if user.role == "SUPER_ADMIN":
+        # Global view: no filters
+        pass
+    elif user.role in ("ORG_ADMIN", "admin"):
         if user.organization:
             query = query.where(User.organization == user.organization)
             count_query = count_query.where(User.organization == user.organization)
+        else:
+            query = query.where(User.organization == None)
+            count_query = count_query.where(User.organization == None)
+    else:
+        query = query.where(Property.owner_id == user.id)
+        count_query = count_query.where(Property.owner_id == user.id)
 
     total_result = await db.execute(count_query)
     total = total_result.scalar() or 0
@@ -115,8 +121,17 @@ async def get_property(
     prop = result.scalar_one_or_none()
     if not prop:
         raise HTTPException(status_code=404, detail="Property not found")
-    if user.role != "admin" and prop.owner_id != user.id:
-        raise HTTPException(status_code=403, detail="Access denied")
+        
+    if user.role == "SUPER_ADMIN":
+        pass
+    elif user.role in ("ORG_ADMIN", "admin"):
+        owner_res = await db.execute(select(User).where(User.id == prop.owner_id))
+        owner = owner_res.scalar_one_or_none()
+        if not owner or owner.organization != user.organization:
+            raise HTTPException(status_code=403, detail="Access denied")
+    else:
+        if prop.owner_id != user.id:
+            raise HTTPException(status_code=403, detail="Access denied")
 
     # Get activity stats
     count_result = await db.execute(
@@ -167,8 +182,17 @@ async def update_property(
     prop = result.scalar_one_or_none()
     if not prop:
         raise HTTPException(status_code=404, detail="Property not found")
-    if user.role != "admin" and prop.owner_id != user.id:
-        raise HTTPException(status_code=403, detail="Access denied")
+        
+    if user.role == "SUPER_ADMIN":
+        pass
+    elif user.role in ("ORG_ADMIN", "admin"):
+        owner_res = await db.execute(select(User).where(User.id == prop.owner_id))
+        owner = owner_res.scalar_one_or_none()
+        if not owner or owner.organization != user.organization:
+            raise HTTPException(status_code=403, detail="Access denied")
+    else:
+        if prop.owner_id != user.id:
+            raise HTTPException(status_code=403, detail="Access denied")
 
     update_data = payload.model_dump(exclude_unset=True)
     for field, value in update_data.items():
@@ -193,6 +217,23 @@ async def list_property_activities(
     db: AsyncSession = Depends(get_db),
 ):
     """List all activities assigned to a specific property."""
+    # Verify property exists and check access permission
+    prop_result = await db.execute(select(Property).where(Property.id == property_id))
+    prop = prop_result.scalar_one_or_none()
+    if not prop:
+        raise HTTPException(status_code=404, detail="Property not found")
+        
+    if user.role == "SUPER_ADMIN":
+        pass
+    elif user.role in ("ORG_ADMIN", "admin"):
+        owner_res = await db.execute(select(User).where(User.id == prop.owner_id))
+        owner = owner_res.scalar_one_or_none()
+        if not owner or owner.organization != user.organization:
+            raise HTTPException(status_code=403, detail="Access denied")
+    else:
+        if prop.owner_id != user.id:
+            raise HTTPException(status_code=403, detail="Access denied")
+
     result = await db.execute(
         select(Activity)
         .where(Activity.property_id == property_id)

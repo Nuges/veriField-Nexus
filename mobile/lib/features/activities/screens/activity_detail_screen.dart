@@ -38,12 +38,12 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
 
   Future<void> _loadActivity() async {
     try {
-      final activity = await ApiService.get('/activities/${widget.activityId}');
+      final activity = await ApiService.get('/installations/${widget.activityId}');
       setState(() { _activity = activity; _isLoading = false; });
 
       // Load trust score breakdown
       try {
-        final trust = await ApiService.get('/activities/${widget.activityId}/trust');
+        final trust = await ApiService.get('/installations/${widget.activityId}/trust');
         setState(() => _trustBreakdown = trust);
       } catch (_) {}
 
@@ -219,10 +219,10 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
 
   Future<void> _loadActivityBackground() async {
     try {
-      final activity = await ApiService.get('/activities/${widget.activityId}');
+      final activity = await ApiService.get('/installations/${widget.activityId}');
       setState(() { _activity = activity; });
       try {
-        final trust = await ApiService.get('/activities/${widget.activityId}/trust');
+        final trust = await ApiService.get('/installations/${widget.activityId}/trust');
         setState(() => _trustBreakdown = trust);
       } catch (_) {}
     } catch (_) {}

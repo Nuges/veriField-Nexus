@@ -62,13 +62,24 @@ async def create_audit_task(
     """Create a new audit task and assign it to a field agent."""
     # Validate asset exists
     prop_result = await db.execute(select(Property).where(Property.id == payload.asset_id))
-    if not prop_result.scalar_one_or_none():
+    prop = prop_result.scalar_one_or_none()
+    if not prop:
         raise HTTPException(status_code=404, detail="Property/asset not found")
 
     # Validate agent exists
     agent_result = await db.execute(select(User).where(User.id == payload.assigned_agent))
-    if not agent_result.scalar_one_or_none():
+    agent = agent_result.scalar_one_or_none()
+    if not agent:
         raise HTTPException(status_code=404, detail="Agent not found")
+
+    # Check organization scoping for ORG_ADMIN/admin
+    if user.role in ("ORG_ADMIN", "admin"):
+        owner_res = await db.execute(select(User).where(User.id == prop.owner_id))
+        owner = owner_res.scalar_one_or_none()
+        if not owner or owner.organization != user.organization:
+            raise HTTPException(status_code=403, detail="Access denied. Property belongs to another organization.")
+        if agent.organization != user.organization:
+            raise HTTPException(status_code=403, detail="Access denied. Agent belongs to another organization.")
 
     audit = AuditTask(
         asset_id=payload.asset_id,
@@ -112,13 +123,18 @@ async def list_audit_tasks(
 
     conditions = []
     if user:
-        if user.role != "admin":
-            conditions.append(AuditTask.assigned_agent == user.id)
-        else:
+        if user.role == "SUPER_ADMIN":
+            # Global view: no filters
+            pass
+        elif user.role in ("ORG_ADMIN", "admin"):
             query = query.join(Property, AuditTask.asset_id == Property.id).join(User, Property.owner_id == User.id)
             count_query = count_query.join(Property, AuditTask.asset_id == Property.id).join(User, Property.owner_id == User.id)
             if user.organization:
                 conditions.append(User.organization == user.organization)
+            else:
+                conditions.append(User.organization == None)
+        else:
+            conditions.append(AuditTask.assigned_agent == user.id)
     if status_filter:
         conditions.append(AuditTask.status == status_filter)
 
@@ -188,9 +204,23 @@ async def update_audit_task(
     if not audit:
         raise HTTPException(status_code=404, detail="Audit task not found")
 
-    # Agents can only update their own tasks
-    if user.role != "admin" and audit.assigned_agent != user.id:
-        raise HTTPException(status_code=403, detail="Access denied")
+    # Scoping checks for update
+    if user.role == "SUPER_ADMIN":
+        pass
+    elif user.role in ("ORG_ADMIN", "admin"):
+        # Audit property owner organization must match
+        is_authorized = False
+        if audit.property:
+            owner_res = await db.execute(select(User).where(User.id == audit.property.owner_id))
+            owner = owner_res.scalar_one_or_none()
+            if owner and owner.organization == user.organization:
+                is_authorized = True
+        if not is_authorized:
+            raise HTTPException(status_code=403, detail="Access denied. Task does not belong to your organization.")
+    else:
+        # Field agent can only update if assigned to them
+        if audit.assigned_agent != user.id:
+            raise HTTPException(status_code=403, detail="Access denied")
 
     if payload.status is not None:
         audit.status = payload.status

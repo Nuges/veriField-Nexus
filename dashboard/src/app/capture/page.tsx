@@ -144,6 +144,81 @@ const sha256Fallback = (str: string): string => {
   return "sha256_fallback_" + h1 + h2 + h1 + h2 + h1 + h2 + h1 + h2;
 };
 
+// Compress image client side using Canvas to a max size of 1280px maintaining aspect ratio
+const compressImage = (
+  file: File,
+  maxWidth = 1280,
+  maxHeight = 1280,
+  quality = 0.8
+): Promise<{ file: File; base64: string }> => {
+  return new Promise((resolve, reject) => {
+    if (typeof window === "undefined") {
+      reject(new Error("window is undefined"));
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          reject(new Error("Canvas context is null"));
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, width, height);
+
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              reject(new Error("Blob is null"));
+              return;
+            }
+            const compressedFile = new File([blob], file.name, {
+              type: "image/jpeg",
+              lastModified: Date.now(),
+            });
+            const readerBase64 = new FileReader();
+            readerBase64.readAsDataURL(compressedFile);
+            readerBase64.onloadend = () => {
+              resolve({
+                file: compressedFile,
+                base64: readerBase64.result as string,
+              });
+            };
+            readerBase64.onerror = (e) => reject(e);
+          },
+          "image/jpeg",
+          quality
+        );
+      };
+      img.onerror = (err) => reject(err);
+      img.src = event.target?.result as string;
+    };
+    reader.onerror = (err) => reject(err);
+    reader.readAsDataURL(file);
+  });
+};
+
 // ---------------------------------------------------------------------------
 // Dynamic Schema Specifications Matching Flutter Client
 // ---------------------------------------------------------------------------
@@ -433,7 +508,7 @@ export default function StandaloneCapturePage() {
     const data: Record<string, any> = {};
     
     // First, merge defaults for the current tab to make sure required fields are not empty
-    const defaults = getDefaultValues(activeTab);
+    const defaults = getDefaultValues(activeTab) as Record<string, any>;
     const mergedValues = { ...defaults, ...formValues };
 
     const sections = activeTab === "CLEAN_COOKING" ? CLEAN_COOKING_SECTIONS : HYBRID_ENERGY_SECTIONS;
@@ -573,31 +648,56 @@ export default function StandaloneCapturePage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    setImageFiles((prev) => ({ ...prev, [key]: file }));
-    
-    // Generate preview
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setImagePreviews((prev) => ({ ...prev, [key]: reader.result as string }));
-    };
-    reader.readAsDataURL(file);
-
-    // Compute Image Cryptographic SHA-256 Hash
     try {
+      addLog(`Compressing image "${file.name}"...`);
+      const compressed = await compressImage(file);
+      const compressedFile = compressed.file;
+      const base64Data = compressed.base64;
+
+      setImageFiles((prev) => ({ ...prev, [key]: compressedFile }));
+      setImagePreviews((prev) => ({ ...prev, [key]: base64Data }));
+
+      // Compute Image Cryptographic SHA-256 Hash of compressed image
       if (typeof crypto !== "undefined" && crypto.subtle) {
-        const arrayBuffer = await file.arrayBuffer();
+        const arrayBuffer = await compressedFile.arrayBuffer();
         const hashBuffer = await crypto.subtle.digest("SHA-256", arrayBuffer);
         const hashArray = Array.from(new Uint8Array(hashBuffer));
         const hashHex = hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
         setImageHashes((prev) => ({ ...prev, [key]: "sha256_" + hashHex }));
       } else {
+        const rawString = `${compressedFile.name}-${compressedFile.size}-${compressedFile.lastModified}`;
+        setImageHashes((prev) => ({ ...prev, [key]: sha256Fallback(rawString) }));
+      }
+      addLog(`Image "${file.name}" compressed successfully (size reduced to ${Math.round(compressedFile.size / 1024)} KB).`);
+    } catch (err: any) {
+      console.error("Failed to compress image, using original:", err);
+      addLog(`Failed to compress image: ${err.message || err}. Using original file.`);
+      
+      setImageFiles((prev) => ({ ...prev, [key]: file }));
+      
+      // Generate preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreviews((prev) => ({ ...prev, [key]: reader.result as string }));
+      };
+      reader.readAsDataURL(file);
+
+      // Compute Image Cryptographic SHA-256 Hash of original image
+      try {
+        if (typeof crypto !== "undefined" && crypto.subtle) {
+          const arrayBuffer = await file.arrayBuffer();
+          const hashBuffer = await crypto.subtle.digest("SHA-256", arrayBuffer);
+          const hashArray = Array.from(new Uint8Array(hashBuffer));
+          const hashHex = hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+          setImageHashes((prev) => ({ ...prev, [key]: "sha256_" + hashHex }));
+        } else {
+          const rawString = `${file.name}-${file.size}-${file.lastModified}`;
+          setImageHashes((prev) => ({ ...prev, [key]: sha256Fallback(rawString) }));
+        }
+      } catch (hashErr) {
         const rawString = `${file.name}-${file.size}-${file.lastModified}`;
         setImageHashes((prev) => ({ ...prev, [key]: sha256Fallback(rawString) }));
       }
-    } catch (e) {
-      console.error(`Error computing image hash for ${key}`, e);
-      const rawString = `${file.name}-${file.size}-${file.lastModified}`;
-      setImageHashes((prev) => ({ ...prev, [key]: sha256Fallback(rawString) }));
     }
   };
 
@@ -818,6 +918,40 @@ export default function StandaloneCapturePage() {
   const sections = activeTab === "CLEAN_COOKING" ? CLEAN_COOKING_SECTIONS : HYBRID_ENERGY_SECTIONS;
   const photos = activeTab === "CLEAN_COOKING" ? CLEAN_COOKING_PHOTOS : HYBRID_ENERGY_PHOTOS;
 
+  // --- LOADING TIMEOUT: Escape hatch for stale service worker caches ---
+  const [loadingTooLong, setLoadingTooLong] = useState(false);
+  useEffect(() => {
+    if (!isLoading) {
+      setLoadingTooLong(false);
+      return;
+    }
+    const timer = setTimeout(() => setLoadingTooLong(true), 8000);
+    return () => clearTimeout(timer);
+  }, [isLoading]);
+
+  const handleClearCacheAndRetry = async () => {
+    try {
+      // Purge all service worker caches
+      if ("caches" in window) {
+        const cacheNames = await caches.keys();
+        for (const name of cacheNames) {
+          await caches.delete(name);
+        }
+      }
+      // Unregister all service workers
+      if ("serviceWorker" in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        for (const reg of registrations) {
+          await reg.unregister();
+        }
+      }
+    } catch (e) {
+      console.error("Cache clear failed:", e);
+    }
+    // Hard reload bypassing any cache
+    window.location.reload();
+  };
+
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-[#090F10] space-y-3 px-4">
@@ -825,6 +959,25 @@ export default function StandaloneCapturePage() {
         <p className="text-[#8E9E9B] text-xs font-semibold tracking-tight animate-pulse text-center">
           Connecting to secure digital MRV ledger...
         </p>
+        {loadingTooLong && (
+          <div className="mt-6 w-full max-w-xs space-y-3 animate-fade-in-up">
+            <p className="text-[10px] text-amber-400 text-center font-medium">
+              Connection is taking longer than expected. This may be caused by stale cached data on your device.
+            </p>
+            <button
+              onClick={handleClearCacheAndRetry}
+              className="w-full py-2.5 bg-[#00B47A] text-black text-xs font-extrabold rounded-xl hover:opacity-90 transition-opacity"
+            >
+              Clear Cache &amp; Retry
+            </button>
+            <button
+              onClick={() => { localStorage.removeItem("vf_token"); window.location.href = "/login?redirect=/capture"; }}
+              className="w-full py-2.5 bg-[#141F20] border border-[#213233] text-white text-xs font-bold rounded-xl hover:bg-[#1c2a2b] transition-colors"
+            >
+              Go to Login
+            </button>
+          </div>
+        )}
       </div>
     );
   }
@@ -1028,7 +1181,7 @@ export default function StandaloneCapturePage() {
                 </h3>
                 <div className="grid grid-cols-1 gap-3">
                   {section.fields.map((field) => {
-                    const value = formValues[field.key] !== undefined ? formValues[field.key] : (getDefaultValues(activeTab)[field.key] || "");
+                    const value = formValues[field.key] !== undefined ? formValues[field.key] : ((getDefaultValues(activeTab) as Record<string, any>)[field.key] || "");
                     
                     return (
                       <div key={field.key} className="space-y-1">
