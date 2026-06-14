@@ -7,6 +7,7 @@ PostgreSQL. Provides the `get_db` dependency for FastAPI routes.
 =============================================================================
 """
 
+import uuid
 from sqlalchemy.ext.asyncio import (
     create_async_engine,
     AsyncSession,
@@ -23,12 +24,6 @@ if db_url and db_url.startswith("postgres://"):
 elif db_url and db_url.startswith("postgresql://"):
     db_url = db_url.replace("postgresql://", "postgresql+asyncpg://", 1)
 
-# Force prepared_statement_cache_size=0 to fully support PgBouncer transaction mode
-if "?" not in db_url:
-    db_url += "?prepared_statement_cache_size=0"
-else:
-    db_url += "&prepared_statement_cache_size=0"
-
 # --- Async Engine ---
 # Creates a connection pool to Supabase PostgreSQL
 # Tuned for PgBouncer transaction pooling or direct sessions
@@ -40,10 +35,12 @@ engine = create_async_engine(
     pool_pre_ping=True,          # Verify connections before use
     pool_recycle=300,            # Recycle connections every 5 minutes
     pool_timeout=20,             # Give more margin under network latency
-    prepared_statement_cache_size=0, # Disable prepared statement caching directly in the engine for PgBouncer compatibility
     connect_args={
         "server_settings": {"jit": "off"},  # Disable JIT for faster simple queries
         "command_timeout": 10.0,             # Kill queries hanging at socket level (reduced from 15s)
+        "statement_cache_size": 0,           # Disable prepared statements cache for PgBouncer compatibility
+        "prepared_statement_cache_size": 0,  # Explicitly disable prepared statements cache for PgBouncer
+        "prepared_statement_name_func": lambda: f"__asyncpg_{uuid.uuid4()}__",  # Generate unique names for prepared statements to fully support PgBouncer transaction mode
     },
 )
 
