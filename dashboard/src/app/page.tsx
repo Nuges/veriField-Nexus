@@ -46,7 +46,7 @@ interface LogEntry {
   type: string;
   status: "success" | "warning";
   trustScore: number;
-  txHash: string;
+  auditHash: string;
 }
 
 export default function LandingPage() {
@@ -73,7 +73,7 @@ export default function LandingPage() {
       type: "Hybrid Solar",
       status: "success",
       trustScore: 98,
-      txHash: "4xQe9v...Z1"
+      auditHash: "4xQe9v...Z1"
     },
     {
       timestamp: "00:41:15",
@@ -82,7 +82,7 @@ export default function LandingPage() {
       type: "Solar Mini-Grid",
       status: "success",
       trustScore: 95,
-      txHash: "7yRp8m...K5"
+      auditHash: "7yRp8m...K5"
     }
   ]);
 
@@ -105,7 +105,7 @@ export default function LandingPage() {
         type: "Solar Installation",
         status: "success",
         trustScore,
-        txHash: randHash
+        auditHash: randHash
       };
 
       setLogs(prev => [newEntry, ...prev.slice(0, 1)]);
@@ -197,13 +197,12 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-6 md:px-12 flex flex-col lg:flex-row items-center gap-12 lg:gap-16">
           
           <div className="flex-1 space-y-8 text-left max-w-xl">
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-white leading-[1.08] font-sans">
-              Verifying real impact. <br />
-              <span className="text-[#00B47A]">Building climate trust.</span>
+            <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight text-white leading-tight font-sans">
+              A digital infrastructure platform for <span className="text-[#00B47A]">monitoring, verifying, and optimizing</span> distributed energy systems in low-connectivity environments.
             </h1>
 
-            <p className="text-zinc-400 text-base md:text-lg leading-relaxed max-w-lg">
-              VeriField Nexus is a real-time MRV infrastructure that captures, verifies, and records clean energy installations as immutable proof in a secure private cryptographic ledger.
+            <p className="text-zinc-400 text-sm md:text-base leading-relaxed max-w-lg">
+              VeriField Nexus enables utilities, energy developers, and infrastructure operators to digitally monitor and manage distributed energy assets such as solar mini-grids and clean cooking systems. The platform provides offline-first data capture, operational visibility, and structured reporting for energy access and grid optimization in low-connectivity regions.
             </p>
 
             <div className="pt-2">
@@ -228,6 +227,15 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* GRANT-ALIGNED PLATFORM STATEMENT */}
+      <section className="bg-zinc-950 py-8 border-b border-zinc-900">
+        <div className="max-w-4xl mx-auto px-6 text-center">
+          <p className="text-xs md:text-sm font-semibold tracking-wide text-[#00B47A]/95 leading-relaxed font-mono">
+            💡 This platform is designed to support distributed energy ecosystem operators in improving planning, monitoring, and operational efficiency of decentralized energy assets across emerging markets.
+          </p>
+        </div>
+      </section>
+
       {/* 2. THE VERIFICATION GAP SECTION (White Background) */}
       <section id="about" className="bg-white text-black py-20 lg:py-28 border-b border-zinc-100">
         <div className="max-w-7xl mx-auto px-6 md:px-12 flex flex-col lg:flex-row items-stretch gap-12 lg:gap-16">
@@ -236,18 +244,18 @@ export default function LandingPage() {
           <div className="flex-1 space-y-6 flex flex-col justify-between">
             <div className="space-y-6">
               <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-black leading-tight">
-                The verification gap<br />in climate infrastructure
+                The monitoring & verification gap<br />in distributed energy
               </h2>
               <p className="text-zinc-600 text-sm md:text-base max-w-md leading-relaxed">
-                Manual reporting, delayed audits, and inconsistent data create a broken system.
+                Manual reporting, delayed audits, and inconsistent field data create visibility gaps in decentralized energy systems.
               </p>
             </div>
 
             <ul className="space-y-4 pt-6">
               {[
-                "Unverifiable environmental claims",
+                "Unverifiable operational claims",
                 "Duplicate or ghost installations",
-                "Fragmented audit systems",
+                "Fragmented asset visibility",
                 "High cost and slow verification cycles"
               ].map((item, idx) => (
                 <li key={idx} className="flex items-center gap-3 text-sm font-semibold text-zinc-800">
@@ -270,10 +278,10 @@ export default function LandingPage() {
           <div className="flex-1 space-y-8 flex flex-col justify-between">
             <div className="space-y-6">
               <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-black leading-tight">
-                A new standard for trust
+                Operations & Verification
               </h2>
               <p className="text-zinc-600 text-sm md:text-base max-w-md leading-relaxed">
-                We replace manual processes with a real-time verification layer that brings transparency, accuracy, and accountability to every installation.
+                We replace manual processes with an offline-first digital verification layer that delivers operational visibility, structural integrity checks, and high-fidelity reporting.
               </p>
             </div>
 
@@ -282,7 +290,7 @@ export default function LandingPage() {
               {[
                 { title: "Capture", desc: "Collect field data at the source", icon: Smartphone },
                 { title: "Verify", desc: "Automated integrity checks & trust scoring", icon: ShieldCheck },
-                { title: "Anchor", desc: "Immutable proof in private ledger", icon: Database },
+                { title: "Record", desc: "Cryptographic audit trail in private registry", icon: Database },
                 { title: "Visualize", desc: "Real-time dashboard & analytics", icon: LineChart }
               ].map((pillar, idx) => (
                 <div key={idx} className="space-y-2 text-left">
@@ -331,8 +339,8 @@ export default function LandingPage() {
                 },
                 {
                   step: 3,
-                  label: "Ledger Security",
-                  desc: "Verified records are recorded in our private cryptographic ledger as immutable proof.",
+                  label: "Audit Trail Security",
+                  desc: "Verified records are stored with a private cryptographic signature as a secure audit trail.",
                   icon: Database
                 },
                 {
@@ -377,11 +385,11 @@ export default function LandingPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
               {[
-                { title: "Mobile Field Capture System", desc: "Flutter client optimized for iPhone capture, biometric location lock, and local-first data caching.", icon: Smartphone },
-                { title: "Automated Verification Engine", desc: "Algorithmic backend analyzing duplicates, coordinate ranges, image hashes, and calculating trust indexes.", icon: Cpu },
-                { title: "Real-Time Analytics Dashboard", desc: "Interactive map, activity lists, verification timelines, and compliance scoring profiles.", icon: LineChart },
-                { title: "Private Cryptographic Ledger", desc: "Proprietary service recording verification nodes as immutable receipts.", icon: Database },
-                { title: "Installation Registry Database", desc: "Secure PostgreSQL ledger indexing structured coordinates, physical tags, and score lineages.", icon: Server }
+                { title: "Offline Field Capture", desc: "Flutter client optimized for remote environments, biometric location lock, and local-first data caching.", icon: Smartphone },
+                { title: "DER Operations Engine", desc: "Algorithmic validation checking duplicate tags, grid coordinate ranges, and trust indexes.", icon: Cpu },
+                { title: "Microgrid Operations Dashboard", desc: "Microgrid visibility, active asset maps, validation timelines, and operational analytics.", icon: LineChart },
+                { title: "Cryptographic Audit Trail", desc: "Proprietary verification service recording data validation hashes.", icon: Database },
+                { title: "Distributed Asset Registry", desc: "Secure PostgreSQL registry database indexing coordinates, asset profiles, and telemetry lineages.", icon: Server }
               ].map((module, idx) => (
                 <div key={idx} className="p-6 rounded-2xl bg-zinc-50 border border-zinc-100 hover:border-[#00B47A]/30 transition-all duration-300 space-y-3">
                   <div className="w-8 h-8 rounded-lg bg-white border border-zinc-200 flex items-center justify-center text-zinc-700 shadow-sm">
@@ -399,17 +407,17 @@ export default function LandingPage() {
             <div className="text-left border-b border-zinc-100 pb-4">
               <span className="text-xs uppercase tracking-widest text-[#00B47A] font-bold">05 / Use Cases</span>
               <h3 className="text-2xl md:text-3xl font-bold tracking-tight text-black mt-1">
-                Built for Real-World Climate Infrastructure
+                Built for Distributed Energy Infrastructure
               </h3>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
               {[
-                { title: "Clean cookstove programs", desc: "Verify stove coordinate distributions to validate clean carbon credit claims.", icon: Flame },
-                { title: "Solar & hybrid energy", desc: "Validate generation parameters and installations across off-grid networks.", icon: Zap },
-                { title: "Carbon credit pipelines", desc: "Ingest cryptographically verified proofs directly to environmental registry adapters.", icon: Coins },
-                { title: "ESG reporting infrastructure", desc: "Collect field-level proof data to satisfy auditor requirements.", icon: FileCheck2 },
-                { title: "Climate finance transparency", desc: "Give capital providers direct visibility into physical asset installation rates.", icon: Globe }
+                { title: "Clean cookstove monitoring", desc: "Verify stove coordinate distributions and usage profiles to validate performance and emissions reporting readiness.", icon: Flame },
+                { title: "Solar & hybrid mini-grids", desc: "Validate asset installation, location coordinates, and operational parameters across off-grid networks.", icon: Zap },
+                { title: "Emissions Reporting Readiness", desc: "Ingest cryptographically verified operational data directly to ESG compliance registry adapters.", icon: Coins },
+                { title: "Grid Operations Visibility", desc: "Streamline field data collection to satisfy utility compliance and planning requirements.", icon: FileCheck2 },
+                { title: "Asset Performance Visibility", desc: "Give capital providers and operators direct operational visibility into physical asset installation rates.", icon: Globe }
               ].map((uc, idx) => (
                 <div key={idx} className="p-6 rounded-2xl bg-zinc-50 border border-zinc-100 hover:border-[#00B47A]/30 transition-all duration-300 space-y-3">
                   <div className="w-8 h-8 rounded-lg bg-white border border-zinc-200 flex items-center justify-center text-zinc-700 shadow-sm">
@@ -465,10 +473,10 @@ export default function LandingPage() {
               <div className="flex items-center justify-between border-b border-zinc-900 pb-3">
                 <div className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-[#00B47A] animate-pulse" />
-                  <span className="text-[10px] font-mono font-bold text-zinc-400 uppercase">ACTIVE DEPLOYMENT MAP</span>
+                  <span className="text-[10px] font-mono font-bold text-zinc-400 uppercase">PILOT PREPARATION MAP</span>
                 </div>
                 <span className="text-[9px] bg-zinc-900 text-[#00B47A] border border-zinc-800 px-2 py-0.5 rounded font-mono font-bold">
-                  NIGERIA WIDE
+                  NIGERIA PIPELINE
                 </span>
               </div>
 
@@ -484,7 +492,7 @@ export default function LandingPage() {
 
                 <div className="absolute bottom-4 left-4 right-4 bg-black/80 px-3 py-2 rounded border border-zinc-800/80 font-mono text-[9px] flex justify-between items-center text-zinc-400">
                   <span>LAT: 6.5244° N | LON: 3.3792° E</span>
-                  <span className="text-[#00B47A]">Verified Node</span>
+                  <span className="text-[#00B47A]">Validated Asset</span>
                 </div>
               </div>
 
@@ -492,7 +500,7 @@ export default function LandingPage() {
               {logs.map((log, index) => (
                 <div key={index} className="bg-black border border-zinc-900 p-3 rounded font-mono text-[10px] flex justify-between items-center">
                   <div className="space-y-0.5">
-                    <span className="text-zinc-500">INGESTION TIMEOUT: SECURE</span>
+                    <span className="text-zinc-500">INGESTION STATUS: VALIDATED</span>
                     <p className="text-white font-bold">{log.location} Mini-Grid Submission</p>
                   </div>
                   <span className="text-[#00B47A] font-bold">Score: {log.trustScore}/100</span>
@@ -508,7 +516,7 @@ export default function LandingPage() {
               <div>
                 <span className="text-xs uppercase tracking-widest text-[#00B47A] font-bold">07 / Infrastructure Stack</span>
                 <p className="text-zinc-400 text-xs mt-1">
-                  Mobile Field Capture (Flutter / Web PWA) • FastAPI Verification Engine • Real-time Dashboard (Next.js / Web) • Private Cryptographic Ledger Service • Local-first data capture with offline support
+                  Mobile Field Ingestion (Flutter / Web PWA) • FastAPI Validation Engine • Real-time Operations Dashboard (Next.js / Web) • Cryptographic Audit Trail • Local-first data capture with offline support
                 </p>
               </div>
               
@@ -519,7 +527,7 @@ export default function LandingPage() {
             </div>
 
             <p className="text-zinc-500 text-xs leading-relaxed max-w-2xl text-left">
-              VeriField Nexus is currently in active deployment phase with real-world installations being onboarded. The system is operational and processing live field data submissions.
+              VeriField Nexus is currently in the pilot preparation stage. Early validation has been completed in controlled environments, and the platform is preparing for field integration with distributed solar mini-grid operators in Nigeria.
             </p>
           </div>
 
@@ -530,45 +538,45 @@ export default function LandingPage() {
       <section className="bg-white text-black py-10 border-b border-zinc-100">
         <div className="max-w-7xl mx-auto px-6 md:px-12">
           
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-4 divide-y md:divide-y-0 md:divide-x divide-zinc-200">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 md:gap-4 divide-y md:divide-y-0 md:divide-x divide-zinc-200">
             
             <div className="flex items-center gap-4 px-2 py-4 md:py-0 md:first:pl-0">
-              <div className="w-10 h-10 rounded-full border border-[#00B47A] flex items-center justify-center text-[#00B47A]">
-                <Zap size={18} />
-              </div>
-              <div className="text-left">
-                <div className="text-2xl font-bold text-black tracking-tight leading-none">1,248+</div>
-                <div className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider mt-1">Installations Captured</div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-4 px-2 md:pl-6 py-4 md:py-0">
-              <div className="w-10 h-10 rounded-full border border-[#00B47A] flex items-center justify-center text-[#00B47A]">
+              <div className="w-10 h-10 rounded-full border border-[#00B47A] flex items-center justify-center text-[#00B47A] shrink-0">
                 <ShieldCheck size={18} />
               </div>
               <div className="text-left">
-                <div className="text-2xl font-bold text-[#00B47A] tracking-tight leading-none">89.4</div>
-                <div className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider mt-1">Average Trust Score</div>
+                <div className="text-xl font-bold text-black tracking-tight leading-snug">Pilot-Ready System</div>
+                <div className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider mt-1">Validated in controlled environments</div>
               </div>
             </div>
 
             <div className="flex items-center gap-4 px-2 md:pl-6 py-4 md:py-0">
-              <div className="w-10 h-10 rounded-full border border-[#00B47A] flex items-center justify-center text-[#00B47A]">
+              <div className="w-10 h-10 rounded-full border border-[#00B47A] flex items-center justify-center text-[#00B47A] shrink-0">
+                <Zap size={18} />
+              </div>
+              <div className="text-left">
+                <div className="text-xl font-bold text-black tracking-tight leading-snug">~600 kWp pipeline</div>
+                <div className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider mt-1">Distributed solar projects (Nigeria)</div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4 px-2 md:pl-6 py-4 md:py-0">
+              <div className="w-10 h-10 rounded-full border border-[#00B47A] flex items-center justify-center text-[#00B47A] shrink-0">
                 <Cloud size={18} />
               </div>
               <div className="text-left">
-                <div className="text-2xl font-bold text-black tracking-tight leading-none">3,482 tCO₂</div>
-                <div className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider mt-1">CO₂ Impact Estimated</div>
+                <div className="text-xl font-bold text-black tracking-tight leading-snug">Simulated Estimates</div>
+                <div className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider mt-1">Carbon impact model pending validation</div>
               </div>
             </div>
 
             <div className="flex items-center gap-4 px-2 md:pl-6 py-4 md:py-0">
-              <div className="w-10 h-10 rounded-full border border-[#00B47A] flex items-center justify-center text-[#00B47A]">
+              <div className="w-10 h-10 rounded-full border border-[#00B47A] flex items-center justify-center text-[#00B47A] shrink-0">
                 <LinkIcon size={18} />
               </div>
               <div className="text-left">
-                <div className="text-2xl font-bold text-black tracking-tight leading-none">100%</div>
-                <div className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider mt-1">Ledger Verifiable</div>
+                <div className="text-xl font-bold text-black tracking-tight leading-snug">Cryptographic Trail</div>
+                <div className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider mt-1">100% private secure audit logging</div>
               </div>
             </div>
 
@@ -630,9 +638,9 @@ export default function LandingPage() {
         </div>
       </footer>
 
-      {/* ON-CHAIN PARTNER ACCESS MODAL */}
+      {/* CRYPTOGRAPHIC PARTNER ACCESS MODAL */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
           <div className="relative w-full max-w-lg bg-[#0E1617] border border-[#213233] rounded-2xl shadow-2xl overflow-hidden animate-fade-in-up">
             
             {/* Modal Title bar */}
