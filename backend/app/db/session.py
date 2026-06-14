@@ -44,6 +44,7 @@ engine = create_async_engine(
         "server_settings": {"jit": "off"},  # Disable JIT for faster simple queries
         "command_timeout": 10.0,             # Kill queries hanging at socket level (reduced from 15s)
         "statement_cache_size": 0,           # Disable prepared statements cache for PgBouncer compatibility
+        "prepared_statement_cache_size": 0,  # Explicitly disable prepared statements cache for PgBouncer
     },
 )
 
