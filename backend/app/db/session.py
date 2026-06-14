@@ -40,11 +40,10 @@ engine = create_async_engine(
     pool_pre_ping=True,          # Verify connections before use
     pool_recycle=300,            # Recycle connections every 5 minutes
     pool_timeout=20,             # Give more margin under network latency
+    prepared_statement_cache_size=0, # Disable prepared statement caching directly in the engine for PgBouncer compatibility
     connect_args={
         "server_settings": {"jit": "off"},  # Disable JIT for faster simple queries
         "command_timeout": 10.0,             # Kill queries hanging at socket level (reduced from 15s)
-        "statement_cache_size": 0,           # Disable prepared statements cache for PgBouncer compatibility
-        "prepared_statement_cache_size": 0,  # Explicitly disable prepared statements cache for PgBouncer
     },
 )
 
