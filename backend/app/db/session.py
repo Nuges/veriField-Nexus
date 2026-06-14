@@ -30,8 +30,8 @@ elif db_url and db_url.startswith("postgresql://"):
 engine = create_async_engine(
     db_url,
     echo=settings.debug,        # Log SQL queries in debug mode
-    pool_size=10,                 # Reduced from 20 to fit within PgBouncer session mode limits
-    max_overflow=2,              # Reduced from 10 to prevent connection exhaustion
+    pool_size=3,                 # Reduced to 3 to prevent EMAXCONNSESSION when running multiple server instances
+    max_overflow=1,              # Reduced to 1 to limit connection limits on Supabase free tier
     pool_pre_ping=True,          # Verify connections before use
     pool_recycle=300,            # Recycle connections every 5 minutes
     pool_timeout=20,             # Give more margin under network latency
