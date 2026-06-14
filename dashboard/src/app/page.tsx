@@ -35,7 +35,8 @@ import {
   Loader2,
   Lock,
   Cloud,
-  Link as LinkIcon
+  Link as LinkIcon,
+  X
 } from "lucide-react";
 import { createAccessRequest } from "@/lib/api";
 
@@ -259,8 +260,8 @@ export default function LandingPage() {
                 "High cost and slow verification cycles"
               ].map((item, idx) => (
                 <li key={idx} className="flex items-center gap-3 text-sm font-semibold text-zinc-800">
-                  <span className="w-5 h-5 rounded-full border border-[#00B47A] flex items-center justify-center text-[#00B47A] font-bold text-xs shrink-0 select-none">
-                    ✕
+                  <span className="w-5 h-5 rounded-full border border-emerald-500/35 flex items-center justify-center text-[#00B47A] shrink-0 select-none">
+                    <X size={10} strokeWidth={2.5} />
                   </span>
                   {item}
                 </li>
@@ -293,9 +294,9 @@ export default function LandingPage() {
                 { title: "Record", desc: "Cryptographic audit trail in private registry", icon: Database },
                 { title: "Visualize", desc: "Real-time dashboard & analytics", icon: LineChart }
               ].map((pillar, idx) => (
-                <div key={idx} className="space-y-2 text-left">
-                  <div className="w-10 h-10 rounded-full border border-[#00B47A] flex items-center justify-center text-[#00B47A] shrink-0">
-                    <pillar.icon size={18} strokeWidth={2} />
+                <div key={idx} className="space-y-2.5 text-left group">
+                  <div className="w-11 h-11 rounded-xl bg-emerald-500/5 border border-emerald-500/10 flex items-center justify-center text-[#00B47A] shrink-0 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] group-hover:bg-[#00B47A] group-hover:text-black group-hover:border-transparent transition-all duration-300">
+                    <pillar.icon size={18} strokeWidth={1.5} />
                   </div>
                   <h4 className="font-bold text-zinc-900 text-sm">{pillar.title}</h4>
                   <p className="text-zinc-500 text-xs leading-normal">{pillar.desc}</p>
@@ -319,10 +320,10 @@ export default function LandingPage() {
               </h2>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-8 relative pt-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 relative pt-4">
               
               {/* Dotted Connecting Line (Desktop) */}
-              <div className="absolute top-[28px] left-[12%] right-[12%] h-[1px] border-t-2 border-dotted border-zinc-300 hidden md:block z-0" />
+              <div className="absolute top-[28px] left-[12%] right-[12%] h-[1px] border-t-2 border-dotted border-zinc-200 hidden lg:block z-0" />
 
               {[
                 {
@@ -350,14 +351,14 @@ export default function LandingPage() {
                   icon: LineChart
                 }
               ].map((stepItem, idx) => (
-                <div key={idx} className="flex flex-col items-center text-center space-y-4 relative z-10">
-                  <div className="w-14 h-14 rounded-full bg-white border border-zinc-200 flex items-center justify-center shadow-sm relative">
-                    <stepItem.icon className="text-zinc-700" size={20} />
-                    <span className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-[#00B47A] text-black font-bold text-xs flex items-center justify-center shadow-sm font-mono">
+                <div key={idx} className="flex flex-col items-center sm:items-start text-center sm:text-left bg-white border border-zinc-100 hover:border-zinc-200/80 hover:shadow-lg hover:shadow-zinc-100/50 transition-all duration-300 rounded-2xl p-6 relative z-10">
+                  <div className="w-12 h-12 rounded-xl bg-zinc-950/5 border border-zinc-950/10 flex items-center justify-center text-zinc-800 shadow-sm relative mb-4">
+                    <stepItem.icon className="text-zinc-700" size={20} strokeWidth={1.5} />
+                    <span className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-[#00B47A] text-black font-mono font-bold text-[10px] flex items-center justify-center shadow-sm">
                       {stepItem.step}
                     </span>
                   </div>
-                  <div className="space-y-1.5 px-2">
+                  <div className="space-y-1.5">
                     <h3 className="font-bold text-zinc-900 text-sm">{stepItem.label}</h3>
                     <p className="text-zinc-500 text-xs leading-relaxed">{stepItem.desc}</p>
                   </div>
@@ -383,7 +384,7 @@ export default function LandingPage() {
               </h3>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
               {[
                 { title: "Offline Field Capture", desc: "Flutter client optimized for remote environments, biometric location lock, and local-first data caching.", icon: Smartphone },
                 { title: "DER Operations Engine", desc: "Algorithmic validation checking duplicate tags, grid coordinate ranges, and trust indexes.", icon: Cpu },
@@ -391,12 +392,14 @@ export default function LandingPage() {
                 { title: "Cryptographic Audit Trail", desc: "Proprietary verification service recording data validation hashes.", icon: Database },
                 { title: "Distributed Asset Registry", desc: "Secure PostgreSQL registry database indexing coordinates, asset profiles, and telemetry lineages.", icon: Server }
               ].map((module, idx) => (
-                <div key={idx} className="p-6 rounded-2xl bg-zinc-50 border border-zinc-100 hover:border-[#00B47A]/30 transition-all duration-300 space-y-3">
-                  <div className="w-8 h-8 rounded-lg bg-white border border-zinc-200 flex items-center justify-center text-zinc-700 shadow-sm">
-                    <module.icon size={16} />
+                <div key={idx} className="p-6 rounded-2xl bg-zinc-50/50 border border-zinc-100/80 hover:border-emerald-500/20 hover:bg-white hover:shadow-lg hover:shadow-zinc-200/40 transition-all duration-300 space-y-4 group">
+                  <div className="w-10 h-10 rounded-xl bg-white border border-zinc-100 flex items-center justify-center text-zinc-600 shadow-sm group-hover:bg-[#00B47A] group-hover:text-black group-hover:border-transparent transition-all duration-300">
+                    <module.icon size={18} strokeWidth={1.5} />
                   </div>
-                  <h4 className="font-bold text-zinc-900 text-sm leading-snug">{module.title}</h4>
-                  <p className="text-zinc-500 text-xs leading-relaxed">{module.desc}</p>
+                  <div className="space-y-1">
+                    <h4 className="font-bold text-zinc-900 text-sm leading-snug">{module.title}</h4>
+                    <p className="text-zinc-500 text-xs leading-relaxed">{module.desc}</p>
+                  </div>
                 </div>
               ))}
             </div>
@@ -411,7 +414,7 @@ export default function LandingPage() {
               </h3>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
               {[
                 { title: "Clean cookstove monitoring", desc: "Verify stove coordinate distributions and usage profiles to validate performance and emissions reporting readiness.", icon: Flame },
                 { title: "Solar & hybrid mini-grids", desc: "Validate asset installation, location coordinates, and operational parameters across off-grid networks.", icon: Zap },
@@ -419,12 +422,14 @@ export default function LandingPage() {
                 { title: "Grid Operations Visibility", desc: "Streamline field data collection to satisfy utility compliance and planning requirements.", icon: FileCheck2 },
                 { title: "Asset Performance Visibility", desc: "Give capital providers and operators direct operational visibility into physical asset installation rates.", icon: Globe }
               ].map((uc, idx) => (
-                <div key={idx} className="p-6 rounded-2xl bg-zinc-50 border border-zinc-100 hover:border-[#00B47A]/30 transition-all duration-300 space-y-3">
-                  <div className="w-8 h-8 rounded-lg bg-white border border-zinc-200 flex items-center justify-center text-zinc-700 shadow-sm">
-                    <uc.icon size={16} />
+                <div key={idx} className="p-6 rounded-2xl bg-zinc-50/50 border border-zinc-100/80 hover:border-emerald-500/20 hover:bg-white hover:shadow-lg hover:shadow-zinc-200/40 transition-all duration-300 space-y-4 group">
+                  <div className="w-10 h-10 rounded-xl bg-white border border-zinc-100 flex items-center justify-center text-zinc-600 shadow-sm group-hover:bg-[#00B47A] group-hover:text-black group-hover:border-transparent transition-all duration-300">
+                    <uc.icon size={18} strokeWidth={1.5} />
                   </div>
-                  <h4 className="font-bold text-zinc-900 text-sm leading-snug">{uc.title}</h4>
-                  <p className="text-zinc-500 text-xs leading-relaxed">{uc.desc}</p>
+                  <div className="space-y-1">
+                    <h4 className="font-bold text-zinc-900 text-sm leading-snug">{uc.title}</h4>
+                    <p className="text-zinc-500 text-xs leading-relaxed">{uc.desc}</p>
+                  </div>
                 </div>
               ))}
             </div>
@@ -448,16 +453,16 @@ export default function LandingPage() {
                 </h2>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                 {[
                   { title: "Offline First", desc: "Capture in low connectivity environments.", icon: Wifi },
                   { title: "Secure by Design", desc: "End-to-end encryption and hashed data.", icon: Lock },
                   { title: "Real-Time Sync", desc: "Instant submissions when back online.", icon: Zap },
                   { title: "Scalable Infrastructure", desc: "Built to support thousands of installations.", icon: Database }
                 ].map((item, idx) => (
-                  <div key={idx} className="flex gap-4 items-start">
-                    <div className="w-9 h-9 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-[#00B47A] shrink-0">
-                      <item.icon size={18} />
+                  <div key={idx} className="flex gap-4 items-start group">
+                    <div className="w-11 h-11 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-[#00B47A] shrink-0 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] group-hover:border-[#00B47A]/40 transition-all duration-300">
+                      <item.icon size={20} strokeWidth={1.5} />
                     </div>
                     <div className="space-y-1">
                       <h4 className="font-bold text-white text-sm">{item.title}</h4>
@@ -535,48 +540,48 @@ export default function LandingPage() {
       </section>
 
       {/* 6. STATS BAR SECTION (White Background) */}
-      <section className="bg-white text-black py-10 border-b border-zinc-100">
+      <section className="bg-white text-black py-12 border-b border-zinc-100">
         <div className="max-w-7xl mx-auto px-6 md:px-12">
           
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 md:gap-4 divide-y md:divide-y-0 md:divide-x divide-zinc-200">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
             
-            <div className="flex items-center gap-4 px-2 py-4 md:py-0 md:first:pl-0">
-              <div className="w-10 h-10 rounded-full border border-[#00B47A] flex items-center justify-center text-[#00B47A] shrink-0">
-                <ShieldCheck size={18} />
+            <div className="flex items-center gap-4 px-4 py-4 rounded-2xl bg-zinc-50 border border-zinc-100/65 shadow-sm hover:border-[#00B47A]/30 transition-all duration-300">
+              <div className="w-12 h-12 rounded-xl bg-emerald-500/5 border border-emerald-500/10 flex items-center justify-center text-[#00B47A] shrink-0 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)]">
+                <ShieldCheck size={20} strokeWidth={1.5} />
               </div>
               <div className="text-left">
-                <div className="text-xl font-bold text-black tracking-tight leading-snug">Pilot-Ready System</div>
-                <div className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider mt-1">Validated in controlled environments</div>
+                <div className="text-lg font-bold text-black tracking-tight leading-snug">Pilot-Ready System</div>
+                <div className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider mt-1 leading-normal">Validated in controlled environments</div>
               </div>
             </div>
 
-            <div className="flex items-center gap-4 px-2 md:pl-6 py-4 md:py-0">
-              <div className="w-10 h-10 rounded-full border border-[#00B47A] flex items-center justify-center text-[#00B47A] shrink-0">
-                <Zap size={18} />
+            <div className="flex items-center gap-4 px-4 py-4 rounded-2xl bg-zinc-50 border border-zinc-100/65 shadow-sm hover:border-[#00B47A]/30 transition-all duration-300">
+              <div className="w-12 h-12 rounded-xl bg-emerald-500/5 border border-emerald-500/10 flex items-center justify-center text-[#00B47A] shrink-0 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)]">
+                <Zap size={20} strokeWidth={1.5} />
               </div>
               <div className="text-left">
-                <div className="text-xl font-bold text-black tracking-tight leading-snug">~600 kWp pipeline</div>
-                <div className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider mt-1">Distributed solar projects (Nigeria)</div>
+                <div className="text-lg font-bold text-black tracking-tight leading-snug">~600 kWp pipeline</div>
+                <div className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider mt-1 leading-normal">Distributed solar projects (Nigeria)</div>
               </div>
             </div>
 
-            <div className="flex items-center gap-4 px-2 md:pl-6 py-4 md:py-0">
-              <div className="w-10 h-10 rounded-full border border-[#00B47A] flex items-center justify-center text-[#00B47A] shrink-0">
-                <Cloud size={18} />
+            <div className="flex items-center gap-4 px-4 py-4 rounded-2xl bg-zinc-50 border border-zinc-100/65 shadow-sm hover:border-[#00B47A]/30 transition-all duration-300">
+              <div className="w-12 h-12 rounded-xl bg-emerald-500/5 border border-emerald-500/10 flex items-center justify-center text-[#00B47A] shrink-0 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)]">
+                <Cloud size={20} strokeWidth={1.5} />
               </div>
               <div className="text-left">
-                <div className="text-xl font-bold text-black tracking-tight leading-snug">Simulated Estimates</div>
-                <div className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider mt-1">Carbon impact model pending validation</div>
+                <div className="text-lg font-bold text-black tracking-tight leading-snug">Simulated Estimates</div>
+                <div className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider mt-1 leading-normal">Carbon impact model pending validation</div>
               </div>
             </div>
 
-            <div className="flex items-center gap-4 px-2 md:pl-6 py-4 md:py-0">
-              <div className="w-10 h-10 rounded-full border border-[#00B47A] flex items-center justify-center text-[#00B47A] shrink-0">
-                <LinkIcon size={18} />
+            <div className="flex items-center gap-4 px-4 py-4 rounded-2xl bg-zinc-50 border border-zinc-100/65 shadow-sm hover:border-[#00B47A]/30 transition-all duration-300">
+              <div className="w-12 h-12 rounded-xl bg-emerald-500/5 border border-emerald-500/10 flex items-center justify-center text-[#00B47A] shrink-0 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)]">
+                <LinkIcon size={20} strokeWidth={1.5} />
               </div>
               <div className="text-left">
-                <div className="text-xl font-bold text-black tracking-tight leading-snug">Cryptographic Trail</div>
-                <div className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider mt-1">100% private secure audit logging</div>
+                <div className="text-lg font-bold text-black tracking-tight leading-snug">Cryptographic Trail</div>
+                <div className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider mt-1 leading-normal">100% private secure audit logging</div>
               </div>
             </div>
 
@@ -651,9 +656,9 @@ export default function LandingPage() {
               </div>
               <button 
                 onClick={resetForm}
-                className="text-[#5F6F6C] hover:text-white transition-colors text-sm font-bold px-2 py-1"
+                className="text-[#5F6F6C] hover:text-white p-1.5 hover:bg-[#213233] rounded-lg transition-colors duration-200"
               >
-                ✕
+                <X size={14} />
               </button>
             </div>
 
