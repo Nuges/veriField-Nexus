@@ -32,7 +32,9 @@ import {
   Database,
   Trash2,
   Eye,
-  Settings
+  Settings,
+  Key,
+  User as UserIcon
 } from "lucide-react";
 import { WorkspaceProvider, useWorkspace } from "@/context/WorkspaceContext";
 import { 
@@ -45,7 +47,8 @@ import {
   fetchAuditLogs,
   deleteOrganization,
   fetchOrganizationAnalytics,
-  changePassword
+  changePassword,
+  forceResetUserPassword
 } from "@/lib/api";
 
 type Tab = "leads" | "organizations" | "users" | "analytics" | "audit";
@@ -88,6 +91,14 @@ function SuperAdminDashboard() {
   const [orgAnalyticsData, setOrgAnalyticsData] = useState<any | null>(null);
   
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+
+  // Password reset for tenant users
+  const [selectedOrgForPasswordReset, setSelectedOrgForPasswordReset] = useState<any | null>(null);
+  const [resetPasswordUserId, setResetPasswordUserId] = useState<string>("");
+  const [resetNewPassword, setResetNewPassword] = useState<string>("");
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
+  const [resetPasswordError, setResetPasswordError] = useState("");
+  const [resetPasswordSuccess, setResetPasswordSuccess] = useState("");
   const [passwordForm, setPasswordForm] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
   const [passwordError, setPasswordError] = useState("");
   const [passwordSuccess, setPasswordSuccess] = useState("");
@@ -254,6 +265,38 @@ function SuperAdminDashboard() {
       setPasswordError(err.message || "Failed to change password. Please check your current password.");
     } finally {
       setIsChangingPassword(false);
+    }
+  };
+
+  const handleResetUserPasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setResetPasswordError("");
+    setResetPasswordSuccess("");
+
+    if (!resetPasswordUserId) {
+      setResetPasswordError("Please select a user.");
+      return;
+    }
+
+    if (resetNewPassword.length < 8) {
+      setResetPasswordError("New password must be at least 8 characters long.");
+      return;
+    }
+
+    setIsResettingPassword(true);
+    try {
+      await forceResetUserPassword(resetPasswordUserId, resetNewPassword);
+      setResetPasswordSuccess("Password successfully updated!");
+      setResetNewPassword("");
+      setTimeout(() => {
+        setSelectedOrgForPasswordReset(null);
+        setResetPasswordUserId("");
+        setResetPasswordSuccess("");
+      }, 1500);
+    } catch (err: any) {
+      setResetPasswordError(err.message || "Failed to reset password.");
+    } finally {
+      setIsResettingPassword(false);
     }
   };
 
@@ -507,6 +550,16 @@ function SuperAdminDashboard() {
                         </span>
                         <div className="flex items-center gap-2">
                           <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedOrgForPasswordReset(org);
+                            }}
+                            className="p-1 hover:bg-[#213233] rounded border border-transparent hover:border-[#213233] text-zinc-500 hover:text-white transition-colors"
+                            title="Change User Passwords"
+                          >
+                            <Key size={13} />
+                          </button>
+                          <button
                             onClick={() => handleDeleteOrg(org.id, org.name)}
                             disabled={processingId !== null}
                             className="p-1 hover:bg-red-950/40 rounded border border-transparent hover:border-red-900/30 text-zinc-500 hover:text-red-400 transition-colors"
@@ -523,6 +576,23 @@ function SuperAdminDashboard() {
                         <p className="text-[10px] text-zinc-500">
                           Workspace Created: {new Date(org.created_at).toLocaleDateString()}
                         </p>
+                      </div>
+
+                      {/* Agents List inside Org Card */}
+                      <div className="space-y-1.5 pt-1 border-t border-[#213233]/20" onClick={(e) => e.stopPropagation()}>
+                        <span className="text-[9px] uppercase tracking-wider text-zinc-500 font-extrabold block">Assigned Agents</span>
+                        {users.filter(u => u.organization === org.name && u.role === "field_agent").length === 0 ? (
+                          <span className="text-[10px] text-zinc-600 font-medium block">No agents created yet</span>
+                        ) : (
+                          <div className="flex flex-wrap gap-1 pt-0.5 max-h-[60px] overflow-y-auto scrollbar">
+                            {users.filter(u => u.organization === org.name && u.role === "field_agent").map(agent => (
+                              <span key={agent.id} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-[9px] text-zinc-400" title={agent.email}>
+                                <span className="w-1 h-1 rounded-full bg-[#00B47A]" />
+                                {agent.full_name}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
 
                       <div className="pt-2 border-t border-[#213233]/40 flex justify-between items-center text-[10px] text-zinc-400">
@@ -591,6 +661,19 @@ function SuperAdminDashboard() {
                               >
                                 <Eye size={14} />
                               </button>
+                              {u.role !== "SUPER_ADMIN" && (
+                                <button
+                                  onClick={() => {
+                                    const userOrg = orgs.find(o => o.name === u.organization) || { name: u.organization || "System Default" };
+                                    setSelectedOrgForPasswordReset(userOrg);
+                                    setResetPasswordUserId(u.id);
+                                  }}
+                                  className="p-1 hover:bg-[#141F20] rounded border border-transparent hover:border-[#213233] text-zinc-400 hover:text-white transition-colors"
+                                  title="Reset Password"
+                                >
+                                  <Key size={14} />
+                                </button>
+                              )}
                               {u.role === "SUPER_ADMIN" ? (
                                 <span className="text-[10px] text-zinc-600 font-mono pr-2">Immutable</span>
                               ) : (
@@ -906,6 +989,86 @@ function SuperAdminDashboard() {
                 Close Profile
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* USER PASSWORD RESET MODAL FOR SAAS ORG */}
+      {selectedOrgForPasswordReset && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
+          <div className="relative w-full max-w-md bg-[#0E1617] border border-[#213233] rounded-2xl shadow-2xl overflow-hidden p-8 space-y-6 animate-fade-in-up">
+            <div className="text-center space-y-2">
+              <div className="w-12 h-12 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[#00B47A] flex items-center justify-center mx-auto">
+                <Key size={22} />
+              </div>
+              <h3 className="text-lg font-bold text-white">Reset User Credentials</h3>
+              <p className="text-xs text-zinc-400">
+                Force update the password of a user under {selectedOrgForPasswordReset.name}
+              </p>
+            </div>
+
+            <form onSubmit={handleResetUserPasswordSubmit} className="space-y-4">
+              <div className="space-y-1.5 text-left">
+                <label className="text-[10px] uppercase tracking-wider text-zinc-400 font-bold">Select User</label>
+                <select
+                  required
+                  value={resetPasswordUserId}
+                  onChange={(e) => setResetPasswordUserId(e.target.value)}
+                  className="w-full bg-[#090F10] border border-[#213233] focus:border-[#00B47A] rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none transition-colors"
+                >
+                  <option value="">-- Choose User --</option>
+                  {users
+                    .filter(u => u.organization === selectedOrgForPasswordReset.name)
+                    .map(u => (
+                      <option key={u.id} value={u.id}>
+                        {u.full_name} ({u.role === "admin" ? "ORG_ADMIN" : u.role}) — {u.email}
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              <div className="space-y-1.5 text-left">
+                <label className="text-[10px] uppercase tracking-wider text-zinc-400 font-bold">New Password</label>
+                <input
+                  type="password"
+                  required
+                  placeholder="Minimum 8 characters"
+                  value={resetNewPassword}
+                  onChange={(e) => setResetNewPassword(e.target.value)}
+                  className="w-full bg-[#090F10] border border-[#213233] focus:border-[#00B47A] rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none transition-colors"
+                />
+              </div>
+
+              {resetPasswordError && (
+                <p className="text-red-400 text-[10px] font-semibold">{resetPasswordError}</p>
+              )}
+              {resetPasswordSuccess && (
+                <p className="text-emerald-400 text-[10px] font-semibold">{resetPasswordSuccess}</p>
+              )}
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedOrgForPasswordReset(null);
+                    setResetPasswordUserId("");
+                    setResetNewPassword("");
+                    setResetPasswordError("");
+                    setResetPasswordSuccess("");
+                  }}
+                  className="flex-1 py-2.5 bg-[#141F20] hover:bg-[#213233] border border-[#213233] text-white rounded-xl text-xs font-bold uppercase transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isResettingPassword}
+                  className="flex-1 py-2.5 bg-[#00B47A] hover:bg-emerald-400 text-black rounded-xl text-xs font-bold uppercase transition-all disabled:opacity-50"
+                >
+                  {isResettingPassword ? "Updating..." : "Reset Password"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

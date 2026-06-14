@@ -512,3 +512,36 @@ async def get_organization_analytics(
         }
     }
 
+
+# =============================================================================
+# POST /api/v1/admin/users/{id}/reset-password — Reset User Password (Super Admin)
+# =============================================================================
+from pydantic import Field
+
+class AdminUserPasswordReset(BaseModel):
+    new_password: str = Field(..., min_length=8)
+
+@router.post(
+    "/admin/users/{id}/reset-password",
+    summary="Force reset user password (Super Admin)",
+)
+async def reset_user_password(
+    id: uuid.UUID,
+    payload: AdminUserPasswordReset,
+    db: AsyncSession = Depends(get_db),
+    admin_user: User = Depends(require_super_admin)
+):
+    stmt = select(User).where(User.id == id)
+    result = await db.execute(stmt)
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    from app.core.security import get_password_hash
+    user.password_hash = get_password_hash(payload.new_password)
+    user.requires_password_change = False
+    await db.commit()
+
+    logger.info(f"Password reset forced for user {user.email} by Super Admin")
+    return {"message": f"Password for {user.email} successfully updated."}
+

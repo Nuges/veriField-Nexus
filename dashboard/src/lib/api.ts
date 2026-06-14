@@ -724,5 +724,12 @@ export async function fetchOrganizationAnalytics(id: string) {
   return apiFetch<any>(`/admin/organizations/${id}/analytics`);
 }
 
+export async function forceResetUserPassword(id: string, newPassword: string) {
+  return apiFetch<any>(`/admin/users/${id}/reset-password`, {
+    method: "POST",
+    body: JSON.stringify({ new_password: newPassword }),
+  });
+}
+
 
 
