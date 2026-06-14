@@ -122,9 +122,9 @@ export default function AgentsPage() {
       setNewAgentPassword("");
       toast.success("Agent Provisioned", `Field agent ${newAgentName} has been successfully provisioned.`);
       await loadData();
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to create agent", err);
-      toast.error("Provisioning Failed", "Could not provision new agent. Please try again.");
+      toast.error("Provisioning Failed", err.message || "Could not provision new agent. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
