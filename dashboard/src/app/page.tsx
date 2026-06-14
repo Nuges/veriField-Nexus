@@ -199,11 +199,11 @@ export default function LandingPage() {
           
           <div className="flex-1 space-y-8 text-left max-w-xl">
             <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight text-white leading-tight font-sans">
-              A digital infrastructure platform for <span className="text-[#00B47A]">monitoring, verifying, and optimizing</span> distributed energy systems in low-connectivity environments.
+              A digital infrastructure for <span className="text-[#00B47A]">distributed energy systems</span>
             </h1>
 
             <p className="text-zinc-400 text-sm md:text-base leading-relaxed max-w-lg">
-              VeriField Nexus enables utilities, energy developers, and infrastructure operators to digitally monitor and manage distributed energy assets such as solar mini-grids and clean cooking systems. The platform provides offline-first data capture, operational visibility, and structured reporting for energy access and grid optimization in low-connectivity regions.
+              A modular platform for monitoring, verifying, and managing energy assets across off-grid and grid-connected environments.
             </p>
 
             <div className="pt-2">
