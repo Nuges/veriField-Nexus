@@ -420,13 +420,26 @@ export default function StandaloneCapturePage() {
   // --- REFS FOR AUTO-SAVE AVOIDANCE ---
   const initialLoadDone = useRef(false);
 
-  // Redirect to login if user is not authenticated
+  // Redirect to login if user is not authenticated — with retry for slow connections
   useEffect(() => {
     if (isLoading) return;
-    if (!user) {
-      window.location.href = "/login?redirect=/capture";
+    if (user) return; // already authenticated
+    
+    // If a token is present, WorkspaceContext may have failed due to a timeout.
+    // Retry once before giving up and redirecting to login.
+    const token = typeof window !== "undefined" ? localStorage.getItem("vf_token") : null;
+    if (token) {
+      console.log("[Capture] Token exists but user is null — retrying fetchMe...");
+      refreshUser().catch(() => {
+        // Final retry also failed — redirect to login
+        console.error("[Capture] Retry fetchMe failed — redirecting to login.");
+        window.location.href = "/login?redirect=/capture";
+      });
+      return;
     }
-  }, [user, isLoading]);
+    
+    window.location.href = "/login?redirect=/capture";
+  }, [user, isLoading, refreshUser]);
 
   // Initialize network listeners, fetch queue, and reload draft
   useEffect(() => {

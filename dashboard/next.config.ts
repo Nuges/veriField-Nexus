@@ -9,6 +9,10 @@ const nextConfig: any = {
     // Also ignore typescript check if there are differences in env/compiler versions on Vercel
     ignoreBuildErrors: true,
   },
+  // Keep-alive connections to reduce TCP handshake overhead with backend
+  httpAgentOptions: {
+    keepAlive: true,
+  },
   allowedDevOrigins: [
     'http://192.168.8.199:3000',
     '192.168.8.199',

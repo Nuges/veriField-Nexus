@@ -19,6 +19,7 @@ import {
   CheckCircle2,
   Ban,
   X,
+  Key,
 } from "lucide-react";
 import {
   BarChart,
@@ -31,9 +32,10 @@ import {
   Cell,
 } from "recharts";
 import StatCard from "@/components/StatCard";
-import { fetchAgentPerformance, setAuthToken, createAgent, updateAgentStatus } from "@/lib/api";
+import { fetchAgentPerformance, setAuthToken, createAgent, updateAgentStatus, resetAgentPassword } from "@/lib/api";
 import type { AgentPerformance, AgentPerformanceResponse } from "@/lib/types";
 import { useToast } from "@/components/Toast";
+
 
 export default function AgentsPage() {
   const toast = useToast();
@@ -46,6 +48,35 @@ export default function AgentsPage() {
   const [newAgentName, setNewAgentName] = useState("");
   const [newAgentPassword, setNewAgentPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Password reset states
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const [resetAgent, setResetAgent] = useState<AgentPerformance | null>(null);
+  const [resetPasswordValue, setResetPasswordValue] = useState("");
+  const [isResetting, setIsResetting] = useState(false);
+
+  async function handleResetPassword(e: React.FormEvent) {
+    e.preventDefault();
+    if (!resetAgent) return;
+    if (resetPasswordValue.length < 8) {
+      toast.error("Validation Error", "Password must be at least 8 characters long.");
+      return;
+    }
+    setIsResetting(true);
+    try {
+      await resetAgentPassword(resetAgent.id, resetPasswordValue);
+      toast.success("Password Reset", `Password for agent ${resetAgent.full_name} has been successfully updated.`);
+      setIsResetModalOpen(false);
+      setResetAgent(null);
+      setResetPasswordValue("");
+    } catch (err: any) {
+      console.error("Failed to reset password", err);
+      toast.error("Reset Failed", err.message || "Could not reset agent password. Please try again.");
+    } finally {
+      setIsResetting(false);
+    }
+  }
+
 
   useEffect(() => {
     const token = localStorage.getItem("vf_token");
@@ -397,6 +428,17 @@ export default function AgentsPage() {
                         >
                           <X size={16} />
                         </button>
+                        <button 
+                          onClick={() => {
+                            setResetAgent(agent);
+                            setResetPasswordValue("");
+                            setIsResetModalOpen(true);
+                          }}
+                          className="p-1.5 text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors cursor-pointer"
+                          title="Reset Agent Password"
+                        >
+                          <Key size={16} />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -486,6 +528,79 @@ export default function AgentsPage() {
           </div>
         </div>
       )}
+
+      {/* Reset Agent Password Modal */}
+      {isResetModalOpen && resetAgent && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[var(--color-card)] border border-[var(--color-border)] rounded-2xl shadow-xl w-full max-w-md p-6 animate-scale-in">
+            <div className="flex justify-between items-center mb-6 border-b border-[var(--color-border)] pb-4">
+              <div className="flex items-center gap-2">
+                <Key className="text-emerald-500 animate-pulse" size={18} />
+                <h3 className="text-sm font-bold uppercase tracking-wider text-[var(--color-text-primary)]">
+                  Reset Agent Password
+                </h3>
+              </div>
+              <button 
+                onClick={() => {
+                  setIsResetModalOpen(false);
+                  setResetAgent(null);
+                }} 
+                className="text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            
+            <form onSubmit={handleResetPassword}>
+              <div className="space-y-5">
+                <div className="p-3 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl space-y-1">
+                  <p className="text-xs text-[var(--color-text-secondary)]">
+                    Agent Name: <span className="font-semibold text-[var(--color-text-primary)]">{resetAgent.full_name}</span>
+                  </p>
+                  <p className="text-xs text-[var(--color-text-secondary)]">
+                    Agent Email: <span className="font-semibold text-[var(--color-text-primary)]">{resetAgent.email}</span>
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-[var(--color-text-secondary)] mb-2">
+                    New Password
+                  </label>
+                  <input 
+                    type="password" 
+                    required 
+                    minLength={8}
+                    placeholder="Enter new agent password (min 8 chars)"
+                    className="w-full text-xs bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-3 text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-emerald-500 transition-colors"
+                    value={resetPasswordValue}
+                    onChange={(e) => setResetPasswordValue(e.target.value)}
+                  />
+                </div>
+              </div>
+              
+              <div className="mt-6 flex justify-end gap-3 pt-4 border-t border-[var(--color-border)]">
+                <button 
+                  type="button" 
+                  onClick={() => {
+                    setIsResetModalOpen(false);
+                    setResetAgent(null);
+                  }}
+                  className="px-4 py-2.5 rounded-xl text-xs font-semibold text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text-primary)] border border-[var(--color-border)] transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  disabled={isResetting}
+                  className="px-5 py-2.5 rounded-xl text-xs font-semibold text-white bg-emerald-500 hover:bg-emerald-600 transition-colors shadow-lg shadow-emerald-500/20 disabled:opacity-50 cursor-pointer"
+                >
+                  {isResetting ? "Resetting..." : "Reset Password"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+

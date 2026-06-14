@@ -688,3 +688,80 @@ async def delete_me(
     return {"message": "Account successfully deleted."}
 
 
+# =============================================================================
+# POST /api/v1/auth/users/{user_id}/reset-password — Reset user password (Admin)
+# =============================================================================
+class AdminUserPasswordReset(BaseModel):
+    new_password: str = Field(..., min_length=8)
+
+@router.post(
+    "/users/{user_id}/reset-password",
+    summary="Reset user password (Admin)",
+    description="Allows an admin to reset the password of a user within their organization.",
+)
+async def reset_user_password(
+    user_id: uuid.UUID,
+    payload: AdminUserPasswordReset,
+    db: AsyncSession = Depends(get_db),
+    admin_user: User = Depends(require_admin),
+):
+    result = await db.execute(select(User).where(User.id == user_id))
+    target_user = result.scalar_one_or_none()
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Authorize: Org Admin/Admin can only reset passwords for users in the same organization
+    if admin_user.role != "SUPER_ADMIN":
+        if target_user.organization != admin_user.organization:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient permissions. You can only reset passwords for users in your organization.",
+            )
+
+    import logging
+    logger = logging.getLogger("verifield.auth")
+
+    # Local password hash path (dev fallback or seeded users)
+    if target_user.password_hash:
+        from app.core.security import get_password_hash
+        target_user.password_hash = get_password_hash(payload.new_password)
+        target_user.requires_password_change = False
+        await db.commit()
+        logger.info(f"Password reset forced locally for user {target_user.email} by admin {admin_user.email}")
+        return {"message": f"Password for {target_user.email} successfully updated."}
+
+    # Supabase Auth path
+    else:
+        import httpx
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.put(
+                    f"{settings.supabase_url}/auth/v1/admin/users/{target_user.id}",
+                    json={"password": payload.new_password},
+                    headers={
+                        "apikey": settings.supabase_key,
+                        "Authorization": f"Bearer {settings.supabase_key}",
+                        "Content-Type": "application/json",
+                    },
+                )
+                if response.status_code not in (200, 201):
+                    error_detail = response.json().get("msg", "Password update failed")
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Auth Service Error: {error_detail}",
+                    )
+        except Exception as e:
+            if isinstance(e, HTTPException):
+                raise
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"Auth server unreachable: {str(e)}",
+            )
+        
+        target_user.requires_password_change = False
+        await db.commit()
+        logger.info(f"Password reset forced via Supabase for user {target_user.email} by admin {admin_user.email}")
+        return {"message": f"Password for {target_user.email} successfully updated."}
+
+
+

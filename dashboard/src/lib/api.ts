@@ -89,9 +89,9 @@ async function apiFetch<T>(
     ...(fetchOptions.headers as Record<string, string> || {}),
   };
 
-  const customTimeout = timeout !== undefined ? timeout : 15000;
+  const customTimeout = timeout !== undefined ? timeout : 30000;
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), customTimeout); // default 15s — fail fast on mobile
+  const timeoutId = setTimeout(() => controller.abort(), customTimeout); // default 30s — accounts for ngrok/tunnel latency
 
   let response: Response;
   try {
@@ -141,7 +141,7 @@ async function apiFetch<T>(
 export async function loginAdmin(email: string, password: string) {
   // Use direct fetch — login must NEVER send a stale Authorization header
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 30000);
+  const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s for login — ngrok adds 7-10s latency
 
   let response: Response;
   try {
@@ -423,6 +423,14 @@ export async function updateAgentStatus(userId: string, status: "active" | "susp
   });
 }
 
+export async function resetAgentPassword(userId: string, newPassword: string): Promise<any> {
+  return apiFetch<any>(`/auth/users/${userId}/reset-password`, {
+    method: "POST",
+    body: JSON.stringify({ new_password: newPassword }),
+  });
+}
+
+
 // ---------------------------------------------------------------------------
 // Registry Export API
 // ---------------------------------------------------------------------------
@@ -598,7 +606,7 @@ export async function addCommunityComment(id: string, comment: string): Promise<
 // ---------------------------------------------------------------------------
 
 export async function fetchMe(): Promise<User> {
-  return apiFetch<User>("/auth/me");
+  return apiFetch<User>("/auth/me", { timeout: 45000 }); // 45s — critical for field agents over ngrok tunnels
 }
 
 export async function updateProfile(data: {

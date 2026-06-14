@@ -199,7 +199,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const loadUser = useCallback(async () => {
+  const loadUser = useCallback(async (retryCount = 0) => {
     setIsLoading(true);
     setError(null);
     try {
@@ -211,7 +211,15 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       const normalized = normalizeSector(u.sector);
       setActiveSector(normalized);
     } catch (err: any) {
-      console.error("Workspace Resolver failed to load user profile:", err);
+      console.error(`Workspace Resolver failed to load user profile (attempt ${retryCount + 1}):`, err);
+      
+      // Auto-retry once on timeout (common with ngrok/tunnel latency)
+      if (retryCount < 1 && err?.message?.includes("timed out")) {
+        console.log("Workspace Resolver: retrying fetchMe after timeout...");
+        setIsLoading(true);
+        setTimeout(() => loadUser(retryCount + 1), 2000);
+        return;
+      }
       
       // Offline fallback: try loading the last successfully loaded user profile from cache
       if (typeof window !== "undefined") {

@@ -31,11 +31,24 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      // Clear any stale auth state — user is on the login page, start fresh
+      const params = new URLSearchParams(window.location.search);
+      
+      // If a valid token exists AND there is a redirect target, the user may
+      // have been bounced back by a transient network error.  In that case,
+      // try to honour the existing token instead of wiping it.
+      const existingToken = localStorage.getItem("vf_token");
+      const redirectTarget = params.get("redirect");
+      
+      if (existingToken && redirectTarget) {
+        // Attempt to resume — redirect back to the target without clearing creds
+        window.location.href = redirectTarget;
+        return;
+      }
+      
+      // Otherwise — genuine fresh login.  Clear any stale auth state.
       localStorage.removeItem("vf_token");
       setAuthToken(null);
       
-      const params = new URLSearchParams(window.location.search);
       if (params.get("error") === "unauthorized") {
         setError("Access denied. This system is restricted to verification personnel only.");
       }
