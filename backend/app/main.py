@@ -44,6 +44,32 @@ async def lifespan(app: FastAPI):
     # 2. Asynchronously Pre-warm the Connection Pool in the background
     async def prewarm_pool():
         logger.info("Initializing database connection pool pre-warming and schema migrations...")
+        
+        # Validate Supabase Admin Key Configuration
+        import jwt as pyjwt
+        admin_key = settings.supabase_admin_key
+        if admin_key:
+            try:
+                decoded = pyjwt.decode(admin_key, options={"verify_signature": False})
+                role = decoded.get("role")
+                if role != "service_role":
+                    logger.error(
+                        "CRITICAL CONFIGURATION WARNING: The resolved Supabase Admin Key has role '%s', "
+                        "but 'service_role' is required. Admin features (agent provisioning, password resets) WILL FAIL. "
+                        "Please set the 'SUPABASE_SERVICE_ROLE_KEY' environment variable in your Render dashboard.",
+                        role
+                    )
+                else:
+                    logger.info("Supabase Admin Key (service_role) validated successfully.")
+            except Exception as e:
+                logger.warning("Could not verify Supabase admin key role format: %s", e)
+        else:
+            logger.error(
+                "CRITICAL CONFIGURATION ERROR: Supabase Admin Key is empty. "
+                "Admin features (agent provisioning, password resets) WILL FAIL. "
+                "Please configure 'SUPABASE_SERVICE_ROLE_KEY' in your environment."
+            )
+
         try:
             async with async_session_factory() as session:
                 # Add upvotes column to community_validations if missing
