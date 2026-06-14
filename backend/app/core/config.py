@@ -73,6 +73,25 @@ class Settings(BaseSettings):
             self.supabase_url = self.supabase_url.rstrip("/")
         return self
 
+    @property
+    def supabase_admin_key(self) -> str:
+        """
+        Return the service role key to use for administrative actions.
+        Looks in:
+        1. SUPABASE_SERVICE_ROLE_KEY environment variable (standard Supabase)
+        2. SUPABASE_SERVICE_KEY environment variable (alternative name)
+        3. Config's supabase_service_key field
+        4. Config's supabase_key field (fallback for dev environments)
+        """
+        import os
+        return (
+            os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or
+            os.environ.get("SUPABASE_SERVICE_KEY") or
+            self.supabase_service_key or
+            self.supabase_key
+        )
+
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

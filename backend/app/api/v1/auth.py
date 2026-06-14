@@ -600,7 +600,7 @@ async def change_password(
     # ── Supabase Auth path ──
     import httpx
     try:
-        admin_key = settings.supabase_service_key or settings.supabase_key
+        admin_key = settings.supabase_admin_key
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.put(
                 f"{settings.supabase_url}/auth/v1/admin/users/{user.id}",
@@ -735,7 +735,7 @@ async def reset_user_password(
     else:
         import httpx
         try:
-            admin_key = settings.supabase_service_key or settings.supabase_key
+            admin_key = settings.supabase_admin_key
             async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.put(
                     f"{settings.supabase_url}/auth/v1/admin/users/{target_user.id}",
