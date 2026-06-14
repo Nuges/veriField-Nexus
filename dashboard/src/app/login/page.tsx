@@ -53,9 +53,14 @@ export default function LoginPage() {
       // Parse redirect parameter dynamically from the search query
       const params = new URLSearchParams(window.location.search);
       let targetRedirect = params.get("redirect") || "/dashboard";
+      
       if (result.user.role === "SUPER_ADMIN") {
         targetRedirect = "/super-admin";
+      } else if (result.user.role === "field_agent") {
+        // Field agents must always be routed to the capture flow
+        targetRedirect = "/capture";
       }
+      
       const isMobileCapture = targetRedirect.startsWith("/capture");
       
       if (!isMobileCapture && !["admin", "auditor", "SUPER_ADMIN", "ORG_ADMIN"].includes(result.user.role)) {
