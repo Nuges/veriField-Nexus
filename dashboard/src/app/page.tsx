@@ -521,7 +521,7 @@ export default function LandingPage() {
               <div>
                 <span className="text-xs uppercase tracking-widest text-[#00B47A] font-bold">07 / Infrastructure Stack</span>
                 <p className="text-zinc-400 text-xs mt-1">
-                  Mobile Field Ingestion (Flutter / Web PWA) • FastAPI Validation Engine • Real-time Operations Dashboard (Next.js / Web) • Cryptographic Audit Trail • Local-first data capture with offline support
+                  Mobile Field Ingestion (Flutter) • FastAPI Validation Engine • Real-time Operations Dashboard (Next.js / Web) • Cryptographic Audit Trail • Local-first data capture with offline support
                 </p>
               </div>
               
