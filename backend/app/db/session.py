@@ -35,11 +35,11 @@ else:
 engine = create_async_engine(
     db_url,
     echo=settings.debug,        # Log SQL queries in debug mode
-    pool_size=20,                 # Increased from 5 to prevent pool starvation
-    max_overflow=10,              # Increased from 5 to support more concurrent requests
+    pool_size=10,                 # Reduced from 20 to fit within PgBouncer session mode limits
+    max_overflow=2,              # Reduced from 10 to prevent connection exhaustion
     pool_pre_ping=True,          # Verify connections before use
     pool_recycle=300,            # Recycle connections every 5 minutes
-    pool_timeout=20,             # Increased from 10s to give more margin under network latency
+    pool_timeout=20,             # Give more margin under network latency
     connect_args={
         "server_settings": {"jit": "off"},  # Disable JIT for faster simple queries
         "command_timeout": 10.0,             # Kill queries hanging at socket level (reduced from 15s)

@@ -46,10 +46,13 @@ async def register(
     Register a new user account.
     
     Flow:
-    1. Create user in Supabase Auth (email or phone)
-    2. Create matching user record in our PostgreSQL database
-    3. Return JWT token + user profile
+    1. Create user in Supabase Auth via Admin API (email or phone) with confirmed email/phone
+    2. Create matching user record in our PostgreSQL database with local password hash
+    3. Return local JWT token + user profile
     """
+    import logging
+    logger = logging.getLogger("verifield.auth")
+
     # Determine if registering with email or phone
     identifier = payload.email or payload.phone
     if not identifier:
@@ -58,22 +61,28 @@ async def register(
             detail="Either email or phone is required",
         )
 
-    # Register with Supabase Auth
+    # Register with Supabase Auth via Admin API
     try:
         import httpx
+        admin_key = settings.supabase_admin_key
         async with httpx.AsyncClient(timeout=30.0) as client:
             # Build Supabase auth request
-            auth_data = {"password": payload.password}
+            auth_data = {
+                "password": payload.password,
+                "email_confirm": True,
+                "phone_confirm": True,
+            }
             if payload.email:
                 auth_data["email"] = payload.email
             if payload.phone:
                 auth_data["phone"] = payload.phone
 
             response = await client.post(
-                f"{settings.supabase_url}/auth/v1/signup",
+                f"{settings.supabase_url}/auth/v1/admin/users",
                 json=auth_data,
                 headers={
-                    "apikey": settings.supabase_key,
+                    "apikey": admin_key,
+                    "Authorization": f"Bearer {admin_key}",
                     "Content-Type": "application/json",
                 },
             )
@@ -87,6 +96,8 @@ async def register(
 
             auth_result = response.json()
     except Exception as e:
+        if isinstance(e, HTTPException):
+            raise
         if type(e).__name__ == "RequestError":
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -94,10 +105,8 @@ async def register(
             )
         raise
 
-    # Extract Supabase user ID and token
+    # Extract Supabase user ID
     supabase_user_id = auth_result.get("id") or auth_result.get("user", {}).get("id")
-    access_token = auth_result.get("access_token", "")
-    expires_in = auth_result.get("expires_in", 3600)
 
     if not supabase_user_id:
         raise HTTPException(
@@ -106,6 +115,11 @@ async def register(
         )
 
     # Create local user record - automatically scope to the registering admin's organization
+    from app.core.security import get_password_hash
+    import time
+    import jwt as pyjwt
+
+    pw_hash = get_password_hash(payload.password)
     user = User(
         id=uuid.UUID(supabase_user_id) if isinstance(supabase_user_id, str) else supabase_user_id,
         email=payload.email,
@@ -116,15 +130,28 @@ async def register(
         sector=payload.sector or "cookstove",
         country=payload.country,
         project_type=payload.project_type,
+        password_hash=pw_hash,
+        requires_password_change=True,
     )
     db.add(user)
     await db.commit()
     await db.refresh(user)
 
+    # Generate a local JWT token for the response
+    token_payload = {
+        "sub": str(user.id),
+        "email": user.email,
+        "role": user.role,
+        "iat": int(time.time()),
+        "exp": int(time.time()) + 86400,
+    }
+    jwt_secret = settings.jwt_secret or "verifield-dev-secret-key"
+    access_token = pyjwt.encode(token_payload, jwt_secret, algorithm="HS256")
+
     return AuthResponse(
         user=UserResponse.model_validate(user),
         access_token=access_token,
-        expires_in=expires_in,
+        expires_in=86400,
     )
 
 
@@ -572,33 +599,25 @@ async def change_password(
 ):
     """
     Unified password change endpoint.
-    - For users with local password_hash (Super Admin, Org Admins): updates hash locally.
-    - For Supabase-auth users: updates via Supabase Admin API.
-    - Clears requires_password_change flag for forced-reset flows.
+    - Updates local password_hash in our PostgreSQL database.
+    - Updates password in Supabase Auth via Admin API.
+    - Clears requires_password_change flag.
     """
     import logging
+    import httpx
     logger = logging.getLogger("verifield.auth")
 
-    # ── Local password hash path (Super Admin, seeded Org Admins) ──
-    if user.password_hash:
-        from app.core.security import verify_password, get_password_hash
+    from app.core.security import verify_password, get_password_hash
 
-        # Validate old password if provided
-        if payload.old_password is not None:
-            if not verify_password(payload.old_password, user.password_hash):
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Incorrect current password",
-                )
+    # Validate old password if provided and local password_hash exists
+    if user.password_hash and payload.old_password is not None:
+        if not verify_password(payload.old_password, user.password_hash):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Incorrect current password",
+            )
 
-        user.password_hash = get_password_hash(payload.new_password)
-        user.requires_password_change = False
-        await db.commit()
-        logger.info(f"Password rotated for local user {user.email}")
-        return {"message": "Password rotated successfully"}
-
-    # ── Supabase Auth path ──
-    import httpx
+    # 1. Update password in Supabase Auth via Admin API
     try:
         admin_key = settings.supabase_admin_key
         async with httpx.AsyncClient(timeout=30.0) as client:
@@ -613,21 +632,27 @@ async def change_password(
             )
             if response.status_code not in (200, 201):
                 error_detail = response.json().get("msg", "Password update failed")
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Auth Service Error: {error_detail}",
-                )
+                logger.warning(f"Supabase password update failed: {error_detail}")
+                if not settings.dev_mode:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Auth Service Error: {error_detail}",
+                    )
     except Exception as e:
         if isinstance(e, HTTPException):
             raise
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Auth server unreachable: {str(e)}",
-        )
-    
-    # Clear the flag even for Supabase users
+        logger.warning(f"Failed to update password in Supabase: {e}")
+        if not settings.dev_mode:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"Auth server unreachable: {str(e)}",
+            )
+
+    # 2. Update local database record
+    user.password_hash = get_password_hash(payload.new_password)
     user.requires_password_change = False
     await db.commit()
+    logger.info(f"Password successfully updated in DB and Supabase for user {user.email}")
     return {"message": "Password successfully updated."}
 
 
@@ -720,50 +745,47 @@ async def reset_user_password(
             )
 
     import logging
+    import httpx
     logger = logging.getLogger("verifield.auth")
 
-    # Local password hash path (dev fallback or seeded users)
-    if target_user.password_hash:
-        from app.core.security import get_password_hash
-        target_user.password_hash = get_password_hash(payload.new_password)
-        target_user.requires_password_change = False
-        await db.commit()
-        logger.info(f"Password reset forced locally for user {target_user.email} by admin {admin_user.email}")
-        return {"message": f"Password for {target_user.email} successfully updated."}
-
-    # Supabase Auth path
-    else:
-        import httpx
-        try:
-            admin_key = settings.supabase_admin_key
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.put(
-                    f"{settings.supabase_url}/auth/v1/admin/users/{target_user.id}",
-                    json={"password": payload.new_password},
-                    headers={
-                        "apikey": admin_key,
-                        "Authorization": f"Bearer {admin_key}",
-                        "Content-Type": "application/json",
-                    },
-                )
-                if response.status_code not in (200, 201):
-                    error_detail = response.json().get("msg", "Password update failed")
+    # 1. Reset password in Supabase Auth via Admin API
+    try:
+        admin_key = settings.supabase_admin_key
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.put(
+                f"{settings.supabase_url}/auth/v1/admin/users/{target_user.id}",
+                json={"password": payload.new_password},
+                headers={
+                    "apikey": admin_key,
+                    "Authorization": f"Bearer {admin_key}",
+                    "Content-Type": "application/json",
+                },
+            )
+            if response.status_code not in (200, 201):
+                error_detail = response.json().get("msg", "Password update failed")
+                logger.warning(f"Supabase password reset failed: {error_detail}")
+                if not settings.dev_mode:
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
                         detail=f"Auth Service Error: {error_detail}",
                     )
-        except Exception as e:
-            if isinstance(e, HTTPException):
-                raise
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise
+        logger.warning(f"Failed to reset password in Supabase: {e}")
+        if not settings.dev_mode:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail=f"Auth server unreachable: {str(e)}",
             )
-        
-        target_user.requires_password_change = False
-        await db.commit()
-        logger.info(f"Password reset forced via Supabase for user {target_user.email} by admin {admin_user.email}")
-        return {"message": f"Password for {target_user.email} successfully updated."}
+
+    # 2. Reset locally in DB and require change on first login
+    from app.core.security import get_password_hash
+    target_user.password_hash = get_password_hash(payload.new_password)
+    target_user.requires_password_change = True
+    await db.commit()
+    logger.info(f"Password reset forced in DB and Supabase for user {target_user.email} by admin {admin_user.email}")
+    return {"message": f"Password for {target_user.email} successfully updated."}
 
 
 
