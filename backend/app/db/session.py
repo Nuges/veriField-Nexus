@@ -23,16 +23,15 @@ if db_url and db_url.startswith("postgres://"):
 elif db_url and db_url.startswith("postgresql://"):
     db_url = db_url.replace("postgresql://", "postgresql+asyncpg://", 1)
 
-# Keep the Session Pooler (port 5432) as it fully supports prepared statements
-# without throwing PgBouncer transaction errors.
+# Force prepared_statement_cache_size=0 to fully support PgBouncer transaction mode
 if "?" not in db_url:
-    db_url += "?prepared_statement_cache_size=100"
+    db_url += "?prepared_statement_cache_size=0"
 else:
-    db_url += "&prepared_statement_cache_size=100"
+    db_url += "&prepared_statement_cache_size=0"
 
 # --- Async Engine ---
 # Creates a connection pool to Supabase PostgreSQL
-# Tuned for Supabase Session pooler (5432)
+# Tuned for PgBouncer transaction pooling or direct sessions
 engine = create_async_engine(
     db_url,
     echo=settings.debug,        # Log SQL queries in debug mode
@@ -44,6 +43,7 @@ engine = create_async_engine(
     connect_args={
         "server_settings": {"jit": "off"},  # Disable JIT for faster simple queries
         "command_timeout": 10.0,             # Kill queries hanging at socket level (reduced from 15s)
+        "statement_cache_size": 0,           # Disable prepared statements cache for PgBouncer compatibility
     },
 )
 
