@@ -184,8 +184,59 @@ async def approve_access_request(
         if any(prefix in use_case_upper for prefix in ("ENERGY", "SOLAR", "HYBRID")):
             assigned_sector = "energy"
 
+    # Provision in Supabase Auth
+    supabase_user_id = None
+    try:
+        import httpx
+        from app.core.config import settings
+        admin_key = settings.supabase_admin_key
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            auth_data = {
+                "email": req.email,
+                "password": temp_pw,
+                "email_confirm": True,
+                "phone_confirm": True,
+            }
+            response = await client.post(
+                f"{settings.supabase_url}/auth/v1/admin/users",
+                json=auth_data,
+                headers={
+                    "apikey": admin_key,
+                    "Authorization": f"Bearer {admin_key}",
+                    "Content-Type": "application/json",
+                },
+            )
+
+            if response.status_code not in (200, 201):
+                error_detail = response.json().get("msg", "Registration failed")
+                logger.warning(f"Supabase Auth provisioning failed for access request: {error_detail}")
+                if not settings.dev_mode:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Auth Service Error: {error_detail}",
+                    )
+            else:
+                auth_result = response.json()
+                user_id_str = auth_result.get("id") or auth_result.get("user", {}).get("id")
+                if user_id_str:
+                    supabase_user_id = uuid.UUID(user_id_str)
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise
+        logger.warning(f"Failed to create user in Supabase Auth: {e}")
+        if not settings.dev_mode:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"Auth server unreachable: {str(e)}",
+            )
+
+    # If we couldn't get a Supabase ID (e.g., in dev mode fallback), generate a local UUID
+    if supabase_user_id is None:
+        supabase_user_id = uuid.uuid4()
+        logger.info(f"DEV MODE fallback: generated local UUID {supabase_user_id} for {req.email}")
+
     org_admin = User(
-        id=uuid.uuid4(),  # Generate secure UUID locally for dev/prod compatibility
+        id=supabase_user_id,
         email=req.email,
         full_name=req.full_name,
         role="ORG_ADMIN",  # Tenant-level control

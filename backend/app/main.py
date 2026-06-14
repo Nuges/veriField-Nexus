@@ -72,6 +72,8 @@ async def lifespan(app: FastAPI):
 
         try:
             async with async_session_factory() as session:
+                # Set a local lock timeout of 3s to prevent hanging startup migrations
+                await session.execute(text("SET LOCAL lock_timeout = 3000"))
                 # Add upvotes column to community_validations if missing
                 await session.execute(text("ALTER TABLE community_validations ADD COLUMN IF NOT EXISTS upvotes INTEGER DEFAULT 0"))
                 # Create community_comments table if missing
@@ -94,6 +96,8 @@ async def lifespan(app: FastAPI):
                 logger.info("Community upvotes and comments database schema updates synced successfully!")
 
                 # === Project Configuration Layer (3-Layer MRV Architecture) ===
+                # Re-apply lock timeout for the new transaction block
+                await session.execute(text("SET LOCAL lock_timeout = 3000"))
                 await session.execute(text("ALTER TABLE projects ADD COLUMN IF NOT EXISTS project_code VARCHAR(20) UNIQUE"))
                 await session.execute(text("ALTER TABLE projects ADD COLUMN IF NOT EXISTS sector VARCHAR(30) DEFAULT 'energy'"))
                 await session.execute(text("ALTER TABLE projects ADD COLUMN IF NOT EXISTS country VARCHAR(100) DEFAULT 'Nigeria'"))
@@ -110,6 +114,8 @@ async def lifespan(app: FastAPI):
                 logger.info("Project configuration schema (3-Layer MRV) synced successfully!")
 
                 # === SaaS Multi-Tenancy Governance Schema Updates ===
+                # Re-apply lock timeout for the new transaction block
+                await session.execute(text("SET LOCAL lock_timeout = 3000"))
                 logger.info("Syncing SaaS multi-tenancy schema updates...")
                 await session.execute(text("""
                     CREATE TABLE IF NOT EXISTS organizations (
@@ -148,6 +154,8 @@ async def lifespan(app: FastAPI):
                 await session.commit()
 
                 # Seed Default SUPER_ADMIN if not exists
+                # Re-apply lock timeout for the new transaction block
+                await session.execute(text("SET LOCAL lock_timeout = 3000"))
                 result = await session.execute(text("SELECT 1 FROM users WHERE email = 'superadmin@verifield.io'"))
                 if not result.scalar():
                     from app.core.security import get_password_hash
