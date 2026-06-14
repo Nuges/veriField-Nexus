@@ -4,7 +4,7 @@ from app.models.carbon_calculation import CarbonCalculation
 from sqlalchemy import select
 
 async def main():
-    engine = create_async_engine("postgresql+asyncpg://postgres.rxlfxrbyhagyofzfwzoa:TaMpn243vupkPUWL@aws-0-eu-west-1.pooler.supabase.com:5432/postgres")
+    engine = create_async_engine("postgresql+asyncpg://postgres.rxlfxrbyhagyofzfwzoa:TaMpn243vupkPUWL@aws-0-eu-west-1.pooler.supabase.com:6543/postgres")
     SessionLocal = async_sessionmaker(engine, expire_on_commit=False)
     async with SessionLocal() as db:
         res = await db.execute(select(CarbonCalculation))
