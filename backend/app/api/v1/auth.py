@@ -623,7 +623,11 @@ async def change_password(
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.put(
                 f"{settings.supabase_url}/auth/v1/admin/users/{user.id}",
-                json={"password": payload.new_password},
+                json={
+                    "password": payload.new_password,
+                    "email_confirm": True,
+                    "phone_confirm": True,
+                },
                 headers={
                     "apikey": admin_key,
                     "Authorization": f"Bearer {admin_key}",
@@ -754,7 +758,11 @@ async def reset_user_password(
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.put(
                 f"{settings.supabase_url}/auth/v1/admin/users/{target_user.id}",
-                json={"password": payload.new_password},
+                json={
+                    "password": payload.new_password,
+                    "email_confirm": True,
+                    "phone_confirm": True,
+                },
                 headers={
                     "apikey": admin_key,
                     "Authorization": f"Bearer {admin_key}",
