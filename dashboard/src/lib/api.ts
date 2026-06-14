@@ -731,5 +731,19 @@ export async function forceResetUserPassword(id: string, newPassword: string) {
   });
 }
 
+export async function fetchGlobalAnalytics() {
+  return apiFetch<{
+    installations: number;
+    avgTrust: number;
+    tCO2: number;
+    activeOrgs: number;
+    sectors: {
+      cookstove: number;
+      energy: number;
+    };
+  }>("/admin/global-analytics");
+}
+
+
 
 

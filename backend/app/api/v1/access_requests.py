@@ -354,10 +354,20 @@ async def get_audit_logs(
     logs = []
     
     # 1. Base log (Super Admin creation)
+    sa_stmt = select(User).where(User.role == "SUPER_ADMIN").order_by(User.created_at.asc()).limit(1)
+    sa_res = await db.execute(sa_stmt)
+    sa_user = sa_res.scalar_one_or_none()
+    
+    bootstrap_timestamp = "2026-06-12 12:00:00"
+    bootstrap_email = "superadmin@verifield.io"
+    if sa_user:
+        bootstrap_timestamp = sa_user.created_at.strftime("%Y-%m-%d %H:%M:%S")
+        bootstrap_email = sa_user.email
+
     logs.append({
-        "timestamp": "2026-06-12 12:00:00",
+        "timestamp": bootstrap_timestamp,
         "action": "SUPER_ADMIN_BOOTSTRAP",
-        "details": "Super Admin system user 'superadmin@verifield.io' initialized.",
+        "details": f"Super Admin system user '{bootstrap_email}' initialized.",
         "user": "System Seed"
     })
 
@@ -544,4 +554,59 @@ async def reset_user_password(
 
     logger.info(f"Password reset forced for user {user.email} by Super Admin")
     return {"message": f"Password for {user.email} successfully updated."}
+
+
+# =============================================================================
+# GET /api/v1/admin/global-analytics — Global telemetry metrics (Super Admin)
+# =============================================================================
+@router.get(
+    "/admin/global-analytics",
+    summary="Fetch dynamic global telemetry metrics across all tenants (Super Admin)",
+)
+async def get_global_analytics(
+    db: AsyncSession = Depends(get_db),
+    admin_user: User = Depends(require_super_admin)
+):
+    from sqlalchemy import func
+    from app.models.property import Property
+    from app.models.activity import Activity
+    from app.models.carbon_calculation import CarbonCalculation
+    from app.models.organization import Organization
+
+    # 1. Total installations (Property objects)
+    props_stmt = select(func.count(Property.id))
+    props_res = await db.execute(props_stmt)
+    properties_count = props_res.scalar() or 0
+
+    # 2. Average trust score across all activities
+    trust_stmt = select(func.avg(Activity.trust_score)).where(Activity.trust_score.isnot(None))
+    trust_res = await db.execute(trust_stmt)
+    avg_trust = float(trust_res.scalar() or 0.0)
+
+    # 3. Total CO2 offset (CarbonCalculation.tco2e_generated)
+    carbon_stmt = select(func.sum(CarbonCalculation.tco2e_generated))
+    carbon_res = await db.execute(carbon_stmt)
+    total_co2 = float(carbon_res.scalar() or 0.0)
+
+    # 4. Total registered organizations
+    orgs_stmt = select(func.count(Organization.id))
+    orgs_res = await db.execute(orgs_stmt)
+    orgs_count = orgs_res.scalar() or 0
+
+    # 5. Sector breakdown based on ORG_ADMIN users
+    sector_stmt = select(User.sector, func.count(User.id)).where(User.role == "ORG_ADMIN").group_by(User.sector)
+    sector_res = await db.execute(sector_stmt)
+    sectors = {row[0]: row[1] for row in sector_res.all()}
+
+    return {
+        "installations": properties_count,
+        "avgTrust": round(avg_trust, 1),
+        "tCO2": round(total_co2, 2),
+        "activeOrgs": orgs_count,
+        "sectors": {
+            "cookstove": sectors.get("cookstove", 0),
+            "energy": sectors.get("energy", 0)
+        }
+    }
+
 

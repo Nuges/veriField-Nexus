@@ -48,7 +48,8 @@ import {
   deleteOrganization,
   fetchOrganizationAnalytics,
   changePassword,
-  forceResetUserPassword
+  forceResetUserPassword,
+  fetchGlobalAnalytics
 } from "@/lib/api";
 
 type Tab = "leads" | "organizations" | "users" | "analytics" | "audit";
@@ -65,11 +66,24 @@ function SuperAdminDashboard() {
   const [orgs, setOrgs] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
-  const [mrvStats, setMrvStats] = useState({
-    installations: 1248,
-    avgTrust: 89.4,
-    tCO2: 3482,
-    activeOrgs: 0
+  const [mrvStats, setMrvStats] = useState<{
+    installations: number;
+    avgTrust: number;
+    tCO2: number;
+    activeOrgs: number;
+    sectors: {
+      cookstove: number;
+      energy: number;
+    };
+  }>({
+    installations: 0,
+    avgTrust: 0.0,
+    tCO2: 0.0,
+    activeOrgs: 0,
+    sectors: {
+      cookstove: 0,
+      energy: 0
+    }
   });
 
   // Action states
@@ -127,17 +141,12 @@ function SuperAdminDashboard() {
         setUsers(res);
       } else if (activeTab === "analytics") {
         // Fetch all data to compile global stats dynamically
-        const [o, u, r] = await Promise.all([
+        const [o, u, globalStats] = await Promise.all([
           fetchAllOrganizations(),
           fetchAllUsersGlobal(),
-          fetchAccessRequests()
+          fetchGlobalAnalytics()
         ]);
-        setMrvStats({
-          installations: 1248 + (o.length * 15), // Scale stats based on approved orgs
-          avgTrust: 89.4,
-          tCO2: 3482 + (o.length * 45),
-          activeOrgs: o.length
-        });
+        setMrvStats(globalStats);
         setOrgs(o);
         setUsers(u);
       } else if (activeTab === "audit") {
@@ -750,23 +759,28 @@ function SuperAdminDashboard() {
                 <div className="bg-[#141F20]/30 p-6 rounded-2xl border border-[#213233] space-y-4">
                   <h4 className="font-extrabold text-white text-sm">Tenant Methodology Coverage</h4>
                   <div className="space-y-3 pt-2">
-                    {[
-                      { name: "Clean Cooking (AMS-II.G / VM0038)", count: orgs.length > 0 ? Math.ceil(orgs.length * 0.6) : 0, pct: "60%" },
-                      { name: "Grid-Connected Solar (AMS-I.F)", count: orgs.length > 0 ? Math.floor(orgs.length * 0.4) : 0, pct: "40%" }
-                    ].map((item, idx) => (
-                      <div key={idx} className="space-y-1 font-mono text-[11px]">
-                        <div className="flex justify-between text-zinc-400">
-                          <span>{item.name}</span>
-                          <span className="text-[#00B47A] font-bold">{item.count} Orgs ({item.pct})</span>
+                    {(() => {
+                      const totalSectors = (mrvStats.sectors?.cookstove || 0) + (mrvStats.sectors?.energy || 0);
+                      const cookstovePct = totalSectors > 0 ? Math.round(((mrvStats.sectors?.cookstove || 0) / totalSectors) * 100) : 0;
+                      const energyPct = totalSectors > 0 ? Math.round(((mrvStats.sectors?.energy || 0) / totalSectors) * 100) : 0;
+                      return [
+                        { name: "Clean Cooking (AMS-II.G / VM0038)", count: mrvStats.sectors?.cookstove || 0, pct: `${cookstovePct}%` },
+                        { name: "Grid-Connected Solar (AMS-I.F)", count: mrvStats.sectors?.energy || 0, pct: `${energyPct}%` }
+                      ].map((item, idx) => (
+                        <div key={idx} className="space-y-1 font-mono text-[11px]">
+                          <div className="flex justify-between text-zinc-400">
+                            <span>{item.name}</span>
+                            <span className="text-[#00B47A] font-bold">{item.count} Orgs ({item.pct})</span>
+                          </div>
+                          <div className="w-full bg-[#141F20] h-2 rounded-full overflow-hidden border border-[#213233]/60">
+                            <div 
+                              className="bg-[#00B47A] h-full rounded-full" 
+                              style={{ width: item.pct }} 
+                            />
+                          </div>
                         </div>
-                        <div className="w-full bg-[#141F20] h-2 rounded-full overflow-hidden border border-[#213233]/60">
-                          <div 
-                            className="bg-[#00B47A] h-full rounded-full" 
-                            style={{ width: item.pct }} 
-                          />
-                        </div>
-                      </div>
-                    ))}
+                      ));
+                    })()}
                   </div>
                 </div>
 
