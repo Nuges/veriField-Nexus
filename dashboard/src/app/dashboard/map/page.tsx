@@ -79,27 +79,30 @@ export default function MapPage() {
   }, []);
 
   // Generate safe HTML content for the dynamic Leaflet Iframe
-  const generateMapSrcDoc = () => {
-    const activeProps = properties.length > 0 ? properties : OFFLINE_FALLBACK;
-    // Center around the first property with valid GPS
-    const defaultCenter = selectedProperty 
-      ? [selectedProperty.latitude || 6.5244, selectedProperty.longitude || 3.3792]
-      : [activeProps[0]?.latitude || 6.5244, activeProps[0]?.longitude || 3.3792];
+  const generateMapSrcDoc = (propsToRender: Property[]) => {
+    // Center around the first active property with valid GPS
+    const defaultCenter = [
+      propsToRender[0]?.latitude !== null && propsToRender[0]?.latitude !== undefined ? propsToRender[0].latitude : 6.5244,
+      propsToRender[0]?.longitude !== null && propsToRender[0]?.longitude !== undefined ? propsToRender[0].longitude : 3.3792
+    ];
 
     const mapDataString = JSON.stringify(
-      activeProps.map((p) => {
+      propsToRender.map((p) => {
         const status = getStatus(p);
         let color = "#00B47A"; // High Trust
         if (status === "Flagged") color = "#EF4444"; // Red
         else if (status === "Manual Review") color = "#F59E0B"; // Amber
 
+        const latVal = typeof p.latitude === "string" ? parseFloat(p.latitude) : p.latitude;
+        const lngVal = typeof p.longitude === "string" ? parseFloat(p.longitude) : p.longitude;
+
         return {
           id: p.id,
           name: p.name,
-          lat: p.latitude,
-          lng: p.longitude,
+          lat: latVal,
+          lng: lngVal,
           type: p.property_type,
-          offset: String((p.sustainability_metrics as any)?.tco2e || "0"),
+          offset: String((p.sustainability_metrics as any)?.carbon_offset_kg || (p.sustainability_metrics as any)?.tco2e || "0"),
           created: new Date(p.created_at || Date.now()).toLocaleDateString(),
           color,
           status,
@@ -177,7 +180,7 @@ export default function MapPage() {
 
             // Plot registered properties
             mapData.forEach(p => {
-              if (p.lat && p.lng) {
+              if (p.lat !== null && p.lng !== null && p.lat !== undefined && p.lng !== undefined) {
                 const customIcon = L.divIcon({
                   html: \`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="\${p.color}" width="28" height="28" style="display: block;"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>\`,
                   className: 'custom-leaflet-marker',
@@ -233,19 +236,19 @@ export default function MapPage() {
 
             map.on('moveend', postBounds);
             // Auto-fit map bounds to show ALL actual registered stove locations
-            if (mapData.length === 1 && mapData[0].lat && mapData[0].lng) {
-              map.setView([mapData[0].lat, mapData[0].lng], 13);
-            } else if (mapData.length > 1) {
-              const bounds = mapData
-                .filter(p => p.lat && p.lng)
-                .map(p => [p.lat, p.lng]);
-              if (bounds.length > 1) {
-                map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
-              }
+            const validGpsProps = mapData.filter(p => p.lat !== null && p.lng !== null && p.lat !== undefined && p.lng !== undefined);
+            if (validGpsProps.length === 1) {
+              map.setView([validGpsProps[0].lat, validGpsProps[0].lng], 13);
+            } else if (validGpsProps.length > 1) {
+              const bounds = validGpsProps.map(p => [p.lat, p.lng]);
+              map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
             }
 
             // Delayed initial trigger to let Map complete initialization
-            setTimeout(postBounds, 500);
+            setTimeout(() => {
+              postBounds();
+              window.parent.postMessage({ type: 'MAP_READY' }, '*');
+            }, 500);
 
             // Listen for FOCUS_MARKER events
             window.addEventListener('message', (event) => {
@@ -269,22 +272,37 @@ export default function MapPage() {
     const handleMapMessage = (event: MessageEvent) => {
       const msg = event.data;
       if (msg.type === "MARKER_SELECTED") {
-        const activeProps = properties.length > 0 ? properties : OFFLINE_FALLBACK;
         const target = activeProps.find((p) => p.id === msg.id);
         if (target) {
           setSelectedProperty(target);
         }
       } else if (msg.type === "MAP_BOUNDS_CHANGED") {
         setMapBounds(msg.bounds);
+      } else if (msg.type === "MAP_READY") {
+        // Map is ready! Focus the selected property if we have one
+        if (selectedProperty && selectedProperty.latitude !== null && selectedProperty.longitude !== null) {
+          const iframe = document.querySelector("iframe");
+          if (iframe && iframe.contentWindow) {
+            iframe.contentWindow.postMessage(
+              {
+                type: "FOCUS_MARKER",
+                lat: selectedProperty.latitude,
+                lng: selectedProperty.longitude,
+                id: selectedProperty.id,
+              },
+              "*"
+            );
+          }
+        }
       }
     };
     window.addEventListener("message", handleMapMessage);
     return () => window.removeEventListener("message", handleMapMessage);
-  }, [properties]);
+  }, [activeProps, selectedProperty]);
 
   // Post focus event to Leaflet iframe
   useEffect(() => {
-    if (selectedProperty && selectedProperty.latitude && selectedProperty.longitude) {
+    if (selectedProperty && selectedProperty.latitude !== null && selectedProperty.longitude !== null) {
       const iframe = document.querySelector("iframe");
       if (iframe && iframe.contentWindow) {
         iframe.contentWindow.postMessage(
@@ -387,7 +405,7 @@ export default function MapPage() {
             </div>
           ) : (
             <iframe
-              srcDoc={generateMapSrcDoc()}
+              srcDoc={generateMapSrcDoc(activeProps)}
               className="w-full h-full border-none"
               title="Geospatial Map View"
             />
