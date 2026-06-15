@@ -85,7 +85,11 @@ function ImagePanel({
     }
   };
 
-  if (!url) {
+  const cleanedUrl = url
+    ? url.replace("https://127.0.0.1:8000", "http://127.0.0.1:8000").replace("https://localhost:8000", "http://localhost:8000")
+    : "";
+
+  if (!cleanedUrl) {
     const isPenalized = missingKey && activity.trust_flags?.[missingKey] === true;
     return (
       <div className="aspect-[4/3] w-full bg-[var(--color-surface)] flex flex-col items-center justify-center border border-dashed border-[var(--color-border)] rounded-xl p-6 text-center relative overflow-hidden">
@@ -108,7 +112,7 @@ function ImagePanel({
   return (
     <div className="aspect-[4/3] w-full bg-slate-950 relative rounded-xl border border-[var(--color-border)] overflow-hidden group">
       <img 
-        src={url} 
+        src={cleanedUrl} 
         alt={label} 
         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.02]" 
       />

@@ -95,9 +95,13 @@ class QuantificationEngine:
         if not activity:
             raise ValueError("Activity not found")
 
-        # Activities must be Verified before quantification
-        if activity.status != "verified":
-            raise ValueError("Cannot quantify non-verified activity")
+        # Activities must be Verified (or in Review with no fraud flag) before quantification.
+        # "review" status covers manual-GPS submissions that scored 50–79 but have no fraud.
+        is_fraud = (activity.trust_flags or {}).get("fraud_flag", False)
+        if activity.status not in ("verified", "review") or is_fraud:
+            raise ValueError(
+                f"Cannot quantify activity with status='{activity.status}' fraud_flag={is_fraud}"
+            )
 
         # Find or validate the project
         if project_id:

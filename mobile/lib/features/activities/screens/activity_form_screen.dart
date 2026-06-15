@@ -9,11 +9,13 @@
 // =============================================================================
 
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/constants/app_spacing.dart';
@@ -54,10 +56,15 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
   final Map<String, TextEditingController> _textControllers = {};
 
   // Step 3: Photo + GPS
-  final Map<String, File> _capturedImages = {};
+  /// Stores the XFile for each captured photo (web-safe: blob URL preserved).
+  final Map<String, XFile> _capturedImages = {};
+  /// Stores raw image bytes for display (Image.memory on web).
+  final Map<String, Uint8List> _capturedImageBytes = {};
   final Map<String, Map<String, dynamic>> _capturedImagesMetadata = {};
   Map<String, double>? _locationData;
   bool _isCapturingLocation = false;
+  /// Human-readable error reason when GPS fails (e.g. permission denied).
+  String? _locationError;
 
   // GPS duplicate check
   Map<String, dynamic>? _duplicateCheckResult;
@@ -145,9 +152,23 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
   // =========================================================================
 
   Future<void> _captureLocation() async {
-    setState(() => _isCapturingLocation = true);
-    _locationData = await LocationService.getLocationData();
-    if (mounted) setState(() => _isCapturingLocation = false);
+    setState(() {
+      _isCapturingLocation = true;
+      _locationError = null;
+    });
+    final result = await LocationService.getLocationResult();
+    if (mounted) {
+      setState(() {
+        _isCapturingLocation = false;
+        if (result.success) {
+          _locationData = result.data;
+          _locationError = null;
+        } else {
+          _locationData = null;
+          _locationError = result.errorReason;
+        }
+      });
+    }
   }
 
   Future<void> _runDuplicateCheck() async {
@@ -189,16 +210,23 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
       ),
     );
     if (proceed != true) return;
-    final file = await CameraService.capturePhoto();
-    if (file != null && mounted) {
+
+    // Returns XFile (blob URL on web, file path on native)
+    final xfile = await CameraService.capturePhoto();
+    if (xfile != null && mounted) {
+      // Read bytes for display and hashing — works on web + native
+      final bytes = await CameraService.getImageBytes(xfile);
+      if (bytes == null) return;
+
       final location = await LocationService.getLocationData();
       final timestamp = DateTime.now().toUtc().toIso8601String();
       final deviceId = await DeviceService.getDeviceSignature();
       final uploaderId = SupabaseConfig.client.auth.currentUser?.id ?? 'agent';
-      final hash = await CameraService.generateImageHash(file);
-      
+      final hash = await CameraService.generateImageHash(xfile);
+
       setState(() {
-        _capturedImages[photo.key] = file;
+        _capturedImages[photo.key] = xfile;
+        _capturedImageBytes[photo.key] = bytes;
         _capturedImagesMetadata[photo.key] = {
           'timestamp': timestamp,
           'latitude': location?['latitude'] ?? _locationData?['latitude'],
@@ -245,25 +273,24 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
 
     try {
       final isOnline = await SyncService.isOnline();
+      final Map<String, String> uploadedUrls = {};
 
       if (isOnline) {
-        // Atomic Uploads: Upload primary image first
+        // Atomic Uploads: Upload primary image first (XFile works on web + native)
         final primaryName = '${clientId}_primary.jpg';
         final primaryUrl = await SyncService.uploadImage(primaryImage, primaryName);
         if (primaryUrl == null) {
           throw Exception('Failed to upload primary installation image');
         }
         
-        final Map<String, String> uploadedUrls = {
-          '${primaryKey}_image_url': primaryUrl,
-        };
+        uploadedUrls['${primaryKey}_image_url'] = primaryUrl;
 
         // Upload additional images
         for (final key in _capturedImages.keys) {
           if (key != primaryKey) {
-            final file = _capturedImages[key]!;
+            final xfile = _capturedImages[key]!;
             final fileName = '${clientId}_$key.jpg';
-            final url = await SyncService.uploadImage(file, fileName);
+            final url = await SyncService.uploadImage(xfile, fileName);
             if (url == null) {
               throw Exception('Failed to upload $key image');
             }
@@ -278,7 +305,7 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
           'activity_type': _selectedTypeId,
           'activity_data': activityData,
           'description': _descriptionController.text,
-          'image_url': primaryUrl,
+          'image_url': uploadedUrls['${primaryKey}_image_url'],
           'image_hash': _capturedImagesMetadata[primaryKey]?['hash'] ?? '',
           'latitude': _locationData!['latitude'],
           'longitude': _locationData!['longitude'],
@@ -296,9 +323,12 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
           context.pop(true);
         }
       } else {
-        // Offline Mode: store local file paths inside activity_data
+        // Offline Mode: store local file paths inside activity_data (native only)
         for (final key in _capturedImages.keys) {
-          activityData['${key}_image_path'] = _capturedImages[key]!.path;
+          // On web, blob URLs are ephemeral — we skip path storage and rely on online-only submission
+          if (!kIsWeb) {
+            activityData['${key}_image_path'] = _capturedImages[key]!.path;
+          }
         }
 
         await LocalDbService.savePendingActivity({
@@ -307,16 +337,18 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
           'activity_type': _selectedTypeId,
           'activity_data': jsonEncode(activityData),
           'description': _descriptionController.text,
-          'image_path': primaryImage.path,
+          'image_path': kIsWeb ? null : primaryImage.path,
           'image_hash': _capturedImagesMetadata[primaryKey]?['hash'] ?? '',
-          'latitude': _locationData!['latitude'],
-          'longitude': _locationData!['longitude'],
-          'gps_accuracy': _locationData!['accuracy'],
+          'latitude': _locationData?['latitude'],
+          'longitude': _locationData?['longitude'],
+          'gps_accuracy': _locationData?['accuracy'],
           'captured_at': capturedAt,
           'created_at': capturedAt,
         });
         if (mounted) {
-          VFNotification.showSuccess(context, 'Saved offline. Will sync when connected. 📱');
+          VFNotification.showSuccess(context, kIsWeb
+              ? 'You are offline. Please reconnect and resubmit. 📶'
+              : 'Saved offline. Will sync when connected. 📱');
           context.pop(true);
         }
       }
@@ -680,14 +712,25 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
           const SizedBox(width: AppSpacing.md),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text('GPS Location', style: AppTypography.bodySmall.copyWith(fontWeight: FontWeight.w600)),
-            Text(_isCapturingLocation ? 'Acquiring...'
-                : _locationData != null
-                    ? '${_locationData!['latitude']!.toStringAsFixed(5)}, ${_locationData!['longitude']!.toStringAsFixed(5)}'
-                    : 'Tap to capture',
-                style: AppTypography.caption),
+            Text(
+              _isCapturingLocation ? 'Acquiring...'
+                  : _locationData != null
+                      ? '${_locationData!['latitude']!.toStringAsFixed(5)}, ${_locationData!['longitude']!.toStringAsFixed(5)}'
+                      : 'Tap 🔄 to capture',
+              style: AppTypography.caption,
+            ),
             if (_locationData != null && _locationData!['accuracy'] != null)
               Text('Accuracy: ${_locationData!['accuracy']!.toStringAsFixed(0)}m',
                   style: AppTypography.caption.copyWith(color: AppColors.primary)),
+            // Show descriptive error when GPS fails
+            if (_locationError != null && !_isCapturingLocation)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  _locationError!,
+                  style: AppTypography.caption.copyWith(color: AppColors.warning),
+                ),
+              ),
           ])),
           IconButton(icon: const Icon(Icons.my_location_rounded, color: AppColors.primary), onPressed: _captureLocation),
         ])).animate().fadeIn(),
@@ -735,7 +778,16 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
                         ? ClipRRect(
                             borderRadius: BorderRadius.circular(AppSpacing.radiusLg - 1),
                             child: Stack(fit: StackFit.expand, children: [
-                              kIsWeb ? Image.network(file.path, fit: BoxFit.cover) : Image.file(file, fit: BoxFit.cover),
+                              // Use Image.memory (bytes) on web, Image.file on native
+                              kIsWeb
+                                  ? Image.memory(
+                                      _capturedImageBytes[photoDef.key]!,
+                                      fit: BoxFit.cover,
+                                    )
+                                  : Image.file(
+                                      File(_capturedImages[photoDef.key]!.path),
+                                      fit: BoxFit.cover,
+                                    ),
                               Positioned(top: 8, right: 8, child: Container(
                                 padding: const EdgeInsets.all(4),
                                 decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(20)),

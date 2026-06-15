@@ -327,6 +327,8 @@ async def upload_proof(
         
     # Build absolute URL using base_url
     base_url = str(request.base_url).rstrip("/")
+    if "127.0.0.1:8000" in base_url or "localhost:8000" in base_url:
+        base_url = base_url.replace("https://", "http://")
     proof_url = f"{base_url}/static/proofs/{unique_filename}"
     
     return {"image_url": proof_url}
@@ -397,6 +399,23 @@ async def create_activity(
         from app.models.property import Property
         type_label = payload.activity_type.replace("_", " ").title()
         asset_name = activity_data.get("asset_name", f"New {type_label} Installation")
+        
+        # Compute quick carbon estimate to display immediately (not "Awaiting")
+        quick_carbon = calculate_carbon_offset(payload.activity_type, activity_data)
+        quick_kg = quick_carbon.get("emission_reduction_value_kg", 0.0)
+        # Map quick kg estimate to an approximate energy grade
+        quick_tco2e = quick_kg / 1000.0
+        if quick_tco2e > 5.0:
+            quick_grade = "A+"
+        elif quick_tco2e > 2.0:
+            quick_grade = "A"
+        elif quick_tco2e > 0.5:
+            quick_grade = "B"
+        elif quick_kg > 0:
+            quick_grade = "C"
+        else:
+            quick_grade = "Pending"
+        
         prop = Property(
             owner_id=user.id,
             name=asset_name,
@@ -405,9 +424,10 @@ async def create_activity(
             latitude=payload.latitude,
             longitude=payload.longitude,
             sustainability_metrics={
-                "energy_score": activity_data.get("energy_score", "Pending"),
-                "carbon_offset_kg": activity_data.get("carbon_offset_kg", "Calculating..."),
-                "status": "Awaiting Review"
+                "energy_score": quick_grade,
+                "carbon_offset_kg": round(quick_kg, 2) if quick_kg > 0 else "Calculating...",
+                "methodology": quick_carbon.get("methodology_reference", ""),
+                "status": "Estimated — Pending Verification",
             }
         )
         db.add(prop)
@@ -522,6 +542,20 @@ async def batch_create_activities(
                 from app.models.property import Property
                 type_label = activity_data.activity_type.replace("_", " ").title()
                 asset_name = a_data.get("asset_name", f"New {type_label} Installation")
+                quick_carbon = calculate_carbon_offset(activity_data.activity_type, a_data)
+                quick_kg = quick_carbon.get("emission_reduction_value_kg", 0.0)
+                quick_tco2e = quick_kg / 1000.0
+                if quick_tco2e > 5.0:
+                    quick_grade = "A+"
+                elif quick_tco2e > 2.0:
+                    quick_grade = "A"
+                elif quick_tco2e > 0.5:
+                    quick_grade = "B"
+                elif quick_kg > 0:
+                    quick_grade = "C"
+                else:
+                    quick_grade = "Pending"
+
                 prop = Property(
                     owner_id=user.id,
                     name=asset_name,
@@ -529,7 +563,12 @@ async def batch_create_activities(
                     property_type=activity_data.activity_type,
                     latitude=activity_data.latitude,
                     longitude=activity_data.longitude,
-                    sustainability_metrics={}
+                    sustainability_metrics={
+                        "energy_score": quick_grade,
+                        "carbon_offset_kg": round(quick_kg, 2) if quick_kg > 0 else "Calculating...",
+                        "methodology": quick_carbon.get("methodology_reference", ""),
+                        "status": "Estimated — Pending Verification",
+                    }
                 )
                 db.add(prop)
                 await db.flush()

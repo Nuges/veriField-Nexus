@@ -77,6 +77,34 @@ interface CustomRequestInit extends RequestInit {
   timeout?: number;
 }
 
+function cleanImageUrl(url: string): string {
+  if (typeof url === "string" && url.includes("/static/")) {
+    const parts = url.split("/static/");
+    return "/static/" + parts[parts.length - 1];
+  }
+  return url;
+}
+
+function recursiveCleanImageUrls(obj: any): any {
+  if (obj === null || obj === undefined) return obj;
+  if (typeof obj === "string") {
+    return cleanImageUrl(obj);
+  }
+  if (Array.isArray(obj)) {
+    return obj.map(recursiveCleanImageUrls);
+  }
+  if (typeof obj === "object") {
+    const cleaned: any = {};
+    for (const key in obj) {
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
+        cleaned[key] = recursiveCleanImageUrls(obj[key]);
+      }
+    }
+    return cleaned;
+  }
+  return obj;
+}
+
 async function apiFetch<T>(
   endpoint: string,
   options: CustomRequestInit = {}
@@ -131,7 +159,8 @@ async function apiFetch<T>(
     );
   }
 
-  return response.json();
+  const data = await response.json();
+  return recursiveCleanImageUrls(data) as T;
 }
 
 // ---------------------------------------------------------------------------
@@ -397,7 +426,7 @@ export async function issueGoldStandardCredits(): Promise<any> {
 export async function quantifyActivity(id: string, projectId?: string): Promise<any> {
   return apiFetch<any>(`/carbon/calculate/${id}`, {
     method: "POST",
-    body: projectId ? JSON.stringify({ project_id: projectId }) : undefined,
+    body: JSON.stringify(projectId ? { project_id: projectId } : {}),
   });
 }
 

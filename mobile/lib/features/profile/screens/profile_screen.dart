@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import 'dart:io';
+import 'package:image_picker/image_picker.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/constants/app_spacing.dart';
@@ -68,7 +69,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 isUploading = true;
               });
               try {
-                final File? file = fromCamera 
+                final XFile? file = fromCamera 
                     ? await CameraService.capturePhoto() 
                     : await CameraService.pickFromGallery();
                 if (file == null) {

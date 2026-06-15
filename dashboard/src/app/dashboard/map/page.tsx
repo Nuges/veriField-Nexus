@@ -138,11 +138,19 @@ export default function MapPage() {
             .leaflet-popup-content strong {
               color: #e5e7eb;
             }
+            .custom-leaflet-marker {
+              background: none !important;
+              border: none !important;
+            }
           </style>
         </head>
         <body>
           <div id="map"></div>
           <script>
+            const markers = {};
+            const circleRings = {};
+            const mapData = ${mapDataString};
+
             // Initialize Leaflet Map — starts at default center, then auto-fits to actual data
             const map = L.map('map', { zoomControl: true }).setView([${defaultCenter[0]}, ${defaultCenter[1]}], 13);
             
@@ -152,8 +160,8 @@ export default function MapPage() {
               maxZoom: 20
             }).addTo(map);
 
-            // Dynamic Centering: Auto-center on the user's active physical location (e.g. Cameroon, Nigeria, etc.)
-            if (navigator.geolocation) {
+            // Dynamic Centering: Auto-center on the user's active physical location if no database registry assets exist
+            if (mapData.length === 0 && navigator.geolocation) {
               navigator.geolocation.getCurrentPosition(
                 (position) => {
                   const userLat = position.coords.latitude;
@@ -161,21 +169,17 @@ export default function MapPage() {
                   map.setView([userLat, userLng], 12);
                 },
                 (error) => {
-                  console.log("Browser location permission denied. Centering on active database registry assets.");
+                  console.log("Browser location permission denied.");
                 },
                 { enableHighAccuracy: true, timeout: 6000, maximumAge: 0 }
               );
             }
 
-            const markers = {};
-            const circleRings = {};
-            const mapData = ${mapDataString};
-
             // Plot registered properties
             mapData.forEach(p => {
               if (p.lat && p.lng) {
                 const customIcon = L.divIcon({
-                  html: \`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="\${p.color}" class="w-7 h-7"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>\`,
+                  html: \`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="\${p.color}" width="28" height="28" style="display: block;"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>\`,
                   className: 'custom-leaflet-marker',
                   iconSize: [28, 28],
                   iconAnchor: [14, 28],
@@ -229,7 +233,9 @@ export default function MapPage() {
 
             map.on('moveend', postBounds);
             // Auto-fit map bounds to show ALL actual registered stove locations
-            if (mapData.length > 1) {
+            if (mapData.length === 1 && mapData[0].lat && mapData[0].lng) {
+              map.setView([mapData[0].lat, mapData[0].lng], 13);
+            } else if (mapData.length > 1) {
               const bounds = mapData
                 .filter(p => p.lat && p.lng)
                 .map(p => [p.lat, p.lng]);

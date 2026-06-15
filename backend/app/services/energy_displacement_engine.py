@@ -103,8 +103,11 @@ class EnergyDisplacementEngine:
         activity = result.scalar_one_or_none()
         if not activity:
             raise ValueError("Activity not found")
-        if activity.status != "verified":
-            raise ValueError("Cannot quantify non-verified activity")
+        is_fraud = (getattr(activity, "trust_flags", None) or {}).get("fraud_flag", False)
+        if activity.status not in ("verified", "review") or is_fraud:
+            raise ValueError(
+                f"Cannot quantify non-verified activity with status='{activity.status}' fraud_flag={is_fraud}"
+            )
 
         # --- Resolve the project ---
         project = await self._resolve_project(project_id)

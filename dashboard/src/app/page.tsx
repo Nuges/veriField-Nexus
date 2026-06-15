@@ -230,9 +230,9 @@ export default function LandingPage() {
 
       {/* GRANT-ALIGNED PLATFORM STATEMENT */}
       <section className="bg-zinc-950 py-8 border-b border-zinc-900">
-        <div className="max-w-4xl mx-auto px-6 text-center">
+        <div className="max-w-3xl mx-auto px-6 text-center">
           <p className="text-xs md:text-sm font-semibold tracking-wide text-[#00B47A]/95 leading-relaxed font-mono">
-            💡 This platform is designed to support distributed energy ecosystem operators in improving planning, monitoring, and operational efficiency of decentralized energy assets across emerging markets.
+            This platform is designed to support distributed energy ecosystem operators in improving planning, monitoring, and operational efficiency of decentralized energy assets across emerging markets.
           </p>
         </div>
       </section>
@@ -320,11 +320,7 @@ export default function LandingPage() {
               </h2>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 relative pt-4">
-              
-              {/* Dotted Connecting Line (Desktop) */}
-              <div className="absolute top-[28px] left-[12%] right-[12%] h-[1px] border-t-2 border-dotted border-zinc-200 hidden lg:block z-0" />
-
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
               {[
                 {
                   step: 1,
@@ -351,16 +347,18 @@ export default function LandingPage() {
                   icon: LineChart
                 }
               ].map((stepItem, idx) => (
-                <div key={idx} className="flex flex-col items-center sm:items-start text-center sm:text-left bg-white border border-zinc-100 hover:border-zinc-200/80 hover:shadow-lg hover:shadow-zinc-100/50 transition-all duration-300 rounded-2xl p-6 relative z-10">
-                  <div className="w-12 h-12 rounded-xl bg-zinc-950/5 border border-zinc-950/10 flex items-center justify-center text-zinc-800 shadow-sm relative mb-4">
-                    <stepItem.icon className="text-zinc-700" size={20} strokeWidth={1.5} />
-                    <span className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-[#00B47A] text-black font-mono font-bold text-[10px] flex items-center justify-center shadow-sm">
+                <div key={idx} className="flex flex-row items-center gap-4 sm:gap-6 bg-[#FAFAFA] border border-zinc-200/90 rounded-[20px] sm:rounded-[24px] p-4 sm:p-6 hover:shadow-md hover:border-zinc-300/60 transition-all duration-300 w-full">
+                  <div className="w-20 h-20 sm:w-28 sm:h-28 bg-white border border-zinc-200 rounded-xl sm:rounded-2xl flex flex-col items-center justify-center shrink-0 p-2 sm:p-3 relative shadow-[0_2px_6px_rgba(0,0,0,0.02)]">
+                    <stepItem.icon className="text-zinc-800 shrink-0" size={24} strokeWidth={1.5} />
+                    <span className="text-[9px] sm:text-xs font-bold text-center mt-1.5 sm:mt-2.5 text-zinc-900 leading-tight">
+                      {stepItem.label}
+                    </span>
+                    <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-[#00B47A] text-black font-mono font-bold text-[10px] flex items-center justify-center shadow-sm">
                       {stepItem.step}
                     </span>
                   </div>
-                  <div className="space-y-1.5">
-                    <h3 className="font-bold text-zinc-900 text-sm">{stepItem.label}</h3>
-                    <p className="text-zinc-500 text-xs leading-relaxed">{stepItem.desc}</p>
+                  <div className="flex-1 text-left">
+                    <p className="text-zinc-600 text-xs sm:text-sm leading-relaxed">{stepItem.desc}</p>
                   </div>
                 </div>
               ))}
@@ -384,21 +382,24 @@ export default function LandingPage() {
               </h3>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {[
-                { title: "Offline Field Capture", desc: "Flutter client optimized for remote environments, biometric location lock, and local-first data caching.", icon: Smartphone },
-                { title: "DER Operations Engine", desc: "Algorithmic validation checking duplicate tags, grid coordinate ranges, and trust indexes.", icon: Cpu },
-                { title: "Microgrid Operations Dashboard", desc: "Microgrid visibility, active asset maps, validation timelines, and operational analytics.", icon: LineChart },
-                { title: "Cryptographic Audit Trail", desc: "Proprietary verification service recording data validation hashes.", icon: Database },
-                { title: "Distributed Asset Registry", desc: "Secure PostgreSQL registry database indexing coordinates, asset profiles, and telemetry lineages.", icon: Server }
+                { title: "Offline Field Capture", shortLabel: "Field Capture", desc: "Flutter client optimized for remote environments, biometric location lock, and local-first data caching.", icon: Smartphone },
+                { title: "DER Operations Engine", shortLabel: "DER Engine", desc: "Algorithmic validation checking duplicate tags, grid coordinate ranges, and trust indexes.", icon: Cpu },
+                { title: "Microgrid Operations Dashboard", shortLabel: "Dashboard", desc: "Microgrid visibility, active asset maps, validation timelines, and operational analytics.", icon: LineChart },
+                { title: "Cryptographic Audit Trail", shortLabel: "Audit Trail", desc: "Proprietary verification service recording data validation hashes.", icon: Database },
+                { title: "Distributed Asset Registry", shortLabel: "Asset Registry", desc: "Secure PostgreSQL registry database indexing coordinates, asset profiles, and telemetry lineages.", icon: Server }
               ].map((module, idx) => (
-                <div key={idx} className="p-6 rounded-2xl bg-zinc-50/50 border border-zinc-100/80 hover:border-emerald-500/20 hover:bg-white hover:shadow-lg hover:shadow-zinc-200/40 transition-all duration-300 space-y-4 group">
-                  <div className="w-10 h-10 rounded-xl bg-white border border-zinc-100 flex items-center justify-center text-zinc-600 shadow-sm group-hover:bg-[#00B47A] group-hover:text-black group-hover:border-transparent transition-all duration-300">
-                    <module.icon size={18} strokeWidth={1.5} />
+                <div key={idx} className={`flex flex-row items-center gap-4 sm:gap-6 bg-[#FAFAFA] border border-zinc-200/90 rounded-[20px] sm:rounded-[24px] p-4 sm:p-6 hover:shadow-md hover:border-zinc-300 transition-all duration-300 w-full ${idx === 4 ? "md:col-span-2" : ""}`}>
+                  <div className="w-20 h-20 sm:w-28 sm:h-28 bg-white border border-zinc-200 rounded-xl sm:rounded-2xl flex flex-col items-center justify-center shrink-0 p-2 sm:p-3 relative shadow-[0_2px_6px_rgba(0,0,0,0.02)]">
+                    <module.icon className="text-zinc-800 shrink-0" size={24} strokeWidth={1.5} />
+                    <span className="text-[9px] sm:text-xs font-bold text-center mt-1.5 sm:mt-2.5 text-zinc-900 leading-tight">
+                      {module.shortLabel}
+                    </span>
                   </div>
-                  <div className="space-y-1">
-                    <h4 className="font-bold text-zinc-900 text-sm leading-snug">{module.title}</h4>
-                    <p className="text-zinc-500 text-xs leading-relaxed">{module.desc}</p>
+                  <div className="flex-1 text-left">
+                    <h4 className="font-bold text-zinc-900 text-sm sm:text-base leading-snug mb-1">{module.title}</h4>
+                    <p className="text-zinc-500 text-xs sm:text-sm leading-relaxed">{module.desc}</p>
                   </div>
                 </div>
               ))}
@@ -414,21 +415,24 @@ export default function LandingPage() {
               </h3>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {[
-                { title: "Clean cookstove monitoring", desc: "Verify stove coordinate distributions and usage profiles to validate performance and emissions reporting readiness.", icon: Flame },
-                { title: "Solar & hybrid mini-grids", desc: "Validate asset installation, location coordinates, and operational parameters across off-grid networks.", icon: Zap },
-                { title: "Emissions Reporting Readiness", desc: "Ingest cryptographically verified operational data directly to ESG compliance registry adapters.", icon: Coins },
-                { title: "Grid Operations Visibility", desc: "Streamline field data collection to satisfy utility compliance and planning requirements.", icon: FileCheck2 },
-                { title: "Asset Performance Visibility", desc: "Give capital providers and operators direct operational visibility into physical asset installation rates.", icon: Globe }
+                { title: "Clean cookstove monitoring", shortLabel: "Cookstoves", desc: "Verify stove coordinate distributions and usage profiles to validate performance and emissions reporting readiness.", icon: Flame },
+                { title: "Solar & hybrid mini-grids", shortLabel: "Mini-Grids", desc: "Validate asset installation, location coordinates, and operational parameters across off-grid networks.", icon: Zap },
+                { title: "Emissions Reporting Readiness", shortLabel: "Readiness", desc: "Ingest cryptographically verified operational data directly to ESG compliance registry adapters.", icon: Coins },
+                { title: "Grid Operations Visibility", shortLabel: "Grid Ops", desc: "Streamline field data collection to satisfy utility compliance and planning requirements.", icon: FileCheck2 },
+                { title: "Asset Performance Visibility", shortLabel: "Asset Perf", desc: "Give capital providers and operators direct operational visibility into physical asset installation rates.", icon: Globe }
               ].map((uc, idx) => (
-                <div key={idx} className="p-6 rounded-2xl bg-zinc-50/50 border border-zinc-100/80 hover:border-emerald-500/20 hover:bg-white hover:shadow-lg hover:shadow-zinc-200/40 transition-all duration-300 space-y-4 group">
-                  <div className="w-10 h-10 rounded-xl bg-white border border-zinc-100 flex items-center justify-center text-zinc-600 shadow-sm group-hover:bg-[#00B47A] group-hover:text-black group-hover:border-transparent transition-all duration-300">
-                    <uc.icon size={18} strokeWidth={1.5} />
+                <div key={idx} className={`flex flex-row items-center gap-4 sm:gap-6 bg-[#FAFAFA] border border-zinc-200/90 rounded-[20px] sm:rounded-[24px] p-4 sm:p-6 hover:shadow-md hover:border-zinc-300 transition-all duration-300 w-full ${idx === 4 ? "md:col-span-2" : ""}`}>
+                  <div className="w-20 h-20 sm:w-28 sm:h-28 bg-white border border-zinc-200 rounded-xl sm:rounded-2xl flex flex-col items-center justify-center shrink-0 p-2 sm:p-3 relative shadow-[0_2px_6px_rgba(0,0,0,0.02)]">
+                    <uc.icon className="text-zinc-800 shrink-0" size={24} strokeWidth={1.5} />
+                    <span className="text-[9px] sm:text-xs font-bold text-center mt-1.5 sm:mt-2.5 text-zinc-900 leading-tight">
+                      {uc.shortLabel}
+                    </span>
                   </div>
-                  <div className="space-y-1">
-                    <h4 className="font-bold text-zinc-900 text-sm leading-snug">{uc.title}</h4>
-                    <p className="text-zinc-500 text-xs leading-relaxed">{uc.desc}</p>
+                  <div className="flex-1 text-left">
+                    <h4 className="font-bold text-zinc-900 text-sm sm:text-base leading-snug mb-1">{uc.title}</h4>
+                    <p className="text-zinc-500 text-xs sm:text-sm leading-relaxed">{uc.desc}</p>
                   </div>
                 </div>
               ))}

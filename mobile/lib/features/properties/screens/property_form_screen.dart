@@ -29,6 +29,7 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
   Map<String, double>? _locationData;
   bool _isSubmitting = false;
   bool _isCapturingLocation = false;
+  String? _locationError;
 
   final List<Map<String, dynamic>> _propertyTypes = [
     {'id': 'cookstove', 'label': 'Cookstove', 'icon': Icons.soup_kitchen_rounded},
@@ -48,9 +49,23 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
   }
 
   Future<void> _captureLocation() async {
-    setState(() => _isCapturingLocation = true);
-    _locationData = await LocationService.getLocationData();
-    if (mounted) setState(() => _isCapturingLocation = false);
+    setState(() {
+      _isCapturingLocation = true;
+      _locationError = null;
+    });
+    final result = await LocationService.getLocationResult();
+    if (mounted) {
+      setState(() {
+        _isCapturingLocation = false;
+        if (result.success) {
+          _locationData = result.data;
+          _locationError = null;
+        } else {
+          _locationData = null;
+          _locationError = result.errorReason;
+        }
+      });
+    }
   }
 
   Future<void> _submit() async {
@@ -156,7 +171,9 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
                         _isCapturingLocation ? 'Getting location...'
                             : _locationData != null
                                 ? '${_locationData!['latitude']!.toStringAsFixed(4)}, ${_locationData!['longitude']!.toStringAsFixed(4)}'
-                                : 'Location unavailable',
+                                : _locationError != null
+                                    ? 'Location failed — tap 🔄'
+                                    : 'Location unavailable',
                         style: AppTypography.bodySmall,
                       ),
                     ),

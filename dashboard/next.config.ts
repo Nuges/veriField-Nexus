@@ -25,6 +25,10 @@ const nextConfig: any = {
         source: '/api/v1/:path*',
         destination: `${BACKEND_URL}/api/v1/:path*`,
       },
+      {
+        source: '/static/:path*',
+        destination: `${BACKEND_URL}/static/:path*`,
+      },
     ];
   },
 };

@@ -11,7 +11,7 @@
 import 'dart:io';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
+import 'package:image_picker/image_picker.dart';
 import '../core/config/supabase_config.dart';
 import 'local_db_service.dart';
 import 'api_service.dart';
@@ -26,12 +26,13 @@ class SyncService {
   }
 
   /// Upload a captured image to Supabase Storage.
+  /// Accepts [XFile] so that web blob URLs are handled correctly
+  /// via [XFile.readAsBytes()] instead of dart:io File operations.
   /// Returns the public URL of the uploaded image.
-  static Future<String?> uploadImage(File imageFile, String fileName) async {
+  static Future<String?> uploadImage(XFile imageFile, String fileName) async {
     try {
-      final bytes = kIsWeb 
-          ? (await http.get(Uri.parse(imageFile.path))).bodyBytes 
-          : await imageFile.readAsBytes();
+      // XFile.readAsBytes() works on both web (blob URL) and native.
+      final bytes = await imageFile.readAsBytes();
       await SupabaseConfig.client.storage
           .from('activity-photos')
           .uploadBinary(fileName, bytes);
@@ -41,6 +42,24 @@ class SyncService {
           .from('activity-photos')
           .getPublicUrl(fileName);
 
+      return publicUrl;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// Upload from a native [File] path (used during offline sync on non-web).
+  static Future<String?> uploadImageFromPath(String filePath, String fileName) async {
+    try {
+      final file = File(filePath);
+      if (!await file.exists()) return null;
+      final bytes = await file.readAsBytes();
+      await SupabaseConfig.client.storage
+          .from('activity-photos')
+          .uploadBinary(fileName, bytes);
+      final publicUrl = SupabaseConfig.client.storage
+          .from('activity-photos')
+          .getPublicUrl(fileName);
       return publicUrl;
     } catch (e) {
       return null;
@@ -79,13 +98,10 @@ class SyncService {
         // Upload primary image if present
         String? primaryUrl;
         if (activity['image_path'] != null) {
-          final file = File(activity['image_path']);
-          if (await file.exists()) {
-            final fileName = '${activity['client_id']}_primary.jpg';
-            primaryUrl = await uploadImage(file, fileName);
-            if (primaryUrl == null) {
-              throw Exception('Primary image upload failed');
-            }
+          final fileName = '${activity['client_id']}_primary.jpg';
+          primaryUrl = await uploadImageFromPath(activity['image_path'], fileName);
+          if (primaryUrl == null) {
+            throw Exception('Primary image upload failed');
           }
         }
 
@@ -96,16 +112,13 @@ class SyncService {
         for (final key in keysToUpload) {
           final localPath = actData[key] as String?;
           if (localPath != null && localPath.isNotEmpty) {
-            final file = File(localPath);
-            if (await file.exists()) {
-              final cleanKey = key.replaceAll('_image_path', '');
-              final fileName = '${activity['client_id']}_$cleanKey.jpg';
-              final url = await uploadImage(file, fileName);
-              if (url == null) {
-                throw Exception('Additional image $cleanKey upload failed');
-              }
-              uploadedUrls['${cleanKey}_image_url'] = url;
+            final cleanKey = key.replaceAll('_image_path', '');
+            final fileName = '${activity['client_id']}_$cleanKey.jpg';
+            final url = await uploadImageFromPath(localPath, fileName);
+            if (url == null) {
+              throw Exception('Additional image $cleanKey upload failed');
             }
+            uploadedUrls['${cleanKey}_image_url'] = url;
           }
         }
 

@@ -6,7 +6,7 @@ Endpoints for carbon project management, quantification, and credit ledger.
 =============================================================================
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import defer
@@ -79,7 +79,7 @@ async def create_project(
 @router.post("/calculate/{activity_id}", summary="Quantify Carbon Credits")
 async def quantify_carbon(
     activity_id: uuid.UUID,
-    body: Optional[QuantifyRequest] = None,
+    body: Optional[QuantifyRequest] = Body(None),
     db: AsyncSession = Depends(get_db),
     user=Depends(require_admin)
 ):

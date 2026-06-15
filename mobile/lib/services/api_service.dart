@@ -9,6 +9,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
+import 'package:image_picker/image_picker.dart';
 import '../core/config/supabase_config.dart';
 
 /// Centralized API client for communicating with the FastAPI backend.
@@ -97,14 +98,24 @@ class ApiService {
   }
 
   /// Upload an avatar image file.
-  static Future<Map<String, dynamic>> uploadAvatar(File file) async {
+  static Future<Map<String, dynamic>> uploadAvatar(XFile file) async {
     final uri = Uri.parse('$baseUrl/auth/upload-avatar');
     final request = http.MultipartRequest('POST', uri);
     if (_authToken != null) {
       request.headers['Authorization'] = 'Bearer $_authToken';
     }
-    final multipartFile = await http.MultipartFile.fromPath('file', file.path);
-    request.files.add(multipartFile);
+    if (kIsWeb) {
+      final bytes = await file.readAsBytes();
+      final multipartFile = http.MultipartFile.fromBytes(
+        'file',
+        bytes,
+        filename: file.name,
+      );
+      request.files.add(multipartFile);
+    } else {
+      final multipartFile = await http.MultipartFile.fromPath('file', file.path);
+      request.files.add(multipartFile);
+    }
     final streamedResponse = await request.send();
     final response = await http.Response.fromStream(streamedResponse);
     return _handleResponse(response);
