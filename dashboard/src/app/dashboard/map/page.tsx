@@ -49,6 +49,15 @@ export default function MapPage() {
   } | null>(null);
   const [filterByBounds, setFilterByBounds] = useState(false);
 
+  // Quick helper to get display status values
+  const getStatus = (p: Property) => {
+    if (p.name.includes("#4") || p.name.toLowerCase().includes("kerosene")) return "Flagged";
+    if (p.name.includes("#14") || p.name.includes("#30")) return "Manual Review";
+    return "AI Verified";
+  };
+
+  const activeProps = filterProperties(properties.length > 0 ? properties : OFFLINE_FALLBACK);
+
   useEffect(() => {
     async function loadLocations() {
       try {
@@ -317,15 +326,6 @@ export default function MapPage() {
       }
     }
   }, [selectedProperty]);
-
-  // Quick helper to get display status values
-  const getStatus = (p: Property) => {
-    if (p.name.includes("#4") || p.name.toLowerCase().includes("kerosene")) return "Flagged";
-    if (p.name.includes("#14") || p.name.includes("#30")) return "Manual Review";
-    return "AI Verified";
-  };
-
-  const activeProps = filterProperties(properties.length > 0 ? properties : OFFLINE_FALLBACK);
 
   // Classify coordinates to country names dynamically (Lagos -> Nigeria, Nairobi/Mombasa -> Kenya)
   const getCountryName = (lat: number | null, lng: number | null) => {
