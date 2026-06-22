@@ -72,6 +72,15 @@ export default function AssetDetailPage() {
 
   const metrics = asset.sustainability_metrics as any || {};
 
+  const cleanUrl = (url: string) => {
+    if (!url) return "";
+    if (url.includes("/static/")) {
+      const parts = url.split("/static/");
+      return "/static/" + parts[parts.length - 1];
+    }
+    return url;
+  };
+
   return (
     <div className="space-y-6 max-w-5xl mx-auto pb-12 animate-fade-in-up text-[var(--color-text-primary)]">
       
@@ -190,7 +199,7 @@ export default function AssetDetailPage() {
               >
                 {activity.image_url ? (
                   <img 
-                    src={activity.image_url} 
+                    src={cleanUrl(activity.image_url)} 
                     alt="Proof" 
                     className="w-14 h-14 rounded-xl object-cover border border-[var(--color-border)] shadow-sm shrink-0" 
                   />

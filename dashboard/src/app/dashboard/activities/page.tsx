@@ -149,6 +149,15 @@ export default function ActivitiesPage() {
     return activity.activity_type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
   };
 
+  const cleanUrl = (url: string) => {
+    if (!url) return "";
+    if (url.includes("/static/")) {
+      const parts = url.split("/static/");
+      return "/static/" + parts[parts.length - 1];
+    }
+    return url;
+  };
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-10 text-[var(--color-text-primary)]">
       {/* 🧭 SYSTEM HEADER */}
@@ -363,7 +372,7 @@ export default function ActivitiesPage() {
                       <div className="flex items-center gap-3">
                         {activity.image_url ? (
                           <div className="w-10 h-10 rounded-lg bg-[var(--color-background)] border border-[var(--color-border)] overflow-hidden shrink-0 group-hover:border-[#00B47A]/40 transition-all">
-                            <img src={activity.image_url} alt="Proof" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                            <img src={cleanUrl(activity.image_url)} alt="Proof" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                           </div>
                         ) : (
                           <div className="w-10 h-10 rounded-lg bg-[var(--color-background)] border border-[var(--color-border)] flex items-center justify-center shrink-0">

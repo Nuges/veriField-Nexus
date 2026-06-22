@@ -232,7 +232,7 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
     return ClipRRect(
       borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
       child: CachedNetworkImage(
-        imageUrl: _activity!['image_url'],
+        imageUrl: ApiService.formatImageUrl(_activity!['image_url']),
         height: 220,
         width: double.infinity,
         fit: BoxFit.cover,

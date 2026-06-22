@@ -85,9 +85,14 @@ function ImagePanel({
     }
   };
 
-  const cleanedUrl = url
-    ? url.replace("https://127.0.0.1:8000", "http://127.0.0.1:8000").replace("https://localhost:8000", "http://localhost:8000")
-    : "";
+  const cleanedUrl = (() => {
+    if (!url) return "";
+    if (url.includes("/static/")) {
+      const parts = url.split("/static/");
+      return "/static/" + parts[parts.length - 1];
+    }
+    return url;
+  })();
 
   if (!cleanedUrl) {
     const isPenalized = missingKey && activity.trust_flags?.[missingKey] === true;

@@ -432,7 +432,7 @@ export default function StandaloneCapturePage() {
       console.log("[Capture] Token exists but user is null — retrying fetchMe...");
       refreshUser().catch(() => {
         // Final retry also failed — redirect to login
-        console.error("[Capture] Retry fetchMe failed — redirecting to login.");
+        console.warn("[Capture] Retry fetchMe failed — redirecting to login.");
         window.location.href = "/login?redirect=/capture";
       });
       return;

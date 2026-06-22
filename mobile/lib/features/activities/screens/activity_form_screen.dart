@@ -353,7 +353,15 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
         }
       }
     } catch (e) {
-      setState(() => _errorMessage = 'Submission failed: $e');
+      final errorStr = e.toString();
+      String userMessage;
+      if (errorStr.contains('Failed to fetch') || errorStr.contains('SocketException') || errorStr.contains('Connection refused')) {
+        userMessage = 'Cannot reach API server at ${ApiService.baseUrl}. '
+            'Ensure the backend is running and accessible from this device.';
+      } else {
+        userMessage = 'Submission failed: $errorStr';
+      }
+      setState(() => _errorMessage = userMessage);
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }

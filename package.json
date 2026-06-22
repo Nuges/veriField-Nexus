@@ -9,7 +9,7 @@
     "dashboard:build": "npm run build --prefix dashboard",
     "dashboard:start": "npm run start --prefix dashboard",
     "sdk:build": "tsc --project sdk/tsconfig.json",
-    "backend:dev": "cd backend && venv/bin/uvicorn app.main:app --reload --port 8000"
+    "backend:dev": "cd backend && venv/bin/uvicorn app.main:app --reload --host 0.0.0.0 --port 8000"
   },
   "keywords": [
     "solana",

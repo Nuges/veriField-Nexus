@@ -124,7 +124,7 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
                   border: Border.all(color: AppColors.primary.withValues(alpha: 0.3), width: 1.5),
                   image: _user!['avatar_url'] != null && _user!['avatar_url'].toString().isNotEmpty
                       ? DecorationImage(
-                          image: NetworkImage(_user!['avatar_url'].toString()),
+                          image: NetworkImage(ApiService.formatImageUrl(_user!['avatar_url'].toString())),
                           fit: BoxFit.cover,
                         )
                       : null,

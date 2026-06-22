@@ -200,6 +200,14 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [error, setError] = useState<string | null>(null);
 
   const loadUser = useCallback(async (retryCount = 0) => {
+    // Only query backend if token exists to avoid useless 401s and console error spam
+    const token = typeof window !== "undefined" ? localStorage.getItem("vf_token") : null;
+    if (!token) {
+      setUser(null);
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
     try {
@@ -211,7 +219,12 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       const normalized = normalizeSector(u.sector);
       setActiveSector(normalized);
     } catch (err: any) {
-      console.error(`Workspace Resolver failed to load user profile (attempt ${retryCount + 1}):`, err);
+      const isAuthError = err?.message === "Not authenticated" || err?.message?.includes("Not authenticated") || err?.message?.includes("401");
+      if (isAuthError) {
+        console.warn(`Workspace Resolver: User is not authenticated.`);
+      } else {
+        console.error(`Workspace Resolver failed to load user profile (attempt ${retryCount + 1}):`, err);
+      }
       
       // Auto-retry once on timeout (common with ngrok/tunnel latency)
       if (retryCount < 1 && err?.message?.includes("timed out")) {

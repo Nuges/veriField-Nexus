@@ -8,6 +8,7 @@
 // =============================================================================
 
 import { useEffect, useState, useCallback, useMemo, Fragment } from "react";
+import Link from "next/link";
 import {
   Zap,
   Leaf,
@@ -27,6 +28,7 @@ import {
   Download,
   ChevronLeft,
   ChevronRight,
+  Camera,
 } from "lucide-react";
 import {
   BarChart,
@@ -520,7 +522,13 @@ export default function EnergyDashboardPage() {
                                 </div>
 
                                 {/* Quick actions row */}
-                                <div className="flex justify-end">
+                                <div className="flex justify-end gap-4 items-center">
+                                  <Link
+                                    href={`/dashboard/activities/${act.id}`}
+                                    className="text-xs font-extrabold text-amber-500 hover:text-amber-500/80 uppercase tracking-wider transition-colors active:scale-95"
+                                  >
+                                    View Photo Proof & Secure Audit →
+                                  </Link>
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
@@ -622,6 +630,59 @@ export default function EnergyDashboardPage() {
                           </Bar>
                         </BarChart>
                       </ResponsiveContainer>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Photographic Proof */}
+              {(() => {
+                const ad = selectedSite.activity_data;
+                const solarUrl = ad?.solar_installation_image_url || selectedSite.image_url;
+                const generatorUrl = ad?.baseline_generator_image_url;
+                const inverterUrl = ad?.inverter_label_image_url;
+
+                if (!solarUrl && !generatorUrl && !inverterUrl) return null;
+
+                const cleanUrl = (url: string) => {
+                  if (!url) return "";
+                  if (url.includes("/static/")) {
+                    const parts = url.split("/static/");
+                    return "/static/" + parts[parts.length - 1];
+                  }
+                  return url;
+                };
+
+                return (
+                  <div>
+                    <h4 className="text-[10px] font-extrabold text-[var(--color-text-muted)] uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
+                      <Camera size={14} className="text-[#00B47A]" /> Photographic Evidence
+                    </h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      {solarUrl && (
+                        <div className="bg-[var(--color-background)] border border-[var(--color-border)] rounded-xl overflow-hidden p-2.5 space-y-2">
+                          <span className="text-[8px] font-extrabold text-[#00B47A] uppercase tracking-wider block">Solar PV Installation</span>
+                          <div className="aspect-[4/3] rounded-lg overflow-hidden bg-black border border-[var(--color-border)]">
+                            <img src={cleanUrl(solarUrl)} alt="Solar PV Installation" className="w-full h-full object-cover" />
+                          </div>
+                        </div>
+                      )}
+                      {generatorUrl && (
+                        <div className="bg-[var(--color-background)] border border-[var(--color-border)] rounded-xl overflow-hidden p-2.5 space-y-2">
+                          <span className="text-[8px] font-extrabold text-amber-500 uppercase tracking-wider block">Baseline Generator</span>
+                          <div className="aspect-[4/3] rounded-lg overflow-hidden bg-black border border-[var(--color-border)]">
+                            <img src={cleanUrl(generatorUrl)} alt="Baseline Generator" className="w-full h-full object-cover" />
+                          </div>
+                        </div>
+                      )}
+                      {inverterUrl && (
+                        <div className="bg-[var(--color-background)] border border-[var(--color-border)] rounded-xl overflow-hidden p-2.5 space-y-2">
+                          <span className="text-[8px] font-extrabold text-purple-400 uppercase tracking-wider block">Inverter Label</span>
+                          <div className="aspect-[4/3] rounded-lg overflow-hidden bg-black border border-[var(--color-border)]">
+                            <img src={cleanUrl(inverterUrl)} alt="Inverter Label" className="w-full h-full object-cover" />
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 );

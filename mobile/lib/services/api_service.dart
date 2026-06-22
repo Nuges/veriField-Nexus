@@ -6,7 +6,6 @@
 // =============================================================================
 
 import 'dart:convert';
-import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
@@ -22,8 +21,32 @@ class ApiService {
     if (kReleaseMode) {
       return 'https://verifield-nexus.onrender.com/api/v1';
     }
-    // Local development fallback
+    if (kIsWeb) {
+      final scheme = Uri.base.scheme;
+      final host = Uri.base.host;
+      final resolvedScheme = scheme.isNotEmpty ? scheme : 'http';
+      final resolvedHost = host.isNotEmpty ? host : 'localhost';
+      return '$resolvedScheme://$resolvedHost:8000/api/v1';
+    }
+    // Android emulator local development fallback
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      return 'http://10.0.2.2:8000/api/v1';
+    }
+    // iOS simulator / default local development fallback
     return 'http://localhost:8000/api/v1';
+  }
+
+  /// Format an image URL to be fully qualified, handling relative paths and emulator localhost mapping.
+  static String formatImageUrl(String? url) {
+    if (url == null || url.isEmpty) return '';
+    if (url.startsWith('/static/')) {
+      final host = baseUrl.replaceAll('/api/v1', '');
+      return '$host$url';
+    }
+    if (defaultTargetPlatform == TargetPlatform.android && !kIsWeb) {
+      return url.replaceAll('localhost', '10.0.2.2').replaceAll('127.0.0.1', '10.0.2.2');
+    }
+    return url;
   }
 
   /// Get the current auth token from Supabase session.

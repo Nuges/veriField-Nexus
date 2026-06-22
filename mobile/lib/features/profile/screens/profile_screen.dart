@@ -167,7 +167,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               gradient: AppColors.primaryGradient,
                               borderRadius: BorderRadius.circular(16),
                               image: hasAvatar
-                                  ? DecorationImage(image: NetworkImage(selectedAvatar), fit: BoxFit.cover)
+                                  ? DecorationImage(image: NetworkImage(ApiService.formatImageUrl(selectedAvatar)), fit: BoxFit.cover)
                                   : null,
                             ),
                             child: isUploading
@@ -227,7 +227,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                         color: isSelected ? AppColors.primary : AppColors.border,
                                         width: isSelected ? 2 : 1,
                                       ),
-                                      image: DecorationImage(image: NetworkImage(url), fit: BoxFit.cover),
+                                      image: DecorationImage(image: NetworkImage(ApiService.formatImageUrl(url)), fit: BoxFit.cover),
                                     ),
                                   ),
                                 );
@@ -686,7 +686,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             borderRadius: BorderRadius.circular(20),
             image: hasAvatar
                 ? DecorationImage(
-                    image: NetworkImage(_user!['avatar_url'].toString()),
+                    image: NetworkImage(ApiService.formatImageUrl(_user!['avatar_url'].toString())),
                     fit: BoxFit.cover,
                   )
                 : null,
