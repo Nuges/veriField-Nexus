@@ -218,24 +218,30 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
       final bytes = await CameraService.getImageBytes(xfile);
       if (bytes == null) return;
 
-      final location = await LocationService.getLocationData();
+      // Show the image immediately in the UI!
+      setState(() {
+        _capturedImages[photo.key] = xfile;
+        _capturedImageBytes[photo.key] = bytes;
+      });
+
+      // Compute metadata in the background / instantaneously
       final timestamp = DateTime.now().toUtc().toIso8601String();
       final deviceId = await DeviceService.getDeviceSignature();
       final uploaderId = SupabaseConfig.client.auth.currentUser?.id ?? 'agent';
       final hash = await CameraService.generateImageHash(xfile);
 
-      setState(() {
-        _capturedImages[photo.key] = xfile;
-        _capturedImageBytes[photo.key] = bytes;
-        _capturedImagesMetadata[photo.key] = {
-          'timestamp': timestamp,
-          'latitude': location?['latitude'] ?? _locationData?['latitude'],
-          'longitude': location?['longitude'] ?? _locationData?['longitude'],
-          'device_id': deviceId,
-          'uploader_id': uploaderId,
-          'hash': hash,
-        };
-      });
+      if (mounted) {
+        setState(() {
+          _capturedImagesMetadata[photo.key] = {
+            'timestamp': timestamp,
+            'latitude': _locationData?['latitude'],
+            'longitude': _locationData?['longitude'],
+            'device_id': deviceId,
+            'uploader_id': uploaderId,
+            'hash': hash,
+          };
+        });
+      }
     }
   }
 

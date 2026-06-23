@@ -123,7 +123,21 @@ class LocationService {
           'accuracy': position.accuracy,
         },
       );
-    } on Exception catch (e) {
+    } catch (e) {
+      // Fallback: Try to get last known position
+      try {
+        final lastKnown = await Geolocator.getLastKnownPosition();
+        if (lastKnown != null) {
+          return LocationResult(
+            data: {
+              'latitude': lastKnown.latitude,
+              'longitude': lastKnown.longitude,
+              'accuracy': lastKnown.accuracy,
+            },
+          );
+        }
+      } catch (_) {}
+
       final msg = e.toString().toLowerCase();
       if (msg.contains('timeout') || msg.contains('timed out')) {
         return const LocationResult(
