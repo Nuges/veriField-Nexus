@@ -11,10 +11,14 @@ import 'core/theme/app_theme.dart';
 import 'core/config/supabase_config.dart';
 import 'core/router/app_router.dart';
 import 'services/sync_service.dart';
+import 'services/api_service.dart';
 
 void main() async {
   // Ensure Flutter is initialized before async operations
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize ApiService persistent customToken
+  await ApiService.init();
 
   // Lock orientation to portrait (field app best used in portrait)
   await SystemChrome.setPreferredOrientations([

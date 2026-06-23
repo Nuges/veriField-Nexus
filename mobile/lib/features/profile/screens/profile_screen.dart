@@ -423,6 +423,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _logout() async {
+    await ApiService.setCustomToken(null);
     await SupabaseConfig.client.auth.signOut();
     if (mounted) context.go(AppRoutes.login);
   }
@@ -453,6 +454,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       setState(() => _isLoading = true);
       try {
         await ApiService.delete('/auth/me');
+        await ApiService.setCustomToken(null);
         await SupabaseConfig.client.auth.signOut();
         if (mounted) {
           VFNotification.showSuccess(context, 'Account deleted successfully.');

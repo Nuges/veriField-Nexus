@@ -8,12 +8,8 @@ import 'package:flutter/foundation.dart';
 
 void main() {
   group('ApiService.baseUrl Tests', () {
-    test('Returns correct local development URL based on target platform', () {
-      if (defaultTargetPlatform == TargetPlatform.android) {
-        expect(ApiService.baseUrl, equals('http://10.0.2.2:8000/api/v1'));
-      } else {
-        expect(ApiService.baseUrl, equals('http://localhost:8000/api/v1'));
-      }
+    test('Returns default environment URL when no environment variable is provided', () {
+      expect(ApiService.baseUrl, equals('http://192.168.1.100:8000/api/v1'));
     });
   });
 }

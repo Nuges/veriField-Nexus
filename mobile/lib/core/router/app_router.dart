@@ -8,6 +8,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../config/supabase_config.dart';
+import '../../services/api_service.dart';
 import '../../features/auth/screens/login_screen.dart';
 import '../../features/auth/screens/register_screen.dart';
 import '../../features/activities/screens/activity_form_screen.dart';
@@ -45,7 +46,7 @@ final GoRouter appRouter = GoRouter(
 
   // --- Auth Guard: Redirect unauthenticated users to login ---
   redirect: (context, state) {
-    final isLoggedIn = SupabaseConfig.isAuthenticated;
+    final isLoggedIn = SupabaseConfig.isAuthenticated || ApiService.customToken != null;
     final isAuthRoute = state.matchedLocation == AppRoutes.login ||
         state.matchedLocation == AppRoutes.register;
 

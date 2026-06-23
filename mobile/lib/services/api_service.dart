@@ -9,31 +9,85 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../core/config/supabase_config.dart';
 
 /// Centralized API client for communicating with the FastAPI backend.
 class ApiService {
+  static const String apiBaseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'http://192.168.1.100:8000',
+  );
+
   static String get baseUrl {
-    const envUrl = String.fromEnvironment('API_URL');
-    if (envUrl.isNotEmpty) {
-      return envUrl;
+    debugPrint('[ApiService] API Base URL requested: $apiBaseUrl/api/v1');
+    return '$apiBaseUrl/api/v1';
+  }
+
+  static String? _customToken;
+
+  static String? get customToken => _customToken;
+
+  static Future<void> init() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _customToken = prefs.getString('auth_token');
+      debugPrint('[ApiService] Initialized: customToken loaded: ${_customToken != null ? "exists" : "null"}');
+    } catch (e) {
+      debugPrint('[ApiService] Failed to initialize persistent customToken: $e');
     }
-    if (kReleaseMode) {
-      return 'https://verifield-nexus.onrender.com/api/v1';
+  }
+
+  static Future<void> setCustomToken(String? token) async {
+    _customToken = token;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (token == null) {
+        await prefs.remove('auth_token');
+        debugPrint('[ApiService] customToken cleared from SharedPreferences');
+      } else {
+        await prefs.setString('auth_token', token);
+        debugPrint('[ApiService] customToken saved to SharedPreferences');
+      }
+    } catch (e) {
+      debugPrint('[ApiService] Failed to save/clear customToken: $e');
     }
-    if (kIsWeb) {
-      final scheme = Uri.base.scheme;
-      final host = Uri.base.host;
-      final resolvedScheme = scheme.isNotEmpty ? scheme : 'http';
-      final resolvedHost = host.isNotEmpty ? host : 'localhost';
-      return '$resolvedScheme://$resolvedHost:8000/api/v1';
+  }
+
+  /// Log in with email and password via FastAPI backend.
+  static Future<Map<String, dynamic>> login(String email, String password) async {
+    final url = '$baseUrl/auth/login';
+    debugPrint('[ApiService] Attempting backend login at: $url for email: $email');
+    
+    final response = await http.post(
+      Uri.parse(url),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'email': email,
+        'password': password,
+      }),
+    ).timeout(const Duration(seconds: 15));
+    
+    debugPrint('[ApiService] Backend login status code: ${response.statusCode}');
+    return _handleResponse(response);
+  }
+
+  /// Check server connectivity by querying /docs endpoint.
+  static Future<bool> checkServerConnection() async {
+    final docsUrl = '$apiBaseUrl/docs';
+    debugPrint('[ApiService] Verifying server reachability at: $docsUrl');
+    try {
+      final response = await http.head(Uri.parse(docsUrl)).timeout(
+        const Duration(seconds: 5),
+      );
+      debugPrint('[ApiService] Server responded with status code: ${response.statusCode}');
+      return true;
+    } catch (e) {
+      debugPrint('[ApiService] Server check failed: $e');
+      return false;
     }
-    // Android emulator local development fallback
-    if (defaultTargetPlatform == TargetPlatform.android) {
-      return 'http://10.0.2.2:8000/api/v1';
-    }
-    // iOS simulator / default local development fallback
-    return 'http://localhost:8000/api/v1';
   }
 
   /// Format an image URL to be fully qualified, handling relative paths and emulator localhost mapping.
@@ -51,13 +105,18 @@ class ApiService {
 
   /// Get the current auth token from Supabase session.
   static String? get _authToken =>
-      SupabaseConfig.currentSession?.accessToken;
+      _customToken ?? SupabaseConfig.currentSession?.accessToken;
 
   /// Standard headers with auth token.
-  static Map<String, String> get _headers => {
-        'Content-Type': 'application/json',
-        if (_authToken != null) 'Authorization': 'Bearer $_authToken',
-      };
+  static Map<String, String> get _headers {
+    final token = _authToken;
+    final headers = {
+      'Content-Type': 'application/json',
+      if (token != null) 'Authorization': 'Bearer $token',
+    };
+    debugPrint('[ApiService] Request Headers: $headers');
+    return headers;
+  }
 
   // =========================================================================
   // Generic HTTP Methods

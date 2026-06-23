@@ -50,24 +50,32 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() { _isLoading = true; _errorMessage = null; });
 
     try {
-      // Register via backend API (creates Supabase Auth + local user)
-      await ApiService.post('/auth/register', body: {
-        'email': _emailController.text.trim(),
-        'phone': _phoneController.text.trim().isNotEmpty ? _phoneController.text.trim() : null,
-        'full_name': _nameController.text.trim(),
-        'password': _passwordController.text,
-        'organization': _orgController.text.trim().isNotEmpty ? _orgController.text.trim() : null,
-      });
-
-      // Auto-login after registration
-      await SupabaseConfig.client.auth.signInWithPassword(
+      debugPrint('[RegisterScreen] Registering directly via Supabase Auth');
+      
+      final response = await SupabaseConfig.client.auth.signUp(
         email: _emailController.text.trim(),
         password: _passwordController.text,
+        data: {
+          'full_name': _nameController.text.trim(),
+        },
       );
 
-      if (mounted) context.go(AppRoutes.home);
+      debugPrint('[RegisterScreen] Supabase signUp completed. Session present: ${response.session != null}');
+
+      if (mounted) {
+        if (response.session != null) {
+          context.go(AppRoutes.home);
+        } else {
+          setState(() {
+            _errorMessage = 'Registration successful! Please check your email for the confirmation link.';
+          });
+        }
+      }
     } catch (e) {
-      setState(() { _errorMessage = e.toString(); });
+      debugPrint('[RegisterScreen] Registration failed: $e');
+      setState(() { 
+        _errorMessage = e.toString().replaceAll('Exception:', '').trim(); 
+      });
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
