@@ -16,7 +16,7 @@ import '../core/config/supabase_config.dart';
 class ApiService {
   static const String apiBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://192.168.1.100:8000',
+    defaultValue: 'https://verifield-nexus.onrender.com',
   );
 
   static String get baseUrl {
@@ -68,26 +68,38 @@ class ApiService {
         'email': email,
         'password': password,
       }),
-    ).timeout(const Duration(seconds: 15));
+    ).timeout(const Duration(seconds: 45));
     
     debugPrint('[ApiService] Backend login status code: ${response.statusCode}');
     return _handleResponse(response);
   }
 
   /// Check server connectivity by querying /health endpoint.
+  /// Retries up to 3 times with increasing timeouts to handle Render cold starts.
   static Future<bool> checkServerConnection() async {
     final healthUrl = '$apiBaseUrl/health';
     debugPrint('[ApiService] Verifying server reachability at: $healthUrl');
-    try {
-      final response = await http.get(Uri.parse(healthUrl)).timeout(
-        const Duration(seconds: 30),
-      );
-      debugPrint('[ApiService] Server responded with status code: ${response.statusCode}');
-      return response.statusCode == 200;
-    } catch (e) {
-      debugPrint('[ApiService] Server check failed: $e');
-      return false;
+    
+    // Retry up to 3 times with increasing timeouts (Render free tier can take 30-60s to wake)
+    final timeouts = [const Duration(seconds: 10), const Duration(seconds: 20), const Duration(seconds: 30)];
+    
+    for (int attempt = 0; attempt < timeouts.length; attempt++) {
+      try {
+        debugPrint('[ApiService] Connection attempt ${attempt + 1}/${timeouts.length} (timeout: ${timeouts[attempt].inSeconds}s)');
+        final response = await http.get(Uri.parse(healthUrl)).timeout(timeouts[attempt]);
+        debugPrint('[ApiService] Server responded with status code: ${response.statusCode}');
+        if (response.statusCode == 200) return true;
+      } catch (e) {
+        debugPrint('[ApiService] Connection attempt ${attempt + 1} failed: $e');
+        if (attempt < timeouts.length - 1) {
+          // Wait 2 seconds before retrying
+          await Future.delayed(const Duration(seconds: 2));
+        }
+      }
     }
+    
+    debugPrint('[ApiService] All connection attempts failed for: $healthUrl');
+    return false;
   }
 
   /// Format an image URL to be fully qualified, handling relative paths and emulator localhost mapping.

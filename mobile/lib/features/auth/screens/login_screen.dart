@@ -198,21 +198,58 @@ class _LoginScreenState extends State<LoginScreen> {
                 borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
                 border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
               ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.cloud_off_rounded, color: AppColors.error, size: 20),
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(
+                        child: Text(
+                          'Cannot connect to server',
+                          style: AppTypography.bodySmall.copyWith(color: AppColors.error, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.refresh_rounded, color: AppColors.error, size: 20),
+                        onPressed: _checkServerConnection,
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Server may be waking up. Tap refresh to retry.',
+                    style: AppTypography.bodySmall.copyWith(color: AppColors.error.withValues(alpha: 0.7), fontSize: 11),
+                  ),
+                ],
+              ),
+            ).animate().fadeIn(),
+
+          if (_isServerChecking)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(AppSpacing.md),
+              margin: const EdgeInsets.only(bottom: AppSpacing.base),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+              ),
               child: Row(
                 children: [
-                  const Icon(Icons.cloud_off_rounded, color: AppColors.error, size: 20),
+                  const SizedBox(
+                    width: 16, height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                  ),
                   const SizedBox(width: AppSpacing.sm),
                   Expanded(
                     child: Text(
-                      'Cannot connect to server.',
-                      style: AppTypography.bodySmall.copyWith(color: AppColors.error, fontWeight: FontWeight.bold),
+                      'Connecting to server... This may take up to 60 seconds on first launch.',
+                      style: AppTypography.bodySmall.copyWith(color: AppColors.primary, fontSize: 11),
                     ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.refresh_rounded, color: AppColors.error, size: 20),
-                    onPressed: _checkServerConnection,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
                   ),
                 ],
               ),
