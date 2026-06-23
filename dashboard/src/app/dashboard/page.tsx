@@ -103,7 +103,7 @@ export default function RedesignedDashboardPage() {
 
   // --- INTERACTION & LAYOUT STATES (AG EXECUTION ADD-ON) ---
   const [dashboardMode, setDashboardMode] = useState<"executive" | "operations">("executive");
-  const [activeTab, setActiveTab] = useState<"activity" | "trust" | "risk" | "agents">("activity");
+  const [activeTab, setActiveTab] = useState<"activity" | "trust" | "risk" | "agents" | "sync">("activity");
   const [selectedPipelineStage, setSelectedPipelineStage] = useState<string>("");
   const [mapUrbanToggle, setMapUrbanToggle] = useState<boolean>(true);
   const [mapSelectedPoint, setMapSelectedPoint] = useState<any | null>(null);
@@ -1112,6 +1112,7 @@ export default function RedesignedDashboardPage() {
             { id: "trust", label: "Trust Engine weighted variables", icon: Shield },
             { id: "risk", label: `Anomaly center (${defaultAnomalies.filter(a => !a.resolved).length} alerts)`, icon: AlertTriangle },
             { id: "agents", label: "Field Agent analytics", icon: Users },
+            { id: "sync", label: "Sync pipeline & metrics", icon: Clock },
           ].map((tab) => {
             const Icon = tab.icon;
             const isTabActive = activeTab === tab.id;
@@ -1547,6 +1548,156 @@ export default function RedesignedDashboardPage() {
                     </div>
                   );
                 })}
+              </div>
+
+            </div>
+          )}
+
+          {/* TAB 5: SYNC PIPELINE & REGISTRY TELEMETRY */}
+          {activeTab === "sync" && (
+            <div className="space-y-5 animate-fade-in-up">
+              
+              <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-2">
+                <span className="text-[9px] uppercase font-bold text-[var(--color-text-muted)]">Offline Sync Pipeline</span>
+                <span className="text-[8px] text-[var(--color-text-muted)]">Real-time ingestion metrics derived from ledger logs</span>
+              </div>
+
+              {/* METRICS GRID */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-[var(--color-background)] border border-[var(--color-border)] rounded-xl p-4 flex flex-col justify-between">
+                  <div>
+                    <p className="text-[9px] font-extrabold text-[var(--color-text-muted)] uppercase tracking-wider">Offline Synced Nodes</p>
+                    <p className="text-xl font-black text-[#00B47A] mt-2">
+                      {activities.filter(act => act.client_id).length}
+                    </p>
+                  </div>
+                  <p className="text-[8px] text-[var(--color-text-muted)] mt-2">Mobile client offline cache ingestion count</p>
+                </div>
+
+                <div className="bg-[var(--color-background)] border border-[var(--color-border)] rounded-xl p-4 flex flex-col justify-between">
+                  <div>
+                    <p className="text-[9px] font-extrabold text-[var(--color-text-muted)] uppercase tracking-wider">Direct Ingestion Nodes</p>
+                    <p className="text-xl font-black text-blue-400 mt-2">
+                      {activities.filter(act => !act.client_id).length}
+                    </p>
+                  </div>
+                  <p className="text-[8px] text-[var(--color-text-muted)] mt-2">Direct Web / REST API ingestion count</p>
+                </div>
+
+                <div className="bg-[var(--color-background)] border border-[var(--color-border)] rounded-xl p-4 flex flex-col justify-between">
+                  <div>
+                    <p className="text-[9px] font-extrabold text-[var(--color-text-muted)] uppercase tracking-wider">Mean Sync Latency</p>
+                    <p className="text-xl font-black text-amber-500 mt-2">
+                      {(() => {
+                        const synced = activities.filter(act => act.client_id && act.captured_at && act.created_at);
+                        if (synced.length === 0) return "—";
+                        let totalSec = 0;
+                        synced.forEach(act => {
+                          const diff = (new Date(act.created_at).getTime() - new Date(act.captured_at).getTime()) / 1000;
+                          if (diff > 0) totalSec += diff;
+                        });
+                        const avgMin = (totalSec / synced.length) / 60;
+                        return avgMin > 60 
+                          ? `${(avgMin / 60).toFixed(1)} hrs` 
+                          : `${avgMin.toFixed(1)} mins`;
+                      })()}
+                    </p>
+                  </div>
+                  <p className="text-[8px] text-[var(--color-text-muted)] mt-2">Average time from capture to ledger integration</p>
+                </div>
+
+                <div className="bg-[var(--color-background)] border border-[var(--color-border)] rounded-xl p-4 flex flex-col justify-between">
+                  <div>
+                    <p className="text-[9px] font-extrabold text-[var(--color-text-muted)] uppercase tracking-wider">Data Integrity Rate</p>
+                    <p className="text-xl font-black text-[#00B47A] mt-2">
+                      {(() => {
+                        if (activities.length === 0) return "0.0%";
+                        const withHash = activities.filter(act => act.image_hash && act.image_hash.length > 0).length;
+                        return `${((withHash / activities.length) * 100).toFixed(1)}%`;
+                      })()}
+                    </p>
+                  </div>
+                  <p className="text-[8px] text-[var(--color-text-muted)] mt-2">Proportion of records with audit-grade proof hash</p>
+                </div>
+              </div>
+
+              {/* REAL-TIME SYNC LOGS TABLE */}
+              <div className="bg-[var(--color-background)] border border-[var(--color-border)] rounded-lg overflow-hidden shadow-sm">
+                <div className="p-4 border-b border-[var(--color-border)]">
+                  <span className="text-[10px] uppercase font-bold text-[var(--color-text-muted)]">Telemetry Sync Ledger</span>
+                </div>
+                <div className="overflow-x-auto max-h-96 overflow-y-auto scrollbar-custom">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-[var(--color-background)]/40 border-b border-[var(--color-border)] text-[9px] uppercase font-bold text-[var(--color-text-muted)]">
+                        <th className="p-3">Client/Record ID</th>
+                        <th className="p-3">Activity Type</th>
+                        <th className="p-3 text-center">Captured At</th>
+                        <th className="p-3 text-center">Synced At</th>
+                        <th className="p-3 text-center">Latency</th>
+                        <th className="p-3 text-center">Ingestion Status</th>
+                        <th className="p-3 text-right">Integrity Verification</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[var(--color-border)]/70 text-xs">
+                      {activities.length === 0 ? (
+                        <tr>
+                          <td colSpan={7} className="p-6 text-center text-[var(--color-text-muted)]">No ledger records found.</td>
+                        </tr>
+                      ) : (
+                        activities.map((act) => {
+                          const recordId = act.client_id || act.id;
+                          const latencySec = act.captured_at && act.created_at
+                            ? (new Date(act.created_at).getTime() - new Date(act.captured_at).getTime()) / 1000
+                            : 0;
+                          const latencyStr = latencySec > 0
+                            ? latencySec > 60
+                              ? `${(latencySec / 60).toFixed(0)}m`
+                              : `${latencySec.toFixed(0)}s`
+                            : "—";
+
+                          const isMobileSynced = act.client_id != null;
+                          const statusText = isMobileSynced ? "OFFLINE_SYNC" : "DIRECT_REST";
+                          const hasHash = act.image_hash && act.image_hash.length > 0;
+
+                          return (
+                            <tr key={act.id} className="hover:bg-[var(--color-background)]/30 transition-colors">
+                              <td className="p-3 font-mono font-bold text-[#00B47A]">{String(recordId).substring(0, 15)}...</td>
+                              <td className="p-3 font-semibold text-[var(--color-text-primary)]">{act.activity_type.replaceAll('_', ' ')}</td>
+                              <td className="p-3 text-center text-[var(--color-text-secondary)]">
+                                {act.captured_at ? act.captured_at.replace('T', ' ').split('.')[0] : "—"}
+                              </td>
+                              <td className="p-3 text-center text-[var(--color-text-secondary)]">
+                                {act.created_at ? act.created_at.replace('T', ' ').split('.')[0] : "—"}
+                              </td>
+                              <td className="p-3 text-center text-[var(--color-text-secondary)] font-mono">{latencyStr}</td>
+                              <td className="p-3 text-center">
+                                <span className={`px-2 py-0.5 rounded text-[8px] font-extrabold border ${
+                                  isMobileSynced
+                                    ? "bg-amber-500/10 text-amber-400 border-amber-500/20"
+                                    : "bg-blue-500/10 text-blue-400 border-blue-500/20"
+                                }`}>
+                                  {statusText}
+                                </span>
+                              </td>
+                              <td className="p-3 text-right">
+                                {hasHash ? (
+                                  <span className="px-2 py-0.5 rounded text-[8px] font-extrabold border bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
+                                    ✓ HASH_OK ({act.image_hash.substring(0, 8)})
+                                  </span>
+                                ) : (
+                                  <span className="px-2 py-0.5 rounded text-[8px] font-extrabold border bg-red-500/10 text-red-400 border-red-500/20">
+                                    ✗ NO_PROOF_HASH
+                                  </span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
 
             </div>

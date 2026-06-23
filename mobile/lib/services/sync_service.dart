@@ -12,6 +12,7 @@ import 'dart:io';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../core/config/supabase_config.dart';
 import 'local_db_service.dart';
 import 'api_service.dart';
@@ -66,14 +67,22 @@ class SyncService {
     }
   }
 
-  /// Sync all pending activities to the server.
+  /// Sync pending activities to the server.
   /// Called when connectivity is restored or manually triggered.
-  static Future<SyncResult> syncPendingActivities() async {
+  static Future<SyncResult> syncPendingActivities({bool failedOnly = false, bool forceAll = false}) async {
     if (!await isOnline()) {
       return SyncResult(synced: 0, failed: 0, message: 'No internet connection');
     }
 
-    final pending = await LocalDbService.getPendingActivities();
+    final List<Map<String, dynamic>> pending;
+    if (failedOnly) {
+      pending = await LocalDbService.getFailedActivities();
+    } else if (forceAll) {
+      pending = await LocalDbService.getPendingActivities();
+    } else {
+      pending = await LocalDbService.getRetryableActivities();
+    }
+
     if (pending.isEmpty) {
       return SyncResult(synced: 0, failed: 0, message: 'Nothing to sync');
     }
@@ -85,6 +94,9 @@ class SyncService {
     final activitiesBatch = <Map<String, dynamic>>[];
 
     for (final activity in pending) {
+      final clientId = activity['client_id']?.toString() ?? '';
+      if (clientId.isEmpty) continue;
+
       try {
         Map<String, dynamic> actData = {};
         if (activity['activity_data'] is Map) {
@@ -148,6 +160,7 @@ class SyncService {
           'client_id': activity['client_id'],
         });
       } catch (e) {
+        await LocalDbService.markAsFailed(clientId, e.toString());
         failed++;
       }
     }
@@ -163,14 +176,38 @@ class SyncService {
         // Mark successful activities as synced
         final results = response['results'] as List? ?? [];
         for (final result in results) {
+          final cid = result['client_id']?.toString() ?? '';
+          if (cid.isEmpty) continue;
+
           if (result['status'] == 'submitted' || result['status'] == 'duplicate') {
-            await LocalDbService.markAsSynced(result['client_id']);
+            await LocalDbService.markAsSynced(cid);
             synced++;
           } else {
+            final errorStr = result['error']?.toString() ?? 'Unknown backend validation error';
+            await LocalDbService.markAsFailed(cid, errorStr);
             failed++;
           }
         }
+
+        // Record successful sync time
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('last_sync_time', DateTime.now().toLocal().toString().split('.')[0]);
       } catch (e) {
+        final errStr = e.toString();
+        final isNetworkError = errStr.contains('SocketException') ||
+            errStr.contains('Connection refused') ||
+            errStr.contains('HandshakeException') ||
+            errStr.contains('Network is unreachable') ||
+            errStr.contains('Failed to fetch');
+
+        if (!isNetworkError) {
+          for (final act in activitiesBatch) {
+            final cid = act['client_id']?.toString() ?? '';
+            if (cid.isNotEmpty) {
+              await LocalDbService.markAsFailed(cid, errStr);
+            }
+          }
+        }
         failed += activitiesBatch.length;
       }
     }

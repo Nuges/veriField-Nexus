@@ -29,7 +29,7 @@ class LocalDbService {
 
     return openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: (db, version) async {
         // Pending activities awaiting sync
         await db.execute('''
@@ -47,6 +47,8 @@ class LocalDbService {
             captured_at TEXT NOT NULL,
             property_id TEXT,
             sync_status TEXT DEFAULT 'pending',
+            error_message TEXT,
+            retry_count INTEGER DEFAULT 0,
             created_at TEXT NOT NULL
           )
         ''');
@@ -69,6 +71,12 @@ class LocalDbService {
           )
         ''');
       },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          await db.execute('ALTER TABLE pending_activities ADD COLUMN error_message TEXT');
+          await db.execute('ALTER TABLE pending_activities ADD COLUMN retry_count INTEGER DEFAULT 0');
+        }
+      },
     );
   }
 
@@ -88,14 +96,14 @@ class LocalDbService {
         conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
-  /// Get all pending activities that need syncing.
+  /// Get all pending and failed activities.
   static Future<List<Map<String, dynamic>>> getPendingActivities() async {
     if (kIsWeb) return [];
     final db = await database;
     final results = await db.query(
       'pending_activities',
-      where: 'sync_status = ?',
-      whereArgs: ['pending'],
+      where: 'sync_status = ? OR sync_status = ?',
+      whereArgs: ['pending', 'failed'],
       orderBy: 'created_at ASC',
     );
     // Parse JSON strings back to maps
@@ -110,25 +118,82 @@ class LocalDbService {
     }).toList();
   }
 
-  /// Mark a pending activity as synced.
+  /// Get all failed activities.
+  static Future<List<Map<String, dynamic>>> getFailedActivities() async {
+    if (kIsWeb) return [];
+    final db = await database;
+    final results = await db.query(
+      'pending_activities',
+      where: 'sync_status = ?',
+      whereArgs: ['failed'],
+      orderBy: 'created_at ASC',
+    );
+    return results.map((row) {
+      final mutable = Map<String, dynamic>.from(row);
+      if (mutable['activity_data'] is String) {
+        try {
+          mutable['activity_data'] = jsonDecode(mutable['activity_data']);
+        } catch (_) {}
+      }
+      return mutable;
+    }).toList();
+  }
+
+  /// Get all activities that can be synced (pending, or failed with retry_count < 5).
+  static Future<List<Map<String, dynamic>>> getRetryableActivities() async {
+    if (kIsWeb) return [];
+    final db = await database;
+    final results = await db.query(
+      'pending_activities',
+      where: "sync_status = 'pending' OR (sync_status = 'failed' AND retry_count < 5)",
+      orderBy: 'created_at ASC',
+    );
+    return results.map((row) {
+      final mutable = Map<String, dynamic>.from(row);
+      if (mutable['activity_data'] is String) {
+        try {
+          mutable['activity_data'] = jsonDecode(mutable['activity_data']);
+        } catch (_) {}
+      }
+      return mutable;
+    }).toList();
+  }
+
+  /// Mark a pending activity as synced and reset error/retry values.
   static Future<void> markAsSynced(String clientId) async {
     if (kIsWeb) return;
     final db = await database;
     await db.update(
       'pending_activities',
-      {'sync_status': 'synced'},
+      {
+        'sync_status': 'synced',
+        'error_message': null,
+        'retry_count': 0,
+      },
       where: 'client_id = ?',
       whereArgs: [clientId],
     );
   }
 
-  /// Get the count of pending (unsynced) activities.
+  /// Mark a pending activity as failed with an error message and increment retry_count.
+  static Future<void> markAsFailed(String clientId, String error) async {
+    if (kIsWeb) return;
+    final db = await database;
+    await db.rawUpdate('''
+      UPDATE pending_activities 
+      SET sync_status = ?, 
+          error_message = ?, 
+          retry_count = retry_count + 1 
+      WHERE client_id = ?
+    ''', ['failed', error, clientId]);
+  }
+
+  /// Get the count of pending and failed (unsynced) activities.
   static Future<int> getPendingCount() async {
     if (kIsWeb) return 0;
     final db = await database;
     final result = await db.rawQuery(
-      'SELECT COUNT(*) as count FROM pending_activities WHERE sync_status = ?',
-      ['pending'],
+      "SELECT COUNT(*) as count FROM pending_activities WHERE sync_status = 'pending' OR sync_status = 'failed'",
     );
     return Sqflite.firstIntValue(result) ?? 0;
   }
