@@ -74,16 +74,16 @@ class ApiService {
     return _handleResponse(response);
   }
 
-  /// Check server connectivity by querying /docs endpoint.
+  /// Check server connectivity by querying /health endpoint.
   static Future<bool> checkServerConnection() async {
-    final docsUrl = '$apiBaseUrl/docs';
-    debugPrint('[ApiService] Verifying server reachability at: $docsUrl');
+    final healthUrl = '$apiBaseUrl/health';
+    debugPrint('[ApiService] Verifying server reachability at: $healthUrl');
     try {
-      final response = await http.head(Uri.parse(docsUrl)).timeout(
-        const Duration(seconds: 5),
+      final response = await http.get(Uri.parse(healthUrl)).timeout(
+        const Duration(seconds: 30),
       );
       debugPrint('[ApiService] Server responded with status code: ${response.statusCode}');
-      return true;
+      return response.statusCode == 200;
     } catch (e) {
       debugPrint('[ApiService] Server check failed: $e');
       return false;
