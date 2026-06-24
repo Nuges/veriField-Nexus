@@ -40,63 +40,72 @@ from app.schemas.analytics import TrustScoreResponse
 # Background SMS Dispatch helper
 # =============================================================================
 
-async def dispatch_sms_verification(activity_id: UUID, db_session_factory):
+async def dispatch_sms_verification(activity_id: UUID, db_session_or_factory):
     """
     Asynchronously queries the activity and dispatches a Twilio SMS confirmation
     request to the beneficiary or owner phone number.
+    Supports either an AsyncSession directly or a session factory.
     """
     import logging
     logger = logging.getLogger("verifield.jobs.sms_dispatch")
     
-    async with db_session_factory() as session:
-        # Load activity with user and property relationships
-        result = await session.execute(
-            select(Activity)
-            .options(selectinload(Activity.user), selectinload(Activity.property))
-            .where(Activity.id == activity_id)
-        )
-        act = result.scalar_one_or_none()
-        if not act:
-            return
+    from sqlalchemy.ext.asyncio import AsyncSession
+    
+    if isinstance(db_session_or_factory, AsyncSession):
+        await _execute_sms_dispatch(activity_id, db_session_or_factory, logger)
+    else:
+        async with db_session_or_factory() as session:
+            await _execute_sms_dispatch(activity_id, session, logger)
 
-        phone = None
-        name = "Beneficiary"
+async def _execute_sms_dispatch(activity_id: UUID, session: AsyncSession, logger):
+    # Load activity with user and property relationships
+    result = await session.execute(
+        select(Activity)
+        .options(selectinload(Activity.user), selectinload(Activity.property))
+        .where(Activity.id == activity_id)
+    )
+    act = result.scalar_one_or_none()
+    if not act:
+        return
+
+    phone = None
+    name = "Beneficiary"
+    
+    # 1. First, check if custom phone number is inside activity_data
+    data = act.activity_data or {}
+    if data.get("beneficiary_phone"):
+        phone = str(data.get("beneficiary_phone")).strip()
+        name = data.get("beneficiary_name", "Beneficiary")
+    
+    # 2. Fall back to property owner/tenant phone number
+    elif act.property and act.property.owner_id:
+        from app.models.user import User
+        owner_res = await session.execute(select(User).where(User.id == act.property.owner_id))
+        owner = owner_res.scalar_one_or_none()
+        if owner and owner.phone:
+            phone = str(owner.phone).strip()
+            name = owner.full_name
+    
+    # 3. Fall back to the agent who logged the activity
+    elif act.user and act.user.phone:
+        phone = str(act.user.phone).strip()
+        name = act.user.full_name
         
-        # 1. First, check if custom phone number is inside activity_data
-        data = act.activity_data or {}
-        if data.get("beneficiary_phone"):
-            phone = str(data.get("beneficiary_phone")).strip()
-            name = data.get("beneficiary_name", "Beneficiary")
+    if not phone:
+        logger.info(f"No phone number resolved for activity {activity_id}. Skipping SMS.")
+        return
         
-        # 2. Fall back to property owner/tenant phone number
-        elif act.property and act.property.owner_id:
-            from app.models.user import User
-            owner_res = await session.execute(select(User).where(User.id == act.property.owner_id))
-            owner = owner_res.scalar_one_or_none()
-            if owner and owner.phone:
-                phone = str(owner.phone).strip()
-                name = owner.full_name
-        
-        # 3. Fall back to the agent who logged the activity
-        elif act.user and act.user.phone:
-            phone = str(act.user.phone).strip()
-            name = act.user.full_name
-            
-        if not phone:
-            logger.info(f"No phone number resolved for activity {activity_id}. Skipping SMS.")
-            return
-            
-        # Format outbound SMS with verification code (first 8 characters of property UUID)
-        from app.services.sms_service import send_twilio_sms
-        code_suffix = f" {str(act.property_id)[:8]}" if act.property_id else ""
-        
-        body = (
-            f"VeriField: Did you receive the {act.activity_type.replace('_', ' ').lower()} installation? "
-            f"Reply YES{code_suffix} to verify, or NO{code_suffix} if not."
-        )
-        
-        logger.info(f"Dispatching verification SMS to {name} ({phone}) for activity {activity_id}...")
-        await send_twilio_sms(phone, body)
+    # Format outbound SMS with verification code (first 8 characters of property UUID)
+    from app.services.sms_service import send_twilio_sms
+    code_suffix = f" {str(act.property_id)[:8]}" if act.property_id else ""
+    
+    body = (
+        f"VeriField: Did you receive the {act.activity_type.replace('_', ' ').lower()} installation? "
+        f"Reply YES{code_suffix} to verify, or NO{code_suffix} if not."
+    )
+    
+    logger.info(f"Dispatching verification SMS to {name} ({phone}) for activity {activity_id}...")
+    await send_twilio_sms(phone, body)
 
 
 async def verify_and_quantify_activity_task(activity_id: UUID, db_session_factory):
@@ -164,7 +173,8 @@ async def verify_and_quantify_activity_task(activity_id: UUID, db_session_factor
         # 4. Dispatch SMS verification request to beneficiary if verified/review
         if activity.status in ("verified", "review") and activity.activity_type in ("CLEAN_COOKING", "HYBRID_ENERGY"):
             try:
-                await dispatch_sms_verification(activity.id, db_session_factory)
+                # Pass the existing db session directly to avoid checking out a second connection
+                await dispatch_sms_verification(activity.id, db)
                 logger.info(f"Background verification: SMS verification dispatched for {activity_id}")
             except Exception as e:
                 logger.error(f"Background verification: SMS dispatch failed for {activity_id}: {e}")

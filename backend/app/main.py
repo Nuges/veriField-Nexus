@@ -315,8 +315,8 @@ async def lifespan(app: FastAPI):
                     project_id = '00000000-0000-0000-0000-000000000001'
                     
                     await session.execute(text("""
-                        INSERT INTO projects (id, project_code, name, sector, country, methodology_id, baseline_source)
-                        VALUES (:id, 'VF-CS-001', 'CSI Biochar C-Sink Project', 'cookstove', 'Nigeria', 'CSI Global Artisan C-Sink Standard v2.1', 'diesel_generator')
+                        INSERT INTO projects (id, project_code, name, sector, country, methodology_id, baseline_source, baseline_parameters)
+                        VALUES (:id, 'VF-CS-001', 'CSI Biochar C-Sink Project', 'cookstove', 'Nigeria', 'CSI Global Artisan C-Sink Standard v2.1', 'diesel_generator', '{}'::jsonb)
                         ON CONFLICT (id) DO NOTHING
                     """), {"id": project_id})
                     
@@ -366,7 +366,7 @@ async def lifespan(app: FastAPI):
     yield
 
     # Shutdown
-    shutdown_scheduler()
+    await shutdown_scheduler()
     from app.db.session import engine
     await engine.dispose()
 
