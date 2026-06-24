@@ -13,7 +13,7 @@ from typing import List, Dict, Any, Optional
 from pydantic import BaseModel, Field
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update, insert
+from sqlalchemy import select, update, insert, text
 from sqlalchemy.orm import selectinload
 
 from app.db.session import get_db
@@ -305,27 +305,41 @@ async def create_bundle(payload: BundleCreateRequest, db: AsyncSession = Depends
     # Let's read constants from csi_parameters table (defaulting if query fails)
     from sqlalchemy import text
     margin = 0.90
+    moisture_fallback = 0.85
     try:
         margin_res = await db.execute(text("SELECT value FROM csi_parameters WHERE id = 'margin_of_security'"))
         val = margin_res.scalar()
         if val is not None:
             margin = val
+            
+        moisture_res = await db.execute(text("SELECT value FROM csi_parameters WHERE id = 'moisture_correction_factor'"))
+        m_val = moisture_res.scalar()
+        if m_val is not None:
+            moisture_fallback = m_val
     except Exception:
         pass
 
+    total_co2e = 0.0
     total_weight_kg = 0.0
     for act in activities:
-        weight = float(act.activity_data.get("batch_weight_kg", 0.0))
-        moisture = float(act.activity_data.get("moisture_content_pct", 0.0)) / 100.0
-        c_pct = float(act.activity_data.get("lab_carbon_content_pct", 0.0)) / 100.0
+        act_data = act.activity_data or {}
+        weight = float(act_data.get("batch_weight_kg", 0.0))
         
-        # Formula: kg_biochar * C_pct * 3.67 * (1 - moisture) * security_margin / 1000
-        co2e = weight * c_pct * 3.67 * (1 - moisture) * margin / 1000.0
+        moisture_val = act_data.get("moisture_content_pct")
+        if moisture_val is not None:
+            moisture_multiplier = 1.0 - (float(moisture_val) / 100.0)
+        else:
+            moisture_multiplier = moisture_fallback
+            
+        c_pct = float(act_data.get("lab_carbon_content_pct", 0.0)) / 100.0
+        
+        # Formula: kg_biochar * C_pct * 3.67 * moisture_multiplier * security_margin / 1000
+        co2e = weight * c_pct * 3.67 * moisture_multiplier * margin / 1000.0
+        total_co2e += co2e
         total_weight_kg += weight
 
-    # Calculate aggregate tCO2e
     c_content_val = float(c_content)
-    total_co2e = total_weight_kg * (c_content_val / 100.0) * 3.67 * 0.85 * margin / 1000.0 # moisture fallback
+
 
     # Rule: Minimum >= 1 tCO2e
     if total_co2e < 1.0:
@@ -408,22 +422,35 @@ async def get_csi_ledger(db: AsyncSession = Depends(get_db), user = Depends(get_
     # Calculate carbon credits dynamically for ledger view
     ledger_data = []
     margin = 0.90
+    moisture_fallback = 0.85
     try:
         margin_res = await db.execute(text("SELECT value FROM csi_parameters WHERE id = 'margin_of_security'"))
         val = margin_res.scalar()
         if val is not None:
             margin = val
+            
+        moisture_res = await db.execute(text("SELECT value FROM csi_parameters WHERE id = 'moisture_correction_factor'"))
+        m_val = moisture_res.scalar()
+        if m_val is not None:
+            moisture_fallback = m_val
     except Exception:
         pass
 
     for act in activities:
         act_data = act.activity_data or {}
         weight = float(act_data.get("batch_weight_kg", 0.0))
-        moisture = float(act_data.get("moisture_content_pct", 0.0)) / 100.0
+        
+        moisture_val = act_data.get("moisture_content_pct")
+        if moisture_val is not None:
+            moisture_multiplier = 1.0 - (float(moisture_val) / 100.0)
+        else:
+            moisture_multiplier = moisture_fallback
+            
         c_pct = float(act_data.get("lab_carbon_content_pct", 0.0)) / 100.0
         
-        # Formula: kg_biochar * C_pct * 3.67 * (1 - moisture) * security_margin / 1000
-        co2e = weight * c_pct * 3.67 * (1 - moisture) * margin / 1000.0
+        # Formula: kg_biochar * C_pct * 3.67 * moisture_multiplier * security_margin / 1000
+        co2e = weight * c_pct * 3.67 * moisture_multiplier * margin / 1000.0
+
         
         # Check sync status if bundled
         sync_status = "unbundled"
