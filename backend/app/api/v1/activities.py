@@ -237,6 +237,18 @@ def calculate_carbon_offset(activity_type: str, data: dict) -> dict:
             "emission_reduction_value_kg": estimated_kg,
             "methodology_reference": "Verra AMS-I.F / Gold Standard Renewable Energy",
         }
+    elif activity_type_upper == "BIOCHAR_C_SINK":
+        try:
+            weight = float(data.get("batch_weight_kg", 0.0))
+            moisture = float(data.get("moisture_content_pct", 0.0)) / 100.0
+            c_pct = float(data.get("lab_carbon_content_pct", 70.0)) / 100.0
+            estimated_kg = round(weight * c_pct * 3.67 * (1 - moisture) * 0.90, 2)
+        except (ValueError, TypeError):
+            estimated_kg = 0.0
+        return {
+            "emission_reduction_value_kg": estimated_kg,
+            "methodology_reference": "CSI Global Artisan C-Sink Standard v2.1",
+        }
     # Fallback for any legacy data
     return {
         "emission_reduction_value_kg": 0.0,
@@ -367,6 +379,16 @@ async def create_activity(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Missing required Solar PV Installation image proof"
         )
+    if payload.activity_type == "BIOCHAR_C_SINK":
+        from app.services.csi_validation import validate_csi_plausibility
+        validation_result = await validate_csi_plausibility(
+            payload.activity_data or {}, payload.latitude, payload.longitude, db
+        )
+        if validation_result["status"] == "failed":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=validation_result
+            )
 
     phash = await compute_phash(payload.image_url)
     
@@ -511,6 +533,19 @@ async def batch_create_activities(
                     "error": "Missing required Solar PV Installation image proof"
                 })
                 continue
+            if activity_data.activity_type == "BIOCHAR_C_SINK":
+                from app.services.csi_validation import validate_csi_plausibility
+                validation_result = await validate_csi_plausibility(
+                    activity_data.activity_data or {}, activity_data.latitude, activity_data.longitude, db
+                )
+                if validation_result["status"] == "failed":
+                    errors += 1
+                    results.append({
+                        "client_id": activity_data.client_id,
+                        "status": "error",
+                        "error": "; ".join(validation_result["errors"])
+                    })
+                    continue
 
             phash = await compute_phash(activity_data.image_url)
             

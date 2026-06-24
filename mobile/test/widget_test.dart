@@ -9,7 +9,7 @@ import 'package:flutter/foundation.dart';
 void main() {
   group('ApiService.baseUrl Tests', () {
     test('Returns default environment URL when no environment variable is provided', () {
-      expect(ApiService.baseUrl, equals('http://192.168.1.100:8000/api/v1'));
+      expect(ApiService.baseUrl, equals('https://verifield-nexus.onrender.com/api/v1'));
     });
   });
 }

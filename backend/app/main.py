@@ -16,6 +16,7 @@ from app.api.v1 import auth, activities, properties, analytics, export, cross_ve
 from app.api.v1 import registry, settings as api_settings
 from app.api.v1 import energy as energy_api
 from app.api.v1 import projects as projects_api
+from app.api.v1 import csink
 
 
 # ---------------------------------------------------------------------------
@@ -178,8 +179,176 @@ async def lifespan(app: FastAPI):
                     """), {"pw_hash": pw_hash})
                     await session.commit()
                     logger.info("Super Admin 'superadmin@verifield.io' seeded successfully!")
+
+                # === CSI Carbon Sink MRV Module Schema Updates ===
+                logger.info("Syncing CSI Carbon Sink module database schema...")
+                await session.execute(text("SET LOCAL lock_timeout = 3000"))
+                await session.execute(text("""
+                    CREATE TABLE IF NOT EXISTS artisan_profiles (
+                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                        name VARCHAR(255) NOT NULL,
+                        phone VARCHAR(20) NULL,
+                        kiln_type VARCHAR(100) NOT NULL,
+                        proficiency_passed BOOLEAN DEFAULT false,
+                        volume_measuring_device_m3 FLOAT DEFAULT 0.0,
+                        client_id VARCHAR(36) NULL UNIQUE,
+                        gps JSONB NULL,
+                        timestamp TIMESTAMP WITH TIME ZONE DEFAULT now(),
+                        evidence_links JSONB NULL
+                    )
+                """))
+                await session.execute(text("""
+                    CREATE TABLE IF NOT EXISTS kiln_profiles (
+                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                        artisan_id UUID NOT NULL REFERENCES artisan_profiles(id) ON DELETE CASCADE,
+                        serial_number VARCHAR(100) NOT NULL UNIQUE,
+                        surface_area_m2 FLOAT NOT NULL,
+                        depth_m FLOAT NOT NULL,
+                        capacity_m3 FLOAT NOT NULL,
+                        methane_emission_factor FLOAT DEFAULT 0.0,
+                        client_id VARCHAR(36) NULL,
+                        gps JSONB NULL,
+                        timestamp TIMESTAMP WITH TIME ZONE DEFAULT now(),
+                        evidence_links JSONB NULL
+                    )
+                """))
+                await session.execute(text("""
+                    CREATE TABLE IF NOT EXISTS biomass_profiles (
+                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                        name VARCHAR(255) NOT NULL,
+                        mixing_ratio VARCHAR(100) NOT NULL,
+                        carbon_content_pct FLOAT NOT NULL,
+                        bulk_density_g_cm3 FLOAT NOT NULL,
+                        methane_compensation_scheme VARCHAR(100) NOT NULL,
+                        client_id VARCHAR(36) NULL,
+                        gps JSONB NULL,
+                        timestamp TIMESTAMP WITH TIME ZONE DEFAULT now(),
+                        evidence_links JSONB NULL
+                    )
+                """))
+                await session.execute(text("""
+                    CREATE TABLE IF NOT EXISTS biochar_batches (
+                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                        kiln_id UUID NOT NULL REFERENCES kiln_profiles(id) ON DELETE CASCADE,
+                        biomass_id UUID NOT NULL REFERENCES biomass_profiles(id) ON DELETE CASCADE,
+                        batch_number VARCHAR(100) NOT NULL UNIQUE,
+                        quantity_kg FLOAT NOT NULL,
+                        produced_at TIMESTAMP WITH TIME ZONE NOT NULL,
+                        lab_report_url VARCHAR(500) NULL,
+                        client_id VARCHAR(36) NULL,
+                        gps JSONB NULL,
+                        timestamp TIMESTAMP WITH TIME ZONE DEFAULT now(),
+                        evidence_links JSONB NULL
+                    )
+                """))
+                await session.execute(text("""
+                    CREATE TABLE IF NOT EXISTS qr_records (
+                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                        qr_id VARCHAR(100) NOT NULL UNIQUE,
+                        batch_id UUID NOT NULL REFERENCES biochar_batches(id) ON DELETE CASCADE,
+                        verification_status VARCHAR(20) DEFAULT 'verified',
+                        created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+                    )
+                """))
+                await session.execute(text("""
+                    CREATE TABLE IF NOT EXISTS c_sink_units (
+                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                        name VARCHAR(255) NOT NULL,
+                        total_co2e_t FLOAT NOT NULL,
+                        carbon_content_pct FLOAT NOT NULL,
+                        biomass_type VARCHAR(255) NOT NULL,
+                        pyrolysis_technology VARCHAR(255) NOT NULL,
+                        matrix_category VARCHAR(255) NOT NULL,
+                        project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+                        created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+                        client_id VARCHAR(36) NULL,
+                        gps JSONB NULL,
+                        timestamp TIMESTAMP WITH TIME ZONE DEFAULT now(),
+                        evidence_links JSONB NULL
+                    )
+                """))
+                await session.execute(text("""
+                    CREATE TABLE IF NOT EXISTS c_sink_transactions (
+                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                        c_sink_unit_id UUID NOT NULL REFERENCES c_sink_units(id) ON DELETE CASCADE,
+                        transaction_type VARCHAR(20) NOT NULL,
+                        registry_tx_id VARCHAR(255) NULL,
+                        payload JSONB NOT NULL,
+                        status VARCHAR(20) DEFAULT 'PENDING',
+                        response_log TEXT NULL,
+                        created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+                    )
+                """))
+                await session.execute(text("""
+                    CREATE TABLE IF NOT EXISTS csi_parameters (
+                        id VARCHAR(50) PRIMARY KEY,
+                        value FLOAT NOT NULL,
+                        description VARCHAR(255) NOT NULL,
+                        source_reference VARCHAR(255) NULL,
+                        updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+                    )
+                """))
+                await session.execute(text("ALTER TABLE activities ADD COLUMN IF NOT EXISTS biochar_batch_id UUID REFERENCES biochar_batches(id) ON DELETE SET NULL"))
+                await session.execute(text("ALTER TABLE activities ADD COLUMN IF NOT EXISTS c_sink_unit_id UUID REFERENCES c_sink_units(id) ON DELETE SET NULL"))
+                await session.commit()
+                logger.info("CSI database tables verified/created successfully!")
+
+                # Seed default parameters
+                await session.execute(text("SET LOCAL lock_timeout = 3000"))
+                await session.execute(text("""
+                    INSERT INTO csi_parameters (id, value, description, source_reference)
+                    VALUES 
+                        ('diesel_emission_factor', 2.68, 'Diesel fuel lifecycle emission factor (kg CO2e/L)', 'CSI Global C-Sink standard'),
+                        ('ch4_avoidance_traditional', 1.5, 'Methane emission avoidance for clean pyrolysis vs open burn (kg CH4/t)', 'CSI Guideline 2026'),
+                        ('moisture_correction_factor', 0.85, 'Default biochar dry matter correction multiplier (1 - moisture %)', 'EBC guidelines v10.0'),
+                        ('margin_of_security', 0.90, 'Standard CSI security margin correction factor (10% deduction)', 'CSI Artisan C-Sink standard')
+                    ON CONFLICT (id) DO NOTHING
+                """))
+                
+                # Seed default Artisan, Kiln and Biomass for immediate out-of-the-box local testing
+                result = await session.execute(text("SELECT 1 FROM artisan_profiles LIMIT 1"))
+                if not result.scalar():
+                    artisan_id = '11111111-1111-1111-1111-111111111111'
+                    kiln_id = '22222222-2222-2222-2222-222222222222'
+                    biomass_id = '33333333-3333-3333-3333-333333333333'
+                    batch_id = '44444444-4444-4444-4444-444444444444'
+                    project_id = '00000000-0000-0000-0000-000000000001'
+                    
+                    await session.execute(text("""
+                        INSERT INTO projects (id, project_code, name, sector, country, methodology_id, baseline_source)
+                        VALUES (:id, 'VF-CS-001', 'CSI Biochar C-Sink Project', 'cookstove', 'Nigeria', 'CSI Global Artisan C-Sink Standard v2.1', 'diesel_generator')
+                        ON CONFLICT (id) DO NOTHING
+                    """), {"id": project_id})
+                    
+                    await session.execute(text("""
+                        INSERT INTO artisan_profiles (id, name, phone, kiln_type, proficiency_passed, volume_measuring_device_m3)
+                        VALUES (:id, 'Segun Biocharist', '+2348011223344', 'Kon-Tiki Flame Cap', true, 1.2)
+                    """), {"id": artisan_id})
+                    
+                    await session.execute(text("""
+                        INSERT INTO kiln_profiles (id, artisan_id, serial_number, surface_area_m2, depth_m, capacity_m3, methane_emission_factor)
+                        VALUES (:id, :artisan_id, 'KILN-KT-001', 2.2, 0.95, 1.5, 0.05)
+                    """), {"id": kiln_id, "artisan_id": artisan_id})
+                    
+                    await session.execute(text("""
+                        INSERT INTO biomass_profiles (id, name, mixing_ratio, carbon_content_pct, bulk_density_g_cm3, methane_compensation_scheme)
+                        VALUES (:id, 'Rice Husk Feedstock', '100% Rice Husk', 71.30, 0.12, 'avoidance')
+                    """), {"id": biomass_id})
+                    
+                    await session.execute(text("""
+                        INSERT INTO biochar_batches (id, kiln_id, biomass_id, batch_number, quantity_kg, produced_at)
+                        VALUES (:id, :kiln_id, :biomass_id, 'BATCH-RH-2026-001', 350.0, now())
+                    """), {"id": batch_id, "kiln_id": kiln_id, "biomass_id": biomass_id})
+                    
+                    await session.execute(text("""
+                        INSERT INTO qr_records (qr_id, batch_id, verification_status)
+                        VALUES ('CSI-EBC-BIO-9921', :batch_id, 'verified')
+                    """), {"batch_id": batch_id})
+                    
+                    logger.info("Successfully seeded default Artisan, Kiln, Biomass, Batch, and QR registry record!")
+                await session.commit()
         except Exception as e:
-            logger.error(f"Failed to auto-run SaaS database schema updates and seeds: {e}")
+            logger.error(f"Failed to auto-run SaaS or CSI database schema updates and seeds: {e}")
 
         async def warm_connection():
             try:
@@ -303,6 +472,7 @@ app.include_router(api_settings.router, prefix=API_PREFIX)
 app.include_router(energy_api.router, prefix=API_PREFIX)
 app.include_router(projects_api.router, prefix=API_PREFIX)
 app.include_router(access_requests.router, prefix=API_PREFIX)
+app.include_router(csink.router, prefix=API_PREFIX)
 
 
 # ---------------------------------------------------------------------------

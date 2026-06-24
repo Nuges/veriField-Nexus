@@ -21,6 +21,7 @@ from enum import Enum
 class ActivityType(str, Enum):
     CLEAN_COOKING = "CLEAN_COOKING"
     HYBRID_ENERGY = "HYBRID_ENERGY"
+    BIOCHAR_C_SINK = "BIOCHAR_C_SINK"
 
 
 # ---------------------------------------------------------------------------
@@ -110,6 +111,25 @@ ACTIVITY_SCHEMAS: Dict[str, Dict[str, Any]] = {
         "icon": "bolt",
         "description": "Hybrid energy displacement system — Solar/Gas/Diesel conversion for carbon credits",
         "methodology": "Verra AMS-I.F / Gold Standard Renewable Energy",
+    },
+    "BIOCHAR_C_SINK": {
+        "fields": [
+            {"key": "kiln_id", "label": "Kiln ID", "type": "string", "required": True},
+            {"key": "biomass_id", "label": "Biomass ID", "type": "string", "required": True},
+            {"key": "batch_weight_kg", "label": "Batch Yield Weight (kg)", "type": "float", "required": True},
+            {"key": "quench_method", "label": "Quench Method", "type": "enum", "required": True,
+             "options": ["water", "soil", "nutrient_slurry"]},
+            {"key": "lab_carbon_content_pct", "label": "Carbon Content (%)", "type": "float", "required": True},
+            {"key": "lab_hc_ratio", "label": "H/C Ratio", "type": "float", "required": True},
+            {"key": "moisture_content_pct", "label": "Moisture Content (%)", "type": "float", "required": True},
+            {"key": "application_matrix", "label": "Application Matrix", "type": "enum", "required": True,
+             "options": ["soil_amendment", "compost_additive", "concrete_admixture", "animal_feed", "biomaterial"]},
+            {"key": "recipient_farmer_id", "label": "Recipient Farmer ID", "type": "string", "required": True},
+            {"key": "qr_id", "label": "EBC/WBC QR Code ID", "type": "string", "required": True},
+        ],
+        "icon": "eco",
+        "description": "Biochar production, tracking, and matrix application",
+        "methodology": "CSI Global Artisan C-Sink Standard v2.1",
     },
 }
 
@@ -213,6 +233,8 @@ class ActivityResponse(BaseModel):
     status: str
     client_id: Optional[str] = None
     created_at: datetime
+    biochar_batch_id: Optional[UUID] = None
+    c_sink_unit_id: Optional[UUID] = None
 
     model_config = {"from_attributes": True}
 

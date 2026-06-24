@@ -190,6 +190,56 @@ final List<ActivityTypeConfig> activityTypes = [
       ),
     ],
   ),
+  ActivityTypeConfig(
+    id: 'BIOCHAR_C_SINK',
+    label: 'Biochar C-Sink',
+    description: 'Biochar production & matrix application tracking',
+    icon: Icons.eco_rounded,
+    color: Color(0xFF10B981), // Emerald/Green
+    methodology: 'CSI Global Artisan C-Sink Standard v2.1',
+    fields: [
+      FormFieldDef(key: 'kiln_id', label: 'Kiln Profile ID', type: 'enum', required: true,
+          options: ['default_kiln']),
+      FormFieldDef(key: 'biomass_id', label: 'Biomass Profile ID', type: 'enum', required: true,
+          options: ['default_biomass']),
+      FormFieldDef(key: 'batch_weight_kg', label: 'Batch Yield Weight (kg)', type: 'float', required: true),
+      FormFieldDef(key: 'quench_method', label: 'Quench Method', type: 'enum', required: true,
+          options: ['water', 'soil', 'nutrient_slurry']),
+      FormFieldDef(key: 'lab_carbon_content_pct', label: 'Dry Carbon Content (%)', type: 'float', required: true),
+      FormFieldDef(key: 'lab_hc_ratio', label: 'H/C Ratio (stability check)', type: 'float', required: true),
+      FormFieldDef(key: 'moisture_content_pct', label: 'Moisture Content (%)', type: 'float', required: true),
+      FormFieldDef(key: 'application_matrix', label: 'Application Matrix Category', type: 'enum', required: true,
+          options: ['soil_amendment', 'compost_additive', 'concrete_admixture', 'animal_feed', 'biomaterial']),
+      FormFieldDef(key: 'recipient_farmer_id', label: 'Recipient Farmer ID', type: 'string', required: true),
+      FormFieldDef(key: 'qr_id', label: 'EBC/WBC QR Code ID', type: 'string', required: true),
+    ],
+    photos: [
+      PhotoFieldDef(
+        key: 'kiln_pyrolysis',
+        label: 'Pyrolysis Run Photo',
+        required: true,
+        prompt: 'Capture clean combustion inside the kiln (smoke-free proof).',
+      ),
+      PhotoFieldDef(
+        key: 'weight_verification',
+        label: 'Biochar Scale Photo',
+        required: true,
+        prompt: 'Capture the yield bags resting on the measuring scale.',
+      ),
+      PhotoFieldDef(
+        key: 'lab_analysis_report',
+        label: 'Lab Certificate Photo',
+        required: true,
+        prompt: 'Capture the laboratory analysis certificate showing C and H/C ratios.',
+      ),
+      PhotoFieldDef(
+        key: 'application_proof',
+        label: 'Matrix Application Photo',
+        required: true,
+        prompt: 'Capture the biochar being mixed into its destination matrix (e.g. soil or compost).',
+      ),
+    ],
+  ),
 ];
 
 /// Lookup helper.

@@ -28,6 +28,7 @@ import '../../../services/local_db_service.dart';
 import '../../../services/api_service.dart';
 import '../../../services/device_service.dart';
 import '../models/activity_type_config.dart';
+import 'qr_scanner_screen.dart';
 import 'dart:convert';
 
 class ActivityFormScreen extends StatefulWidget {
@@ -45,10 +46,41 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
   String? _selectedTypeId;
   ActivityTypeConfig? _selectedConfig;
 
+  // CSI C-Sink dynamic lists
+  List<Map<String, dynamic>> _kilns = [];
+  List<Map<String, dynamic>> _biomasses = [];
+  bool _isLoadingProfiles = false;
+
+  Future<void> _fetchCsiProfiles() async {
+    setState(() => _isLoadingProfiles = true);
+    try {
+      final isOnline = await SyncService.isOnline();
+      if (isOnline) {
+        final kilnsRes = await ApiService.get('/csink/kilns');
+        final biomassRes = await ApiService.get('/csink/biomass');
+        if (mounted) {
+          setState(() {
+            _kilns = List<Map<String, dynamic>>.from(kilnsRes['data'] ?? []);
+            _biomasses = List<Map<String, dynamic>>.from(biomassRes['data'] ?? []);
+          });
+        }
+      }
+    } catch (_) {
+      // Offline fallback remains active
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingProfiles = false);
+      }
+    }
+  }
+
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _captureLocation());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _captureLocation();
+      _fetchCsiProfiles();
+    });
   }
 
   // Step 2: Dynamic field values
@@ -514,6 +546,10 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
                   for (final field in config.fields) {
                     if (field.type == 'boolean') {
                       _fieldValues[field.key] = false;
+                    } else if (field.key == 'kiln_id') {
+                      _fieldValues[field.key] = '22222222-2222-2222-2222-222222222222'; // Match seeded Kiln ID fallback
+                    } else if (field.key == 'biomass_id') {
+                      _fieldValues[field.key] = '33333333-3333-3333-3333-333333333333'; // Match seeded Biomass ID fallback
                     }
                   }
                 });
@@ -630,6 +666,50 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
           onChanged: (v) => setState(() => _fieldValues[field.key] = v),
         );
       default:
+        if (field.key == 'qr_id') {
+          final controller = _controllerFor(field.key);
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: VFTextField(
+                  label: '${field.label}${field.required ? " *" : ""}',
+                  hint: 'e.g. CSI-EBC-BIO-9921',
+                  controller: controller,
+                  onChanged: (v) => setState(() => _fieldValues[field.key] = v),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4.0),
+                child: Container(
+                  height: 48,
+                  width: 48,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+                  ),
+                  child: IconButton(
+                    icon: const Icon(Icons.qr_code_scanner_rounded, color: AppColors.primary),
+                    onPressed: () async {
+                      final code = await Navigator.push<String>(
+                        context,
+                        MaterialPageRoute(builder: (context) => const QrScannerScreen()),
+                      );
+                      if (code != null) {
+                        setState(() {
+                          _fieldValues[field.key] = code;
+                          controller.text = code;
+                        });
+                      }
+                    },
+                  ),
+                ),
+              ),
+            ],
+          );
+        }
         return VFTextField(
           label: '${field.label}${field.required ? " *" : ""}',
           hint: 'Enter ${field.label.toLowerCase()}',
@@ -641,6 +721,31 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
 
   Widget _buildEnumField(FormFieldDef field) {
     final current = _fieldValues[field.key] as String?;
+    List<String> options = field.options ?? [];
+    Map<String, String> friendlyLabels = {};
+
+    if (field.key == 'kiln_id') {
+      if (_kilns.isNotEmpty) {
+        options = _kilns.map((k) => k['id'].toString()).toList();
+        for (var k in _kilns) {
+          friendlyLabels[k['id'].toString()] = k['serial_number'].toString();
+        }
+      } else {
+        options = ['22222222-2222-2222-2222-222222222222'];
+        friendlyLabels['22222222-2222-2222-2222-222222222222'] = 'KILN-KT-001 (Kon-Tiki)';
+      }
+    } else if (field.key == 'biomass_id') {
+      if (_biomasses.isNotEmpty) {
+        options = _biomasses.map((b) => b['id'].toString()).toList();
+        for (var b in _biomasses) {
+          friendlyLabels[b['id'].toString()] = b['name'].toString();
+        }
+      } else {
+        options = ['33333333-3333-3333-3333-333333333333'];
+        friendlyLabels['33333333-3333-3333-3333-333333333333'] = 'Rice Husk Feedstock';
+      }
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -649,8 +754,9 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
         const SizedBox(height: AppSpacing.sm),
         Wrap(
           spacing: AppSpacing.sm, runSpacing: AppSpacing.sm,
-          children: (field.options ?? []).map((opt) {
+          children: options.map((opt) {
             final isSelected = current == opt;
+            final displayText = friendlyLabels[opt] ?? opt.replaceAll('_', ' ').toUpperCase();
             return GestureDetector(
               onTap: () => setState(() => _fieldValues[field.key] = opt),
               child: Container(
@@ -660,7 +766,7 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
                   borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
                   border: Border.all(color: isSelected ? AppColors.primary : AppColors.border),
                 ),
-                child: Text(opt.replaceAll('_', ' ').toUpperCase(),
+                child: Text(displayText,
                     style: AppTypography.caption.copyWith(
                       fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
                       color: isSelected ? AppColors.primary : AppColors.textSecondary,

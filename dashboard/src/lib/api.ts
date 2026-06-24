@@ -525,6 +525,10 @@ export async function fetchProjectTotal(projectId: string): Promise<any> {
   return apiFetch<any>(`/carbon/projects/${projectId}/total`);
 }
 
+export async function fetchProjects(sector?: string): Promise<{ items: any[], total: number }> {
+  return apiFetch<{ items: any[], total: number }>(`/projects${sector ? `?sector=${sector}` : ""}`);
+}
+
 export async function createCarbonProject(data: {
   name: string;
   methodology_id: string;
@@ -780,6 +784,44 @@ export async function fetchGlobalAnalytics() {
     };
   }>("/admin/global-analytics");
 }
+
+// --- CSI Carbon C-Sink Module API Helpers ---
+export async function fetchCsiLedger() {
+  return apiFetch<any>("/csink/ledger");
+}
+
+export async function fetchCsiParameters() {
+  return apiFetch<any[]>("/csink/parameters");
+}
+
+export async function updateCsiParameter(paramId: string, payload: { value: number; description?: string; source_reference?: string }) {
+  return apiFetch<any>(`/csink/parameters/${paramId}`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function fetchKilns() {
+  return apiFetch<any[]>("/csink/kilns");
+}
+
+export async function fetchBiomass() {
+  return apiFetch<any[]>("/csink/biomass");
+}
+
+export async function createCsiBundle(payload: { name: string; project_id: string; activity_ids: string[] }) {
+  return apiFetch<any>("/csink/bundles", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function syncBundleToRegistry(bundleId: string) {
+  return apiFetch<any>(`/csink/sync-registry/${bundleId}`, {
+    method: "POST",
+  });
+}
+
 
 
 

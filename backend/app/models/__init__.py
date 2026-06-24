@@ -11,9 +11,11 @@ from app.models.project import Project
 from app.models.carbon_calculation import CarbonCalculation
 from app.models.organization import Organization
 from app.models.access_request import AccessRequest
+from app.models.carbon_sink import ArtisanProfile, KilnProfile, BiomassProfile, BiocharBatch, QrRecord, CSinkUnit, CSinkTransaction
 
 __all__ = [
     "User", "Activity", "Property", "TrustLog", "AnomalyFlag",
     "SensorReading", "CommunityValidation", "CommunityComment", "AuditTask",
-    "Project", "CarbonCalculation", "Organization", "AccessRequest"
+    "Project", "CarbonCalculation", "Organization", "AccessRequest",
+    "ArtisanProfile", "KilnProfile", "BiomassProfile", "BiocharBatch", "QrRecord", "CSinkUnit", "CSinkTransaction"
 ]

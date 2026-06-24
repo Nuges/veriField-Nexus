@@ -12,6 +12,7 @@ Represents a single field activity submission. Each activity includes:
 """
 
 import uuid
+from typing import Optional
 from datetime import datetime, timezone
 from sqlalchemy import String, Float, DateTime, ForeignKey, Text, Boolean, text
 from sqlalchemy.dialects.postgresql import UUID, JSONB
@@ -128,6 +129,19 @@ class Activity(Base):
         default=lambda: datetime.now(timezone.utc),
         server_default=text("now()"),
     )
+
+    # --- Carbon C-Sink Module Mappings ---
+    biochar_batch_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("biochar_batches.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    c_sink_unit_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("c_sink_units.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
 
     # --- Relationships ---
     user = relationship("User", back_populates="activities")
