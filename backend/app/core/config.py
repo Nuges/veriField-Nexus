@@ -7,10 +7,11 @@ Settings. All secrets and feature flags are managed here.
 =============================================================================
 """
 
-from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import model_validator
-from typing import List
 import json
+from typing import List
+
+from pydantic import model_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -24,10 +25,21 @@ class Settings(BaseSettings):
     app_version: str = "1.0.0"
     debug: bool = False
     dev_mode: bool = False  # Enable offline login bypass (set DEV_MODE=true in .env)
+    solana_anchor_enabled: bool = (
+        False  # Feature flag to toggle actual Solana blockchain anchoring
+    )
+    redis_url: str = "redis://localhost:6379/0"
+
+    # --- S3 Storage Configuration ---
+    s3_bucket: str = "verifield-nexus-media"
+    s3_endpoint_url: str = ""
+    s3_access_key_id: str = ""
+    s3_secret_access_key: str = ""
+    s3_region_name: str = "us-east-1"
 
     # --- Supabase Configuration ---
     supabase_url: str = ""
-    supabase_key: str = ""          # Anon key (public, used by clients)
+    supabase_key: str = ""  # Anon key (public, used by clients)
     supabase_service_key: str = ""  # Service role key (server-side only)
 
     # --- Database ---
@@ -38,7 +50,9 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
 
     # --- CORS ---
-    cors_origins: str = '["http://localhost:3000","http://localhost:3001","http://127.0.0.1:3001","http://localhost:8000"]'
+    cors_origins: str = (
+        '["http://localhost:3000","http://localhost:3001","http://127.0.0.1:3001","http://localhost:8000"]'
+    )
 
     @property
     def cors_origins_list(self) -> List[str]:
@@ -49,11 +63,11 @@ class Settings(BaseSettings):
             return ["http://localhost:3000"]
 
     # --- Trust Engine Thresholds ---
-    trust_gps_max_distance_km: float = 5.0        # Max distance from expected location
-    trust_image_hash_threshold: int = 5            # Min hamming distance for uniqueness
-    trust_max_submissions_per_hour: int = 10       # Max submissions before flagging
-    trust_suspicious_hours_start: int = 2           # Night window start (2 AM)
-    trust_suspicious_hours_end: int = 5             # Night window end (5 AM)
+    trust_gps_max_distance_km: float = 5.0  # Max distance from expected location
+    trust_image_hash_threshold: int = 5  # Min hamming distance for uniqueness
+    trust_max_submissions_per_hour: int = 10  # Max submissions before flagging
+    trust_suspicious_hours_start: int = 2  # Night window start (2 AM)
+    trust_suspicious_hours_end: int = 5  # Night window end (5 AM)
 
     # --- Twilio Configuration ---
     twilio_account_sid: str = ""
@@ -84,19 +98,16 @@ class Settings(BaseSettings):
         4. Config's supabase_key field (fallback for dev environments)
         """
         import os
+
         return (
-            os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or
-            os.environ.get("SUPABASE_SERVICE_KEY") or
-            self.supabase_service_key or
-            self.supabase_key
+            os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+            or os.environ.get("SUPABASE_SERVICE_KEY")
+            or self.supabase_service_key
+            or self.supabase_key
         )
 
-
     model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        case_sensitive=False,
-        extra="ignore"
+        env_file=".env", env_file_encoding="utf-8", case_sensitive=False, extra="ignore"
     )
 
 

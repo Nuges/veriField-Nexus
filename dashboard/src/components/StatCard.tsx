@@ -25,7 +25,7 @@ export default function StatCard({
   color = "emerald",
 }: StatCardProps) {
   const colorMap: Record<string, { bg: string; text: string; icon: string }> = {
-    emerald: { bg: "bg-emerald-500/10", text: "text-emerald-400", icon: "text-emerald-500" },
+    emerald: { bg: "bg-emerald-500/10", text: "text-emerald-600 dark:text-emerald-400", icon: "text-emerald-500" },
     blue: { bg: "bg-blue-500/10", text: "text-blue-400", icon: "text-blue-500" },
     amber: { bg: "bg-amber-500/10", text: "text-amber-400", icon: "text-amber-500" },
     red: { bg: "bg-red-500/10", text: "text-red-400", icon: "text-red-500" },
@@ -47,7 +47,7 @@ export default function StatCard({
           <span
             className={`text-xs font-semibold px-2 py-1 rounded-lg ${
               trendUp
-                ? "bg-emerald-500/10 text-emerald-400"
+                ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
                 : "bg-red-500/10 text-red-400"
             }`}
           >

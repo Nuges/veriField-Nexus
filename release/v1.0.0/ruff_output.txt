@@ -1,0 +1,390 @@
+warning: The top-level linter settings are deprecated in favour of their counterparts in the `lint` section. Please update the following options in `pyproject.toml`:
+  - 'ignore' -> 'lint.ignore'
+F401 [*] `alembic.op` imported but unused
+ --> alembic/versions/2026_07_13_0937-3307d715f0e7_add_missing_tables.py:8:21
+  |
+7 | """
+8 | from alembic import op
+  |                     ^^
+9 | import sqlalchemy as sa
+  |
+help: Remove unused import: `alembic.op`
+
+F401 [*] `sqlalchemy` imported but unused
+ --> alembic/versions/2026_07_13_0937-3307d715f0e7_add_missing_tables.py:9:22
+  |
+7 | """
+8 | from alembic import op
+9 | import sqlalchemy as sa
+  |                      ^^
+  |
+help: Remove unused import: `sqlalchemy`
+
+F401 [*] `math` imported but unused
+ --> app/domains/methodologies/calculators/base.py:2:8
+  |
+1 | import logging
+2 | import math
+  |        ^^^^
+3 | import asteval
+4 | from abc import ABC, abstractmethod
+  |
+help: Remove unused import: `math`
+
+F401 [*] `app.models` imported but unused
+ --> create_tables.py:5:8
+  |
+3 | from app.db.base import Base
+4 | from app.core.config import settings
+5 | import app.models
+  |        ^^^^^^^^^^
+6 |
+7 | async def main():
+  |
+help: Remove unused import: `app.models`
+
+F541 [*] f-string without any placeholders
+   --> e2e_production_scenario.py:158:15
+    |
+156 |         res = await client.post(f"/iiot/ingest/{device_id}?protocol=mqtt", json=telemetry_payload)
+157 |         assert res.status_code in (200, 201, 202), f"Failed: {res.status_code} {res.text}"
+158 |         print(f"   Ingested Telemetry")
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^
+159 |         
+160 |         # 7. Verification
+    |
+help: Remove extraneous `f` prefix
+
+F401 [*] `os` imported but unused
+ --> fix_plugins_final.py:2:8
+  |
+1 | import re
+2 | import os
+  |        ^^
+3 |
+4 | files_to_fix = [
+  |
+help: Remove unused import: `os`
+
+F401 [*] `sys` imported but unused
+ --> run_quantification.py:2:8
+  |
+1 | import asyncio
+2 | import sys
+  |        ^^^
+3 | from uuid import UUID
+4 | from sqlalchemy import select
+  |
+help: Remove unused import: `sys`
+
+F401 [*] `uuid.UUID` imported but unused
+ --> run_quantification.py:3:18
+  |
+1 | import asyncio
+2 | import sys
+3 | from uuid import UUID
+  |                  ^^^^
+4 | from sqlalchemy import select
+5 | from app.db.session import async_session_factory
+  |
+help: Remove unused import: `uuid.UUID`
+
+F401 [*] `sys` imported but unused
+ --> run_worker.py:2:8
+  |
+1 | import asyncio
+2 | import sys
+  |        ^^^
+3 | from app.db.session import async_session_factory
+4 | from app.services.jobs.verification_worker import process_pending_activities
+  |
+help: Remove unused import: `sys`
+
+F401 [*] `app.db.session.async_session_factory` imported but unused
+ --> run_worker.py:3:28
+  |
+1 | import asyncio
+2 | import sys
+3 | from app.db.session import async_session_factory
+  |                            ^^^^^^^^^^^^^^^^^^^^^
+4 | from app.services.jobs.verification_worker import process_pending_activities
+  |
+help: Remove unused import: `app.db.session.async_session_factory`
+
+F401 [*] `app.core.config.settings` imported but unused
+  --> scripts/dev/run_empty_db_validation.py:10:29
+   |
+ 8 | sys.path.append(backend_path)
+ 9 |
+10 | from app.core.config import settings
+   |                             ^^^^^^^^
+11 | from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
+12 | from app.domains.methodologies.models import MethodologyFamily, MethodologyRegistry, Methodology, MethodologyVersion
+   |
+help: Remove unused import: `app.core.config.settings`
+
+F401 [*] `uuid` imported but unused
+ --> scripts/final_acceptance.py:3:8
+  |
+1 | import asyncio
+2 | import httpx
+3 | import uuid
+  |        ^^^^
+4 | import sys
+  |
+help: Remove unused import: `uuid`
+
+F401 [*] `app.models` imported but unused
+ --> scripts/seed_blue_carbon.py:7:8
+  |
+5 | from app.domains.jurisdictions.models import Jurisdiction
+6 | from app.domains.jurisdictions.service import GovernanceMetadataResolver
+7 | import app.models  # Required for SQLAlchemy relationships
+  |        ^^^^^^^^^^
+8 |
+9 | async def seed_blue_carbon():
+  |
+help: Remove unused import: `app.models`
+
+F401 [*] `json` imported but unused
+ --> scripts/seed_jurisdictions.py:2:8
+  |
+1 | import asyncio
+2 | import json
+  |        ^^^^
+3 | from sqlalchemy import select
+4 | from app.db.session import async_session_factory
+  |
+help: Remove unused import: `json`
+
+F401 [*] `app.models` imported but unused
+ --> scripts/seed_jurisdictions.py:6:8
+  |
+4 | from app.db.session import async_session_factory
+5 | from app.domains.jurisdictions.models import Jurisdiction, JurisdictionLevel
+6 | import app.models  # Required for SQLAlchemy relationships
+  |        ^^^^^^^^^^
+7 |
+8 | SEED_JURISDICTIONS = [
+  |
+help: Remove unused import: `app.models`
+
+F401 [*] `uuid` imported but unused
+ --> scripts/seed_ui_metadata.py:3:8
+  |
+1 | import asyncio
+2 | import json
+3 | import uuid
+  |        ^^^^
+4 | from sqlalchemy.ext.asyncio import AsyncSession
+5 | from sqlalchemy import select
+  |
+help: Remove unused import: `uuid`
+
+F401 [*] `sqlalchemy.ext.asyncio.AsyncSession` imported but unused
+ --> scripts/seed_ui_metadata.py:4:36
+  |
+2 | import json
+3 | import uuid
+4 | from sqlalchemy.ext.asyncio import AsyncSession
+  |                                    ^^^^^^^^^^^^
+5 | from sqlalchemy import select
+6 | from app.db.session import async_session_factory
+  |
+help: Remove unused import: `sqlalchemy.ext.asyncio.AsyncSession`
+
+F401 [*] `asyncio` imported but unused
+ --> scripts/test_login_route.py:1:8
+  |
+1 | import asyncio
+  |        ^^^^^^^
+2 | from fastapi.testclient import TestClient
+3 | from app.main import app
+  |
+help: Remove unused import: `asyncio`
+
+F841 [*] Local variable `e` is assigned to but never used
+  --> scripts/test_login_route.py:15:25
+   |
+13 |         print(response.status_code)
+14 |         print(response.text)
+15 |     except Exception as e:
+   |                         ^
+16 |         import traceback
+17 |         traceback.print_exc()
+   |
+help: Remove assignment to unused variable `e`
+
+F841 Local variable `resp` is assigned to but never used
+  --> scripts/test_user_query.py:15:13
+   |
+14 |             # This is what auth.py does
+15 |             resp = UserResponse.model_validate(user)
+   |             ^^^^
+16 |             print("Successfully validated UserResponse!")
+17 |     except Exception as e:
+   |
+help: Remove assignment to unused variable `resp`
+
+F841 [*] Local variable `e` is assigned to but never used
+  --> scripts/test_user_query.py:17:25
+   |
+15 |             resp = UserResponse.model_validate(user)
+16 |             print("Successfully validated UserResponse!")
+17 |     except Exception as e:
+   |                         ^
+18 |         import traceback
+19 |         traceback.print_exc()
+   |
+help: Remove assignment to unused variable `e`
+
+F401 [*] `datetime.datetime` imported but unused
+ --> scripts/validate_iiot.py:4:22
+  |
+2 | import uuid
+3 | import sys
+4 | from datetime import datetime, timezone
+  |                      ^^^^^^^^
+5 | import json
+  |
+help: Remove unused import
+
+F401 [*] `datetime.timezone` imported but unused
+ --> scripts/validate_iiot.py:4:32
+  |
+2 | import uuid
+3 | import sys
+4 | from datetime import datetime, timezone
+  |                                ^^^^^^^^
+5 | import json
+  |
+help: Remove unused import
+
+F401 [*] `json` imported but unused
+ --> scripts/validate_iiot.py:5:8
+  |
+3 | import sys
+4 | from datetime import datetime, timezone
+5 | import json
+  |        ^^^^
+6 |
+7 | from sqlalchemy.ext.asyncio import AsyncSession
+  |
+help: Remove unused import: `json`
+
+F401 [*] `sqlalchemy.ext.asyncio.AsyncSession` imported but unused
+ --> scripts/validate_iiot.py:7:36
+  |
+5 | import json
+6 |
+7 | from sqlalchemy.ext.asyncio import AsyncSession
+  |                                    ^^^^^^^^^^^^
+8 | from app.db.session import async_session_factory
+9 | from app.domains.iiot.services.edge_sync import EdgeSyncManager
+  |
+help: Remove unused import: `sqlalchemy.ext.asyncio.AsyncSession`
+
+F401 [*] `app.models` imported but unused
+ --> scripts/validate_inheritance.py:7:8
+  |
+5 | from app.domains.jurisdictions.models import Jurisdiction
+6 | from app.domains.jurisdictions.service import GovernanceMetadataResolver
+7 | import app.models  # Required for SQLAlchemy relationships
+  |        ^^^^^^^^^^
+8 |
+9 | async def test_inheritance():
+  |
+help: Remove unused import: `app.models`
+
+F401 [*] `uuid` imported but unused
+ --> scripts/validate_schema_dac.py:2:8
+  |
+1 | import asyncio
+2 | import uuid
+  |        ^^^^
+3 | from decimal import Decimal
+4 | from sqlalchemy.ext.asyncio import AsyncSession
+  |
+help: Remove unused import: `uuid`
+
+F401 [*] `decimal.Decimal` imported but unused
+ --> scripts/validate_schema_dac.py:3:21
+  |
+1 | import asyncio
+2 | import uuid
+3 | from decimal import Decimal
+  |                     ^^^^^^^
+4 | from sqlalchemy.ext.asyncio import AsyncSession
+5 | from sqlalchemy import select
+  |
+help: Remove unused import: `decimal.Decimal`
+
+F401 [*] `sqlalchemy.ext.asyncio.AsyncSession` imported but unused
+ --> scripts/validate_schema_dac.py:4:36
+  |
+2 | import uuid
+3 | from decimal import Decimal
+4 | from sqlalchemy.ext.asyncio import AsyncSession
+  |                                    ^^^^^^^^^^^^
+5 | from sqlalchemy import select
+  |
+help: Remove unused import: `sqlalchemy.ext.asyncio.AsyncSession`
+
+F401 [*] `os` imported but unused
+ --> setup_schema.py:1:8
+  |
+1 | import os
+  |        ^^
+2 | import asyncio
+3 | from sqlalchemy.ext.asyncio import create_async_engine
+  |
+help: Remove unused import: `os`
+
+F401 [*] `app.core.config.settings` imported but unused
+ --> setup_schema.py:5:29
+  |
+3 | from sqlalchemy.ext.asyncio import create_async_engine
+4 | from app.db.base import Base
+5 | from app.core.config import settings
+  |                             ^^^^^^^^
+6 |
+7 | # Import all models to ensure they are registered with Base.metadata
+  |
+help: Remove unused import: `app.core.config.settings`
+
+F401 [*] `app.main.app` imported but unused
+ --> src/main.py:4:22
+  |
+2 | Compatibility entrypoint for legacy deployments pointing to src.main:app.
+3 | """
+4 | from app.main import app
+  |                      ^^^
+  |
+help: Remove unused import: `app.main.app`
+
+F401 [*] `sqlalchemy.select` imported but unused
+ --> test_metadata_injection.py:4:24
+  |
+2 | from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+3 | from sqlalchemy.orm import sessionmaker
+4 | from sqlalchemy import select
+  |                        ^^^^^^
+5 | from app.domains.methodologies.models.base_registry import MethodologyRegistry, MethodologyFamily, Methodology, MethodologyVersion
+6 | from datetime import date
+  |
+help: Remove unused import: `sqlalchemy.select`
+
+F841 Local variable `conn` is assigned to but never used
+ --> verify_db.py:7:40
+  |
+5 |     print("Connecting to DB...")
+6 |     try:
+7 |         async with engine.connect() as conn:
+  |                                        ^^^^
+8 |             print("Successfully connected!")
+9 |     except Exception as e:
+  |
+help: Remove assignment to unused variable `conn`
+
+Found 34 errors.
+[*] 32 fixable with the `--fix` option (2 hidden fixes can be enabled with the `--unsafe-fixes` option).

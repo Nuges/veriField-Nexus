@@ -16,6 +16,7 @@ export interface User {
   is_active: boolean;
   requires_password_change: boolean;
   sector: string;
+  licensed_sectors: string[] | null;
   country: string | null;
   project_type: string | null;
   created_at: string;
@@ -45,6 +46,9 @@ export interface Activity {
   trust_flags: Record<string, unknown> | null;
   status: string;
   client_id: string | null;
+  applied_quantity_kg?: number | null;
+  biochar_batch_id?: string | null;
+  sector?: string | null;
   created_at: string;
 }
 
@@ -67,6 +71,7 @@ export interface Property {
   sustainability_metrics: Record<string, unknown> | null;
   environment_type?: string;
   verification_status?: string;
+  sector?: string | null;
   created_at: string;
   updated_at: string;
 }

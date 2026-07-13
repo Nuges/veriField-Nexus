@@ -1,0 +1,155 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.12.12, pytest-9.0.3, pluggy-1.6.0 -- /Users/segun/Documents/Verifield nexus/backend/venv/bin/python3.12
+cachedir: .pytest_cache
+hypothesis profile 'default'
+rootdir: /Users/segun/Documents/Verifield nexus/backend
+configfile: pyproject.toml
+plugins: cov-7.1.0, schemathesis-4.22.4, asyncio-1.4.0, hypothesis-6.156.6, anyio-4.13.0
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 59 items
+
+tests/domains/activities/test_activities.py::test_activity_creation PASSED [  1%]
+tests/domains/activities/test_activities.py::test_activity_serialization PASSED [  3%]
+tests/domains/activities/test_activities.py::test_activity_status_update PASSED [  5%]
+tests/domains/assets/test_assets.py::test_asset_creation PASSED          [  6%]
+tests/domains/assets/test_assets.py::test_asset_status PASSED            [  8%]
+tests/domains/assets/test_assets.py::test_asset_metadata PASSED          [ 10%]
+tests/domains/authentication/test_auth.py::test_create_user PASSED       [ 11%]
+tests/domains/authentication/test_auth.py::test_update_user_optimistic_concurrency PASSED [ 13%]
+tests/domains/authentication/test_auth.py::test_soft_delete PASSED       [ 15%]
+tests/domains/compliance_engine/test_validation_rules_engine.py::test_passing_boundary_rule PASSED [ 16%]
+tests/domains/compliance_engine/test_validation_rules_engine.py::test_failing_boundary_rule PASSED [ 18%]
+tests/domains/compliance_engine/test_validation_rules_engine.py::test_blocking_violation PASSED [ 20%]
+tests/domains/compliance_engine/test_validation_rules_engine.py::test_string_equality PASSED [ 22%]
+tests/domains/compliance_engine/test_validation_rules_engine.py::test_missing_field_fails PASSED [ 23%]
+tests/domains/compliance_engine/test_validation_rules_engine.py::test_multiple_rules_mixed PASSED [ 25%]
+tests/domains/digital_twins/test_digital_twins.py::test_digital_twin_lifecycle SKIPPED [ 27%]
+tests/domains/evidence/test_evidence.py::test_evidence_lifecycle PASSED  [ 28%]
+tests/domains/evidence/test_validation_engine.py::test_all_required_evidence_present PASSED [ 30%]
+tests/domains/evidence/test_validation_engine.py::test_missing_required_evidence PASSED [ 32%]
+tests/domains/evidence/test_validation_engine.py::test_optional_evidence_not_required PASSED [ 33%]
+tests/domains/evidence/test_validation_engine.py::test_gps_bounding_box_validation PASSED [ 35%]
+tests/domains/evidence/test_validation_engine.py::test_max_age_validation PASSED [ 37%]
+tests/domains/evidence/test_validation_engine.py::test_file_type_validation PASSED [ 38%]
+tests/domains/evidence/test_validation_engine.py::test_conditional_evidence PASSED [ 40%]
+tests/domains/evidence/test_validation_engine.py::test_missing_gps_coordinates PASSED [ 42%]
+tests/domains/finance/test_finance.py::test_finance_lifecycle PASSED     [ 44%]
+tests/domains/hardware/test_hardware_lifecycle.py::test_hardware_device_lifecycle PASSED [ 45%]
+tests/domains/hardware/test_iiot_architecture.py::test_telemetry_processor_valid_sequence PASSED [ 47%]
+tests/domains/hardware/test_iiot_architecture.py::test_telemetry_processor_out_of_order_sequence PASSED [ 49%]
+tests/domains/hardware/test_iiot_architecture.py::test_telemetry_processor_duplicate_detection PASSED [ 50%]
+tests/domains/hardware/test_iiot_architecture.py::test_telemetry_processor_heartbeat PASSED [ 52%]
+tests/domains/hardware/test_iiot_architecture.py::test_mqtt_service_integration PASSED [ 54%]
+tests/domains/hardware/test_iiot_architecture.py::test_modbus_service_integration PASSED [ 55%]
+tests/domains/jurisdictions/test_jurisdictions.py::test_create_jurisdiction PASSED [ 57%]
+tests/domains/jurisdictions/test_jurisdictions.py::test_update_jurisdiction PASSED [ 59%]
+tests/domains/jurisdictions/test_jurisdictions.py::test_delete_jurisdiction PASSED [ 61%]
+tests/domains/ledger/test_ledger.py::test_signature_creation PASSED      [ 62%]
+tests/domains/ledger/test_ledger.py::test_audit_trail_creation PASSED    [ 64%]
+tests/domains/ledger/test_ledger.py::test_audit_trail_reason PASSED      [ 66%]
+tests/domains/marketplace/test_marketplace.py::test_marketplace_lifecycle PASSED [ 67%]
+tests/domains/methodologies/calculation_engine/test_calculation_engine.py::test_evaluator_basic_math PASSED [ 69%]
+tests/domains/methodologies/calculation_engine/test_calculation_engine.py::test_evaluator_functions PASSED [ 71%]
+tests/domains/methodologies/calculation_engine/test_calculation_engine.py::test_evaluator_security PASSED [ 72%]
+tests/domains/methodologies/calculation_engine/test_calculation_engine.py::test_extract_dependencies PASSED [ 74%]
+tests/domains/methodologies/calculation_engine/test_calculation_engine.py::test_execution_engine PASSED [ 76%]
+tests/domains/methodologies/calculation_engine/test_calculation_engine.py::test_execution_engine_circular_dependency PASSED [ 77%]
+tests/domains/methodologies/services/test_migration_service.py::test_migration_service_creates_records PASSED [ 79%]
+tests/domains/methodologies/test_methodology.py::test_create_methodology_and_version PASSED [ 81%]
+tests/domains/methodologies/workflow_engine/test_engine.py::test_workflow_transition_success PASSED [ 83%]
+tests/domains/methodologies/workflow_engine/test_engine.py::test_workflow_transition_missing_evidence PASSED [ 84%]
+tests/domains/methodologies/workflow_engine/test_engine.py::test_workflow_completed PASSED [ 86%]
+tests/domains/observability/test_observability.py::test_observability PASSED [ 88%]
+tests/domains/organizations/test_organizations.py::test_create_organization PASSED [ 89%]
+tests/domains/organizations/test_organizations.py::test_update_organization PASSED [ 91%]
+tests/domains/organizations/test_organizations.py::test_delete_organization PASSED [ 93%]
+tests/domains/programmes/test_programmes.py::test_programme_lifecycle PASSED [ 94%]
+tests/domains/registry_integrations/test_registry.py::test_registry_federation_flow PASSED [ 96%]
+tests/domains/registry_integrations/test_registry_extended.py::test_registry_integration_sync SKIPPED [ 98%]
+tests/domains/verification/test_verification.py::test_verification_lifecycle PASSED [100%]
+
+=============================== warnings summary ===============================
+venv/lib/python3.12/site-packages/pydantic/_internal/_config.py:291
+venv/lib/python3.12/site-packages/pydantic/_internal/_config.py:291
+venv/lib/python3.12/site-packages/pydantic/_internal/_config.py:291
+venv/lib/python3.12/site-packages/pydantic/_internal/_config.py:291
+venv/lib/python3.12/site-packages/pydantic/_internal/_config.py:291
+  /Users/segun/Documents/Verifield nexus/backend/venv/lib/python3.12/site-packages/pydantic/_internal/_config.py:291: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.9/migration/
+    warnings.warn(DEPRECATION_MESSAGE, DeprecationWarning)
+
+tests/domains/authentication/test_auth.py: 3 warnings
+tests/domains/digital_twins/test_digital_twins.py: 1 warning
+tests/domains/evidence/test_evidence.py: 1 warning
+tests/domains/finance/test_finance.py: 1 warning
+tests/domains/hardware/test_hardware_lifecycle.py: 1 warning
+tests/domains/jurisdictions/test_jurisdictions.py: 3 warnings
+tests/domains/marketplace/test_marketplace.py: 1 warning
+tests/domains/methodologies/test_methodology.py: 1 warning
+tests/domains/observability/test_observability.py: 1 warning
+tests/domains/organizations/test_organizations.py: 3 warnings
+tests/domains/programmes/test_programmes.py: 1 warning
+tests/domains/registry_integrations/test_registry.py: 1 warning
+tests/domains/registry_integrations/test_registry_extended.py: 1 warning
+tests/domains/verification/test_verification.py: 1 warning
+  /Users/segun/Documents/Verifield nexus/backend/venv/lib/python3.12/site-packages/httpx/_client.py:1426: DeprecationWarning: The 'app' shortcut is now deprecated. Use the explicit style 'transport=ASGITransport(app=...)' instead.
+    warnings.warn(message, DeprecationWarning)
+
+tests/domains/methodologies/services/test_migration_service.py::test_migration_service_creates_records
+  /Users/segun/Documents/Verifield nexus/backend/app/domains/methodologies/services/migration_service.py:106: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    self.db.add(registry)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/domains/methodologies/services/test_migration_service.py::test_migration_service_creates_records
+  /Users/segun/Documents/Verifield nexus/backend/app/domains/methodologies/services/migration_service.py:118: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    self.db.add(family)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/domains/methodologies/services/test_migration_service.py::test_migration_service_creates_records
+  /Users/segun/Documents/Verifield nexus/backend/app/domains/methodologies/services/migration_service.py:132: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    self.db.add(meth)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/domains/methodologies/services/test_migration_service.py::test_migration_service_creates_records
+  /Users/segun/Documents/Verifield nexus/backend/app/domains/methodologies/services/migration_service.py:154: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    self.db.add(ver)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/domains/methodologies/services/test_migration_service.py::test_migration_service_creates_records
+  /Users/segun/Documents/Verifield nexus/backend/app/domains/methodologies/services/migration_service.py:61: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    self.db.add(calc_rule)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/domains/methodologies/services/test_migration_service.py::test_migration_service_creates_records
+  /Users/segun/Documents/Verifield nexus/backend/app/domains/methodologies/services/migration_service.py:69: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    self.db.add(workflow)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/domains/methodologies/services/test_migration_service.py::test_migration_service_creates_records
+  /Users/segun/Documents/Verifield nexus/backend/app/domains/methodologies/services/migration_service.py:78: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    self.db.add_all([stage1, stage2])
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/domains/methodologies/services/test_migration_service.py::test_migration_service_creates_records
+  /Users/segun/Documents/Verifield nexus/backend/app/domains/methodologies/services/migration_service.py:94: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    self.db.add_all([task1, task2])
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/domains/methodologies/test_methodology.py::test_create_methodology_and_version
+  /Users/segun/Documents/Verifield nexus/backend/app/domains/methodologies/models/base_registry.py:86: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    default=lambda: datetime.utcnow(), server_default=text("now()")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================================ tests coverage ================================
+______________ coverage: platform darwin, python 3.12.12-final-0 _______________
+
+Coverage HTML written to dir ../release/v1.0.0/htmlcov
+Coverage XML written to file ../release/v1.0.0/coverage.xml
+================== 57 passed, 2 skipped, 34 warnings in 4.43s ==================

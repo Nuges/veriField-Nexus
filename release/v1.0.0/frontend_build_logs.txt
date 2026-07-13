@@ -1,0 +1,29 @@
+npm warn config ignoring workspace config at /Users/segun/Documents/Verifield nexus/dashboard/.npmrc
+
+> dashboard@0.1.0 build
+> next build --webpack
+
+▲ Next.js 16.2.4 (webpack)
+- Environments: .env.local
+
+  Creating an optimized production build ...
+Failed to compile.
+
+./src/components/dynamic/DynamicMetric.tsx
+Module not found: Can't resolve '@heroicons/react/24/solid'
+
+https://nextjs.org/docs/messages/module-not-found
+
+Import trace for requested module:
+./src/components/dynamic/DynamicDashboard.tsx
+./src/app/dashboard/page.tsx
+
+
+> Build failed because of webpack errors
+npm error Lifecycle script `build` failed with error:
+npm error code 1
+npm error path /Users/segun/Documents/Verifield nexus/dashboard
+npm error workspace dashboard@0.1.0
+npm error location /Users/segun/Documents/Verifield nexus/dashboard
+npm error command failed
+npm error command sh -c next build --webpack

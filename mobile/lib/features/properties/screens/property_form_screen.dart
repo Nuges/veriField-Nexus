@@ -33,6 +33,9 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
 
   final List<Map<String, dynamic>> _propertyTypes = [
     {'id': 'cookstove', 'label': 'Cookstove', 'icon': Icons.soup_kitchen_rounded},
+    {'id': 'hybrid_energy', 'label': 'Hybrid Energy', 'icon': Icons.bolt},
+    {'id': 'biochar', 'label': 'Biochar C-Sink', 'icon': Icons.grass},
+    {'id': 'ev_mobility', 'label': 'EV Mobility', 'icon': Icons.directions_car_rounded},
   ];
 
   @override
@@ -77,6 +80,7 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
         'name': _nameController.text.trim(),
         'address': _addressController.text.trim().isNotEmpty ? _addressController.text.trim() : null,
         'property_type': _selectedType,
+        'sector': _selectedType,
         'latitude': _locationData?['latitude'],
         'longitude': _locationData?['longitude'],
       });

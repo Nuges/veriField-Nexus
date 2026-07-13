@@ -57,8 +57,8 @@ export default function LandingPage() {
     email: "",
     phone: "",
     org: "",
-    projectType: "energy",
-    region: "Nigeria",
+    projectType: "",
+    region: "Global Operations",
     notes: ""
   });
   
@@ -127,7 +127,8 @@ export default function LandingPage() {
         phone: formData.phone || undefined,
         organization_name: formData.org,
         country: formData.region || undefined,
-        use_case: `${formData.projectType.toUpperCase()} - ${formData.notes}`
+        use_case: `${formData.projectType.toUpperCase()} - ${formData.notes}`,
+        sector: formData.projectType
       };
       await createAccessRequest(payload);
       setSubmittingState("success");
@@ -144,8 +145,8 @@ export default function LandingPage() {
       email: "",
       phone: "",
       org: "",
-      projectType: "energy",
-      region: "Nigeria",
+      projectType: "",
+      region: "Global Operations",
       notes: ""
     });
     setSubmittingState("idle");
@@ -417,7 +418,7 @@ export default function LandingPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {[
-                { title: "Clean cookstove monitoring", shortLabel: "Cookstoves", desc: "Verify stove coordinate distributions and usage profiles to validate performance and emissions reporting readiness.", icon: Flame },
+                { title: "Universal Asset Monitoring", shortLabel: "Assets", desc: "Verify generic asset coordinate distributions and usage profiles to validate performance and emissions reporting readiness.", icon: Flame },
                 { title: "Solar & hybrid mini-grids", shortLabel: "Mini-Grids", desc: "Validate asset installation, location coordinates, and operational parameters across off-grid networks.", icon: Zap },
                 { title: "Emissions Reporting Readiness", shortLabel: "Readiness", desc: "Ingest cryptographically verified operational data directly to ESG compliance registry adapters.", icon: Coins },
                 { title: "Grid Operations Visibility", shortLabel: "Grid Ops", desc: "Streamline field data collection to satisfy utility compliance and planning requirements.", icon: FileCheck2 },
@@ -485,7 +486,7 @@ export default function LandingPage() {
                   <span className="text-[10px] font-mono font-bold text-zinc-400 uppercase">PILOT PREPARATION MAP</span>
                 </div>
                 <span className="text-[9px] bg-zinc-900 text-[#00B47A] border border-zinc-800 px-2 py-0.5 rounded font-mono font-bold">
-                  NIGERIA PIPELINE
+                  GLOBAL PIPELINE
                 </span>
               </div>
 
@@ -494,7 +495,7 @@ export default function LandingPage() {
                 {/* Simulated Grid Dots */}
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_#1c2d2f_1px,_transparent_1px)] bg-[size:1rem_1rem] opacity-30" />
                 
-                {/* Nigeria region indicator */}
+                {/* Region indicator */}
                 <div className="absolute w-24 h-24 rounded-full border border-[#00B47A]/20 bg-[#00B47A]/5 flex items-center justify-center animate-pulse">
                   <MapPin size={24} className="text-[#00B47A]" />
                 </div>
@@ -536,7 +537,7 @@ export default function LandingPage() {
             </div>
 
             <p className="text-zinc-500 text-xs leading-relaxed max-w-2xl text-left">
-              VeriField Nexus is currently in the pilot preparation stage. Early validation has been completed in controlled environments, and the platform is preparing for field integration with distributed solar mini-grid operators in Nigeria.
+              VeriField Nexus is currently in the pilot preparation stage. Early validation has been completed in controlled environments, and the platform is preparing for field integration with distributed solar mini-grid operators.
             </p>
           </div>
 
@@ -565,7 +566,7 @@ export default function LandingPage() {
               </div>
               <div className="text-left">
                 <div className="text-lg font-bold text-black tracking-tight leading-snug">~600 kWp pipeline</div>
-                <div className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider mt-1 leading-normal">Distributed solar projects (Nigeria)</div>
+                <div className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider mt-1 leading-normal">Distributed solar projects</div>
               </div>
             </div>
 
@@ -631,7 +632,7 @@ export default function LandingPage() {
               alt="VeriField Nexus" 
               className="h-10 w-auto object-contain"
             />
-            <span className="text-[10px] text-zinc-500 font-semibold uppercase tracking-widest mt-1">Lagos, Nigeria</span>
+            <span className="text-[10px] text-zinc-500 font-semibold uppercase tracking-widest mt-1">Global Deployments</span>
           </div>
 
           <div className="text-center">
@@ -720,14 +721,13 @@ export default function LandingPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="text-xs text-[#8E9E9B] font-semibold mb-1 block">Project Sector</label>
-                      <select 
+                      <input 
+                        type="text" 
                         value={formData.projectType}
                         onChange={e => setFormData(prev => ({...prev, projectType: e.target.value}))}
-                        className="w-full px-4 py-2.5 rounded-xl bg-[#090F10] border border-[#213233] text-white text-xs focus:outline-none focus:border-[#00B47A] transition-colors"
-                      >
-                        <option value="energy">Hybrid Energy</option>
-                        <option value="cookstove">Clean Cookstove</option>
-                      </select>
+                        placeholder="e.g. Distributed Energy, Carbon Removal"
+                        className="w-full px-4 py-2.5 rounded-xl bg-[#090F10] border border-[#213233] text-white placeholder:text-zinc-700 text-xs focus:outline-none focus:border-[#00B47A] transition-colors"
+                      />
                     </div>
                     <div>
                       <label className="text-xs text-[#8E9E9B] font-semibold mb-1 block">Operational Region</label>
@@ -735,7 +735,7 @@ export default function LandingPage() {
                         type="text" 
                         value={formData.region}
                         onChange={e => setFormData(prev => ({...prev, region: e.target.value}))}
-                        placeholder="e.g. Lagos, Nigeria"
+                        placeholder="e.g. Lagos, Global"
                         className="w-full px-4 py-2.5 rounded-xl bg-[#090F10] border border-[#213233] text-white placeholder:text-zinc-700 text-xs focus:outline-none focus:border-[#00B47A] transition-colors"
                       />
                     </div>

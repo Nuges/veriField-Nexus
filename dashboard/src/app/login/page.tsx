@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ShieldCheck, Mail, Lock, Loader2 } from "lucide-react";
 import { loginAdmin, setAuthToken, changePassword } from "@/lib/api";
+import { safeStorage } from "@/lib/storage";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -36,7 +37,7 @@ export default function LoginPage() {
       // If a valid token exists AND there is a redirect target, the user may
       // have been bounced back by a transient network error.  In that case,
       // try to honour the existing token instead of wiping it.
-      const existingToken = localStorage.getItem("vf_token");
+      const existingToken = safeStorage.getItem("vf_token");
       const redirectTarget = params.get("redirect");
       
       if (existingToken && redirectTarget) {
@@ -46,7 +47,8 @@ export default function LoginPage() {
       }
       
       // Otherwise — genuine fresh login.  Clear any stale auth state.
-      localStorage.removeItem("vf_token");
+      safeStorage.removeItem("vf_token");
+      safeStorage.removeItem("vf_user");
       setAuthToken(null);
       
       if (params.get("error") === "unauthorized") {
@@ -76,7 +78,7 @@ export default function LoginPage() {
       
       const isMobileCapture = targetRedirect.startsWith("/capture");
       
-      if (!isMobileCapture && !["admin", "auditor", "SUPER_ADMIN", "ORG_ADMIN"].includes(result.user.role)) {
+      if (!isMobileCapture && !["admin", "auditor", "SUPER_ADMIN", "ORG_ADMIN", "JURISDICTION_ADMIN", "COMPLIANCE_ADMIN"].includes(result.user.role)) {
         throw new Error("Access denied. This system is restricted to verification personnel only.");
       }
       
@@ -87,7 +89,7 @@ export default function LoginPage() {
         setRequiresReset(true);
       } else {
         setAuthToken(result.access_token);
-        localStorage.setItem("vf_token", result.access_token);
+        safeStorage.setItem("vf_token", result.access_token);
         window.location.href = targetRedirect;
       }
     } catch (err: any) {
@@ -116,7 +118,7 @@ export default function LoginPage() {
       await changePassword({ old_password: password, new_password: newPassword });
       
       // Save token and route securely
-      localStorage.setItem("vf_token", tempToken);
+      safeStorage.setItem("vf_token", tempToken);
       setRequiresReset(false);
       window.location.href = tempUserRedirect;
     } catch (err: any) {

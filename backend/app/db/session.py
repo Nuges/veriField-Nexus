@@ -7,13 +7,12 @@ PostgreSQL. Provides the `get_db` dependency for FastAPI routes.
 =============================================================================
 """
 
+import os
 import uuid
-from sqlalchemy.ext.asyncio import (
-    create_async_engine,
-    AsyncSession,
-    async_sessionmaker,
-)
 from typing import AsyncGenerator
+
+from sqlalchemy.ext.asyncio import (AsyncSession, async_sessionmaker,
+                                    create_async_engine)
 
 from app.core.config import settings
 
@@ -27,42 +26,55 @@ elif db_url and db_url.startswith("postgresql://"):
 # --- Async Engine ---
 # Creates a connection pool to Supabase PostgreSQL
 # Tuned for PgBouncer transaction pooling or direct sessions
-engine = create_async_engine(
-    db_url,
-    echo=settings.debug,        # Log SQL queries in debug mode
-    pool_size=3,                 # Reduced to 3 to prevent EMAXCONNSESSION when running multiple server instances
-    max_overflow=1,              # Reduced to 1 to limit connection limits on Supabase free tier
-    pool_pre_ping=True,          # Verify connections before use
-    pool_recycle=300,            # Recycle connections every 5 minutes
-    pool_timeout=20,             # Give more margin under network latency
-    connect_args={
-        "server_settings": {"jit": "off"},  # Disable JIT for faster simple queries
-        "command_timeout": 10.0,             # Kill queries hanging at socket level (reduced from 15s)
-        "statement_cache_size": 0,           # Disable prepared statements cache for PgBouncer compatibility
-        "prepared_statement_cache_size": 0,  # Explicitly disable prepared statements cache for PgBouncer
-        "prepared_statement_name_func": lambda: f"__asyncpg_{uuid.uuid4()}__",  # Generate unique names for prepared statements to fully support PgBouncer transaction mode
+import sys
+
+from sqlalchemy import pool
+
+is_testing = "pytest" in sys.modules or os.environ.get("TESTING") == "1"
+
+engine_kwargs = {
+    "echo": settings.debug,
+    "poolclass": pool.NullPool if is_testing else None,
+    "pool_pre_ping": True if not is_testing else False,
+    "pool_recycle": 300 if not is_testing else -1,
+    "connect_args": {
+        "ssl": "require",
+        "server_settings": {"jit": "off"},
+        "command_timeout": 10.0,
+        "statement_cache_size": 0,
+        "prepared_statement_cache_size": 0,
+        "prepared_statement_name_func": lambda: f"__asyncpg_{uuid.uuid4()}__",
     },
-)
+}
+
+if not is_testing:
+    engine_kwargs["pool_size"] = 20
+    engine_kwargs["max_overflow"] = 10
+    engine_kwargs["pool_timeout"] = 20
+else:
+    engine_kwargs["connect_args"].pop("ssl", None)
+
+engine = create_async_engine(db_url, **engine_kwargs)
 
 # --- Session Factory ---
 # Creates new database sessions for each request
 async_session_factory = async_sessionmaker(
     engine,
     class_=AsyncSession,
-    expire_on_commit=False,      # Don't expire objects after commit
+    expire_on_commit=False,  # Don't expire objects after commit
 )
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """
     FastAPI dependency that provides a database session.
-    
+
     Automatically handles session lifecycle:
     - Creates a new session for each request
     - Commits on success (if manually committed in route)
     - Rolls back on exception
     - Always closes the session
-    
+
     Usage:
         @router.get("/items")
         async def get_items(db: AsyncSession = Depends(get_db)):

@@ -1,0 +1,10 @@
+🚀 Starting Empty Database Validation (Phase F & G)
+Running seed_data()...
+✅ Seeded Methodology Registry — Phase 1 complete.
+   Registries: 4  |  Families: 4  |  Methodologies: 13
+   Versions: 13  |  Rules: 6  |  Legacy Mappings: 12
+Checking seeded methodologies...
+✅ Found 13 seeded methodologies.
+Adding Direct Air Capture methodology dynamically...
+✅ Successfully provisioned Direct Air Capture without code changes!
+🎉 Empty Database and Runtime Validation PASSED.

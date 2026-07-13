@@ -10,16 +10,16 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ShieldCheck, Mail, Lock, User, Building, Loader2, Sparkles } from "lucide-react";
-import { onboardDeveloper, setAuthToken } from "@/lib/api";
+import { ShieldCheck, Mail, User, Building, Loader2, Sparkles } from "lucide-react";
+import { createAccessRequest } from "@/lib/api";
 
 export default function SignupPage() {
   const router = useRouter();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+
   const [orgName, setOrgName] = useState("");
-  const [sector, setSector] = useState("cookstove");
+  const [sector, setSector] = useState("");
   const [country, setCountry] = useState("");
   const [projectType, setProjectType] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -32,27 +32,20 @@ export default function SignupPage() {
     setError("");
 
     try {
-      const result = await onboardDeveloper({
-        email,
-        password,
+      const useCase = `${sector.toUpperCase()} - Subtype: ${projectType || "None"}.`;
+      await createAccessRequest({
         full_name: fullName,
+        email,
+        phone: undefined,
         organization_name: orgName,
-        sector,
         country: country || undefined,
-        project_type: projectType || undefined,
+        use_case: useCase,
+        sector,
       });
 
-      // 1. Injected JWT token into client services
-      setAuthToken(result.access_token);
-      localStorage.setItem("vf_token", result.access_token);
       setSuccess(true);
-
-      // 2. Redirect securely after showing quick success micro-animation
-      setTimeout(() => {
-        router.push("/dashboard");
-      }, 1500);
     } catch (err: any) {
-      setError(err.message || "Failed to complete onboarding. Please verify details.");
+      setError(err.message || "Failed to submit onboarding request. Please verify details.");
     } finally {
       setIsLoading(false);
     }
@@ -97,9 +90,9 @@ export default function SignupPage() {
               <div className="w-12 h-12 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto">
                 <ShieldCheck size={28} className="animate-pulse" />
               </div>
-              <h3 className="text-sm font-bold text-emerald-400 uppercase tracking-wider">Onboarding Complete!</h3>
-              <p className="text-xs text-[var(--color-text-secondary)] animate-pulse">
-                Provisioning secure tenant databases... Redirecting to dashboard.
+              <h3 className="text-sm font-bold text-emerald-400 uppercase tracking-wider">Request Submitted!</h3>
+              <p className="text-xs text-[var(--color-text-secondary)]">
+                Your onboarding request is pending review by a Super Admin. You will receive an email once approved.
               </p>
             </div>
           ) : (
@@ -168,40 +161,20 @@ export default function SignupPage() {
                 </div>
               </div>
 
-              {/* Password */}
-              <div>
-                <label className="text-xs font-bold text-[var(--color-text-secondary)] mb-1.5 block">Password</label>
-                <div className="relative">
-                  <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="•••••••• (Min 8 characters)"
-                    required
-                    minLength={8}
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] 
-                      text-[var(--color-text-primary)] placeholder:text-slate-600 text-xs
-                      focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/50
-                      transition-all duration-200"
-                  />
-                </div>
-              </div>
-
               {/* Industry / Sector */}
               <div>
-                <label className="text-xs font-bold text-[var(--color-text-secondary)] mb-1.5 block">Industry / Sector</label>
-                <select
+                <label className="text-xs font-bold text-[var(--color-text-secondary)] mb-1.5 block">Primary Operating Sector</label>
+                <input
+                  type="text"
                   value={sector}
                   onChange={(e) => setSector(e.target.value)}
+                  placeholder="e.g. Clean Cooking, Hybrid Energy, Biochar"
+                  required
                   className="w-full px-4 py-2.5 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] 
                     text-[var(--color-text-primary)] text-xs
                     focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/50
                     transition-all duration-200"
-                >
-                  <option value="cookstove">Clean Cooking (Cookstove)</option>
-                  <option value="energy">Hybrid Energy (Solar/Gas/Diesel)</option>
-                </select>
+                />
               </div>
 
               {/* Country of Operations */}
@@ -211,7 +184,7 @@ export default function SignupPage() {
                   type="text"
                   value={country}
                   onChange={(e) => setCountry(e.target.value)}
-                  placeholder="e.g. Nigeria"
+                  placeholder="e.g. Global"
                   required
                   className="w-full px-4 py-2.5 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] 
                     text-[var(--color-text-primary)] placeholder:text-slate-600 text-xs
@@ -222,12 +195,14 @@ export default function SignupPage() {
 
               {/* Project Subtype */}
               <div>
-                <label className="text-xs font-bold text-[var(--color-text-secondary)] mb-1.5 block">Project Subtype (Optional)</label>
+                <label className="text-xs font-bold text-[var(--color-text-secondary)] mb-1.5 block">
+                  Project Subtype (Optional)
+                </label>
                 <input
                   type="text"
                   value={projectType}
                   onChange={(e) => setProjectType(e.target.value)}
-                  placeholder="e.g. Improved Biomass Cookstoves"
+                  placeholder="e.g. GS_TPDDTEC, Mini-Grid, Direct Air Capture"
                   className="w-full px-4 py-2.5 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] 
                     text-[var(--color-text-primary)] placeholder:text-slate-600 text-xs
                     focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/50
@@ -249,10 +224,10 @@ export default function SignupPage() {
                 {isLoading ? (
                   <>
                     <Loader2 size={16} className="animate-spin" />
-                    Onboarding Tenant...
+                    Submitting Request...
                   </>
                 ) : (
-                  "Create Tenant Ledger"
+                  "Submit Access Request"
                 )}
               </button>
             </form>

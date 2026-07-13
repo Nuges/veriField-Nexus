@@ -35,3 +35,6 @@ apscheduler>=3.10.0
 # --- Utilities ---
 python-dotenv==1.0.1
 cachetools==5.3.3
+asteval==0.9.31
+redis
+aiomqtt

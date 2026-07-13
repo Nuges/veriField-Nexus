@@ -1,0 +1,568 @@
+{
+  "docs/architecture/00-enterprise-overview.md": [
+    "Enterprise Architecture Overview",
+    "1. Vision",
+    "2. Design Philosophy",
+    "3. CIOS Principles (Climate Infrastructure Operating System)",
+    "4. Architectural Principles",
+    "5. Domain Driven Design (DDD) Strategy",
+    "6. Enterprise Operating Model",
+    "7. Metadata-First Philosophy",
+    "8. Multi-Tenancy Strategy",
+    "9. Event-Driven Architecture",
+    "10. Governance Model",
+    "11. Platform Evolution Strategy",
+    "12. Architectural Decision Records (ADR)"
+  ],
+  "docs/architecture/README.md": [
+    "VeriField Nexus Enterprise Architecture Blueprint",
+    "Architectural Hierarchy",
+    "Master Architecture Index",
+    "Supreme Architecture (Climate Reference)",
+    "Strategic Architecture (Enterprise)",
+    "1. Business Architecture",
+    "2. Capability Architecture",
+    "3. Application Architecture",
+    "4. Information Architecture",
+    "5. Security Architecture",
+    "6. Governance Architecture",
+    "7. Integration Architecture",
+    "8. UI Architecture",
+    "9. Infrastructure Architecture",
+    "10. Operational Architecture",
+    "Supplemental"
+  ],
+  "docs/architecture/08-ui-architecture/01-ui-layout.md": [
+    "Enterprise UI Architecture",
+    "1. UI Principles",
+    "2. Core Layout Architecture",
+    "2.1 The Omnibar (Header)",
+    "2.2 The Workspace Navigation (Sidebar)",
+    "2.3 The Main View Area",
+    "3. UI Component Architecture",
+    "4. State Management",
+    "5. Offline & Progressive Web App (PWA) Architecture"
+  ],
+  "docs/architecture/09-infrastructure-architecture/01-deployment-architecture.md": [
+    "Enterprise Infrastructure Architecture",
+    "1. Deployment Architecture",
+    "Compute Tier",
+    "State & Storage Tier",
+    "Event & Integration Tier",
+    "2. Network & Security Architecture",
+    "3. Observability Architecture",
+    "3.1 Logging",
+    "3.2 Metrics & Tracing",
+    "4. Disaster Recovery & Availability"
+  ],
+  "docs/architecture/adr/001-use-event-driven-architecture.md": [
+    "ADR 001: Adopt Event-Driven Architecture (EDA) for Cross-Domain Communication",
+    "Context",
+    "Decision",
+    "Consequences",
+    "Alternatives Considered"
+  ],
+  "docs/architecture/assurance/03-cios-capability-assessment.md": [
+    "03 \u2014 CIOS Capability Assessment",
+    "Assessment Legend",
+    "Summary"
+  ],
+  "docs/architecture/assurance/12-security-audit.md": [
+    "12 \u2014 Security Audit",
+    "Security Assessment",
+    "Mandatory Validation Rules Check"
+  ],
+  "docs/architecture/assurance/11-infrastructure-audit.md": [
+    "11 \u2014 Infrastructure Audit",
+    "Current Infrastructure Assessment",
+    "Production Readiness Checklist"
+  ],
+  "docs/architecture/assurance/09-ui-coverage-audit.md": [
+    "09 \u2014 UI Coverage Audit",
+    "Existing UI Pages (`dashboard/src/app/`)",
+    "Missing UI Screens (Required by Architecture)",
+    "Cross-Cutting UI Concerns"
+  ],
+  "docs/architecture/assurance/07-event-coverage-audit.md": [
+    "07 \u2014 Event Coverage Audit",
+    "Existing Domain Events",
+    "Missing Events (Required by Architecture)",
+    "Event Infrastructure Assessment"
+  ],
+  "docs/architecture/assurance/02-requirements-traceability-matrix.md": [
+    "02 \u2014 Requirements Traceability Matrix",
+    "Traceability Legend",
+    "Full Hierarchy Trace",
+    "Summary"
+  ],
+  "docs/architecture/assurance/16-cios-certification-report.md": [
+    "16 \u2014 CIOS Certification Report",
+    "CIOS Maturity Assessment",
+    "Maturity Summary",
+    "Certification Decision"
+  ],
+  "docs/architecture/assurance/10-integration-audit.md": [
+    "10 \u2014 Integration Audit",
+    "Required Integrations (per `07-integration-architecture`)",
+    "Summary"
+  ],
+  "docs/architecture/assurance/13-production-readiness-audit.md": [
+    "13 \u2014 Production Readiness Audit",
+    "Module Readiness Scorecard",
+    "Summary"
+  ],
+  "docs/architecture/assurance/08-permission-coverage-audit.md": [
+    "08 \u2014 Permission Coverage Audit",
+    "Existing RBAC Implementation",
+    "Known Atomic Permissions",
+    "Known Roles",
+    "Required Roles (per Architecture `05-security/01-auth-rbac.md`)",
+    "Missing Permissions (Not Defined in Code)",
+    "ABAC (Attribute-Based Access Control) Assessment"
+  ],
+  "docs/architecture/assurance/04-workflow-completeness-audit.md": [
+    "04 \u2014 Workflow Completeness Audit",
+    "Audit Legend",
+    "Summary"
+  ],
+  "docs/architecture/assurance/17-final-executive-assessment.md": [
+    "17 \u2014 Final Executive Assessment",
+    "Executive Questions & Answers",
+    "Is the architecture complete?",
+    "Is it internally consistent?",
+    "Can it scale globally?",
+    "Can it support governments?",
+    "Can it support Article 6?",
+    "Can it support MDB programmes?",
+    "Can it support DFIs?",
+    "Can it support corporate ESG?",
+    "Can it support multiple registries?",
+    "Can it support multiple methodologies?",
+    "Can it support new climate sectors without code changes?",
+    "Can it support enterprise multi-tenancy?",
+    "Can it support millions of assets?",
+    "Can it support production deployment?",
+    "Can it serve as the governing blueprint for all future VeriField Nexus development?",
+    "Final Recommendation",
+    "Recommended Path Forward"
+  ],
+  "docs/architecture/assurance/15-architecture-quality-report.md": [
+    "15 \u2014 Architecture Quality Report",
+    "Enterprise Principle Assessment",
+    "Summary"
+  ],
+  "docs/architecture/assurance/14-gap-analysis.md": [
+    "14 \u2014 Gap Analysis",
+    "Complete Gap Register",
+    "\ud83d\udd34 Critical Gaps (Must be resolved before any production deployment)",
+    "\ud83d\udfe0 High Gaps (Should be resolved before beta/pilot deployment)",
+    "\ud83d\udfe1 Medium Gaps (Should be resolved before general availability)",
+    "Gap Summary"
+  ],
+  "docs/architecture/assurance/06-entity-coverage-audit.md": [
+    "06 \u2014 Entity Coverage Audit",
+    "Existing Entities (Database Models)",
+    "Legacy Models (`backend/app/models/`)",
+    "Domain Models (`backend/app/domains/*/models.py`)",
+    "Missing Entities (Required by Architecture, Not in Database)",
+    "Cross-Cutting Entity Concerns"
+  ],
+  "docs/architecture/assurance/01-architecture-coverage-matrix.md": [
+    "01 \u2014 Architecture Coverage Matrix",
+    "Coverage Matrix",
+    "Legend",
+    "Summary"
+  ],
+  "docs/architecture/assurance/05-api-coverage-audit.md": [
+    "05 \u2014 API Coverage Audit",
+    "Existing API Routes (Backend)",
+    "Legacy API Layer (`backend/app/api/v1/`)",
+    "Domain API Layer (`backend/app/domains/*/api.py`)",
+    "Missing APIs (No Route Exists)",
+    "Cross-Cutting Concerns"
+  ],
+  "docs/architecture/07-integration-architecture/01-integration-catalogue.md": [
+    "Enterprise Integration Catalogue",
+    "1. Integration Patterns",
+    "2. Core Integrations",
+    "2.1 Carbon Registries (Verra, Gold Standard, UN CDM)",
+    "2.2 National GIS / Cadastral Systems",
+    "2.3 IoT / Hardware Networks (Smart Cookstoves, Inverters)",
+    "2.4 External ERP / ESG Platforms (Salesforce, SAP, ServiceNow)",
+    "3. Webhook Architecture"
+  ],
+  "docs/architecture/03-application-architecture/02-event-architecture.md": [
+    "Enterprise Event Architecture",
+    "Event Principles",
+    "Core Event Catalogue",
+    "Operations Domain Events",
+    "MRV Domain Events",
+    "Ledger & Governance Events",
+    "Event Infrastructure"
+  ],
+  "docs/architecture/03-application-architecture/03-state-machines.md": [
+    "Enterprise State Machines",
+    "1. Project Lifecycle State Machine",
+    "Transition Constraints",
+    "2. Evidence Lifecycle State Machine",
+    "3. Carbon Credit Issuance State Machine",
+    "Soft Deletion Behavior"
+  ],
+  "docs/architecture/03-application-architecture/01-module-architecture.md": [
+    "Enterprise Module Architecture",
+    "Core Modules",
+    "1. `identity-module`",
+    "2. `tenant-module`",
+    "3. `governance-module`",
+    "4. `operations-module`",
+    "5. `mrv-module` (Monitoring, Reporting, Verification)",
+    "6. `ledger-module`",
+    "Module Interaction & Boundaries"
+  ],
+  "docs/architecture/02-capability-architecture/01-capability-map.md": [
+    "Enterprise Capability Map",
+    "1. Governance & Policy Capabilities",
+    "1.1 Jurisdiction Management",
+    "1.2 Registry Federation",
+    "1.3 Methodology Management",
+    "2. Operations Capabilities",
+    "2.1 Organization Onboarding & Management",
+    "2.2 Project Lifecycle Management",
+    "2.3 Asset Lifecycle Management",
+    "3. MRV (Monitoring, Reporting, Verification) Capabilities",
+    "3.1 Monitoring & Evidence Collection",
+    "3.2 Verification",
+    "3.3 Independent Audit (Validation)",
+    "4. Financial & Market Capabilities",
+    "4.1 Carbon Accounting",
+    "4.2 Issuance & Credit Ledger",
+    "5. Technical Capabilities",
+    "5.1 Identity & Access Management (IAM)",
+    "5.2 Workflow Engine"
+  ],
+  "docs/architecture/02-capability-architecture/02-domain-ownership.md": [
+    "Domain Ownership Architecture",
+    "Principles of Domain Ownership",
+    "Domain Matrix",
+    "Event Choreography vs. Orchestration"
+  ],
+  "docs/architecture/01-business-architecture/01-enterprise-reference-model.md": [
+    "Enterprise Reference Model",
+    "Master Hierarchy",
+    "Layer Definitions",
+    "1. Platform (VeriField Nexus CIOS)",
+    "2. Business Domains",
+    "3. Capabilities",
+    "4. Modules",
+    "5. Services",
+    "6. Entities",
+    "7. Infrastructure",
+    "Architectural Traceability"
+  ],
+  "docs/architecture/01-business-architecture/03-organization-architecture.md": [
+    "Organization Architecture",
+    "Organization Concept",
+    "Organization Typology",
+    "Organization Hierarchy & Relationships",
+    "Organization Lifecycle",
+    "Organization Configuration & Metadata",
+    "Organization Isolation"
+  ],
+  "docs/architecture/01-business-architecture/02-business-domains.md": [
+    "Business Domains",
+    "1. Identity & Organization Domain",
+    "2. Governance & Policy Domain",
+    "3. Operations & Asset Domain",
+    "4. Monitoring, Reporting, and Verification (MRV) Domain",
+    "5. Carbon Ledger & Issuance Domain",
+    "6. Enterprise Analytics & Intelligence Domain",
+    "Domain Interaction"
+  ],
+  "docs/architecture/06-governance-architecture/01-governance-model.md": [
+    "Enterprise Governance Architecture",
+    "1. Multidimensional Governance",
+    "1.1 Global Governance",
+    "1.2 National / Jurisdictional Governance",
+    "1.3 Registry & Methodology Governance",
+    "1.4 Organizational Governance",
+    "2. Policy Resolution Engine",
+    "3. Architecture Governance"
+  ],
+  "docs/architecture/05-security-architecture/01-auth-rbac.md": [
+    "Enterprise Security Architecture",
+    "1. Authentication (Identity)",
+    "2. Authorization (RBAC & ABAC)",
+    "Role-Based Access Control (RBAC)",
+    "Attribute-Based Access Control (ABAC)",
+    "3. Policy Engine",
+    "4. Encryption & Key Management",
+    "5. Audit Logging"
+  ],
+  "docs/architecture/05-security-architecture/02-actors.md": [
+    "Enterprise User Role & Actor Architecture",
+    "1. Actor Typology",
+    "1.1 Human Actors",
+    "1.2 System Actors (Machine Identities)",
+    "2. Delegation & Approval Authority",
+    "3. The Access Matrix Concept"
+  ],
+  "docs/architecture/04-information-architecture/02-document-management.md": [
+    "Document & Evidence Management Architecture",
+    "1. Storage Tiers & Mechanisms",
+    "2. Evidence Immutability Workflow",
+    "3. Supported Evidence Types",
+    "4. Archiving and Retention Policies"
+  ],
+  "docs/architecture/04-information-architecture/01-data-dictionary.md": [
+    "Enterprise Data Dictionary & Information Architecture",
+    "Principles of Information Architecture",
+    "Core Entities",
+    "1. `Organization`",
+    "2. `User`",
+    "3. `Jurisdiction`",
+    "4. `Project`",
+    "5. `Asset`",
+    "6. `Evidence`",
+    "7. `LedgerTransaction`"
+  ],
+  "docs/architecture/04-information-architecture/03-search-architecture.md": [
+    "Enterprise Search Architecture",
+    "1. Search Engine Typology",
+    "2. Infrastructure",
+    "3. Data Synchronization",
+    "4. Search Authorization"
+  ],
+  "docs/architecture/04-information-architecture/04-analytics-architecture.md": [
+    "Enterprise Analytics Architecture",
+    "1. Analytics Typology",
+    "2. Infrastructure",
+    "3. Data Products"
+  ],
+  "docs/architecture/climate-reference-architecture/07-spatial-architecture.md": [
+    "Enterprise Spatial Architecture",
+    "1. The Necessity of Spatial Context",
+    "2. Spatial Hierarchy & Inheritance",
+    "2.1 The Spatial Layers",
+    "2.2 Spatial Inheritance",
+    "3. Spatial Validation & Compliance",
+    "3.1 Duplicate Prevention",
+    "3.2 GPS Spoofing Detection",
+    "4. Remote Sensing & Raster Data",
+    "5. Architecture Traceability"
+  ],
+  "docs/architecture/climate-reference-architecture/13-enterprise-observability.md": [
+    "Enterprise Observability",
+    "1. Operating a Global Climate Node",
+    "2. Layers of Observability",
+    "2.1 Platform Health (Infrastructure)",
+    "2.2 Integration Health (Federation)",
+    "2.3 AI & Intelligence Health",
+    "2.4 Compliance Health",
+    "2.5 Operational Health (Business KPIs)",
+    "2.6 Ecosystem Health (Macro)",
+    "3. Transparency & Incident Response"
+  ],
+  "docs/architecture/climate-reference-architecture/00-climate-operating-model.md": [
+    "Climate Operating Model",
+    "1. Executive Summary",
+    "2. Platform Value Flow",
+    "3. The Ecosystem Operating Model",
+    "3.1 Who Participates & Why?",
+    "3.2 Services Consumed & Provided",
+    "3.3 How is Information Exchanged?",
+    "3.4 How is Trust Established?",
+    "3.5 How is Governance Enforced?",
+    "3.6 How are Carbon Assets Created & Retired?",
+    "4. Architectural Lineage"
+  ],
+  "docs/architecture/climate-reference-architecture/06-methodology-architecture.md": [
+    "Methodology Architecture",
+    "1. The Problem with Hardcoded Methodologies",
+    "2. Parameterization and Runtime Resolution",
+    "2.1 The Methodology Package",
+    "2.2 Methodology Authoring & Deployment",
+    "2.3 Runtime Execution",
+    "3. Versioning, Inheritance, and Overrides",
+    "4. Architecture Traceability"
+  ],
+  "docs/architecture/climate-reference-architecture/14-platform-roadmap.md": [
+    "Platform Roadmap & Evolutionary Architecture",
+    "1. The Path to a Sovereign Climate Internet",
+    "2. Version 1.x: The Digital MRV Foundation (Current State)",
+    "3. Version 2.x: The Ecosystem Federation (Near Term)",
+    "4. Version 3.x: Climate Intelligence & Automation (Mid Term)",
+    "5. Version 4.x: The Digital Twin Era (Long Term)",
+    "6. Version 5.x: The Integrated Climate Financial System",
+    "7. Evolutionary Governance"
+  ],
+  "docs/architecture/climate-reference-architecture/04-digital-mrv-architecture.md": [
+    "Enterprise Digital MRV Architecture",
+    "1. Overview of Digital MRV",
+    "2. The MRV Engine Subsystems",
+    "2.1 The Evidence & Monitoring Engine",
+    "2.2 The Trust Engine (Data Integrity)",
+    "2.3 The Risk Engine (Anomaly Detection)",
+    "2.4 The Verification Engine (Internal QA)",
+    "2.5 The Sampling & Audit Engine (External VVB)",
+    "2.6 The Carbon Quantification Engine",
+    "3. Architecture Traceability"
+  ],
+  "docs/architecture/climate-reference-architecture/10-climate-intelligence-architecture.md": [
+    "Climate Intelligence (AI) Architecture",
+    "1. AI as a Core Climate Primitive",
+    "2. Intelligence Interactions",
+    "2.1 Verification & Fraud Detection (Computer Vision)",
+    "2.2 Remote Sensing Interpretation",
+    "2.3 Predictive Risk Forecasting",
+    "2.4 Workflow Automation (LLMs)",
+    "3. The Human-in-the-Loop (HITL) Fallback",
+    "4. Architecture Traceability"
+  ],
+  "docs/architecture/climate-reference-architecture/05-registry-federation-architecture.md": [
+    "Enterprise Registry Federation Architecture",
+    "1. The Need for Federation",
+    "2. Supported Federation Targets",
+    "3. The Federation Lifecycle",
+    "3.1 Registration Sync",
+    "3.2 Duplicate Prevention & Conflict Resolution",
+    "3.3 Issuance & Retirement Sync",
+    "3.4 Interoperability & Offline Recovery",
+    "4. Adapter Lifecycle",
+    "5. Architecture Traceability"
+  ],
+  "docs/architecture/climate-reference-architecture/11-climate-data-architecture.md": [
+    "Climate Data Architecture",
+    "1. The Climate Data Universe",
+    "2. Primary Data Sources",
+    "2.1 Hardware & Edge Data",
+    "2.2 Remote Sensing Data",
+    "2.3 Institutional & Enterprise Data",
+    "2.4 Financial Data",
+    "3. Data Ingestion Architecture",
+    "4. Architecture Traceability"
+  ],
+  "docs/architecture/climate-reference-architecture/02-end-to-end-climate-value-chain.md": [
+    "End-to-End Climate Value Chain",
+    "1. The Value Chain Architecture",
+    "2. The Complete Lifecycle",
+    "Phase 1: Origination & Governance",
+    "Phase 2: Execution & Deployment",
+    "Phase 3: Digital MRV (Monitoring, Reporting, Verification)",
+    "Phase 4: Financialization & Market",
+    "Phase 5: Retirement & Impact",
+    "3. Architecture Traceability"
+  ],
+  "docs/architecture/climate-reference-architecture/01-climate-infrastructure-reference-model.md": [
+    "Climate Infrastructure Reference Model",
+    "1. The Climate Ecosystem Map",
+    "1.1 Governance Layer",
+    "1.2 Standards Layer",
+    "1.3 Verification Layer",
+    "1.4 Market & Ledger Layer",
+    "1.5 Finance Layer",
+    "1.6 Delivery Layer",
+    "1.7 Technology Layer",
+    "2. Platform Positioning within the Ecosystem",
+    "3. Architecture Traceability"
+  ],
+  "docs/architecture/climate-reference-architecture/09-portfolio-architecture.md": [
+    "Portfolio Architecture",
+    "1. The Entity Lineage",
+    "2. Explicit Entity Definitions",
+    "2.1 Portfolio",
+    "2.2 Programme (PoA)",
+    "2.3 Project (CPA)",
+    "2.4 Asset",
+    "2.5 Activity",
+    "2.6 Evidence / Telemetry",
+    "2.7 Verification / Monitoring Batch",
+    "2.8 Carbon Credit",
+    "3. Architecture Traceability"
+  ],
+  "docs/architecture/climate-reference-architecture/12-enterprise-operational-model.md": [
+    "Enterprise Operational Model",
+    "1. The Day-to-Day Execution",
+    "2. Actor Operational Sequences",
+    "2.1 The Field Agent (Data Collection)",
+    "2.2 The Internal Verifier (QA)",
+    "2.3 The VVB Auditor (Independent Assurance)",
+    "2.4 The National Regulator (Government)",
+    "2.5 The Corporate Buyer (ESG Team)",
+    "2.6 The Platform Administrator (Super Admin)",
+    "3. Architecture Traceability"
+  ],
+  "docs/architecture/climate-reference-architecture/03-climate-finance-architecture.md": [
+    "Climate Finance Architecture",
+    "1. Core Financial Flows",
+    "1.1 Capital Origination",
+    "1.2 Article 6 Financial Mechanisms",
+    "2. Revenue Distribution & Benefit Sharing",
+    "2.1 Fee Structures & Leakage",
+    "2.2 Automated Benefit Sharing (Waterfalls)",
+    "3. Escrow and De-Risking Mechanics",
+    "4. Architecture Traceability"
+  ],
+  "docs/architecture/climate-reference-architecture/08-climate-programme-architecture.md": [
+    "Climate Programme Architecture",
+    "1. The Role of Programmes",
+    "2. Programme Hierarchy & Governance",
+    "2.1 Programme Governance",
+    "3. Programme Financing & Distribution",
+    "4. Programme Lifecycle & Closure",
+    "5. Architecture Traceability"
+  ],
+  "docs/architecture/climate-reference-architecture/glossary/01-climate-infrastructure-glossary.md": [
+    "Enterprise Glossary: Climate Infrastructure",
+    "1. The Canonical Language",
+    "2. Core Entities",
+    "Activity",
+    "Asset",
+    "Evidence",
+    "Jurisdiction",
+    "Programme (PoA - Programme of Activities)",
+    "Project (CPA - Component Project Activity)",
+    "Portfolio",
+    "3. Climate Market Terminology",
+    "Additionality",
+    "Baseline",
+    "Buffer Pool",
+    "Carbon Credit / Verified Emission Reduction (VER)",
+    "Corresponding Adjustment (CA)",
+    "Issuance",
+    "Leakage",
+    "Methodology",
+    "Monitoring Period (Vintage)",
+    "Permanence",
+    "Retirement",
+    "4. Verification Terminology",
+    "Validation",
+    "Verification",
+    "Validation and Verification Body (VVB)"
+  ],
+  "docs/architecture/10-operational-architecture/01-workflow-catalogue.md": [
+    "Enterprise Workflow Catalogue",
+    "1. Compliance & Approval Workflows",
+    "1.1 Project Validation Workflow",
+    "1.2 Verification & Issuance Workflow",
+    "2. Operational Workflows",
+    "2.1 Organization Onboarding Workflow",
+    "2.2 Asset Deployment Workflow",
+    "3. Background Workflows (Asynchronous)",
+    "3.1 Registry Sync Engine",
+    "3.2 Automated Anomaly Detection"
+  ],
+  "docs/architecture/glossary/01-glossary.md": [
+    "Enterprise Glossary",
+    "Core Terminology"
+  ],
+  "docs/architecture/standards/01-standards-and-templates.md": [
+    "Architecture Standards & Templates",
+    "1. Coding Standards",
+    "2. ADR Template",
+    "ADR [Number]: [Title]",
+    "Context",
+    "Decision",
+    "Consequences",
+    "Alternatives Considered"
+  ]
+}

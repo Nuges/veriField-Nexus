@@ -293,11 +293,29 @@ class _AuditListScreenState extends State<AuditListScreen> {
   Widget _buildTypeChip(String type) {
     IconData icon;
     Color color;
-    switch (type) {
-      case 'cooking': icon = Icons.soup_kitchen_rounded; color = AppColors.warning; break;
-      case 'farming': icon = Icons.grass; color = AppColors.primary; break;
-      case 'energy': icon = Icons.bolt; color = AppColors.accent; break;
-      default: icon = Icons.home; color = AppColors.textTertiary;
+    switch (type.toLowerCase()) {
+      case 'cooking':
+      case 'cookstove':
+        icon = Icons.soup_kitchen_rounded;
+        color = AppColors.warning;
+        break;
+      case 'farming':
+      case 'biochar':
+        icon = Icons.grass;
+        color = AppColors.primary;
+        break;
+      case 'energy':
+      case 'hybrid_energy':
+        icon = Icons.bolt;
+        color = AppColors.accent;
+        break;
+      case 'ev_mobility':
+        icon = Icons.directions_car_rounded;
+        color = Colors.purple;
+        break;
+      default:
+        icon = Icons.home;
+        color = AppColors.textTertiary;
     }
     return Row(
       children: [

@@ -7,12 +7,14 @@
 
 "use client";
 
-import Sidebar from "@/components/Sidebar";
+import DynamicSidebar from "@/components/DynamicSidebar";
 import TopTabs from "@/components/TopTabs";
 import Link from "next/link";
 import { WorkspaceProvider, useWorkspace } from "@/context/WorkspaceContext";
+import { GovernanceProvider } from "@/context/GovernanceContext";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import { safeStorage } from "@/lib/storage";
 
 export default function DashboardLayout({
   children,
@@ -21,7 +23,9 @@ export default function DashboardLayout({
 }) {
   return (
     <WorkspaceProvider>
-      <DashboardLayoutContent>{children}</DashboardLayoutContent>
+      <GovernanceProvider>
+        <DashboardLayoutContent>{children}</DashboardLayoutContent>
+      </GovernanceProvider>
     </WorkspaceProvider>
   );
 }
@@ -31,14 +35,14 @@ function DashboardLayoutContent({
 }: {
   children: React.ReactNode;
 }) {
-  const { user, isLoading } = useWorkspace();
+  const { user, isLoading, activeSector, changeSector, allowedSectors, moduleRegistry, isSandboxed, isSidebarCollapsed } = useWorkspace();
   const router = useRouter();
 
   useEffect(() => {
     if (!user) return;
 
-    if (!["admin", "auditor", "SUPER_ADMIN", "ORG_ADMIN"].includes(user.role)) {
-      localStorage.clear();
+    if (!["admin", "auditor", "SUPER_ADMIN", "ORG_ADMIN", "JURISDICTION_ADMIN", "COMPLIANCE_ADMIN"].includes(user.role)) {
+      safeStorage.clear();
       router.push("/login?error=unauthorized");
     } else if (user.role === "SUPER_ADMIN") {
       router.push("/super-admin");
@@ -59,10 +63,10 @@ function DashboardLayoutContent({
   return (
     <div className="flex min-h-screen bg-[var(--color-background)]">
       {/* Sidebar navigation (Desktop collapsible + Mobile sliding drawer) */}
-      <Sidebar />
+      <DynamicSidebar />
 
       {/* Main content area — offset dynamically for responsive breakpoints */}
-      <main className="flex-1 ml-0 md:ml-[260px] mt-14 md:mt-0 p-4 md:p-6 overflow-auto">
+      <main className={`flex-1 transition-all duration-300 ml-0 mt-14 md:mt-0 p-4 md:p-6 overflow-auto ${isSidebarCollapsed ? "md:ml-[68px]" : "md:ml-[260px]"}`}>
         {/* Global Desktop Top Header */}
         {user && (
           <div className="hidden md:flex items-center justify-between mb-6 pb-4 border-b border-[var(--color-border)] animate-fade-in-up">
@@ -74,6 +78,28 @@ function DashboardLayoutContent({
                 Tenant Sandboxed: <span className="text-emerald-500 font-bold">{user.organization || "VeriField"}</span>
               </p>
             </div>
+
+            {/* Global Workspace Select Switcher (Desktop top header) */}
+            {allowedSectors.length > 1 && (
+              <div className="flex items-center gap-2 bg-slate-900/10 dark:bg-slate-900/30 border border-[var(--color-border)] px-3 py-1.5 rounded-xl">
+                <span className="text-[10px] uppercase font-extrabold text-[var(--color-text-secondary)] tracking-wider">Workspace:</span>
+                <select
+                  value={activeSector}
+                  onChange={(e) => changeSector(e.target.value)}
+                  className="bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text-primary)] rounded-lg text-xs px-2.5 py-1 font-bold outline-none focus:border-emerald-500 transition-colors cursor-pointer"
+                >
+                  {allowedSectors.filter(sec => sec !== "all").map((sec) => {
+                    const mod = moduleRegistry[sec];
+                    const emoji = mod?.badge || "🌍 ";
+                    return (
+                      <option key={sec} value={sec}>
+                        {emoji}{mod?.name || sec}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+            )}
             
             <Link href="/dashboard/settings" className="flex items-center gap-3 hover:opacity-85 transition-opacity bg-slate-900/10 dark:bg-slate-900/30 border border-[var(--color-border)] px-4 py-2 rounded-xl">
               <div className="text-right">

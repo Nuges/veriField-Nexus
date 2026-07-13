@@ -37,6 +37,7 @@ import {
   User as UserIcon
 } from "lucide-react";
 import { WorkspaceProvider, useWorkspace } from "@/context/WorkspaceContext";
+import { safeStorage } from "@/lib/storage";
 import { 
   fetchAccessRequests, 
   approveAccessRequest, 
@@ -66,24 +67,12 @@ function SuperAdminDashboard() {
   const [orgs, setOrgs] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
-  const [mrvStats, setMrvStats] = useState<{
-    installations: number;
-    avgTrust: number;
-    tCO2: number;
-    activeOrgs: number;
-    sectors: {
-      cookstove: number;
-      energy: number;
-    };
-  }>({
+  const [mrvStats, setMrvStats] = useState<any>({
     installations: 0,
     avgTrust: 0.0,
     tCO2: 0.0,
     activeOrgs: 0,
-    sectors: {
-      cookstove: 0,
-      energy: 0
-    }
+    methodologies: {}
   });
 
   // Action states
@@ -318,8 +307,8 @@ function SuperAdminDashboard() {
   };
 
   const handleSignOut = () => {
-    localStorage.removeItem("vf_token");
-    localStorage.removeItem("vf_user");
+    safeStorage.removeItem("vf_token");
+    safeStorage.removeItem("vf_user");
     router.push("/login");
   };
 
@@ -760,26 +749,30 @@ function SuperAdminDashboard() {
                   <h4 className="font-extrabold text-white text-sm">Tenant Methodology Coverage</h4>
                   <div className="space-y-3 pt-2">
                     {(() => {
-                      const totalSectors = (mrvStats.sectors?.cookstove || 0) + (mrvStats.sectors?.energy || 0);
-                      const cookstovePct = totalSectors > 0 ? Math.round(((mrvStats.sectors?.cookstove || 0) / totalSectors) * 100) : 0;
-                      const energyPct = totalSectors > 0 ? Math.round(((mrvStats.sectors?.energy || 0) / totalSectors) * 100) : 0;
-                      return [
-                        { name: "Clean Cooking (AMS-II.G / VM0038)", count: mrvStats.sectors?.cookstove || 0, pct: `${cookstovePct}%` },
-                        { name: "Grid-Connected Solar (AMS-I.F)", count: mrvStats.sectors?.energy || 0, pct: `${energyPct}%` }
-                      ].map((item, idx) => (
-                        <div key={idx} className="space-y-1 font-mono text-[11px]">
-                          <div className="flex justify-between text-zinc-400">
-                            <span>{item.name}</span>
-                            <span className="text-[#00B47A] font-bold">{item.count} Orgs ({item.pct})</span>
+                      const methodologies = mrvStats.methodologies || {};
+                      const totalMethodologies = Object.values(methodologies).reduce((a: any, b: any) => a + b, 0) as number;
+                      
+                      if (totalMethodologies === 0) {
+                        return <span className="text-[11px] text-zinc-500">No methodology data available.</span>;
+                      }
+
+                      return Object.entries(methodologies).map(([name, count]: [string, any], idx) => {
+                        const pct = Math.round((count / totalMethodologies) * 100);
+                        return (
+                          <div key={idx} className="space-y-1 font-mono text-[11px]">
+                            <div className="flex justify-between text-zinc-400">
+                              <span>{name.replace(/_/g, ' ').toUpperCase()}</span>
+                              <span className="text-[#00B47A] font-bold">{count} Orgs ({pct}%)</span>
+                            </div>
+                            <div className="w-full bg-[#141F20] h-2 rounded-full overflow-hidden border border-[#213233]/60">
+                              <div 
+                                className="bg-[#00B47A] h-full rounded-full" 
+                                style={{ width: `${pct}%` }} 
+                              />
+                            </div>
                           </div>
-                          <div className="w-full bg-[#141F20] h-2 rounded-full overflow-hidden border border-[#213233]/60">
-                            <div 
-                              className="bg-[#00B47A] h-full rounded-full" 
-                              style={{ width: item.pct }} 
-                            />
-                          </div>
-                        </div>
-                      ));
+                        );
+                      });
                     })()}
                   </div>
                 </div>
@@ -1171,7 +1164,7 @@ function SuperAdminDashboard() {
                           return (
                             <div key={sector} className="space-y-1">
                               <div className="flex justify-between text-zinc-400">
-                                <span className="capitalize">{sector === "energy" ? "Hybrid Energy" : sector === "cookstove" ? "Clean Cookstove" : sector}</span>
+                                <span className="capitalize">{sector}</span>
                                 <span className="text-[#00B47A] font-bold">{typedCount} Users ({pct}%)</span>
                               </div>
                               <div className="w-full bg-[#141F20] h-1.5 rounded-full overflow-hidden border border-[#213233]/60">

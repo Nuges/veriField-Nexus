@@ -1,0 +1,24 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Nigeria Bounding Box",
+        "description": "Seeded Spatial boundary for testing Nigeria jurisdiction"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [3.0, 4.0],
+            [15.0, 4.0],
+            [15.0, 14.0],
+            [3.0, 14.0],
+            [3.0, 4.0]
+          ]
+        ]
+      }
+    }
+  ]
+}

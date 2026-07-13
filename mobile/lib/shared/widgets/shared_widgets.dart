@@ -141,6 +141,7 @@ class VFTextField extends StatelessWidget {
   final String? Function(String?)? validator;
   final void Function(String)? onChanged;
   final int maxLines;
+  final bool readOnly;
 
   const VFTextField({
     super.key,
@@ -154,6 +155,7 @@ class VFTextField extends StatelessWidget {
     this.validator,
     this.onChanged,
     this.maxLines = 1,
+    this.readOnly = false,
   });
 
   @override
@@ -170,6 +172,7 @@ class VFTextField extends StatelessWidget {
           maxLines: maxLines,
           validator: validator,
           onChanged: onChanged,
+          readOnly: readOnly,
           style: AppTypography.body,
           decoration: InputDecoration(
             hintText: hint,

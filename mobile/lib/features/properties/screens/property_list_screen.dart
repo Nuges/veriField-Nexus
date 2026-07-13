@@ -82,6 +82,12 @@ class _PropertyListScreenState extends State<PropertyListScreen> {
     final typeIcons = {
       'cookstove': Icons.soup_kitchen_rounded,
       'CLEAN_COOKING': Icons.soup_kitchen_rounded,
+      'hybrid_energy': Icons.bolt,
+      'HYBRID_ENERGY': Icons.bolt,
+      'biochar': Icons.grass,
+      'BIOCHAR_C_SINK': Icons.grass,
+      'ev_mobility': Icons.directions_car_rounded,
+      'EV_MOBILITY': Icons.directions_car_rounded,
     };
 
     return Padding(

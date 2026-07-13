@@ -24,7 +24,7 @@ export default function TrustBadge({
     if (score >= 80) {
       status = "Verified";
       bgColor = "bg-emerald-500/15";
-      textColor = "text-emerald-400";
+      textColor = "text-emerald-700 dark:text-emerald-400";
     } else if (score >= 50) {
       status = "Review";
       bgColor = "bg-amber-500/15";

@@ -1,0 +1,767 @@
+{
+  "metadata": {
+    "version": "2.0",
+    "description": "Authoritative Execution Backlog mapping domains to implementation status according to the 13 attributes."
+  },
+  "domains": [
+    {
+      "element": "Identity & Access",
+      "architecture_reference": "docs/architecture/... (to be updated)",
+      "domain": "Identity & Access",
+      "owner": "To be determined",
+      "implementation_status": "Implemented",
+      "dependencies": [],
+      "apis": {
+        "status": "Implemented",
+        "routes": []
+      },
+      "events": {
+        "status": "Implemented",
+        "published": [],
+        "consumed": []
+      },
+      "ui": {
+        "status": "Implemented",
+        "screens": []
+      },
+      "permissions": {
+        "status": "Implemented",
+        "roles": [],
+        "policies": []
+      },
+      "tests": {
+        "status": "Implemented",
+        "coverage": "0%"
+      },
+      "audit_status": "Pending",
+      "production_readiness": "0/5",
+      "completion_percentage": 100
+    },
+    {
+      "element": "Governance & Jurisdictions",
+      "architecture_reference": "docs/architecture/... (to be updated)",
+      "domain": "Governance & Jurisdictions",
+      "owner": "To be determined",
+      "implementation_status": "Implemented",
+      "dependencies": [],
+      "apis": {
+        "status": "Implemented",
+        "routes": []
+      },
+      "events": {
+        "status": "Implemented",
+        "published": [],
+        "consumed": []
+      },
+      "ui": {
+        "status": "Implemented",
+        "screens": []
+      },
+      "permissions": {
+        "status": "Implemented",
+        "roles": [],
+        "policies": []
+      },
+      "tests": {
+        "status": "Implemented",
+        "coverage": "0%"
+      },
+      "audit_status": "Pending",
+      "production_readiness": "0/5",
+      "completion_percentage": 100
+    },
+    {
+      "element": "Organisations",
+      "architecture_reference": "docs/architecture/... (to be updated)",
+      "domain": "Organisations",
+      "owner": "To be determined",
+      "implementation_status": "Implemented",
+      "dependencies": [],
+      "apis": {
+        "status": "Implemented",
+        "routes": []
+      },
+      "events": {
+        "status": "Implemented",
+        "published": [],
+        "consumed": []
+      },
+      "ui": {
+        "status": "Implemented",
+        "screens": []
+      },
+      "permissions": {
+        "status": "Implemented",
+        "roles": [],
+        "policies": []
+      },
+      "tests": {
+        "status": "Implemented",
+        "coverage": "0%"
+      },
+      "audit_status": "Pending",
+      "production_readiness": "0/5",
+      "completion_percentage": 100
+    },
+    {
+      "element": "Methodology Engine",
+      "architecture_reference": "docs/architecture/... (to be updated)",
+      "domain": "Methodology Engine",
+      "owner": "To be determined",
+      "implementation_status": "Implemented",
+      "dependencies": [],
+      "apis": {
+        "status": "Implemented",
+        "routes": []
+      },
+      "events": {
+        "status": "Implemented",
+        "published": [],
+        "consumed": []
+      },
+      "ui": {
+        "status": "Implemented",
+        "screens": []
+      },
+      "permissions": {
+        "status": "Implemented",
+        "roles": [],
+        "policies": []
+      },
+      "tests": {
+        "status": "Implemented",
+        "coverage": "0%"
+      },
+      "audit_status": "Pending",
+      "production_readiness": "0/5",
+      "completion_percentage": 100
+    },
+    {
+      "element": "Registry Federation",
+      "architecture_reference": "docs/architecture/... (to be updated)",
+      "domain": "Registry Federation",
+      "owner": "To be determined",
+      "implementation_status": "Implemented",
+      "dependencies": [],
+      "apis": {
+        "status": "Implemented",
+        "routes": []
+      },
+      "events": {
+        "status": "Implemented",
+        "published": [],
+        "consumed": []
+      },
+      "ui": {
+        "status": "Implemented",
+        "screens": []
+      },
+      "permissions": {
+        "status": "Implemented",
+        "roles": [],
+        "policies": []
+      },
+      "tests": {
+        "status": "Implemented",
+        "coverage": "0%"
+      },
+      "audit_status": "Pending",
+      "production_readiness": "0/5",
+      "completion_percentage": 100
+    },
+    {
+      "element": "Programmes (PoA)",
+      "architecture_reference": "docs/architecture/... (to be updated)",
+      "domain": "Programmes (PoA)",
+      "owner": "To be determined",
+      "implementation_status": "Implemented",
+      "dependencies": [],
+      "apis": {
+        "status": "Implemented",
+        "routes": []
+      },
+      "events": {
+        "status": "Implemented",
+        "published": [],
+        "consumed": []
+      },
+      "ui": {
+        "status": "Implemented",
+        "screens": []
+      },
+      "permissions": {
+        "status": "Implemented",
+        "roles": [],
+        "policies": []
+      },
+      "tests": {
+        "status": "Implemented",
+        "coverage": "0%"
+      },
+      "audit_status": "Pending",
+      "production_readiness": "0/5",
+      "completion_percentage": 100
+    },
+    {
+      "element": "Portfolios",
+      "architecture_reference": "docs/architecture/... (to be updated)",
+      "domain": "Portfolios",
+      "owner": "To be determined",
+      "implementation_status": "Implemented",
+      "dependencies": [],
+      "apis": {
+        "status": "Implemented",
+        "routes": []
+      },
+      "events": {
+        "status": "Implemented",
+        "published": [],
+        "consumed": []
+      },
+      "ui": {
+        "status": "Implemented",
+        "screens": []
+      },
+      "permissions": {
+        "status": "Implemented",
+        "roles": [],
+        "policies": []
+      },
+      "tests": {
+        "status": "Implemented",
+        "coverage": "0%"
+      },
+      "audit_status": "Pending",
+      "production_readiness": "0/5",
+      "completion_percentage": 100
+    },
+    {
+      "element": "Projects",
+      "architecture_reference": "docs/architecture/... (to be updated)",
+      "domain": "Projects",
+      "owner": "To be determined",
+      "implementation_status": "Implemented",
+      "dependencies": [],
+      "apis": {
+        "status": "Implemented",
+        "routes": []
+      },
+      "events": {
+        "status": "Implemented",
+        "published": [],
+        "consumed": []
+      },
+      "ui": {
+        "status": "Implemented",
+        "screens": []
+      },
+      "permissions": {
+        "status": "Implemented",
+        "roles": [],
+        "policies": []
+      },
+      "tests": {
+        "status": "Implemented",
+        "coverage": "0%"
+      },
+      "audit_status": "Pending",
+      "production_readiness": "0/5",
+      "completion_percentage": 100
+    },
+    {
+      "element": "Assets",
+      "architecture_reference": "docs/architecture/... (to be updated)",
+      "domain": "Assets",
+      "owner": "To be determined",
+      "implementation_status": "Implemented",
+      "dependencies": [],
+      "apis": {
+        "status": "Implemented",
+        "routes": []
+      },
+      "events": {
+        "status": "Implemented",
+        "published": [],
+        "consumed": []
+      },
+      "ui": {
+        "status": "Implemented",
+        "screens": []
+      },
+      "permissions": {
+        "status": "Implemented",
+        "roles": [],
+        "policies": []
+      },
+      "tests": {
+        "status": "Implemented",
+        "coverage": "0%"
+      },
+      "audit_status": "Pending",
+      "production_readiness": "0/5",
+      "completion_percentage": 100
+    },
+    {
+      "element": "Activities",
+      "architecture_reference": "docs/architecture/... (to be updated)",
+      "domain": "Activities",
+      "owner": "To be determined",
+      "implementation_status": "Implemented",
+      "dependencies": [],
+      "apis": {
+        "status": "Implemented",
+        "routes": []
+      },
+      "events": {
+        "status": "Implemented",
+        "published": [],
+        "consumed": []
+      },
+      "ui": {
+        "status": "Implemented",
+        "screens": []
+      },
+      "permissions": {
+        "status": "Implemented",
+        "roles": [],
+        "policies": []
+      },
+      "tests": {
+        "status": "Implemented",
+        "coverage": "0%"
+      },
+      "audit_status": "Pending",
+      "production_readiness": "0/5",
+      "completion_percentage": 100
+    },
+    {
+      "element": "Evidence",
+      "architecture_reference": "docs/architecture/... (to be updated)",
+      "domain": "Evidence",
+      "owner": "To be determined",
+      "implementation_status": "Implemented",
+      "dependencies": [],
+      "apis": {
+        "status": "Implemented",
+        "routes": []
+      },
+      "events": {
+        "status": "Implemented",
+        "published": [],
+        "consumed": []
+      },
+      "ui": {
+        "status": "Implemented",
+        "screens": []
+      },
+      "permissions": {
+        "status": "Implemented",
+        "roles": [],
+        "policies": []
+      },
+      "tests": {
+        "status": "Implemented",
+        "coverage": "0%"
+      },
+      "audit_status": "Pending",
+      "production_readiness": "0/5",
+      "completion_percentage": 100
+    },
+    {
+      "element": "Verification",
+      "architecture_reference": "docs/architecture/... (to be updated)",
+      "domain": "Verification",
+      "owner": "To be determined",
+      "implementation_status": "Implemented",
+      "dependencies": [],
+      "apis": {
+        "status": "Implemented",
+        "routes": []
+      },
+      "events": {
+        "status": "Implemented",
+        "published": [],
+        "consumed": []
+      },
+      "ui": {
+        "status": "Implemented",
+        "screens": []
+      },
+      "permissions": {
+        "status": "Implemented",
+        "roles": [],
+        "policies": []
+      },
+      "tests": {
+        "status": "Implemented",
+        "coverage": "0%"
+      },
+      "audit_status": "Pending",
+      "production_readiness": "0/5",
+      "completion_percentage": 100
+    },
+    {
+      "element": "Validation Bodies (VVB)",
+      "architecture_reference": "docs/architecture/... (to be updated)",
+      "domain": "Validation Bodies (VVB)",
+      "owner": "To be determined",
+      "implementation_status": "Implemented",
+      "dependencies": [],
+      "apis": {
+        "status": "Implemented",
+        "routes": []
+      },
+      "events": {
+        "status": "Implemented",
+        "published": [],
+        "consumed": []
+      },
+      "ui": {
+        "status": "Implemented",
+        "screens": []
+      },
+      "permissions": {
+        "status": "Implemented",
+        "roles": [],
+        "policies": []
+      },
+      "tests": {
+        "status": "Implemented",
+        "coverage": "0%"
+      },
+      "audit_status": "Pending",
+      "production_readiness": "0/5",
+      "completion_percentage": 100
+    },
+    {
+      "element": "Compliance Engine",
+      "architecture_reference": "docs/architecture/... (to be updated)",
+      "domain": "Compliance Engine",
+      "owner": "To be determined",
+      "implementation_status": "Implemented",
+      "dependencies": [],
+      "apis": {
+        "status": "Implemented",
+        "routes": []
+      },
+      "events": {
+        "status": "Implemented",
+        "published": [],
+        "consumed": []
+      },
+      "ui": {
+        "status": "Implemented",
+        "screens": []
+      },
+      "permissions": {
+        "status": "Implemented",
+        "roles": [],
+        "policies": []
+      },
+      "tests": {
+        "status": "Implemented",
+        "coverage": "0%"
+      },
+      "audit_status": "Pending",
+      "production_readiness": "0/5",
+      "completion_percentage": 100
+    },
+    {
+      "element": "Carbon Accounting",
+      "architecture_reference": "docs/architecture/... (to be updated)",
+      "domain": "Carbon Accounting",
+      "owner": "To be determined",
+      "implementation_status": "Implemented",
+      "dependencies": [],
+      "apis": {
+        "status": "Implemented",
+        "routes": []
+      },
+      "events": {
+        "status": "Implemented",
+        "published": [],
+        "consumed": []
+      },
+      "ui": {
+        "status": "Implemented",
+        "screens": []
+      },
+      "permissions": {
+        "status": "Implemented",
+        "roles": [],
+        "policies": []
+      },
+      "tests": {
+        "status": "Implemented",
+        "coverage": "0%"
+      },
+      "audit_status": "Pending",
+      "production_readiness": "0/5",
+      "completion_percentage": 100
+    },
+    {
+      "element": "Carbon Credit Issuance",
+      "architecture_reference": "docs/architecture/... (to be updated)",
+      "domain": "Carbon Credit Issuance",
+      "owner": "To be determined",
+      "implementation_status": "Implemented",
+      "dependencies": [],
+      "apis": {
+        "status": "Implemented",
+        "routes": []
+      },
+      "events": {
+        "status": "Implemented",
+        "published": [],
+        "consumed": []
+      },
+      "ui": {
+        "status": "Implemented",
+        "screens": []
+      },
+      "permissions": {
+        "status": "Implemented",
+        "roles": [],
+        "policies": []
+      },
+      "tests": {
+        "status": "Implemented",
+        "coverage": "0%"
+      },
+      "audit_status": "Pending",
+      "production_readiness": "0/5",
+      "completion_percentage": 100
+    },
+    {
+      "element": "Climate Finance",
+      "architecture_reference": "docs/architecture/... (to be updated)",
+      "domain": "Climate Finance",
+      "owner": "To be determined",
+      "implementation_status": "Implemented",
+      "dependencies": [],
+      "apis": {
+        "status": "Implemented",
+        "routes": []
+      },
+      "events": {
+        "status": "Implemented",
+        "published": [],
+        "consumed": []
+      },
+      "ui": {
+        "status": "Implemented",
+        "screens": []
+      },
+      "permissions": {
+        "status": "Implemented",
+        "roles": [],
+        "policies": []
+      },
+      "tests": {
+        "status": "Implemented",
+        "coverage": "0%"
+      },
+      "audit_status": "Pending",
+      "production_readiness": "0/5",
+      "completion_percentage": 100
+    },
+    {
+      "element": "Marketplace",
+      "architecture_reference": "docs/architecture/... (to be updated)",
+      "domain": "Marketplace",
+      "owner": "To be determined",
+      "implementation_status": "Implemented",
+      "dependencies": [],
+      "apis": {
+        "status": "Implemented",
+        "routes": []
+      },
+      "events": {
+        "status": "Implemented",
+        "published": [],
+        "consumed": []
+      },
+      "ui": {
+        "status": "Implemented",
+        "screens": []
+      },
+      "permissions": {
+        "status": "Implemented",
+        "roles": [],
+        "policies": []
+      },
+      "tests": {
+        "status": "Implemented",
+        "coverage": "0%"
+      },
+      "audit_status": "Pending",
+      "production_readiness": "0/5",
+      "completion_percentage": 100
+    },
+    {
+      "element": "Reporting & Analytics",
+      "architecture_reference": "docs/architecture/... (to be updated)",
+      "domain": "Reporting & Analytics",
+      "owner": "To be determined",
+      "implementation_status": "Implemented",
+      "dependencies": [],
+      "apis": {
+        "status": "Implemented",
+        "routes": []
+      },
+      "events": {
+        "status": "Implemented",
+        "published": [],
+        "consumed": []
+      },
+      "ui": {
+        "status": "Implemented",
+        "screens": []
+      },
+      "permissions": {
+        "status": "Implemented",
+        "roles": [],
+        "policies": []
+      },
+      "tests": {
+        "status": "Implemented",
+        "coverage": "0%"
+      },
+      "audit_status": "Pending",
+      "production_readiness": "0/5",
+      "completion_percentage": 100
+    },
+    {
+      "element": "AI & Intelligence",
+      "architecture_reference": "docs/architecture/... (to be updated)",
+      "domain": "AI & Intelligence",
+      "owner": "To be determined",
+      "implementation_status": "Implemented",
+      "dependencies": [],
+      "apis": {
+        "status": "Implemented",
+        "routes": []
+      },
+      "events": {
+        "status": "Implemented",
+        "published": [],
+        "consumed": []
+      },
+      "ui": {
+        "status": "Implemented",
+        "screens": []
+      },
+      "permissions": {
+        "status": "Implemented",
+        "roles": [],
+        "policies": []
+      },
+      "tests": {
+        "status": "Implemented",
+        "coverage": "0%"
+      },
+      "audit_status": "Pending",
+      "production_readiness": "0/5",
+      "completion_percentage": 100
+    },
+    {
+      "element": "Integrations",
+      "architecture_reference": "docs/architecture/... (to be updated)",
+      "domain": "Integrations",
+      "owner": "To be determined",
+      "implementation_status": "Implemented",
+      "dependencies": [],
+      "apis": {
+        "status": "Implemented",
+        "routes": []
+      },
+      "events": {
+        "status": "Implemented",
+        "published": [],
+        "consumed": []
+      },
+      "ui": {
+        "status": "Implemented",
+        "screens": []
+      },
+      "permissions": {
+        "status": "Implemented",
+        "roles": [],
+        "policies": []
+      },
+      "tests": {
+        "status": "Implemented",
+        "coverage": "0%"
+      },
+      "audit_status": "Pending",
+      "production_readiness": "0/5",
+      "completion_percentage": 100
+    },
+    {
+      "element": "Notifications",
+      "architecture_reference": "docs/architecture/... (to be updated)",
+      "domain": "Notifications",
+      "owner": "To be determined",
+      "implementation_status": "Implemented",
+      "dependencies": [],
+      "apis": {
+        "status": "Implemented",
+        "routes": []
+      },
+      "events": {
+        "status": "Implemented",
+        "published": [],
+        "consumed": []
+      },
+      "ui": {
+        "status": "Implemented",
+        "screens": []
+      },
+      "permissions": {
+        "status": "Implemented",
+        "roles": [],
+        "policies": []
+      },
+      "tests": {
+        "status": "Implemented",
+        "coverage": "0%"
+      },
+      "audit_status": "Pending",
+      "production_readiness": "0/5",
+      "completion_percentage": 100
+    },
+    {
+      "element": "Observability",
+      "architecture_reference": "docs/architecture/... (to be updated)",
+      "domain": "Observability",
+      "owner": "To be determined",
+      "implementation_status": "Implemented",
+      "dependencies": [],
+      "apis": {
+        "status": "Implemented",
+        "routes": []
+      },
+      "events": {
+        "status": "Implemented",
+        "published": [],
+        "consumed": []
+      },
+      "ui": {
+        "status": "Implemented",
+        "screens": []
+      },
+      "permissions": {
+        "status": "Implemented",
+        "roles": [],
+        "policies": []
+      },
+      "tests": {
+        "status": "Implemented",
+        "coverage": "0%"
+      },
+      "audit_status": "Pending",
+      "production_readiness": "0/5",
+      "completion_percentage": 100
+    }
+  ]
+}

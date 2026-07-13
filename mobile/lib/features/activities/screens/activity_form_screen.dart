@@ -132,6 +132,20 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
       case 2:
         if (_locationData == null) return false;
         if (_selectedConfig == null) return false;
+
+        if (_selectedTypeId == 'BIOCHAR_C_SINK') {
+          final lat = _locationData!['latitude'];
+          final lng = _locationData!['longitude'];
+          if (lat == null || lng == null) return false;
+          final latStr = lat.toString();
+          final lngStr = lng.toString();
+          final latDec = latStr.contains('.') ? latStr.split('.')[1] : '';
+          final lngDec = lngStr.contains('.') ? lngStr.split('.')[1] : '';
+          if (latDec.length < 5 || lngDec.length < 5) {
+            return false;
+          }
+        }
+
         for (final p in _selectedConfig!.photos) {
           if (p.required && !_capturedImages.containsKey(p.key)) {
             return false;
@@ -172,7 +186,37 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
         if (val == null || (val is String && val.isEmpty)) return false;
       }
     }
+    if (_selectedTypeId == 'BIOCHAR_C_SINK') {
+      final applied = double.tryParse(_fieldValues['applied_quantity_kg']?.toString() ?? '') ?? 0.0;
+      final batchWeight = double.tryParse(_fieldValues['batch_weight_kg']?.toString() ?? '') ?? 0.0;
+      if (applied > batchWeight) {
+        return false;
+      }
+    }
     return true;
+  }
+
+  void _recalculateKilnCapacity() {
+    if (_selectedTypeId != 'BIOCHAR_C_SINK') return;
+    final kId = _fieldValues['kiln_id']?.toString();
+    final bId = _fieldValues['biomass_id']?.toString();
+    if (kId != null && bId != null) {
+      final kiln = _kilns.firstWhere((k) => k['id'].toString() == kId, orElse: () => {});
+      final biomass = _biomasses.firstWhere((b) => b['id'].toString() == bId, orElse: () => {});
+      double capacityM3 = 1.5; // fallback
+      double bulkDensity = 0.25; // fallback
+      if (kiln.isNotEmpty) {
+        capacityM3 = double.tryParse(kiln['capacity_m3']?.toString() ?? '') ?? 1.5;
+      }
+      if (biomass.isNotEmpty) {
+        bulkDensity = double.tryParse(biomass['bulk_density_g_cm3']?.toString() ?? '') ?? 0.25;
+      }
+      final capacityLimit = capacityM3 * bulkDensity * 1000;
+      setState(() {
+        _fieldValues['kiln_capacity_limit_kg'] = capacityLimit;
+        _controllerFor('kiln_capacity_limit_kg').text = capacityLimit.toString();
+      });
+    }
   }
 
   TextEditingController _controllerFor(String key) {
@@ -195,6 +239,18 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
         if (result.success) {
           _locationData = result.data;
           _locationError = null;
+
+          if (_selectedTypeId == 'BIOCHAR_C_SINK' && _locationData != null) {
+            final lat = _locationData!['latitude']!;
+            final lng = _locationData!['longitude']!;
+            final latStr = lat.toString();
+            final lngStr = lng.toString();
+            final latDec = latStr.contains('.') ? latStr.split('.')[1] : '';
+            final lngDec = lngStr.contains('.') ? lngStr.split('.')[1] : '';
+            if (latDec.length < 5 || lngDec.length < 5) {
+              _locationError = 'CSI requires at least 5 decimal places of GPS precision (currently Lat: ${latDec.length}, Lng: ${lngDec.length}).';
+            }
+          }
         } else {
           _locationData = null;
           _locationError = result.errorReason;
@@ -292,11 +348,47 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
     }
 
     // Determine primary key based on activity type
-    final primaryKey = _selectedTypeId == 'HYBRID_ENERGY' ? 'solar_installation' : 'stove_installation';
+    final primaryKey = _selectedTypeId == 'HYBRID_ENERGY' 
+        ? 'solar_installation' 
+        : _selectedTypeId == 'BIOCHAR_C_SINK'
+            ? 'kiln_pyrolysis'
+            : _selectedTypeId == 'EV_TRIP'
+                ? 'trip_log_gps_evidence'
+                : 'stove_installation';
+
     final primaryImage = _capturedImages[primaryKey];
     if (primaryImage == null) {
       setState(() => _errorMessage = 'Primary installation photo is required.');
       return;
+    }
+
+    // BIOCHAR_C_SINK specific validation
+    if (_selectedTypeId == 'BIOCHAR_C_SINK') {
+      // 1. Verify 4 photos
+      for (final key in ['kiln_pyrolysis', 'weight_verification', 'lab_analysis_report', 'application_proof']) {
+        if (!_capturedImages.containsKey(key)) {
+          setState(() => _errorMessage = 'Missing required evidence photo: ${key.replaceAll('_', ' ')}');
+          return;
+        }
+      }
+      // 2. Validate applied quantity <= batch weight
+      final applied = double.tryParse(_fieldValues['applied_quantity_kg']?.toString() ?? '') ?? 0.0;
+      final batchWeight = double.tryParse(_fieldValues['batch_weight_kg']?.toString() ?? '') ?? 0.0;
+      if (applied > batchWeight) {
+        setState(() => _errorMessage = 'Applied quantity ($applied kg) cannot exceed batch weight ($batchWeight kg).');
+        return;
+      }
+      // 3. Validate GPS precision >= 5 decimals
+      final lat = _locationData!['latitude']!;
+      final lng = _locationData!['longitude']!;
+      final latStr = lat.toString();
+      final lngStr = lng.toString();
+      final latDec = latStr.contains('.') ? latStr.split('.')[1] : '';
+      final lngDec = lngStr.contains('.') ? lngStr.split('.')[1] : '';
+      if (latDec.length < 5 || lngDec.length < 5) {
+        setState(() => _errorMessage = 'GPS precision is too low. CSI requires at least 5 decimal places.');
+        return;
+      }
     }
 
     setState(() { _isSubmitting = true; _errorMessage = null; });
@@ -339,7 +431,7 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
         // Add all URLs to activityData
         activityData.addAll(uploadedUrls);
 
-        await ApiService.post('/installations', body: {
+        final postBody = <String, dynamic>{
           'activity_type': _selectedTypeId,
           'activity_data': activityData,
           'description': _descriptionController.text,
@@ -354,7 +446,22 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
           'override_reason': _overrideReason,
           'captured_at': capturedAt,
           'client_id': clientId,
-        });
+        };
+
+        if (_selectedTypeId == 'BIOCHAR_C_SINK') {
+          postBody['application_timestamp'] = activityData['application_timestamp'];
+          postBody['application_latitude'] = _locationData!['latitude'];
+          postBody['application_longitude'] = _locationData!['longitude'];
+          postBody['applied_quantity_kg'] = activityData['applied_quantity_kg'];
+          postBody['remaining_quantity_kg'] = activityData['remaining_quantity_kg'];
+          postBody['field_agent_id'] = activityData['field_agent_id'];
+          postBody['evidence_kiln_pyrolysis'] = uploadedUrls['kiln_pyrolysis_image_url'];
+          postBody['evidence_weight'] = uploadedUrls['weight_verification_image_url'];
+          postBody['evidence_lab_report'] = uploadedUrls['lab_analysis_report_image_url'];
+          postBody['evidence_application'] = uploadedUrls['application_proof_image_url'];
+        }
+
+        await ApiService.post('/installations', body: postBody);
 
         if (mounted) {
           VFNotification.showSuccess(context, 'Installation registered successfully! ✅');
@@ -416,6 +523,10 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
         return 'Register Cookstove';
       case 'HYBRID_ENERGY':
         return 'Register Energy System';
+      case 'BIOCHAR_C_SINK':
+        return 'Register Biochar C-Sink';
+      case 'EV_TRIP':
+        return 'Register EV Trip';
       default:
         return 'New Activity';
     }
@@ -552,6 +663,26 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
                       _fieldValues[field.key] = '33333333-3333-3333-3333-333333333333'; // Match seeded Biomass ID fallback
                     }
                   }
+
+                  if (config.id == 'BIOCHAR_C_SINK') {
+                    final currentUser = SupabaseConfig.currentUser;
+                    final agentId = currentUser?.email ?? currentUser?.id ?? 'agent@verifield.io';
+                    final nowStr = DateTime.now().toUtc().toIso8601String();
+                    _fieldValues['field_agent_id'] = agentId;
+                    _controllerFor('field_agent_id').text = agentId;
+                    _fieldValues['application_timestamp'] = nowStr;
+                    _controllerFor('application_timestamp').text = nowStr;
+                    _fieldValues['production_timestamp'] = nowStr;
+                    _controllerFor('production_timestamp').text = nowStr;
+                    _fieldValues['batch_id'] = '';
+                    _controllerFor('batch_id').text = '';
+                    _fieldValues['applied_quantity_kg'] = 0.0;
+                    _controllerFor('applied_quantity_kg').text = '0.0';
+                    _fieldValues['remaining_quantity_kg'] = 0.0;
+                    _controllerFor('remaining_quantity_kg').text = '0.0';
+                    _fieldValues['kiln_capacity_limit_kg'] = 300.0; // standard fallback
+                    _controllerFor('kiln_capacity_limit_kg').text = '300.0';
+                  }
                 });
               },
               child: Container(
@@ -649,6 +780,12 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
   }
 
   Widget _buildField(FormFieldDef field) {
+    final isReadOnly = field.key == 'kiln_capacity_limit_kg' ||
+                       field.key == 'field_agent_id' ||
+                       field.key == 'production_timestamp' ||
+                       field.key == 'batch_id' ||
+                       field.key == 'application_timestamp';
+
     switch (field.type) {
       case 'enum':
         return _buildEnumField(field);
@@ -663,6 +800,7 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
           hint: 'Enter ${field.label.toLowerCase()}',
           controller: _controllerFor(field.key),
           maxLines: 3,
+          readOnly: isReadOnly,
           onChanged: (v) => setState(() => _fieldValues[field.key] = v),
         );
       default:
@@ -693,15 +831,51 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
                   child: IconButton(
                     icon: const Icon(Icons.qr_code_scanner_rounded, color: AppColors.primary),
                     onPressed: () async {
-                      final code = await Navigator.push<String>(
+                      final resultStr = await Navigator.push<String>(
                         context,
                         MaterialPageRoute(builder: (context) => const QrScannerScreen()),
                       );
-                      if (code != null) {
-                        setState(() {
-                          _fieldValues[field.key] = code;
-                          controller.text = code;
-                        });
+                      if (resultStr != null) {
+                        if (resultStr.startsWith('{')) {
+                          try {
+                            final data = jsonDecode(resultStr) as Map<String, dynamic>;
+                            setState(() {
+                              final qrId = data['qr_id']?.toString() ?? '';
+                              _fieldValues['qr_id'] = qrId;
+                              _controllerFor('qr_id').text = qrId;
+
+                              if (data.containsKey('batch_id')) {
+                                final batchId = data['batch_id']?.toString() ?? '';
+                                _fieldValues['batch_id'] = batchId;
+                                _controllerFor('batch_id').text = batchId;
+                              }
+                              if (data.containsKey('production_timestamp')) {
+                                final prodTime = data['production_timestamp']?.toString() ?? '';
+                                _fieldValues['production_timestamp'] = prodTime;
+                                _controllerFor('production_timestamp').text = prodTime;
+                              }
+                              if (data.containsKey('batch_weight_kg')) {
+                                final weight = double.tryParse(data['batch_weight_kg'].toString()) ?? 0.0;
+                                _fieldValues['batch_weight_kg'] = weight;
+                                _controllerFor('batch_weight_kg').text = weight.toString();
+                              }
+                              if (data.containsKey('kiln_id')) {
+                                _fieldValues['kiln_id'] = data['kiln_id']?.toString() ?? '';
+                              }
+                              if (data.containsKey('biomass_id')) {
+                                _fieldValues['biomass_id'] = data['biomass_id']?.toString() ?? '';
+                              }
+                              _recalculateKilnCapacity();
+                            });
+                          } catch (e) {
+                            debugPrint('Failed to parse QR scanner result JSON: $e');
+                          }
+                        } else {
+                          setState(() {
+                            _fieldValues['qr_id'] = resultStr;
+                            _controllerFor('qr_id').text = resultStr;
+                          });
+                        }
                       }
                     },
                   ),
@@ -714,6 +888,7 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
           label: '${field.label}${field.required ? " *" : ""}',
           hint: 'Enter ${field.label.toLowerCase()}',
           controller: _controllerFor(field.key),
+          readOnly: isReadOnly,
           onChanged: (v) => setState(() => _fieldValues[field.key] = v),
         );
     }
@@ -758,7 +933,12 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
             final isSelected = current == opt;
             final displayText = friendlyLabels[opt] ?? opt.replaceAll('_', ' ').toUpperCase();
             return GestureDetector(
-              onTap: () => setState(() => _fieldValues[field.key] = opt),
+              onTap: () {
+                setState(() {
+                  _fieldValues[field.key] = opt;
+                  _recalculateKilnCapacity();
+                });
+              },
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: BoxDecoration(
@@ -793,11 +973,13 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
   }
 
   Widget _buildNumberField(FormFieldDef field) {
+    final isReadOnly = field.key == 'kiln_capacity_limit_kg';
     return VFTextField(
       label: '${field.label}${field.required ? " *" : ""}',
       hint: 'Enter ${field.label.toLowerCase()}',
       controller: _controllerFor(field.key),
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      readOnly: isReadOnly,
       onChanged: (v) {
         setState(() {
           if (v.isEmpty) { _fieldValues.remove(field.key); return; }
