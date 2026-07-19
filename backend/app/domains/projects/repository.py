@@ -95,3 +95,26 @@ class ProjectRepository:
         await self.db.commit()
         await self.db.refresh(project)
         return project
+
+class CarbonCalculationRepository:
+    def __init__(self, db: AsyncSession):
+        self.db = db
+
+    async def create(self, calc_dict: dict) -> "app.domains.projects.models.CarbonCalculation":
+        from app.domains.projects.models import CarbonCalculation
+        calc = CarbonCalculation(**calc_dict)
+        self.db.add(calc)
+        await self.db.flush()
+        return calc
+
+    async def get_by_id(self, calc_id: UUID) -> Optional["app.domains.projects.models.CarbonCalculation"]:
+        from app.domains.projects.models import CarbonCalculation
+        stmt = select(CarbonCalculation).where(CarbonCalculation.id == calc_id)
+        res = await self.db.execute(stmt)
+        return res.scalar_one_or_none()
+
+    async def list_by_project(self, project_id: UUID) -> List["app.domains.projects.models.CarbonCalculation"]:
+        from app.domains.projects.models import CarbonCalculation
+        stmt = select(CarbonCalculation).where(CarbonCalculation.project_id == project_id).order_by(CarbonCalculation.executed_at.desc())
+        res = await self.db.execute(stmt)
+        return list(res.scalars().all())

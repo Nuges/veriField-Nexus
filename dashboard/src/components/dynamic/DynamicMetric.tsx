@@ -1,5 +1,5 @@
 import React from "react";
-import { ArrowUpIcon, ArrowDownIcon } from "@heroicons/react/24/solid";
+import { ArrowUp, ArrowDown } from "lucide-react";
 
 export interface MetricDefinition {
   id: string;
@@ -28,8 +28,8 @@ export function DynamicMetric({ metadata }: DynamicMetricProps) {
             trend === 'down' ? 'text-rose-700 bg-rose-100' :
             'text-slate-700 bg-slate-100'
           }`}>
-            {trend === 'up' && <ArrowUpIcon className="w-3 h-3" />}
-            {trend === 'down' && <ArrowDownIcon className="w-3 h-3" />}
+            {trend === 'up' && <ArrowUp className="w-3 h-3" />}
+            {trend === 'down' && <ArrowDown className="w-3 h-3" />}
             <span>{trendValue}</span>
           </div>
         )}

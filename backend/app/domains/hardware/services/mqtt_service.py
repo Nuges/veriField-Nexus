@@ -28,8 +28,8 @@ class MQTTIntegrationService:
     def start(self, on_message_callback: Callable):
         self._on_message_callback = on_message_callback
         if not mqtt:
-            logger.warning(
-                "paho-mqtt not installed, running mock MQTT broker integration."
+            logger.error(
+                "paho-mqtt not installed, MQTT Service disabled."
             )
             return
 

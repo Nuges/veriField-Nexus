@@ -16,6 +16,11 @@ class VerificationRepository:
         res = await self.db.execute(stmt)
         return res.scalar_one_or_none()
 
+    async def get_tasks(self) -> list[VerificationTask]:
+        stmt = select(VerificationTask).order_by(VerificationTask.created_at.desc())
+        res = await self.db.execute(stmt)
+        return list(res.scalars().all())
+
     async def create_task(self, task: VerificationTask) -> VerificationTask:
         self.db.add(task)
         await self.db.commit()

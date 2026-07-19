@@ -24,16 +24,7 @@ class ModbusPollingService:
 
     async def _poll_loop(self, on_data_callback: Callable):
         if not AsyncModbusTcpClient:
-            logger.warning("pymodbus not installed, running mock Modbus polling.")
-            while True:
-                await asyncio.sleep(self.poll_interval)
-                on_data_callback(
-                    "modbus_mock_device",
-                    {
-                        "message_id": f"modbus_{asyncio.get_event_loop().time()}",
-                        "temperature": 25.5,
-                    },
-                )
+            logger.error("pymodbus not installed. Modbus polling disabled.")
             return
 
         client = AsyncModbusTcpClient(self.host, port=self.port)

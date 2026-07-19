@@ -1,9 +1,12 @@
 "use client";
 import { useState, useEffect } from "react";
+import { useToast } from "@/components/Toast";
 import { Search, Shield, UserPlus, Filter, Download, UserCheck, UserX, MoreVertical, Building } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 
 export default function AccessControlClient() {
+  const toast = useToast();
+
   const [users, setUsers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -43,7 +46,7 @@ export default function AccessControlClient() {
       loadUsers();
     } catch (error) {
       console.error("Invite failed", error);
-      alert("Failed to create user. Ensure you have SUPER_ADMIN rights.");
+      toast.error('Operation Failed', "Failed to create user. Ensure you have SUPER_ADMIN rights.");
     }
   };
 

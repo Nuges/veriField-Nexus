@@ -54,6 +54,7 @@ class ActivityRepository:
         status: Optional[str] = None,
         user_id: Optional[UUID] = None,
         property_id: Optional[UUID] = None,
+        asset_id: Optional[UUID] = None,
         date_from=None,  # datetime object
         date_to=None,  # datetime object
         min_trust: Optional[float] = None,
@@ -101,6 +102,8 @@ class ActivityRepository:
             conditions.append(Activity.status == status)
         if property_id:
             conditions.append(Activity.property_id == property_id)
+        if asset_id:
+            conditions.append(Activity.asset_id == asset_id)
         if date_from:
             conditions.append(Activity.captured_at >= date_from)
         if date_to:

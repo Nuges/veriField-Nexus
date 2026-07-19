@@ -20,59 +20,121 @@ import {
   X,
   Compass,
   Camera,
-  TrendingUp,
+  Users,
+  AlertCircle,
   Globe,
   Building,
-  Users,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useWorkspace } from "@/context/WorkspaceContext";
-// Helper to resolve dynamic sidebar nav items based on role
-function getNavItems(role: string | null) {
+import { FEATURE_FLAGS } from "@/lib/featureFlags";
+
+// Helper to resolve dynamic sidebar nav items based on strict RBAC
+function getNavItems(role: string | null, activeSector: string) {
+  const roleStr = (role || "").toUpperCase().replace(" ", "_");
+
+  // Base items for everyone
   const items = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   ];
 
-  const roleStr = role || "";
+  // ==========================================
+  // FIELD AGENT WORKSPACE
+  // ==========================================
+  if (roleStr === "FIELD_AGENT") {
+    items.push({ href: "/dashboard/properties", label: "Field Data", icon: Home });
+    items.push({ href: "/dashboard/activities", label: "Activities", icon: Zap });
+    if (FEATURE_FLAGS.ENABLE_DIGITAL_TWINS) {
+      items.push({ href: "/dashboard/map", label: "Spatial View", icon: Compass });
+    }
+    items.push({ href: "/dashboard/settings", label: "Settings", icon: Settings });
+    return items;
+  }
 
-  // 1. OPERATIONAL MODULES (Field Agents, Auditors, Developers, Super Admin)
-  // Regulators and Compliance Admins DO NOT see these low-level field data forms
-  if (["field_agent", "auditor", "admin", "ORG_ADMIN", "SUPER_ADMIN"].includes(roleStr)) {
+  // ==========================================
+  // AUDITOR / VERIFIER WORKSPACE
+  // ==========================================
+  if (["AUDITOR", "VERIFIER"].includes(roleStr)) {
+    items.push({ href: "/dashboard/audits", label: "Verification Desk", icon: ShieldCheck });
+    items.push({ href: "/dashboard/anomalies", label: "Evidence & Anomalies", icon: Camera });
+    if (FEATURE_FLAGS.ENABLE_AI_INSIGHTS) {
+      items.push({ href: "/dashboard/trust-scores", label: "AI Trust Engine", icon: Zap });
+    }
+    if (FEATURE_FLAGS.ENABLE_VERIFIED_REGISTRY_SYNC) {
+      items.push({ href: "/dashboard/registry", label: "Registry Sync", icon: Leaf });
+    }
+    items.push({ href: "/dashboard/settings", label: "Settings", icon: Settings });
+    return items;
+  }
+
+  // ==========================================
+  // ORGANISATION ADMIN / PORTFOLIO MANAGER
+  // ==========================================
+  if (["ORG_ADMIN", "PORTFOLIO_MANAGER", "PROGRAMME_MANAGER", "PROJECT_MANAGER", "EXECUTIVE", "INVESTOR", "CLIENT"].includes(roleStr)) {
     items.push({ href: "/dashboard/properties", label: "Field Data", icon: Home });
     items.push({ href: "/dashboard/audits", label: "Verification", icon: ShieldCheck });
-    items.push({ href: "/dashboard/carbon", label: "Reports", icon: Leaf });
-  }
-
-  // 2. PORTFOLIO MODULES (Auditors, Developers, Regulators, Super Admin)
-  // Field Agents DO NOT see these aggregation views
-  if (["auditor", "admin", "ORG_ADMIN", "SUPER_ADMIN", "COMPLIANCE_ADMIN", "JURISDICTION_ADMIN"].includes(roleStr)) {
-    items.push({ href: "/dashboard/executive", label: "Executive Portfolio", icon: TrendingUp });
+    items.push({ href: "/dashboard/carbon", label: "Carbon Reports", icon: Leaf });
+    
+    // Total Isolation per sector
+    if (activeSector === "energy") {
+      items.push({ href: "/dashboard/energy", label: "Energy Generation", icon: Zap });
+    }
+    
     items.push({ href: "/dashboard/poa", label: "POA Portfolio", icon: Compass });
+
+    items.push({ href: "/dashboard/settings", label: "Administration", icon: Settings });
+    return items;
   }
 
-  // 3. ENTERPRISE & GOVERNANCE MODULES (Regulators, Super Admin)
-  // Field Agents, Auditors, and Org Admins DO NOT see these macro governance tools
-  if (["SUPER_ADMIN", "COMPLIANCE_ADMIN", "JURISDICTION_ADMIN"].includes(roleStr)) {
-    items.push({ href: "/dashboard/jurisdictions", label: "Compliance & Jurisdictions", icon: Globe });
-    items.push({ href: "/dashboard/regulator", label: "Governance Portal", icon: Building });
-    items.push({ href: "/dashboard/methodologies", label: "Methodologies", icon: Leaf });
+  // ==========================================
+  // IOT / OPERATIONS ENGINEER WORKSPACE
+  // ==========================================
+  if (["IOT_ENGINEER", "OPERATIONS_ENGINEER"].includes(roleStr)) {
+    if (FEATURE_FLAGS.ENABLE_LIVE_IOT) {
+      items.push({ href: "/dashboard/sensors", label: "Hardware Fleet", icon: Zap });
+      items.push({ href: "/dashboard/anomalies", label: "Telemetry Alerts", icon: AlertCircle });
+    }
+    if (FEATURE_FLAGS.ENABLE_DIGITAL_TWINS) {
+      items.push({ href: "/dashboard/map", label: "Digital Twins", icon: Compass });
+    }
+    items.push({ href: "/dashboard/settings", label: "Configuration", icon: Settings });
+    return items;
   }
 
-  // 4. ADMINISTRATION (Everyone gets profile/tenant settings)
-  if (["ORG_ADMIN", "SUPER_ADMIN", "SYSTEM_ADMIN"].includes(roleStr)) {
-    items.push({ href: "/dashboard/access-control", label: "Access Control", icon: Users });
+  // ==========================================
+  // SUPER ADMIN / SYSTEM ADMINISTRATOR
+  // ==========================================
+  if (["SUPER_ADMIN", "SYSTEM_ADMIN"].includes(roleStr)) {
+    items.push({ href: "/super-admin", label: "Platform Operations", icon: Globe });
+    items.push({ href: "/dashboard/agents", label: "Users & Agents", icon: Users });
+    if (FEATURE_FLAGS.ENABLE_LIVE_IOT) {
+      items.push({ href: "/dashboard/sensors", label: "Hardware & Telemetry", icon: Zap });
+    }
+    items.push({ href: "/dashboard/properties", label: "Organisations & Tenants", icon: Building });
+    if (FEATURE_FLAGS.ENABLE_VERIFIED_REGISTRY_SYNC) {
+      items.push({ href: "/dashboard/registry", label: "Registries", icon: Leaf });
+    }
+    items.push({ href: "/dashboard/audits", label: "Audit & Security", icon: ShieldCheck });
+    items.push({ href: "/dashboard/settings", label: "System Configuration", icon: Settings });
+    return items;
   }
-  items.push({ href: "/dashboard/settings", label: "Settings", icon: Settings });
+
+  // Default fallback
+  items.push({ href: "/dashboard/properties", label: "Field Data", icon: Home });
+  items.push({ href: "/dashboard/audits", label: "Verification", icon: ShieldCheck });
+  items.push({ href: "/dashboard/carbon", label: "Reports", icon: Leaf });
+  items.push({ href: "/dashboard/settings", label: "Administration", icon: Settings });
   
   return items;
 }
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const { user, activeSector, changeSector, allowedSectors, moduleRegistry, isSandboxed, isSidebarCollapsed, setIsSidebarCollapsed } = useWorkspace();
+  const { user, activeSector } = useWorkspace();
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
-  const navItems = getNavItems(user ? user.role : null);
+  const navItems = getNavItems(user?.role || null, activeSector);
 
   // Close mobile drawer automatically when route changes
   useEffect(() => {
@@ -80,15 +142,13 @@ export default function Sidebar() {
   }, [pathname]);
 
   const getIsActive = (href: string) => {
-    if (!pathname) return false;
     if (href === "/dashboard") {
       return pathname === "/dashboard" || pathname.startsWith("/dashboard/analytics");
-    } else if (href === "/dashboard/executive") {
-      return pathname.startsWith("/dashboard/executive");
     } else if (href === "/dashboard/properties") {
       return pathname.startsWith("/dashboard/properties") || 
              pathname.startsWith("/dashboard/activities") || 
-             pathname.startsWith("/dashboard/map");
+             pathname.startsWith("/dashboard/map") || 
+             pathname.startsWith("/dashboard/sensors");
     } else if (href === "/dashboard/audits") {
       return pathname.startsWith("/dashboard/audits") || 
              pathname.startsWith("/dashboard/anomalies") || 
@@ -99,18 +159,10 @@ export default function Sidebar() {
       return pathname.startsWith("/dashboard/carbon") || pathname.startsWith("/dashboard/registry");
     } else if (href === "/dashboard/poa") {
       return pathname.startsWith("/dashboard/poa");
-    } else if (href === "/dashboard/jurisdictions") {
-      return pathname.startsWith("/dashboard/jurisdictions");
-    } else if (href === "/dashboard/regulator") {
-      return pathname.startsWith("/dashboard/regulator");
-    } else if (href === "/dashboard/methodologies") {
-      return pathname.startsWith("/dashboard/methodologies");
     } else if (href === "/dashboard/energy") {
       return pathname.startsWith("/dashboard/energy");
-    } else if (href === "/dashboard/access-control") {
-      return pathname.startsWith("/dashboard/access-control");
     } else if (href === "/dashboard/settings") {
-      return pathname.startsWith("/dashboard/settings");
+      return pathname.startsWith("/dashboard/settings") || pathname.startsWith("/dashboard/agents");
     }
     return false;
   };
@@ -175,7 +227,7 @@ export default function Sidebar() {
       <aside
         className={`fixed left-0 top-0 h-screen w-[260px] bg-[var(--color-surface)] border-r border-[var(--color-border)] z-[60] md:hidden 
           transition-transform duration-300 ease-out flex flex-col
-          ${isMobileOpen ? "translate-x-0 pointer-events-auto" : "-translate-x-full pointer-events-none"}`}
+          ${isMobileOpen ? "translate-x-0" : "-translate-x-full"}`}
       >
         <div className="flex items-center justify-between px-4 h-16 border-b border-[var(--color-border)] shrink-0">
           <div className="flex items-center gap-2 h-12">
@@ -198,28 +250,6 @@ export default function Sidebar() {
           </button>
         </div>
 
-        {/* Mobile Workspace Select Switcher */}
-        {allowedSectors.length > 1 && (
-          <div className="px-4 py-3 border-b border-[var(--color-border)] bg-slate-900/10 dark:bg-slate-900/30 shrink-0">
-            <span className="text-[9px] uppercase font-extrabold text-[var(--color-text-secondary)] tracking-wider block mb-1.5">Workspace</span>
-            <select
-              value={activeSector}
-              onChange={(e) => changeSector(e.target.value)}
-              className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text-primary)] rounded-lg text-xs px-2.5 py-1.5 font-bold outline-none focus:border-emerald-500 transition-colors cursor-pointer"
-            >
-              {allowedSectors.filter(sec => sec !== "all").map((sec) => {
-                const mod = moduleRegistry[sec];
-                const emoji = mod?.badge || "🌍 ";
-                return (
-                  <option key={sec} value={sec}>
-                    {emoji}{mod?.name || sec}
-                  </option>
-                );
-              })}
-            </select>
-          </div>
-        )}
-
         <nav className="flex-1 py-6 px-3 space-y-1.5 overflow-y-auto custom-scrollbar">
           {navItems.map((item) => {
             const isActive = getIsActive(item.href);
@@ -228,17 +258,17 @@ export default function Sidebar() {
             return (
               <Link
                 key={item.href}
-                href={`${item.href}?workspace=${activeSector}`}
+                href={item.href}
                 className={`flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all duration-200
                   ${
                     isActive
-                      ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
-                      : "text-[var(--color-text-secondary)] hover:bg-[var(--color-card)] hover:text-slate-900 dark:hover:text-slate-200"
+                      ? "bg-emerald-500/15 text-emerald-400"
+                      : "text-[var(--color-text-secondary)] hover:bg-[var(--color-card)] hover:text-slate-200"
                   }`}
               >
                 <Icon
                   size={20}
-                  className={`shrink-0 ${isActive ? "text-emerald-700 dark:text-emerald-400" : "text-[var(--color-text-muted)]"}`}
+                  className={`shrink-0 ${isActive ? "text-emerald-400" : "text-[var(--color-text-muted)]"}`}
                 />
                 <span className="truncate">{item.label}</span>
               </Link>
@@ -251,12 +281,12 @@ export default function Sidebar() {
           4. DESKTOP SIDEBAR (Visible only on desktop md and up)
           ======================================================================= */}
       <aside
-         className={`fixed left-0 top-0 h-screen bg-[var(--color-surface)] border-r border-[var(--color-border)] z-50 
+        className={`fixed left-0 top-0 h-screen bg-[var(--color-surface)] border-r border-[var(--color-border)] z-50 
           transition-all duration-300 flex flex-col hidden md:flex
-          ${isSidebarCollapsed ? "w-[68px]" : "w-[260px]"}`}
+          ${isCollapsed ? "w-[68px]" : "w-[260px]"}`}
       >
         <div className="flex items-center justify-between px-4 h-16 border-b border-[var(--color-border)] shrink-0">
-          {!isSidebarCollapsed && (
+          {!isCollapsed && (
             <div className="flex items-center gap-3 overflow-hidden max-w-[185px]">
               <img
                 src="/logo-black.png"
@@ -271,11 +301,11 @@ export default function Sidebar() {
             </div>
           )}
           <button
-            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+            onClick={() => setIsCollapsed(!isCollapsed)}
             className="p-1.5 rounded-lg hover:bg-[var(--color-card)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors shrink-0 mx-auto"
-            aria-label={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
-            {isSidebarCollapsed ? <Menu size={18} /> : <X size={18} />}
+            {isCollapsed ? <Menu size={18} /> : <X size={18} />}
           </button>
         </div>
 
@@ -287,20 +317,20 @@ export default function Sidebar() {
             return (
               <Link
                 key={item.href}
-                href={`${item.href}?workspace=${activeSector}`}
+                href={item.href}
                 className={`flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all duration-200
                   ${
                     isActive
-                      ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
-                      : "text-[var(--color-text-secondary)] hover:bg-[var(--color-card)] hover:text-slate-900 dark:hover:text-slate-200"
+                      ? "bg-emerald-500/15 text-emerald-400"
+                      : "text-[var(--color-text-secondary)] hover:bg-[var(--color-card)] hover:text-slate-200"
                   }`}
-                title={isSidebarCollapsed ? item.label : undefined}
+                title={isCollapsed ? item.label : undefined}
               >
                 <Icon
                   size={22}
-                  className={`shrink-0 ${isActive ? "text-emerald-700 dark:text-emerald-400" : "text-[var(--color-text-muted)]"}`}
+                  className={`shrink-0 ${isActive ? "text-emerald-400" : "text-[var(--color-text-muted)]"}`}
                 />
-                {!isSidebarCollapsed && <span className="truncate">{item.label}</span>}
+                {!isCollapsed && <span className="truncate">{item.label}</span>}
               </Link>
             );
           })}

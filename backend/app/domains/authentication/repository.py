@@ -44,6 +44,18 @@ class UserRepository:
         res = await self.db.execute(stmt)
         return list(res.scalars().all())
 
+    async def list_all(
+        self, limit: int = 100, offset: int = 0
+    ) -> List[User]:
+        stmt = (
+            select(User)
+            .where(User.is_deleted == False)
+            .limit(limit)
+            .offset(offset)
+        )
+        res = await self.db.execute(stmt)
+        return list(res.scalars().all())
+
     async def create(self, user: User) -> User:
         self.db.add(user)
         await self.db.commit()

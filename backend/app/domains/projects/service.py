@@ -47,6 +47,9 @@ class ProjectService:
         project_code = f"VF-{prefix}-{count + 1:03d}"
 
         from app.domains.jurisdictions.models import Jurisdiction
+        from app.domains.methodologies.models.base_registry import Methodology, MethodologyFamily
+        from app.domains.organizations.models import Organization
+        from fastapi import HTTPException
 
         jurisdiction_id = None
         if payload.country:
@@ -57,6 +60,20 @@ class ProjectService:
             jur = j_res.scalar_one_or_none()
             if jur:
                 jurisdiction_id = jur.id
+                
+        # Validate Methodology and Sector Licensing
+        meth = await self.repository.db.get(Methodology, payload.methodology_id)
+        if not meth:
+            raise HTTPException(status_code=400, detail="Methodology not found.")
+            
+        sector = await self.repository.db.get(MethodologyFamily, meth.family_id)
+        org = await self.repository.db.get(Organization, organization_id)
+        
+        if org and sector and sector.code not in (org.licensed_sectors or []):
+            raise HTTPException(
+                status_code=403,
+                detail=f"Organization is not licensed for sector {sector.code}."
+            )
 
         project = Project(
             project_code=project_code,
@@ -64,6 +81,7 @@ class ProjectService:
             country=payload.country,
             organization_id=organization_id,
             jurisdiction_id=jurisdiction_id,
+            sector_id=sector.id if sector else None,
             programme_id=payload.programme_id,
             methodology_id=payload.methodology_id,
             methodology_version_id=payload.methodology_version_id,
@@ -112,3 +130,15 @@ class ProjectService:
         # Publish project approved event (triggers signature initialization in background)
         await publish_project_approved(str(project.id), str(organization_id))
         return project
+
+class CarbonCalculationService:
+    def __init__(self, db):
+        self.db = db
+        from app.domains.projects.repository import CarbonCalculationRepository
+        self.repository = CarbonCalculationRepository(db)
+
+    async def create_calculation(self, payload: dict):
+        return await self.repository.create(payload)
+
+    async def get_project_ledger(self, project_id: UUID):
+        return await self.repository.list_by_project(project_id)

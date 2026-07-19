@@ -67,6 +67,7 @@ class ActivityService:
             "image_url": created.image_url,
             "image_hash": created.image_hash,
             "client_id": created.client_id,
+            "data": created.activity_data,
         }
         await publish_activity_created(
             str(created.id), str(organization_id), payload_dict

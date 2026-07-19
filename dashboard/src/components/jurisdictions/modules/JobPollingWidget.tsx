@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState } from 'react';
 import { Loader2, CheckCircle, AlertCircle } from 'lucide-react';
-import { useToast } from "@/components/ui/use-toast"; // assuming useToast is available, wait, in dashboard/src/components/Toast.tsx there is a toast system. The error said: Module not found: Can't resolve '@/components/ui/use-toast'. So I should remove shadcn useToast.
 
 interface JobExecution {
   id: string;

@@ -80,7 +80,14 @@ export interface ModuleDefinition {
 
 export function normalizeSector(sec: string): string {
   if (!sec) return "generic";
-  return sec.toLowerCase().trim();
+  const normalized = sec.toLowerCase().trim();
+  
+  if (normalized.includes("cook") || normalized.includes("stove")) return "cookstove";
+  if (normalized.includes("hybrid") || normalized.includes("solar") || normalized.includes("grid")) return "hybrid_energy";
+  if (normalized.includes("biochar") || normalized.includes("soil") || normalized.includes("agri")) return "biochar";
+  if (normalized.includes("ev") || normalized.includes("mobility") || normalized.includes("transport")) return "ev_mobility";
+  
+  return normalized;
 }
 
 export function mapToWorkspace(record: any): string | null {
@@ -92,9 +99,14 @@ export function mapToWorkspace(record: any): string | null {
   };
 
   const type = normalizeVal(record.property_type || record.activity_type || record.type || record.asset_type || record.sector);
-  if (type) return type;
+  if (!type) return null;
 
-  return null;
+  if (type.includes("cook") || type.includes("stove") || type === "residential") return "cookstove";
+  if (type.includes("hybrid") || type.includes("solar") || type.includes("grid")) return "hybrid_energy";
+  if (type.includes("biochar") || type.includes("soil") || type.includes("agri")) return "biochar";
+  if (type.includes("ev") || type.includes("mobility") || type.includes("transport")) return "ev_mobility";
+
+  return type;
 }
 
 export function getRecordSector(record: any): string {

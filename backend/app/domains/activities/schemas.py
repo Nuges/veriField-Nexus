@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 
 class ActivityCreate(BaseModel):
-    project_id: UUID
+    project_id: Optional[UUID] = None
     asset_id: Optional[UUID] = None
     property_id: Optional[UUID] = None
     activity_type: str
@@ -19,6 +19,8 @@ class ActivityCreate(BaseModel):
     gps_accuracy: Optional[float] = None
     captured_at: datetime
     client_id: Optional[str] = None
+    override_reason: Optional[str] = None
+    duplicate_flag: Optional[bool] = None
 
     # Generic evidence payload
     evidence_payload: Optional[Dict[str, Any]] = None

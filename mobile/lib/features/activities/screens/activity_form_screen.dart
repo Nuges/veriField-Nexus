@@ -263,7 +263,7 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
     if (_locationData == null || _selectedTypeId == null) return;
     setState(() => _isCheckingDuplicate = true);
     try {
-      final result = await ApiService.post('/installations/check-duplicate', body: {
+      final result = await ApiService.post('/activities/check-duplicate', body: {
         'latitude': _locationData!['latitude'],
         'longitude': _locationData!['longitude'],
         'activity_type': _selectedTypeId,
@@ -461,7 +461,7 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
           postBody['evidence_application'] = uploadedUrls['application_proof_image_url'];
         }
 
-        await ApiService.post('/installations', body: postBody);
+        await ApiService.post('/activities', body: postBody);
 
         if (mounted) {
           VFNotification.showSuccess(context, 'Installation registered successfully! ✅');

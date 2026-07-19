@@ -81,6 +81,17 @@ class Settings(BaseSettings):
     goldstandard_api_url: str = ""
     goldstandard_api_key: str = ""
 
+    # --- Feature Flags ---
+    enable_digital_twins: bool = False
+    enable_verified_registry_sync: bool = False
+    enable_live_iot: bool = False
+    enable_article6: bool = False
+    enable_scada: bool = False
+    enable_verra_sync: bool = False
+    enable_gold_standard_sync: bool = False
+    enable_ai_insights: bool = False
+    enable_satellite_monitoring: bool = False
+
     @model_validator(mode="after")
     def clean_supabase_url(self) -> "Settings":
         if self.supabase_url:

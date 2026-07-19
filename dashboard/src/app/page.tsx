@@ -9,6 +9,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useToast } from "@/components/Toast";
 import Link from "next/link";
 import { 
   ShieldCheck, 
@@ -51,6 +52,8 @@ interface LogEntry {
 }
 
 export default function LandingPage() {
+  const toast = useToast();
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
@@ -134,7 +137,7 @@ export default function LandingPage() {
       setSubmittingState("success");
     } catch (err: any) {
       console.error(err);
-      alert(err.message || "Failed to submit onboarding request. Please verify connection and try again.");
+      toast.error('Operation Failed', err.message || "Failed to submit onboarding request. Please verify connection and try again.");
       setSubmittingState("idle");
     }
   };

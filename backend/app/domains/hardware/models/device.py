@@ -34,10 +34,24 @@ class Device(Base):
     )  # 'edge_cabinet', 'embedded_device', 'sensor'
 
     firmware_version: Mapped[str] = mapped_column(String(50), nullable=True)
-    status: Mapped[str] = mapped_column(String(50), default="active", nullable=False)
+    status: Mapped[str] = mapped_column(String(50), default="Inventory", nullable=False) # Inventory, Commission, Provision, Assign, Calibrate, Activate, Monitor, Maintenance, Retire
 
+    # Cryptography & Provisioning
+    public_key: Mapped[str] = mapped_column(String, nullable=True)
+    provision_token: Mapped[str] = mapped_column(String(255), nullable=True)
+    certificate: Mapped[str] = mapped_column(String, nullable=True)
+
+    # Health & Telemetry State
+    heartbeat_interval: Mapped[int] = mapped_column(nullable=True, default=60) # seconds
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
+    health_score: Mapped[float] = mapped_column(nullable=False, default=100.0)
+    
+    battery_level: Mapped[float] = mapped_column(nullable=True)
+    signal_strength: Mapped[float] = mapped_column(nullable=True)
+    
     # Polymorphic inheritance properties
     capabilities: Mapped[dict] = mapped_column(JSONB, default=dict)
+    event_history: Mapped[list] = mapped_column(JSONB, default=list)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

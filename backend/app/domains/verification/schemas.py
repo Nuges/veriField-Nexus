@@ -6,8 +6,10 @@ from pydantic import BaseModel, ConfigDict
 
 
 class VerificationTaskBase(BaseModel):
-    project_id: UUID
+    project_id: Optional[UUID] = None
+    asset_id: Optional[UUID] = None
     verifier_id: Optional[UUID] = None
+    deadline: Optional[datetime] = None
     status: str = "ASSIGNED"
     findings: Dict[str, Any] = {}
 

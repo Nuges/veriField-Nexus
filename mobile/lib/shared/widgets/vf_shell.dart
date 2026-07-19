@@ -60,17 +60,16 @@ class _VFShellState extends State<VFShell> {
 
         if (_myUserId == null) return;
 
-        // Query the audits list
-        final response = await ApiService.get('/audits?per_page=20');
-        final audits = response['audits'] as List? ?? [];
+        // Query the audits list from the new verification domain
+        final response = await ApiService.get('/verification/tasks');
+        final audits = (response is List) ? response as List<dynamic> : [];
         
         bool hasNewAudit = false;
-        String? lastNewStoveName;
 
         for (var audit in audits) {
           final id = audit['id'] as String?;
-          final assignedAgent = audit['assigned_agent'] as String?;
-          final status = audit['status'] ?? 'pending';
+          final assignedAgent = audit['verifier_id'] as String?;
+          final status = audit['status'] ?? 'ASSIGNED';
           
           if (id == null || assignedAgent != _myUserId) continue;
           
@@ -79,9 +78,8 @@ class _VFShellState extends State<VFShell> {
             
             // Only notify on subsequent fetches so we don't spam on launch
             if (!_isFirstFetch) {
-              if (status == 'pending' || status == 'in_progress') {
+              if (status == 'ASSIGNED' || status == 'IN_PROGRESS') {
                 hasNewAudit = true;
-                lastNewStoveName = audit['property_name'] ?? 'Cookstove Asset';
               }
             }
           }
@@ -93,7 +91,7 @@ class _VFShellState extends State<VFShell> {
           // Trigger floating toast notification in active context!
           VFNotification.showSuccess(
             context, 
-            'New Audit Task Assigned! 🛡️\nStove: $lastNewStoveName',
+            'New Audit Task Assigned! 🛡️\nCheck your active assignments roster.',
           );
           // Auto-trigger audits screen UI update
           RefreshEventBus.triggerAuditRefresh();

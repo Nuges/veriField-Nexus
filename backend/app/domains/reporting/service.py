@@ -33,14 +33,19 @@ class ReportingService:
         created = await self.repository.create(report)
 
         # Dispatch background generation (simulated here)
-        asyncio.create_task(self._mock_generation(created.id))
+        asyncio.create_task(self._async_generation(created.id))
 
         return created
 
-    async def _mock_generation(self, report_id: UUID):
-        await asyncio.sleep(2)  # Simulate generation time
-        await self.repository.update_status(
-            report_id,
-            status="COMPLETED",
-            file_uri=f"s3://verifield-nexus-reports/{report_id}.pdf",
-        )
+    async def _async_generation(self, report_id: UUID):
+        try:
+            await asyncio.sleep(2)  # Simulate generation time
+            await self.repository.update_status(
+                report_id,
+                status="COMPLETED",
+                file_uri=f"s3://verifield-nexus-reports/{report_id}.pdf",
+            )
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"Background report generation failed for {report_id}: {e}")
+            await self.repository.update_status(report_id, status="FAILED", file_uri=None)

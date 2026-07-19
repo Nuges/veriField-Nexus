@@ -2,10 +2,12 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Camera, MapPin, Database } from "lucide-react";
+import { useToast } from "@/components/Toast";
 
 export default function GenericCapturePage() {
   const [methodology, setMethodology] = useState("");
   const router = useRouter();
+  const toast = useToast();
 
   return (
     <div className="min-h-screen bg-[#06090A] text-white p-6">
@@ -26,7 +28,7 @@ export default function GenericCapturePage() {
         </div>
         <button 
           className="w-full py-3 rounded-xl bg-emerald-500 font-bold"
-          onClick={() => alert("Capture started for: " + methodology)}
+          onClick={() => toast.info("Capture Initiated", `Capture started for: ${methodology}`)}
         >
           Initialize Capture Form
         </button>

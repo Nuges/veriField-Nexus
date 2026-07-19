@@ -17,6 +17,9 @@ class VerificationService:
     async def get_task(self, task_id: UUID) -> Optional[VerificationTask]:
         return await self.repository.get_task_by_id(task_id)
 
+    async def get_tasks(self) -> list[VerificationTask]:
+        return await self.repository.get_tasks()
+
     async def create_verification_task(
         self,
         payload: VerificationTaskCreate,
@@ -25,7 +28,9 @@ class VerificationService:
     ) -> VerificationTask:
         task = VerificationTask(
             project_id=payload.project_id,
+            asset_id=payload.asset_id,
             verifier_id=payload.verifier_id,
+            deadline=payload.deadline,
             status="ASSIGNED",
             findings={},
         )
@@ -41,6 +46,19 @@ class VerificationService:
                 },
                 actor_id=str(actor_id),
             )
+            
+            # Create in-app notification for the assigned agent
+            if payload.verifier_id:
+                from app.domains.notifications.models import Notification
+                notification = Notification(
+                    user_id=payload.verifier_id,
+                    title="New Audit Task Assigned",
+                    message="You have been assigned a new field verification task.",
+                    type="INFO",
+                    metadata_json={"task_id": str(created.id)}
+                )
+                db.add(notification)
+                await db.commit()
 
         return created
 

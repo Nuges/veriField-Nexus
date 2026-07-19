@@ -29,8 +29,8 @@ class SpatialQueryService:
         # res = await db.execute(stmt, {"geojson": json.dumps(polygon_geojson)})
         # return res.mappings().all()
 
-        # For our mock implementation (to guarantee it works without requiring PostGIS extensions immediately)
-        # We will return an empty list or mock data
+        # For our non-PostGIS fallback implementation (to guarantee it works without requiring PostGIS extensions immediately)
+        # We will return an empty list
         return []
 
     @staticmethod

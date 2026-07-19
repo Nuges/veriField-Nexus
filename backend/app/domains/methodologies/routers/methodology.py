@@ -16,7 +16,7 @@ from app.domains.methodologies.services.methodology import MethodologyService
 router = APIRouter()
 
 
-@router.get("/", response_model=List[MethodologySchema])
+@router.get("", response_model=List[MethodologySchema])
 async def list_methodologies(db: AsyncSession = Depends(get_db)):
     service = MethodologyService(db)
     return await service.list_methodologies()
@@ -66,10 +66,13 @@ async def update_version_status(
 
 @router.get("/{methodology_id}/versions/active/schema")
 async def get_active_version_schema(
-    methodology_id: UUID, db: AsyncSession = Depends(get_db)
+    methodology_id: UUID, 
+    client_version: str = None,
+    db: AsyncSession = Depends(get_db)
 ):
     """
     Returns the dynamic JSON schema for the active version of a methodology.
+    Supports mobile offline caching by checking client_version against the active version.
     """
     service = MethodologyService(db)
     form_service = FormGenerationService(db)
@@ -79,8 +82,13 @@ async def get_active_version_schema(
         raise HTTPException(
             status_code=404, detail="No active version found for this methodology"
         )
+        
+    if client_version and client_version == version.version:
+        return {"status": "not_modified", "version": version.version}
 
     schema = await form_service.generate_schema_for_version(version.id)
+    # Inject version into payload
+    schema["_schema_version"] = version.version
     return schema
 
 
@@ -101,6 +109,57 @@ async def get_workspace_schema(
     if "error" in schema:
         raise HTTPException(status_code=404, detail=schema["error"])
     return schema
+
+
+@router.get("/{methodology_id}/evidence")
+async def get_methodology_evidence(
+    methodology_id: UUID, db: AsyncSession = Depends(get_db)
+):
+    """Returns the evidence requirements for a methodology."""
+    from app.domains.methodologies.services.dynamic_schema import DynamicSchemaEngine
+    from app.domains.methodologies.services.methodology import MethodologyService
+    
+    service = MethodologyService(db)
+    version = await service.get_active_version(methodology_id)
+    if not version:
+        raise HTTPException(status_code=404, detail="No active version found")
+        
+    engine = DynamicSchemaEngine(db)
+    return await engine._build_evidence_schema(version.id)
+
+
+@router.get("/{methodology_id}/validators")
+async def get_methodology_validators(
+    methodology_id: UUID, db: AsyncSession = Depends(get_db)
+):
+    """Returns the validation rules for a methodology."""
+    from app.domains.methodologies.services.dynamic_schema import DynamicSchemaEngine
+    from app.domains.methodologies.services.methodology import MethodologyService
+    
+    service = MethodologyService(db)
+    version = await service.get_active_version(methodology_id)
+    if not version:
+        raise HTTPException(status_code=404, detail="No active version found")
+        
+    engine = DynamicSchemaEngine(db)
+    return await engine._build_validation_schema(version.id)
+
+
+@router.get("/{methodology_id}/calculators")
+async def get_methodology_calculators(
+    methodology_id: UUID, db: AsyncSession = Depends(get_db)
+):
+    """Returns the calculation rules for a methodology."""
+    from app.domains.methodologies.services.dynamic_schema import DynamicSchemaEngine
+    from app.domains.methodologies.services.methodology import MethodologyService
+    
+    service = MethodologyService(db)
+    version = await service.get_active_version(methodology_id)
+    if not version:
+        raise HTTPException(status_code=404, detail="No active version found")
+        
+    engine = DynamicSchemaEngine(db)
+    return await engine._build_calculation_schema(version.id)
 
 
 @router.post("/{methodology_id}/calculate")

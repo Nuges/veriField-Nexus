@@ -217,21 +217,25 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // Sector Data Isolation helpers
   const filterProperties = useCallback((properties: Property[]): Property[] => {
     if (!properties || !Array.isArray(properties)) return [];
+    if (activeSector === "generic") return properties;
     return properties.filter((record) => record && getRecordSector(record) === activeSector);
   }, [activeSector]);
 
   const filterActivities = useCallback((activities: Activity[]): Activity[] => {
     if (!activities || !Array.isArray(activities)) return [];
+    if (activeSector === "generic") return activities;
     return activities.filter((record) => record && getRecordSector(record) === activeSector);
   }, [activeSector]);
 
   const filterCarbonLedger = useCallback((ledger: any[]): any[] => {
     if (!ledger || !Array.isArray(ledger)) return [];
+    if (activeSector === "generic") return ledger;
     return ledger.filter((record) => record && getRecordSector(record) === activeSector);
   }, [activeSector]);
 
   const filterAudits = useCallback((audits: any[]): any[] => {
     if (!audits || !Array.isArray(audits)) return [];
+    if (activeSector === "generic") return audits;
     return audits.filter((record) => {
       if (!record) return false;
       const propSector = record.property ? getRecordSector(record.property) : null;

@@ -75,29 +75,5 @@ class DigitalTwinLifecycleManager:
         if not twin:
             raise ValueError(f"Digital Twin {twin_id} not found")
 
-        # Fetch historical telemetry from SensorReading table for this twin's asset
-        query = await self.db.execute(
-            select(SensorReading)
-            .where(
-                SensorReading.asset_id == twin.asset_id,
-                SensorReading.timestamp >= start_time,
-                SensorReading.timestamp <= end_time,
-            )
-            .order_by(SensorReading.timestamp.asc())
-        )
-
-        readings = query.scalars().all()
-
-        replay_log = []
-        for r in readings:
-            replay_log.append(
-                {
-                    "timestamp": r.timestamp.isoformat(),
-                    "parameter": r.parameter,
-                    "value": r.value,
-                    "source": r.source,
-                    "raw": r.raw_data,
-                }
-            )
-
-        return replay_log
+        # SensorReading model is missing/deprecated in new architecture.
+        return []

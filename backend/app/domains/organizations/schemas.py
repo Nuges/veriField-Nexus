@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -13,6 +13,7 @@ class OrganizationCreate(BaseModel):
 
     # Legacy fields
     plan: Optional[str] = "FREE"
+    licensed_methodologies: Optional[List[str]] = Field(default_factory=list)
 
 
 class OrganizationUpdate(BaseModel):
@@ -23,6 +24,7 @@ class OrganizationUpdate(BaseModel):
 
     # Legacy fields
     plan: Optional[str] = None
+    licensed_methodologies: Optional[List[str]] = None
 
 
 class OrganizationResponse(BaseModel):

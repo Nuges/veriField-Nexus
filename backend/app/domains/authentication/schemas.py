@@ -47,11 +47,11 @@ class UserResponse(BaseModel):
     requires_password_change: Optional[bool] = False
     licensed_methodologies: Optional[List[str]] = None
     country: Optional[str] = None
-    version: int
-    is_deleted: bool
+    version: Optional[int] = 1
+    is_deleted: Optional[bool] = False
     meta_data: Optional[dict] = Field(default_factory=dict)
-    created_at: datetime
-    updated_at: datetime
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
     model_config = {"from_attributes": True}
 

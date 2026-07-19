@@ -31,7 +31,7 @@ import httpx
 
 
 class VerraAdapter(BaseRegistryAdapter):
-    def __init__(self, api_key: str = "mock_key"):
+    def __init__(self, api_key: str = ""):
         self.api_key = api_key
         self.base_url = "https://api.verra.org/v1"
 
@@ -73,7 +73,7 @@ class VerraAdapter(BaseRegistryAdapter):
 
 
 class GoldStandardAdapter(BaseRegistryAdapter):
-    def __init__(self, api_key: str = "mock_key"):
+    def __init__(self, api_key: str = ""):
         self.api_key = api_key
         self.base_url = "https://api.goldstandard.org/v1"
 

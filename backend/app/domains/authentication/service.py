@@ -156,3 +156,8 @@ class AuthenticationService:
         return await self.repository.list_by_organization(
             organization_id, limit, offset
         )
+
+    async def list_all_users(
+        self, limit: int = 100, offset: int = 0
+    ) -> List[User]:
+        return await self.repository.list_all(limit, offset)

@@ -21,17 +21,6 @@ async def create_project(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    # Verify licensed methodology context
-    if (
-        str(payload.methodology_id)
-        not in [str(m) for m in current_user.licensed_methodologies]
-        and current_user.licensed_methodologies
-    ):
-        raise HTTPException(
-            status_code=403,
-            detail="Your organization is not licensed to use this methodology.",
-        )
-
     repo = ProjectRepository(db)
     service = ProjectService(repo)
 

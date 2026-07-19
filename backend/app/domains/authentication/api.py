@@ -1,5 +1,6 @@
 from typing import List, Optional
 from uuid import UUID
+from pydantic import BaseModel
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -61,9 +62,12 @@ async def list_users(
 ):
     repo = UserRepository(db)
     service = AuthenticationService(repo)
-    if not current_user.organization_id:
+    if current_user.role == "SUPER_ADMIN":
+        users = await service.list_all_users(limit, offset)
+    elif not current_user.organization_id:
         return []
-    users = await service.list_users(current_user.organization_id, limit, offset)
+    else:
+        users = await service.list_users(current_user.organization_id, limit, offset)
     return [UserResponse.model_validate(u) for u in users]
 
 
@@ -71,7 +75,7 @@ async def list_users(
 async def create_user(
     payload: UserCreate,
     x_idempotency_key: Optional[str] = Header(None),
-    current_user: User = Depends(require_permission("org:manage")),
+    current_user: User = Depends(require_permission("team:manage")),
     db: AsyncSession = Depends(get_db),
 ):
     # Idempotency middleware should intercept this if provided.
@@ -96,7 +100,7 @@ async def update_user(
     user_id: UUID,
     payload: UserUpdate,
     x_idempotency_key: Optional[str] = Header(None),
-    current_user: User = Depends(require_permission("org:manage")),
+    current_user: User = Depends(require_permission("team:manage")),
     db: AsyncSession = Depends(get_db),
 ):
     repo = UserRepository(db)
@@ -123,7 +127,7 @@ async def update_user(
 @router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_user(
     user_id: UUID,
-    current_user: User = Depends(require_permission("org:manage")),
+    current_user: User = Depends(require_permission("team:manage")),
     db: AsyncSession = Depends(get_db),
 ):
     repo = UserRepository(db)
@@ -140,3 +144,55 @@ async def delete_user(
 
     await service.delete_user(user_id, actor_id=str(current_user.id))
     return None
+
+
+class ChangePasswordPayload(BaseModel):
+    old_password: Optional[str] = None
+    new_password: str
+
+@router.post("/change-password")
+async def change_password(
+    payload: ChangePasswordPayload,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    from app.core.security import verify_password, get_password_hash
+    repo = UserRepository(db)
+    service = AuthenticationService(repo)
+    
+    if payload.old_password and current_user.password_hash:
+        if not verify_password(payload.old_password, current_user.password_hash):
+            raise HTTPException(status_code=400, detail="Invalid old password.")
+            
+    validate_password_strength(payload.new_password)
+    hashed_pw = get_password_hash(payload.new_password)
+    
+    await service.update_user(
+        current_user.id, 
+        {"password_hash": hashed_pw, "requires_password_change": False}, 
+        actor_id=str(current_user.id)
+    )
+    return {"status": "success", "message": "Password changed successfully."}
+
+class ResetPasswordPayload(BaseModel):
+    password: str
+
+@router.post("/users/{user_id}/reset-password")
+async def force_reset_password(
+    user_id: UUID,
+    payload: ResetPasswordPayload,
+    current_user: User = Depends(require_permission("team:manage")),
+    db: AsyncSession = Depends(get_db)
+):
+    from app.core.security import get_password_hash
+    repo = UserRepository(db)
+    service = AuthenticationService(repo)
+    target = await service.get_user(user_id)
+    if current_user.role != "SUPER_ADMIN" and target.organization_id != current_user.organization_id:
+        raise HTTPException(status_code=403, detail="Cannot modify user from different organization.")
+        
+    validate_password_strength(payload.password)
+    hashed_pw = get_password_hash(payload.password)
+    
+    updated = await service.update_user(user_id, {"password_hash": hashed_pw, "requires_password_change": True}, actor_id=str(current_user.id))
+    return {"status": "success", "message": "Password reset successfully."}

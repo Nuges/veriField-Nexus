@@ -8,6 +8,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useToast } from "@/components/Toast";
 import { useRouter } from "next/navigation";
 import { 
   ShieldCheck, 
@@ -42,6 +43,7 @@ import {
   fetchAccessRequests, 
   approveAccessRequest, 
   rejectAccessRequest, 
+  deleteAccessRequest,
   fetchAllOrganizations, 
   fetchAllUsersGlobal, 
   toggleUserSuspension, 
@@ -168,7 +170,7 @@ function SuperAdminDashboard() {
       // Reload active queue
       await loadData();
     } catch (err: any) {
-      alert(err.message || "Failed to approve access request.");
+      toast.error('Operation Failed', err.message || "Failed to approve access request.");
     } finally {
       setProcessingId(null);
     }
@@ -181,7 +183,20 @@ function SuperAdminDashboard() {
       await rejectAccessRequest(id);
       await loadData();
     } catch (err: any) {
-      alert(err.message || "Failed to reject request.");
+      toast.error('Operation Failed', err.message || "Failed to reject request.");
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handleDeleteAccessRequest = async (id: string) => {
+    if (!confirm("Are you sure you want to permanently delete this access request?")) return;
+    setProcessingId(id);
+    try {
+      await deleteAccessRequest(id);
+      await loadData();
+    } catch (err: any) {
+      toast.error('Operation Failed', err.message || "Failed to delete request.");
     } finally {
       setProcessingId(null);
     }
@@ -196,7 +211,7 @@ function SuperAdminDashboard() {
       await toggleUserSuspension(userId, !currentActive);
       await loadData();
     } catch (err: any) {
-      alert(err.message || "Failed to update user status.");
+      toast.error('Operation Failed', err.message || "Failed to update user status.");
     } finally {
       setProcessingId(null);
     }
@@ -208,10 +223,10 @@ function SuperAdminDashboard() {
     setProcessingId(orgId);
     try {
       await deleteOrganization(orgId);
-      alert(`Organization "${orgName}" has been successfully deleted.`);
+      toast.success("Organization Deleted", `Organization "${orgName}" has been successfully deleted.`);
       await loadData();
     } catch (err: any) {
-      alert(err.message || `Failed to delete organization "${orgName}".`);
+      toast.error('Operation Failed', err.message || `Failed to delete organization "${orgName}".`);
     } finally {
       setProcessingId(null);
     }
@@ -225,7 +240,7 @@ function SuperAdminDashboard() {
       const data = await fetchOrganizationAnalytics(orgId);
       setOrgAnalyticsData(data);
     } catch (err: any) {
-      alert(err.message || `Failed to fetch analytics for "${orgName}".`);
+      toast.error('Operation Failed', err.message || `Failed to fetch analytics for "${orgName}".`);
       setSelectedOrgForAnalytics(null);
     } finally {
       setLoadingOrgAnalytics(false);
@@ -497,26 +512,36 @@ function SuperAdminDashboard() {
                             </span>
                           </td>
                           <td className="py-4 text-right">
-                            {req.status === "PENDING" ? (
-                              <div className="flex justify-end gap-2">
-                                <button
-                                  onClick={() => handleReject(req.id)}
-                                  disabled={processingId !== null}
-                                  className="py-1 px-3 bg-red-950/20 hover:bg-red-950/40 border border-red-900/30 hover:border-red-500/50 text-red-400 rounded text-[10px] font-bold uppercase transition-colors"
-                                >
-                                  Reject
-                                </button>
-                                <button
-                                  onClick={() => handleApprove(req.id)}
-                                  disabled={processingId !== null}
-                                  className="py-1 px-3 bg-[#00B47A]/15 hover:bg-[#00B47A]/35 border border-[#00B47A]/30 hover:border-[#00B47A]/80 text-[#00B47A] rounded text-[10px] font-bold uppercase transition-colors"
-                                >
-                                  {processingId === req.id ? "Working..." : "Approve"}
-                                </button>
-                              </div>
-                            ) : (
-                              <span className="text-[10px] text-zinc-600 font-mono">Reviewed</span>
-                            )}
+                            <div className="flex justify-end gap-2 items-center">
+                              {req.status === "PENDING" ? (
+                                <>
+                                  <button
+                                    onClick={() => handleReject(req.id)}
+                                    disabled={processingId !== null}
+                                    className="py-1 px-3 bg-red-950/20 hover:bg-red-950/40 border border-red-900/30 hover:border-red-500/50 text-red-400 rounded text-[10px] font-bold uppercase transition-colors"
+                                  >
+                                    Reject
+                                  </button>
+                                  <button
+                                    onClick={() => handleApprove(req.id)}
+                                    disabled={processingId !== null}
+                                    className="py-1 px-3 bg-[#00B47A]/15 hover:bg-[#00B47A]/35 border border-[#00B47A]/30 hover:border-[#00B47A]/80 text-[#00B47A] rounded text-[10px] font-bold uppercase transition-colors"
+                                  >
+                                    {processingId === req.id ? "Working..." : "Approve"}
+                                  </button>
+                                </>
+                              ) : (
+                                <span className="text-[10px] text-zinc-600 font-mono">Reviewed</span>
+                              )}
+                              <button
+                                onClick={() => handleDeleteAccessRequest(req.id)}
+                                disabled={processingId !== null}
+                                className="py-1 px-2 hover:bg-red-900/20 hover:text-red-400 text-zinc-600 rounded transition-colors"
+                                title="Delete Request Permanently"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -820,13 +845,13 @@ function SuperAdminDashboard() {
                       <div className="space-y-0.5">
                         <div className="flex items-center gap-2">
                           <span className={`font-bold px-1.5 py-0.2 rounded text-[9px] ${
-                            log.action.includes("APPROVED") || log.action.includes("USER_PROVISIONED")
+                            (log.action || "").includes("APPROVED") || (log.action || "").includes("USER_PROVISIONED")
                               ? "bg-emerald-950/40 text-emerald-400 border border-emerald-900/30" :
-                            log.action.includes("REJECTED")
+                            (log.action || "").includes("REJECTED")
                               ? "bg-red-950/40 text-red-400 border border-red-900/30" :
                             "bg-purple-950/40 text-purple-400 border border-purple-900/30"
                           }`}>
-                            {log.action}
+                            {log.action || "SYSTEM_EVENT"}
                           </span>
                           <span className="text-zinc-400 text-[10px]">Actor: {log.user}</span>
                         </div>
@@ -1025,7 +1050,7 @@ function SuperAdminDashboard() {
                 >
                   <option value="">-- Choose User --</option>
                   {users
-                    .filter(u => u.organization === selectedOrgForPasswordReset.name)
+                    .filter(u => u.organization_id === selectedOrgForPasswordReset.id)
                     .map(u => (
                       <option key={u.id} value={u.id}>
                         {u.full_name} ({u.role === "admin" ? "ORG_ADMIN" : u.role}) — {u.email}

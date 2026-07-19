@@ -106,61 +106,108 @@ function recursiveCleanImageUrls(obj: any): any {
   return obj;
 }
 
+
+// ---------------------------------------------------------------------------
+// Interceptors & Config
+// ---------------------------------------------------------------------------
+export const apiConfig = {
+  timeout: 60000,
+  maxRetries: 2,
+};
+
+export const interceptors = {
+  request: (options: CustomRequestInit) => options,
+  response: (response: Response) => response,
+  error: (error: any) => { throw error; }
+};
+
+interface StandardApiResponse<T = any> {
+  success: boolean;
+  data: T;
+  message?: string;
+  errors?: any[];
+  pagination?: any;
+  metadata?: any;
+}
+
 export async function apiFetch<T>(
   endpoint: string,
-  options: CustomRequestInit = {}
+  options: CustomRequestInit = {},
+  retries = apiConfig.maxRetries
 ): Promise<T> {
-  const { timeout, ...fetchOptions } = options;
   const currentToken = getAuthToken();
-  const headers: Record<string, string> = {
-    ...(fetchOptions.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
+  const baseHeaders: Record<string, string> = {
+    ...(options.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
     ...(currentToken ? { Authorization: `Bearer ${currentToken}` } : {}),
-    ...(fetchOptions.headers as Record<string, string> || {}),
+  };
+  
+  let fetchOptions: CustomRequestInit = {
+    ...options,
+    headers: { ...baseHeaders, ...(options.headers as Record<string, string> || {}) },
   };
 
-  const customTimeout = timeout !== undefined ? timeout : 30000;
+  // Run request interceptor
+  fetchOptions = interceptors.request(fetchOptions);
+
+  const customTimeout = fetchOptions.timeout !== undefined ? fetchOptions.timeout : apiConfig.timeout;
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), customTimeout); // default 30s — accounts for ngrok/tunnel latency
+  const timeoutId = setTimeout(() => controller.abort(), customTimeout);
 
   let response: Response;
   try {
     response = await fetch(`${API_V1}${endpoint}`, {
       ...fetchOptions,
-      headers,
       signal: controller.signal,
-      cache: "no-store", // Prevents Next.js aggressive caching for dashboard live data
+      cache: "no-store",
     });
     clearTimeout(timeoutId);
+    
+    // Run response interceptor
+    response = interceptors.response(response);
   } catch (networkError: any) {
     clearTimeout(timeoutId);
     if (networkError.name === 'AbortError') {
-      throw new Error("Request timed out. The server is taking too long to respond. Please try again.");
+      if (retries > 0) {
+        console.warn(`Request timed out for ${endpoint}. Retrying... (${retries} retries left)`);
+        return apiFetch<T>(endpoint, options, retries - 1);
+      }
+      return interceptors.error(new Error(`Request timed out for ${endpoint}.`));
     }
-    // Network error — backend unreachable, don't logout
-    throw new Error("Network error: Unable to reach the server. Please check your connection.");
+    
+    // Network error
+    if (retries > 0 && typeof window !== "undefined" && navigator.onLine) {
+       console.warn(`Network error for ${endpoint}. Retrying... (${retries} retries left)`);
+       // exponential backoff could be added here
+       await new Promise(r => setTimeout(r, 1000));
+       return apiFetch<T>(endpoint, options, retries - 1);
+    }
+    return interceptors.error(new Error("Network error: Unable to reach the server. Please check your connection."));
   }
 
   if (!response.ok) {
-    // Only redirect to login on 401 for non-auth endpoints
-    // Never redirect on 503 (service unavailable) or 500 (server error)
-    if (
-      response.status === 401 &&
-      typeof window !== "undefined" &&
-      !endpoint.startsWith("/auth/") &&
-      !window.location.pathname.includes("/login")
-    ) {
-      safeStorage.removeItem("vf_token");
-      authToken = null;
-      window.location.href = "/login";
-      return new Promise<T>(() => {});
+    if (response.status === 401) {
+       // Attempt JWT refresh (assuming /auth/refresh exists and sets cookie or returns token)
+       // For now, if 401, redirect to login unless on login page
+       if (typeof window !== "undefined" && !window.location.pathname.includes("/login")) {
+          safeStorage.removeItem("vf_token");
+          authToken = null;
+          window.location.href = "/login";
+          return new Promise<T>(() => {});
+       }
+    }
+
+    if (response.status >= 500 && retries > 0) {
+       console.warn(`Server error ${response.status} for ${endpoint}. Retrying... (${retries} retries left)`);
+       await new Promise(r => setTimeout(r, 1000));
+       return apiFetch<T>(endpoint, options, retries - 1);
     }
 
     const error = await response.json().catch(() => ({}));
     let errorMessage = `API error: ${response.status} ${response.statusText}`;
+    
     if (error.detail) {
-      if (typeof error.detail === "string") {
-        errorMessage = error.detail;
-      } else if (Array.isArray(error.detail)) {
+      if (typeof error.detail === "string") errorMessage = error.detail;
+      else if (Array.isArray(error.detail)) {
         errorMessage = error.detail.map((err: any) => {
           const locStr = err.loc ? err.loc.join(".") : "";
           return locStr ? `${locStr}: ${err.msg}` : err.msg;
@@ -174,12 +221,24 @@ export async function apiFetch<T>(
           errorMessage = JSON.stringify(error.detail);
         }
       }
+    } else if (error.message) {
+       errorMessage = error.message;
     }
-    throw new Error(errorMessage);
+    return interceptors.error(new Error(errorMessage));
   }
 
-  const data = await response.json();
-  return recursiveCleanImageUrls(data) as T;
+  let data = await response.json();
+  data = recursiveCleanImageUrls(data);
+  
+  // If backend implements StandardApiResponse, unwrap it, otherwise return directly
+  if (data && typeof data === 'object' && 'success' in data && 'data' in data) {
+      if (!data.success) {
+          return interceptors.error(new Error(data.message || "Request failed"));
+      }
+      return data.data as T;
+  }
+  
+  return data as T;
 }
 
 // ---------------------------------------------------------------------------
@@ -246,8 +305,10 @@ export async function fetchActivities(params?: {
   min_trust?: number;
   max_trust?: number;
   sector?: string;
+  activity_type?: string;
 }): Promise<ActivityListResponse> {
   const searchParams = new URLSearchParams();
+  if (params?.activity_type) searchParams.set("activity_type", params.activity_type);
   if (params?.page) searchParams.set("page", String(params.page));
   if (params?.per_page) searchParams.set("per_page", String(params.per_page));
   if (params?.status) searchParams.set("status", params.status);
@@ -257,12 +318,12 @@ export async function fetchActivities(params?: {
 
   const query = searchParams.toString();
   return apiFetch<ActivityListResponse>(
-    `/installations${query ? `?${query}` : ""}`
+    `/activities${query ? `?${query}` : ""}`
   );
 }
 
 export async function createActivity(payload: any): Promise<Activity> {
-  return apiFetch<Activity>("/installations", {
+  return apiFetch<Activity>("/activities", {
     method: "POST",
     body: JSON.stringify(payload),
     timeout: 60000, // 60s for submission (which does duplicate check & trust evaluation)
@@ -272,7 +333,7 @@ export async function createActivity(payload: any): Promise<Activity> {
 export async function uploadProof(file: File): Promise<{ image_url: string }> {
   const formData = new FormData();
   formData.append("file", file);
-  return apiFetch<{ image_url: string }>("/installations/upload-proof", {
+  return apiFetch<{ image_url: string }>("/activities/upload-proof", {
     method: "POST",
     body: formData,
     timeout: 90000, // 90s for image upload on mobile networks
@@ -294,18 +355,18 @@ export async function checkDuplicate(payload: {
     environment_type: string;
     radius_used_m: number;
     nearby_installations: any[];
-  }>("/installations/check-duplicate", {
+  }>("/activities/check-duplicate", {
     method: "POST",
     body: JSON.stringify(payload),
   });
 }
 
 export async function fetchActivity(id: string): Promise<Activity> {
-  return apiFetch<Activity>(`/installations/${id}`);
+  return apiFetch<Activity>(`/activities/${id}`);
 }
 
 export async function updateActivityStatus(id: string, status: string): Promise<Activity> {
-  return apiFetch<Activity>(`/installations/${id}/status`, {
+  return apiFetch<Activity>(`/activities/${id}/status`, {
     method: "PATCH",
     body: JSON.stringify({ status }),
   });
@@ -314,7 +375,7 @@ export async function updateActivityStatus(id: string, status: string): Promise<
 export async function fetchTrustScore(
   activityId: string
 ): Promise<TrustScoreBreakdown> {
-  return apiFetch<TrustScoreBreakdown>(`/installations/${activityId}/trust`);
+  return apiFetch<TrustScoreBreakdown>(`/activities/${activityId}/trust`);
 }
 
 // ---------------------------------------------------------------------------
@@ -325,15 +386,108 @@ export async function fetchProperties(perPage = 100, sector?: string): Promise<{
   properties: Property[];
   total: number;
 }> {
-  return apiFetch(`/properties?per_page=${perPage}${sector ? `&sector=${sector}` : ""}`);
+  try {
+    const response = await apiFetch<any>(`/assets?per_page=${perPage}${sector ? `&sector=${sector}` : ""}`);
+    
+    // Support both paginated { assets: [], total: x } and direct array response
+    const assetsData = Array.isArray(response) ? response : (response.assets || response.items || []);
+    const totalCount = Array.isArray(response) ? response.length : (response.total || assetsData.length);
+
+    const mappedProperties = assetsData.map((asset: any) => {
+      let inferredType = asset.attributes?.type || asset.asset_type;
+      if (!inferredType) {
+        if (asset.attributes?.stove_id || (asset.name && asset.name.toLowerCase().includes("cook"))) inferredType = "cookstove";
+        else if (asset.attributes?.solar_id || (asset.name && asset.name.toLowerCase().includes("solar"))) inferredType = "hybrid_energy";
+        else if (asset.attributes?.biochar_id || (asset.name && asset.name.toLowerCase().includes("biochar"))) inferredType = "biochar";
+        else if (asset.attributes?.ev_id || (asset.name && asset.name.toLowerCase().includes("ev"))) inferredType = "ev_mobility";
+        else inferredType = "industrial";
+      }
+
+      return {
+        id: asset.id,
+        owner_id: asset.organization_id || asset.owner_id,
+        name: asset.name,
+        address: asset.attributes?.location_name || asset.address || (asset.latitude && asset.longitude ? `${asset.latitude.toFixed(4)}, ${asset.longitude.toFixed(4)}` : null),
+        property_type: inferredType,
+        latitude: asset.latitude,
+        longitude: asset.longitude,
+        sustainability_metrics: {
+          status: asset.status,
+          carbon_offset_kg: asset.attributes?.carbon_offset_kg || asset.attributes?.estimated_annual_savings || 0,
+          energy_score: asset.attributes?.energy_score || 
+            ((asset.attributes?.carbon_offset_kg || asset.attributes?.estimated_annual_savings || 0) > 40 ? "A+" : 
+             (asset.attributes?.carbon_offset_kg || asset.attributes?.estimated_annual_savings || 0) > 20 ? "A" : "B+"),
+          ...asset.attributes
+        },
+        sector: asset.sector || asset.attributes?.sector || inferredType || sector || "generic",
+        created_at: asset.created_at,
+        updated_at: asset.updated_at
+      };
+    });
+
+    return { properties: mappedProperties, total: totalCount };
+  } catch (error) {
+    console.error("Failed to fetch assets, falling back to properties:", error);
+    return apiFetch(`/properties?per_page=${perPage}${sector ? `&sector=${sector}` : ""}`);
+  }
 }
 
 export async function fetchProperty(id: string): Promise<Property & { total_activities?: number, avg_trust_score?: number, activity_breakdown?: any }> {
-  return apiFetch<Property & { total_activities?: number, avg_trust_score?: number, activity_breakdown?: any }>(`/properties/${id}`);
+  try {
+    const asset = await apiFetch<any>(`/assets/${id}`);
+    
+    let inferredType = asset.attributes?.type || asset.asset_type;
+    if (!inferredType) {
+      if (asset.attributes?.stove_id || (asset.name && asset.name.toLowerCase().includes("cook"))) inferredType = "cookstove";
+      else if (asset.attributes?.solar_id || (asset.name && asset.name.toLowerCase().includes("solar"))) inferredType = "hybrid_energy";
+      else if (asset.attributes?.biochar_id || (asset.name && asset.name.toLowerCase().includes("biochar"))) inferredType = "biochar";
+      else if (asset.attributes?.ev_id || (asset.name && asset.name.toLowerCase().includes("ev"))) inferredType = "ev_mobility";
+      else inferredType = "industrial";
+    }
+
+    // Map asset to property shape
+    const mappedProperty: Property = {
+      id: asset.id,
+      owner_id: asset.organization_id || asset.owner_id,
+      name: asset.name,
+      address: asset.attributes?.location_name || asset.address || (asset.latitude && asset.longitude ? `${asset.latitude.toFixed(4)}, ${asset.longitude.toFixed(4)}` : null),
+      property_type: inferredType,
+      latitude: asset.latitude,
+      longitude: asset.longitude,
+      sustainability_metrics: {
+        status: asset.status,
+        carbon_offset_kg: asset.attributes?.carbon_offset_kg || asset.attributes?.estimated_annual_savings || 0,
+        energy_score: asset.attributes?.energy_score || 
+          ((asset.attributes?.carbon_offset_kg || asset.attributes?.estimated_annual_savings || 0) > 40 ? "A+" : 
+           (asset.attributes?.carbon_offset_kg || asset.attributes?.estimated_annual_savings || 0) > 20 ? "A" : "B+"),
+        ...asset.attributes
+      },
+      sector: asset.sector || asset.attributes?.sector || inferredType || "generic",
+      created_at: asset.created_at,
+      updated_at: asset.updated_at
+    };
+    
+    return {
+      ...mappedProperty,
+      total_activities: asset.total_activities || 0,
+      avg_trust_score: asset.avg_trust_score || null,
+      activity_breakdown: asset.activity_breakdown || null,
+    };
+  } catch (error) {
+    console.error("Failed to fetch asset, falling back to property:", error);
+    return apiFetch<Property & { total_activities?: number, avg_trust_score?: number, activity_breakdown?: any }>(`/properties/${id}`);
+  }
 }
 
 export async function fetchPropertyActivities(id: string): Promise<Activity[]> {
-  return apiFetch<Activity[]>(`/properties/${id}/activities?per_page=50`);
+  try {
+    // Assets domain doesn't have an activities sub-route by default, use activities query
+    const res = await apiFetch<any>(`/activities?asset_id=${id}&per_page=50`);
+    return Array.isArray(res) ? res : (res.activities || []);
+  } catch (error) {
+    console.error("Failed to fetch asset activities, falling back:", error);
+    return apiFetch<Activity[]>(`/properties/${id}/activities?per_page=50`);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -341,7 +495,7 @@ export async function fetchPropertyActivities(id: string): Promise<Activity[]> {
 // ---------------------------------------------------------------------------
 
 export async function fetchAnalyticsOverview(sector?: string): Promise<AnalyticsOverview> {
-  return apiFetch<AnalyticsOverview>(`/metrics/overview${sector ? `?sector=${sector}` : ""}`);
+  return apiFetch<AnalyticsOverview>(`/reporting/metrics/overview${sector ? `?sector=${sector}` : ""}`);
 }
 
 export async function fetchDailySubmissions(
@@ -352,7 +506,7 @@ export async function fetchDailySubmissions(
 }
 
 export async function fetchTrends(days = 30, sector?: string): Promise<AnalyticsTrends> {
-  return apiFetch<AnalyticsTrends>(`/metrics/trends?days=${days}${sector ? `&sector=${sector}` : ""}`);
+  return apiFetch<AnalyticsTrends>(`/reporting/metrics/trends?days=${days}${sector ? `&sector=${sector}` : ""}`);
 }
 
 export async function fetchTrustDistribution(sector?: string): Promise<TrustDistribution> {
@@ -387,14 +541,32 @@ export async function fetchCommunityValidations(assetId: string): Promise<Commun
 }
 
 export async function fetchMyAuditTasks(): Promise<AuditTask[]> {
-  return apiFetch<AuditTask[]>("/audits/my-tasks");
+  const tasks = await apiFetch<any[]>("/verification/tasks");
+  return tasks.map(t => ({
+    id: t.id,
+    asset_id: t.asset_id,
+    status: t.status,
+    assigned_agent: t.verifier_id,
+    deadline: t.deadline
+  })) as AuditTask[];
 }
 
 export async function createAuditTask(data: { asset_id: string; assigned_agent: string; deadline?: string }): Promise<AuditTask> {
-  return apiFetch<AuditTask>("/audits", {
+  const t = await apiFetch<any>("/verification/tasks", {
     method: "POST",
-    body: JSON.stringify(data),
+    body: JSON.stringify({
+      asset_id: data.asset_id,
+      verifier_id: data.assigned_agent,
+      deadline: data.deadline
+    }),
   });
+  return {
+    id: t.id,
+    asset_id: t.asset_id,
+    status: t.status,
+    assigned_agent: t.verifier_id,
+    deadline: t.deadline
+  } as AuditTask;
 }
 
 // ---------------------------------------------------------------------------
@@ -402,22 +574,30 @@ export async function createAuditTask(data: { asset_id: string; assigned_agent: 
 // ---------------------------------------------------------------------------
 
 export async function fetchCarbonLedger(includeLog = false, sector?: string): Promise<{ data: any[] }> {
-  return apiFetch<{ data: any[] }>(`/carbon/ledger?include_log=${includeLog}${sector ? `&sector=${sector}` : ""}`);
+  return apiFetch<{ data: any[] }>(`/reporting/carbon/ledger?include_log=${includeLog}${sector ? `&sector=${sector}` : ""}`);
 }
 
 export async function fetchAnomalies(sector?: string): Promise<{ anomalies: any[], total: number }> {
-  return apiFetch<{ anomalies: any[], total: number }>(`/metrics/anomalies${sector ? `?sector=${sector}` : ""}`);
+  return apiFetch<{ anomalies: any[], total: number }>(`/reporting/metrics/anomalies${sector ? `?sector=${sector}` : ""}`);
 }
 
 export async function resolveAnomaly(flagId: string, action: "verify" | "reject", notes: string = ""): Promise<any> {
-  return apiFetch<any>(`/metrics/anomalies/${flagId}/resolve`, {
-    method: "PATCH",
+  return apiFetch<any>(`/reporting/metrics/anomalies/${flagId}/resolve`, {
+    method: "POST",
     body: JSON.stringify({ action, notes }),
   });
 }
 
 export async function fetchAudits(sector?: string): Promise<{ audits: any[], total: number }> {
-  return apiFetch<{ audits: any[], total: number }>(`/audits${sector ? `?sector=${sector}` : ""}`);
+  const tasks = await apiFetch<any[]>("/verification/tasks");
+  const audits = tasks.map(t => ({
+    id: t.id,
+    asset_id: t.asset_id,
+    status: t.status,
+    assigned_agent: t.verifier_id,
+    deadline: t.deadline
+  }));
+  return { audits, total: audits.length };
 }
 
 export async function updateAuditStatus(id: string, status?: string, deadline?: string, assigned_agent?: string): Promise<any> {
@@ -425,7 +605,7 @@ export async function updateAuditStatus(id: string, status?: string, deadline?: 
   if (status) body.status = status;
   if (deadline) body.deadline = deadline;
   if (assigned_agent) body.assigned_agent = assigned_agent;
-  return apiFetch<any>(`/audits/${id}`, {
+  return await apiFetch(`/verification/tasks/${id}`, {
     method: "PATCH",
     body: JSON.stringify(body),
   });
@@ -455,13 +635,55 @@ export async function quantifyActivity(id: string, projectId?: string): Promise<
 // ---------------------------------------------------------------------------
 
 export async function fetchAgentPerformance(sector?: string): Promise<import("./types").AgentPerformanceResponse> {
-  return apiFetch<import("./types").AgentPerformanceResponse>(`/metrics/agents${sector ? `?sector=${sector}` : ""}`);
+  return await apiFetch<any>("/reporting/metrics/agents");
 }
 
 export async function createAgent(data: any): Promise<any> {
   return apiFetch<any>("/auth/users", {
     method: "POST",
     body: JSON.stringify(data),
+  });
+}
+
+// Carbon Projects API
+export async function fetchCarbonProjects(): Promise<any> {
+  return apiFetch<any>(`/projects`);
+}
+
+// -----------------------------------------------------------------------------
+// RESTORED: CSI Carbon Sink Endpoints (Rewired to CIOS Architecture)
+// -----------------------------------------------------------------------------
+export async function fetchCsiLedger(): Promise<{ data: any[] }> {
+  // Rewire to the new domain-driven carbon ledger
+  return fetchCarbonLedger(true, "afolu");
+}
+
+export async function fetchCsiParameters(): Promise<any[]> {
+  // Map to the new CIOS Methodologies schema
+  try {
+    const res = await apiFetch<any>(`/methodologies`);
+    return res || [];
+  } catch (e) {
+    return [];
+  }
+}
+
+export async function createCsiBundle(data: any): Promise<any> {
+  // Rewire to marketplace/registry integration
+  return apiFetch<any>(`/carbon/registry/verra/issue`, {
+    method: "POST",
+    body: JSON.stringify(data)
+  });
+}
+
+export async function syncBundleToRegistry(bundleId: string): Promise<any> {
+  return apiFetch<any>(`/registry/sync/${bundleId}`, { method: "POST" });
+}
+
+export async function updateCsiParameter(paramId: string, val: number): Promise<any> {
+  return apiFetch<any>(`/methodologies/csink/parameters/${paramId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ value: val })
   });
 }
 
@@ -738,8 +960,8 @@ export async function createAccessRequest(payload: {
 }
 
 export async function fetchAccessRequests(params?: { status?: string }) {
-  // Access requests not yet implemented in backend, return empty array for now
-  return [];
+  const query = params?.status ? `?status=${params.status}` : "";
+  return apiFetch<any[]>(`/access-requests${query}`);
 }
 
 export async function approveAccessRequest(id: string) {
@@ -757,6 +979,12 @@ export async function approveAccessRequest(id: string) {
 export async function rejectAccessRequest(id: string) {
   return apiFetch<any>(`/admin/access-requests/${id}/reject`, {
     method: "POST",
+  });
+}
+
+export async function deleteAccessRequest(id: string) {
+  return apiFetch<any>(`/admin/access-requests/${id}`, {
+    method: "DELETE",
   });
 }
 
@@ -797,17 +1025,7 @@ export async function forceResetUserPassword(id: string, newPassword: string) {
 }
 
 export async function fetchGlobalAnalytics() {
-  // Global analytics is aggregated on the dashboard for now
-  return {
-    installations: 12450,
-    avgTrust: 94.2,
-    tCO2: 384000,
-    activeOrgs: 4,
-    methodologies: {
-      "Methodology A": 8400,
-      "Methodology B": 4050
-    }
-  };
+  return apiFetch<any>("/analytics/global");
 }
 
 // --- Dynamic Methodology Endpoints (Replaced legacy hardcodes) ---

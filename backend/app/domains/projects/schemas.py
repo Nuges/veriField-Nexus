@@ -32,16 +32,16 @@ class ProjectResponse(BaseModel):
     id: UUID
     project_code: Optional[str] = None
     name: str
-    country: str
+    country: Optional[str] = None
     organization_id: Optional[UUID] = None
     jurisdiction_id: Optional[UUID] = None
     programme_id: Optional[UUID] = None
     methodology_id: UUID
     methodology_version_id: Optional[UUID] = None
     registry_id: Optional[str] = None
-    baseline_source: str
-    diesel_emission_factor: float
-    grid_emission_factor: float
+    baseline_source: Optional[str] = None
+    diesel_emission_factor: Optional[float] = None
+    grid_emission_factor: Optional[float] = None
     crediting_start: Optional[date] = None
     crediting_end: Optional[date] = None
     baseline_parameters: Dict[str, Any]

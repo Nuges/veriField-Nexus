@@ -36,11 +36,11 @@ engine_kwargs = {
     "echo": settings.debug,
     "poolclass": pool.NullPool if is_testing else None,
     "pool_pre_ping": True if not is_testing else False,
-    "pool_recycle": 300 if not is_testing else -1,
+    "pool_recycle": 1800 if not is_testing else -1,
     "connect_args": {
         "ssl": "require",
-        "server_settings": {"jit": "off"},
-        "command_timeout": 10.0,
+        "server_settings": {"jit": "off", "application_name": "verifield"},
+        "command_timeout": 60.0,
         "statement_cache_size": 0,
         "prepared_statement_cache_size": 0,
         "prepared_statement_name_func": lambda: f"__asyncpg_{uuid.uuid4()}__",
@@ -48,9 +48,9 @@ engine_kwargs = {
 }
 
 if not is_testing:
-    engine_kwargs["pool_size"] = 20
-    engine_kwargs["max_overflow"] = 10
-    engine_kwargs["pool_timeout"] = 20
+    engine_kwargs["pool_size"] = 5
+    engine_kwargs["max_overflow"] = 15
+    engine_kwargs["pool_timeout"] = 60
 else:
     engine_kwargs["connect_args"].pop("ssl", None)
 

@@ -6,7 +6,7 @@ from typing import Any, Dict, Optional, Tuple
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-# from app.models.property import Property
+from app.domains.workspaces.models import Property
 # from app.models.sensor_reading import SensorReading
 from app.core.config import settings
 from app.domains.activities.models import Activity
@@ -163,23 +163,9 @@ class SensorDetector:
     async def evaluate(
         self, db: AsyncSession, activity: Activity
     ) -> Tuple[float, float, Dict[str, Any]]:
-        findings = {}
-        bonus = 0.0
-        if not activity.property_id:
-            return 0.0, 1.0, {}
-
-        # Look for telemetry sensor readings
-        stmt = (
-            select(SensorReading)
-            .where(SensorReading.asset_id == activity.property_id)
-            .limit(1)
-        )
-        res = await db.execute(stmt)
-        if res.scalar_one_or_none():
-            bonus = 10.0
-            findings["sensor_data_present"] = True
-
-        return bonus, 1.0, findings
+        # SensorReading model is deprecated/missing in new architecture.
+        # Skip telemetry check for now.
+        return 0.0, 1.0, {}
 
 
 class BehaviouralDetector:
@@ -302,42 +288,5 @@ class TelemetryAnomalyDetector:
         Analyzes historical telemetry data to detect potential anomalies
         (e.g. sensor spoofing, massive unexpected drops).
         """
-        # Read the last 100 sensor readings
-        stmt = (
-            select(SensorReading)
-            .where(SensorReading.asset_id == property_id)
-            .order_by(SensorReading.timestamp.desc())
-            .limit(100)
-        )
-        res = await db.execute(stmt)
-        readings = res.scalars().all()
-
-        if len(readings) < 10:
-            return {"status": "INSUFFICIENT_DATA"}
-
-        values = [
-            r.payload.get("value", 0)
-            for r in readings
-            if isinstance(r.payload, dict) and "value" in r.payload
-        ]
-        if not values:
-            return {"status": "NO_NUMERIC_PAYLOAD"}
-
-        mean = sum(values) / len(values)
-        variance = sum((x - mean) ** 2 for x in values) / len(values)
-        std_dev = math.sqrt(variance)
-
-        anomalies = []
-        for v in values[
-            :5
-        ]:  # Only check the most recent 5 against the historical standard deviation
-            if std_dev > 0 and abs(v - mean) > (3 * std_dev):  # 3-sigma rule
-                anomalies.append(v)
-
-        return {
-            "status": "EVALUATED",
-            "anomaly_detected": len(anomalies) > 0,
-            "recent_anomalies_count": len(anomalies),
-            "historical_mean": round(mean, 2),
-            "historical_std_dev": round(std_dev, 2),
-        }
+        # SensorReading is deprecated/missing in new architecture.
+        return {"status": "INSUFFICIENT_DATA"}

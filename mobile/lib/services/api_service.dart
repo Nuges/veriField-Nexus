@@ -16,7 +16,7 @@ import '../core/config/supabase_config.dart';
 class ApiService {
   static const String apiBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'https://verifield-nexus.onrender.com',
+    defaultValue: 'http://127.0.0.1:8000',
   );
 
   static String get baseUrl {

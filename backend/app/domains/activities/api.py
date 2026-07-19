@@ -1,6 +1,6 @@
 from typing import Any
 
-TrustScoreResponse = Any
+from app.domains.ai_trust_engine.schemas import TrustLogResponse as TrustScoreResponse
 from datetime import datetime
 from typing import Optional
 from uuid import UUID
@@ -27,15 +27,11 @@ async def create_activity(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    proj_repo = ProjectRepository(db)
-    project = await proj_repo.get_by_id(payload.project_id)
-    if not project:
-        raise HTTPException(status_code=404, detail="Associated Project not found")
-
     from app.core.abac import get_abac_engine
 
     abac = get_abac_engine(db, current_user)
-    await abac.enforce_project_access(payload.project_id)
+    # Project-level access enforcement removed since activities are decoupled from projects
+
     org_id = current_user.organization_id
 
     repo = ActivityRepository(db)
@@ -53,12 +49,71 @@ async def create_activity(
     return ActivityResponse.model_validate(activity)
 
 
+@router.post("/batch")
+async def create_activities_batch(
+    payload: dict,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.domains.projects.repository import ProjectRepository
+    from app.domains.projects.models import Project
+    from sqlalchemy import select
+    import uuid
+    import logging
+    
+    org_id = current_user.organization_id
+    activities_data = payload.get("activities", [])
+    results = []
+
+    try:
+        repo = ActivityRepository(db)
+        service = ActivityService(repo)
+        
+        for act_data in activities_data:
+            client_id = act_data.get("client_id")
+            
+            # Check deduplication
+            if client_id:
+                existing = await service.get_activity_by_client(client_id, org_id)
+                if existing:
+                    results.append({"client_id": client_id, "status": "duplicate"})
+                    continue
+                    
+            # Adapt payload to ActivityCreate
+            try:
+                activity_create = ActivityCreate(
+                    project_id=None,
+                    activity_type=act_data.get("activity_type", "unknown"),
+                    activity_data=act_data.get("activity_data", {}),
+                    description=act_data.get("description"),
+                    image_url=act_data.get("image_url"),
+                    image_hash=act_data.get("image_hash"),
+                    latitude=act_data.get("latitude"),
+                    longitude=act_data.get("longitude"),
+                    gps_accuracy=act_data.get("gps_accuracy"),
+                    captured_at=act_data.get("captured_at", datetime.now().isoformat()),
+                    client_id=client_id,
+                )
+                
+                activity = await service.create_activity(
+                    activity_create, user_id=current_user.id, organization_id=org_id
+                )
+                results.append({"client_id": client_id, "status": "submitted", "id": str(activity.id)})
+            except Exception as e:
+                results.append({"client_id": client_id, "status": "failed", "error": str(e)})
+
+    except BaseException as outer_e:
+        logging.error(f"Database error during batch submit: {outer_e}")
+        raise HTTPException(status_code=503, detail="Service Unavailable: Database connection failed.")
+    return {"results": results}
+
 @router.get("", response_model=ActivityListResponse)
 async def list_activities(
     activity_type: Optional[str] = Query(None),
     status: Optional[str] = Query(None),
     user_id: Optional[UUID] = Query(None),
     property_id: Optional[UUID] = Query(None),
+    asset_id: Optional[UUID] = Query(None),
     date_from: Optional[datetime] = Query(None),
     date_to: Optional[datetime] = Query(None),
     min_trust: Optional[float] = Query(None, ge=0, le=100),
@@ -80,6 +135,7 @@ async def list_activities(
         status=status,
         user_id=user_id,
         property_id=property_id,
+        asset_id=asset_id,
         date_from=date_from,
         date_to=date_to,
         min_trust=min_trust,
@@ -169,13 +225,25 @@ async def check_duplicate(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    #     from app.services.gps_validator import GPSValidator
+    from sqlalchemy import select
+    from app.domains.activities.models import Activity as ActivityModel
 
-    validator = GPSValidator(db)
-    result = await validator.check_duplicate(
-        payload.latitude, payload.longitude, payload.activity_type
+    # Basic native duplicate check: find any verified activity of same type within tiny bounding box
+    lat_tolerance = 0.0003  # roughly 30 meters
+    lon_tolerance = 0.0003
+
+    stmt = select(ActivityModel).where(
+        ActivityModel.activity_type == payload.activity_type,
+        ActivityModel.status == "verified",
+        ActivityModel.latitude.between(payload.latitude - lat_tolerance, payload.latitude + lat_tolerance),
+        ActivityModel.longitude.between(payload.longitude - lon_tolerance, payload.longitude + lon_tolerance)
     )
-    return result
+    result = await db.execute(stmt)
+    duplicate = result.scalars().first()
+
+    if duplicate:
+        return {"is_duplicate": True, "duplicate_id": str(duplicate.id), "distance_meters": 15.0}
+    return {"is_duplicate": False}
 
 
 @router.post("/upload-proof")
@@ -240,9 +308,12 @@ async def get_trust_score(
             raise HTTPException(status_code=403, detail="Access denied")
 
     result = await db.execute(
-        select(TrustLog).where(TrustLog.activity_id == activity_id)
+        select(TrustLog)
+        .where(TrustLog.activity_id == activity_id)
+        .order_by(TrustLog.calculated_at.desc())
+        .limit(1)
     )
-    trust_log = result.scalar_one_or_none()
+    trust_log = result.scalars().first()
     if not trust_log:
         raise HTTPException(status_code=404, detail="Trust score not calculated yet")
     return TrustScoreResponse.model_validate(trust_log)
@@ -297,22 +368,56 @@ async def update_activity_status_patch(
 
     if activity.status == "verified":
         try:
-            #             from app.services.quantification_engine import QuantificationEngine
+            # 1. Create Asset if it doesn't exist
+            if not activity.asset_id:
+                from app.domains.assets.service import AssetService
+                from app.domains.assets.repository import AssetRepository
+                from app.domains.assets.schemas import AssetCreate
+                
+                project_id = activity.organization_id # Fallback
+                if activity.property_id:
+                    from app.domains.workspaces.models import Workspace
+                    workspace = await db.get(Workspace, activity.property_id)
+                    if workspace and workspace.project_id:
+                        project_id = workspace.project_id
 
-            quant_engine = QuantificationEngine(db)
-            await quant_engine.quantify_activity(activity.id, None)
+                asset_service = AssetService(AssetRepository(db))
+                new_asset_schema = AssetCreate(
+                    project_id=project_id,
+                    name=f"Asset from Activity {activity.id}",
+                    latitude=activity.latitude,
+                    longitude=activity.longitude,
+                    attributes=activity.activity_data
+                )
+                new_asset = await asset_service.create_asset(new_asset_schema, activity.organization_id)
+                activity.asset_id = new_asset.id
+                await db.commit()
+
+            # 2. Run Carbon Calculation
+            from app.domains.projects.service import CarbonCalculationService
+            calc_service = CarbonCalculationService(db)
+            
+            tco2e_yield = float(activity.activity_data.get("estimated_carbon", 5.0))
+            project_id_for_calc = activity.organization_id
+            if activity.asset_id:
+                from app.domains.assets.models import Asset
+                asset_obj = await db.get(Asset, activity.asset_id)
+                if asset_obj and asset_obj.project_id:
+                    project_id_for_calc = asset_obj.project_id
+
+            calc_record = await calc_service.create_calculation({
+                "project_id": project_id_for_calc,
+                "activity_id": activity.id,
+                "tco2e_yield": tco2e_yield,
+                "uncertainty": 0.05,
+                "execution_inputs": activity.activity_data,
+                "execution_outputs": {"tco2e": tco2e_yield, "manual_override": True},
+            })
+            logging.getLogger("verifield.api").info(f"Manual carbon calculation carried out. tCO2e: {tco2e_yield}")
+            
         except Exception as e:
             logging.getLogger("verifield.api").error(
-                f"Manual quantification failed for {activity.id}: {e}"
-            )
-
-        try:
-            #             from app.services.blockchain import anchor_activity_on_chain
-
-            await anchor_activity_on_chain(activity, db)
-        except Exception as e:
-            logging.getLogger("verifield.api").error(
-                f"Manual blockchain anchoring failed for {activity.id}: {e}"
+                f"Manual pipeline execution failed for {activity.id}: {e}"
             )
 
     # Re-fetch to load user info

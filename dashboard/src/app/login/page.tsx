@@ -71,14 +71,21 @@ export default function LoginPage() {
       
       if (result.user.role === "SUPER_ADMIN") {
         targetRedirect = "/super-admin";
-      } else if (result.user.role === "field_agent") {
-        // Field agents must always be routed to the capture flow
-        targetRedirect = "/capture";
       }
       
       const isMobileCapture = targetRedirect.startsWith("/capture");
       
-      if (!isMobileCapture && !["admin", "auditor", "SUPER_ADMIN", "ORG_ADMIN", "JURISDICTION_ADMIN", "COMPLIANCE_ADMIN"].includes(result.user.role)) {
+      const allowedRoles = [
+        "admin", "auditor", "SUPER_ADMIN", "ORG_ADMIN", 
+        "JURISDICTION_ADMIN", "COMPLIANCE_ADMIN", "FIELD_AGENT", 
+        "PORTFOLIO_MANAGER", "PROGRAMME_MANAGER", "PROJECT_MANAGER", 
+        "EXECUTIVE", "INVESTOR", "CLIENT", "IOT_ENGINEER", "OPERATIONS_ENGINEER"
+      ];
+
+      // Normalize role string comparison
+      const userRoleStr = (result.user.role || "").toUpperCase().replace(" ", "_");
+      
+      if (!isMobileCapture && !allowedRoles.includes(userRoleStr) && !allowedRoles.includes(result.user.role)) {
         throw new Error("Access denied. This system is restricted to verification personnel only.");
       }
       

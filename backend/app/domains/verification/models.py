@@ -22,8 +22,10 @@ class VerificationTask(Base):
         default=uuid.uuid4,
         server_default=text("gen_random_uuid()"),
     )
-    project_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    project_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=True)
+    asset_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=True)
     verifier_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=True)
+    deadline: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
 
     status: Mapped[str] = mapped_column(
         String(50), default="ASSIGNED"
