@@ -59,7 +59,7 @@ export default function AuditsPage() {
           ...a,
           property,
           property_address: property?.address,
-          agent_name: agent?.full_name || agent?.name
+          agent_name: agent?.full_name || "Unknown Agent"
         };
       });
       setAudits(auditsWithProps);
@@ -89,7 +89,7 @@ export default function AuditsPage() {
               ...a,
               property,
               property_address: property?.address,
-              agent_name: agent?.full_name || agent?.name
+              agent_name: agent?.full_name || "Unknown Agent"
             };
           });
           setAudits(auditsWithProps);

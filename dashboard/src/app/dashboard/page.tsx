@@ -441,7 +441,7 @@ export default function RedesignedDashboardPage() {
       const calc = isolatedLedger.find(l => l.activity_id === act.id);
       const p = isolatedProperties.find((prop: any) => prop.id === act.property_id);
       const fallbackCo2 = p?.sustainability_metrics?.carbon_offset_kg 
-        ? p.sustainability_metrics.carbon_offset_kg / 1000 
+        ? Number(p.sustainability_metrics.carbon_offset_kg) / 1000 
         : (act.trust_score ? act.trust_score / 100 : 0);
       const co2 = calc ? (calc.tco2e_generated || calc.tco2e || 0) : fallbackCo2;
       group.reductions += co2;
@@ -627,7 +627,7 @@ export default function RedesignedDashboardPage() {
       const matchingLedger = matchingActivity ? isolatedLedger.find((item: any) => item.activity_id === matchingActivity.id) : null;
       const realCo2 = matchingLedger 
         ? (matchingLedger.tco2e_generated || matchingLedger.tco2e || 0)
-        : (p.sustainability_metrics?.carbon_offset_kg ? p.sustainability_metrics.carbon_offset_kg / 1000 : (realTrustScore ? realTrustScore / 100 : 0));
+        : (p.sustainability_metrics?.carbon_offset_kg ? Number(p.sustainability_metrics.carbon_offset_kg) / 1000 : (realTrustScore ? realTrustScore / 100 : 0));
       const realDuplicateFlag = matchingActivity ? matchingActivity.duplicate_flag : false;
       
       setMapSelectedPoint({

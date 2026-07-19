@@ -77,6 +77,8 @@ function SuperAdminDashboard() {
     methodologies: {}
   });
 
+  const toast = useToast();
+
   // Action states
   const [loadingData, setLoadingData] = useState(false);
   const [processingId, setProcessingId] = useState<string | null>(null);
