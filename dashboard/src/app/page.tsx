@@ -1,831 +1,479 @@
-// =============================================================================
-// VeriField Nexus — Premium Landing Page (Exact Replica)
-// =============================================================================
-// Formatted precisely to match the layout, typography, and contrast flow
-// of the uploaded design screenshot. Alternates between premium black
-// and crisp white sections with VeriField brand green (#00B47A) accents.
-// =============================================================================
-
 "use client";
 
-import { useState, useEffect } from "react";
-import { useToast } from "@/components/Toast";
 import Link from "next/link";
 import { 
   ShieldCheck, 
   ArrowUpRight, 
   CheckCircle, 
-  XCircle, 
   Smartphone, 
   Cpu, 
   Database, 
-  Globe, 
   LineChart, 
   Zap, 
   Flame, 
-  Coins, 
   FileCheck2, 
-  Server, 
-  Wifi, 
-  Check, 
-  ExternalLink, 
-  Clock, 
-  MapPin, 
+  Globe, 
   Activity, 
-  Sparkles,
-  Loader2,
-  Lock,
-  Cloud,
-  Link as LinkIcon,
-  X
+  Leaf, 
+  BarChart, 
+  Server, 
+  Car,
+  Check,
+  Building2,
+  TreePine,
+  Factory,
+  Droplets,
+  Wind,
+  XCircle
 } from "lucide-react";
-import { createAccessRequest } from "@/lib/api";
-
-interface LogEntry {
-  timestamp: string;
-  location: string;
-  capacity: string;
-  type: string;
-  status: "success" | "warning";
-  trustScore: number;
-  auditHash: string;
-}
 
 export default function LandingPage() {
-  const toast = useToast();
-
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    org: "",
-    projectType: "",
-    region: "Global Operations",
-    notes: ""
-  });
-  
-  const [submittingState, setSubmittingState] = useState<"idle" | "submitting" | "success">("idle");
-  const [generatedTx, setGeneratedTx] = useState("");
-
-  // Live MRV Log Stream for Purpose-Built Section Map simulation
-  const [logs, setLogs] = useState<LogEntry[]>([
-    {
-      timestamp: "00:44:02",
-      location: "Lagos, NG",
-      capacity: "120kWp",
-      type: "Hybrid Solar",
-      status: "success",
-      trustScore: 98,
-      auditHash: "4xQe9v...Z1"
-    },
-    {
-      timestamp: "00:41:15",
-      location: "Abuja, NG",
-      capacity: "85kWp",
-      type: "Solar Mini-Grid",
-      status: "success",
-      trustScore: 95,
-      auditHash: "7yRp8m...K5"
-    }
-  ]);
-
-  useEffect(() => {
-    const locations = ["Lagos, NG", "Kano, NG", "Ibadan, NG", "Abuja, NG", "Enugu, NG"];
-    const capacities = ["45kWp", "80kWp", "150kWp", "60kWp", "200kWp"];
-    
-    const interval = setInterval(() => {
-      const date = new Date();
-      const timeStr = date.toTimeString().split(" ")[0];
-      const randomLoc = locations[Math.floor(Math.random() * locations.length)];
-      const randomCap = capacities[Math.floor(Math.random() * capacities.length)];
-      const trustScore = Math.floor(Math.random() * 15) + 85;
-      const randHash = Math.random().toString(36).substring(2, 6) + "..." + Math.random().toString(36).substring(2, 5);
-      
-      const newEntry: LogEntry = {
-        timestamp: timeStr,
-        location: randomLoc,
-        capacity: randomCap,
-        type: "Solar Installation",
-        status: "success",
-        trustScore,
-        auditHash: randHash
-      };
-
-      setLogs(prev => [newEntry, ...prev.slice(0, 1)]);
-    }, 5000);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  const handleRequestAccess = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.name || !formData.email || !formData.org) return;
-
-    setSubmittingState("submitting");
-    try {
-      const payload = {
-        full_name: formData.name,
-        email: formData.email,
-        phone: formData.phone || undefined,
-        organization_name: formData.org,
-        country: formData.region || undefined,
-        use_case: `${formData.projectType.toUpperCase()} - ${formData.notes}`,
-        sector: formData.projectType
-      };
-      await createAccessRequest(payload);
-      setSubmittingState("success");
-    } catch (err: any) {
-      console.error(err);
-      toast.error('Operation Failed', err.message || "Failed to submit onboarding request. Please verify connection and try again.");
-      setSubmittingState("idle");
-    }
-  };
-
-  const resetForm = () => {
-    setFormData({
-      name: "",
-      email: "",
-      phone: "",
-      org: "",
-      projectType: "",
-      region: "Global Operations",
-      notes: ""
-    });
-    setSubmittingState("idle");
-    setIsModalOpen(false);
-  };
-
   return (
     <div className="bg-black text-white font-sans antialiased selection:bg-[#00B47A]/30 selection:text-white">
 
       {/* HEADER NAVBAR (Black Background) */}
-      <header className="w-full bg-black border-b border-zinc-900 z-45">
-        <div className="max-w-7xl mx-auto px-6 md:px-12 h-20 flex items-center justify-between">
+      <header className="w-full bg-black border-b border-zinc-900 z-45 sticky top-0">
+        <div className="max-w-[1400px] mx-auto px-6 md:px-12 h-20 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <img 
               src="/logo-green.png" 
-              alt="VeriField Nexus" 
+              alt="VeriField" 
               className="h-10 w-auto object-contain"
             />
           </div>
 
           {/* Desktop Menu */}
-          <nav className="hidden md:flex items-center gap-8 text-xs font-semibold uppercase tracking-wider text-zinc-400">
-            <a href="#about" className="hover:text-white transition-colors">About Us</a>
-            <a href="#product" className="hover:text-white transition-colors">Product</a>
-            <a href="#how-it-works" className="hover:text-white transition-colors">How It Works</a>
-            <a href="#use-cases" className="hover:text-white transition-colors">Use Cases</a>
-            <a href="#deployments" className="hover:text-white transition-colors">Deployments</a>
+          <nav className="hidden xl:flex items-center gap-6 text-[11px] font-bold uppercase tracking-wider text-zinc-400">
+            <Link href="/" className="hover:text-white transition-colors">Home</Link>
+            <a href="#platform" className="hover:text-white transition-colors">Platform</a>
+            <a href="#solutions" className="hover:text-white transition-colors">Solutions</a>
+            <a href="#methodologies" className="hover:text-white transition-colors">Methodologies</a>
+            <a href="#industries" className="hover:text-white transition-colors">Industries</a>
+            <a href="#resources" className="hover:text-white transition-colors">Resources</a>
+            <a href="#about" className="hover:text-white transition-colors">About</a>
+            <a href="#contact" className="hover:text-white transition-colors">Contact</a>
           </nav>
 
           {/* Header Action Buttons */}
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-4">
             <Link 
               href="/login" 
               className="text-xs font-bold uppercase tracking-wider text-zinc-400 hover:text-white transition-colors"
             >
               Sign In
             </Link>
-            <button 
-              onClick={() => setIsModalOpen(true)}
+            <Link 
+              href="/signup"
               className="text-xs font-bold uppercase tracking-wider py-2.5 px-5 rounded-full border border-zinc-800 hover:border-[#00B47A] text-white hover:text-[#00B47A] transition-all duration-300"
             >
-              Request Access
-            </button>
+              Sign Up
+            </Link>
           </div>
         </div>
       </header>
 
-      {/* 1. HERO SECTION (Black Background) */}
-      <section className="bg-black py-12 lg:py-24 border-b border-zinc-900 overflow-hidden">
-        <div className="max-w-7xl mx-auto px-6 md:px-12 flex flex-col lg:flex-row items-center gap-12 lg:gap-16">
+      {/* 1. HERO SECTION */}
+      <section className="bg-black py-16 lg:py-28 border-b border-zinc-900 overflow-hidden relative">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_#00B47A15_0%,_transparent_40%)]" />
+        <div className="max-w-[1400px] mx-auto px-6 md:px-12 flex flex-col lg:flex-row items-center gap-12 lg:gap-16 relative z-10">
           
-          <div className="flex-1 space-y-8 text-left max-w-xl">
-            <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight text-white leading-tight font-sans">
-              A digital infrastructure for <span className="text-[#00B47A]">distributed energy systems</span>
+          <div className="flex-1 space-y-8 text-left max-w-2xl">
+            <div className="inline-block px-3 py-1 rounded-full border border-[#00B47A]/30 bg-[#00B47A]/10 text-[#00B47A] text-xs font-bold tracking-widest uppercase">
+              VeriField
+            </div>
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-white leading-tight font-sans">
+              Climate Infrastructure <span className="text-[#00B47A]">Operating System (CIOS)</span>
             </h1>
 
-            <p className="text-zinc-400 text-sm md:text-base leading-relaxed max-w-lg">
-              A modular platform for monitoring, verifying, and managing energy assets across off-grid and grid-connected environments.
+            <p className="text-zinc-400 text-sm md:text-lg leading-relaxed max-w-xl">
+              Digitize the entire lifecycle of climate projects—from field deployment and monitoring to verification, compliance, reporting, and climate finance.
             </p>
 
-            <div className="pt-2">
-              <button 
-                onClick={() => setIsModalOpen(true)}
+            <div className="pt-4 flex flex-wrap gap-4">
+              <Link 
+                href="/signup"
                 className="inline-flex items-center justify-center py-4 px-8 rounded-full bg-[#00B47A] text-black font-bold text-sm tracking-wider uppercase hover:bg-emerald-400 transition-all duration-300 shadow-lg shadow-[#00B47A]/10"
               >
-                Request Access
-              </button>
+                Sign Up
+              </Link>
             </div>
           </div>
 
-          {/* High-Resolution Mockup Image */}
           <div className="flex-1 w-full flex items-center justify-center">
             <img 
               src="/dashboard-mock.png" 
-              alt="VeriField Nexus Dashboard on Laptop and Capture app on iPhone" 
-              className="w-full max-w-[620px] h-auto object-contain select-none pointer-events-none"
+              alt="VeriField CIOS Dashboard" 
+              className="w-full max-w-[700px] h-auto object-contain select-none pointer-events-none drop-shadow-2xl"
             />
           </div>
 
         </div>
       </section>
 
-      {/* GRANT-ALIGNED PLATFORM STATEMENT */}
-      <section className="bg-zinc-950 py-8 border-b border-zinc-900">
-        <div className="max-w-3xl mx-auto px-6 text-center">
-          <p className="text-xs md:text-sm font-semibold tracking-wide text-[#00B47A]/95 leading-relaxed font-mono">
-            This platform is designed to support distributed energy ecosystem operators in improving planning, monitoring, and operational efficiency of decentralized energy assets across emerging markets.
+      {/* 2. SUPPORTING COPY */}
+      <section className="bg-zinc-950 py-12 border-b border-zinc-900">
+        <div className="max-w-4xl mx-auto px-6 text-center">
+          <p className="text-sm md:text-lg font-medium text-zinc-300 leading-relaxed">
+            VeriField is a modular operating system that enables governments, project developers, enterprises, investors, and carbon market participants to manage climate infrastructure across renewable energy, clean cooking, biochar, electric mobility, and future climate sectors through one unified platform.
           </p>
         </div>
       </section>
 
-      {/* 2. THE VERIFICATION GAP SECTION (White Background) */}
+      {/* 3. THE CHALLENGE */}
       <section id="about" className="bg-white text-black py-20 lg:py-28 border-b border-zinc-100">
-        <div className="max-w-7xl mx-auto px-6 md:px-12 flex flex-col lg:flex-row items-stretch gap-12 lg:gap-16">
+        <div className="max-w-[1400px] mx-auto px-6 md:px-12 flex flex-col lg:flex-row gap-16">
           
-          {/* Left Side: The Gap */}
-          <div className="flex-1 space-y-6 flex flex-col justify-between">
-            <div className="space-y-6">
-              <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-black leading-tight">
-                The monitoring & verification gap<br />in distributed energy
-              </h2>
-              <p className="text-zinc-600 text-sm md:text-base max-w-md leading-relaxed">
-                Manual reporting, delayed audits, and inconsistent field data create visibility gaps in decentralized energy systems.
-              </p>
-            </div>
-
-            <ul className="space-y-4 pt-6">
-              {[
-                "Unverifiable operational claims",
-                "Duplicate or ghost installations",
-                "Fragmented asset visibility",
-                "High cost and slow verification cycles"
-              ].map((item, idx) => (
-                <li key={idx} className="flex items-center gap-3 text-sm font-semibold text-zinc-800">
-                  <span className="w-5 h-5 rounded-full border border-emerald-500/35 flex items-center justify-center text-[#00B47A] shrink-0 select-none">
-                    <X size={10} strokeWidth={2.5} />
-                  </span>
-                  {item}
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Middle Line Separator (only desktop) */}
-          <div className="hidden lg:flex flex-col items-center justify-center py-4 relative">
-            <div className="w-[1px] h-full bg-zinc-200" />
-            <div className="w-2.5 h-2.5 rounded-full border-2 border-[#00B47A] bg-white absolute top-1/2 -translate-y-1/2" />
-          </div>
-
-          {/* Right Side: A New Standard for Trust (Solution Section) */}
-          <div className="flex-1 space-y-8 flex flex-col justify-between">
-            <div className="space-y-6">
-              <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-black leading-tight">
-                Operations & Verification
-              </h2>
-              <p className="text-zinc-600 text-sm md:text-base max-w-md leading-relaxed">
-                We replace manual processes with an offline-first digital verification layer that delivers operational visibility, structural integrity checks, and high-fidelity reporting.
-              </p>
-            </div>
-
-            {/* 4 Pillars Grid */}
-            <div className="grid grid-cols-2 gap-x-8 gap-y-6 pt-6">
-              {[
-                { title: "Capture", desc: "Collect field data at the source", icon: Smartphone },
-                { title: "Verify", desc: "Automated integrity checks & trust scoring", icon: ShieldCheck },
-                { title: "Record", desc: "Cryptographic audit trail in private registry", icon: Database },
-                { title: "Visualize", desc: "Real-time dashboard & analytics", icon: LineChart }
-              ].map((pillar, idx) => (
-                <div key={idx} className="space-y-2.5 text-left group">
-                  <div className="w-11 h-11 rounded-xl bg-emerald-500/5 border border-emerald-500/10 flex items-center justify-center text-[#00B47A] shrink-0 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] group-hover:bg-[#00B47A] group-hover:text-black group-hover:border-transparent transition-all duration-300">
-                    <pillar.icon size={18} strokeWidth={1.5} />
-                  </div>
-                  <h4 className="font-bold text-zinc-900 text-sm">{pillar.title}</h4>
-                  <p className="text-zinc-500 text-xs leading-normal">{pillar.desc}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-
-        </div>
-      </section>
-
-      {/* 3. HOW IT WORKS SECTION (White Background, Light Grey Box) */}
-      <section id="how-it-works" className="bg-white text-black py-16 lg:py-24 border-b border-zinc-100">
-        <div className="max-w-7xl mx-auto px-6 md:px-12">
-          
-          <div className="bg-zinc-50 rounded-[28px] p-8 md:p-12 lg:p-16 border border-zinc-100 shadow-sm space-y-12">
-            
-            <div className="text-center">
-              <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-black">
-                How VeriField Nexus Works
-              </h2>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
-              {[
-                {
-                  step: 1,
-                  label: "Field Capture",
-                  desc: "Field agents capture GPS, photos, timestamps and installation details.",
-                  icon: Smartphone
-                },
-                {
-                  step: 2,
-                  label: "Verification Engine",
-                  desc: "Our system runs automated checks for duplicates, anomalies and completeness.",
-                  icon: ShieldCheck
-                },
-                {
-                  step: 3,
-                  label: "Audit Trail Security",
-                  desc: "Verified records are stored with a private cryptographic signature as a secure audit trail.",
-                  icon: Database
-                },
-                {
-                  step: 4,
-                  label: "Registry & Analytics",
-                  desc: "Live dashboard provides visibility, insights and audit ready reports.",
-                  icon: LineChart
-                }
-              ].map((stepItem, idx) => (
-                <div key={idx} className="flex flex-row items-center gap-4 sm:gap-6 bg-[#FAFAFA] border border-zinc-200/90 rounded-[20px] sm:rounded-[24px] p-4 sm:p-6 hover:shadow-md hover:border-zinc-300/60 transition-all duration-300 w-full">
-                  <div className="w-20 h-20 sm:w-28 sm:h-28 bg-white border border-zinc-200 rounded-xl sm:rounded-2xl flex flex-col items-center justify-center shrink-0 p-2 sm:p-3 relative shadow-[0_2px_6px_rgba(0,0,0,0.02)]">
-                    <stepItem.icon className="text-zinc-800 shrink-0" size={24} strokeWidth={1.5} />
-                    <span className="text-[9px] sm:text-xs font-bold text-center mt-1.5 sm:mt-2.5 text-zinc-900 leading-tight">
-                      {stepItem.label}
-                    </span>
-                    <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-[#00B47A] text-black font-mono font-bold text-[10px] flex items-center justify-center shadow-sm">
-                      {stepItem.step}
-                    </span>
-                  </div>
-                  <div className="flex-1 text-left">
-                    <p className="text-zinc-600 text-xs sm:text-sm leading-relaxed">{stepItem.desc}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-          </div>
-
-        </div>
-      </section>
-
-      {/* 4. SYSTEM MODULES & APPLICATIONS (White Background) */}
-      <section id="product" className="bg-white text-black py-16 lg:py-24 border-b border-zinc-100">
-        <div className="max-w-7xl mx-auto px-6 md:px-12 space-y-16">
-          
-          {/* Modules Row */}
-          <div className="space-y-8">
-            <div className="text-left border-b border-zinc-100 pb-4">
-              <span className="text-xs uppercase tracking-widest text-[#00B47A] font-bold">04 / Core Modules</span>
-              <h3 className="text-2xl md:text-3xl font-bold tracking-tight text-black mt-1">
-                Core System Components
-              </h3>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {[
-                { title: "Offline Field Capture", shortLabel: "Field Capture", desc: "Flutter client optimized for remote environments, biometric location lock, and local-first data caching.", icon: Smartphone },
-                { title: "DER Operations Engine", shortLabel: "DER Engine", desc: "Algorithmic validation checking duplicate tags, grid coordinate ranges, and trust indexes.", icon: Cpu },
-                { title: "Microgrid Operations Dashboard", shortLabel: "Dashboard", desc: "Microgrid visibility, active asset maps, validation timelines, and operational analytics.", icon: LineChart },
-                { title: "Cryptographic Audit Trail", shortLabel: "Audit Trail", desc: "Proprietary verification service recording data validation hashes.", icon: Database },
-                { title: "Distributed Asset Registry", shortLabel: "Asset Registry", desc: "Secure PostgreSQL registry database indexing coordinates, asset profiles, and telemetry lineages.", icon: Server }
-              ].map((module, idx) => (
-                <div key={idx} className={`flex flex-row items-center gap-4 sm:gap-6 bg-[#FAFAFA] border border-zinc-200/90 rounded-[20px] sm:rounded-[24px] p-4 sm:p-6 hover:shadow-md hover:border-zinc-300 transition-all duration-300 w-full ${idx === 4 ? "md:col-span-2" : ""}`}>
-                  <div className="w-20 h-20 sm:w-28 sm:h-28 bg-white border border-zinc-200 rounded-xl sm:rounded-2xl flex flex-col items-center justify-center shrink-0 p-2 sm:p-3 relative shadow-[0_2px_6px_rgba(0,0,0,0.02)]">
-                    <module.icon className="text-zinc-800 shrink-0" size={24} strokeWidth={1.5} />
-                    <span className="text-[9px] sm:text-xs font-bold text-center mt-1.5 sm:mt-2.5 text-zinc-900 leading-tight">
-                      {module.shortLabel}
-                    </span>
-                  </div>
-                  <div className="flex-1 text-left">
-                    <h4 className="font-bold text-zinc-900 text-sm sm:text-base leading-snug mb-1">{module.title}</h4>
-                    <p className="text-zinc-500 text-xs sm:text-sm leading-relaxed">{module.desc}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Use Cases Row */}
-          <div id="use-cases" className="space-y-8 pt-8">
-            <div className="text-left border-b border-zinc-100 pb-4">
-              <span className="text-xs uppercase tracking-widest text-[#00B47A] font-bold">05 / Use Cases</span>
-              <h3 className="text-2xl md:text-3xl font-bold tracking-tight text-black mt-1">
-                Built for Distributed Energy Infrastructure
-              </h3>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {[
-                { title: "Universal Asset Monitoring", shortLabel: "Assets", desc: "Verify generic asset coordinate distributions and usage profiles to validate performance and emissions reporting readiness.", icon: Flame },
-                { title: "Solar & hybrid mini-grids", shortLabel: "Mini-Grids", desc: "Validate asset installation, location coordinates, and operational parameters across off-grid networks.", icon: Zap },
-                { title: "Emissions Reporting Readiness", shortLabel: "Readiness", desc: "Ingest cryptographically verified operational data directly to ESG compliance registry adapters.", icon: Coins },
-                { title: "Grid Operations Visibility", shortLabel: "Grid Ops", desc: "Streamline field data collection to satisfy utility compliance and planning requirements.", icon: FileCheck2 },
-                { title: "Asset Performance Visibility", shortLabel: "Asset Perf", desc: "Give capital providers and operators direct operational visibility into physical asset installation rates.", icon: Globe }
-              ].map((uc, idx) => (
-                <div key={idx} className={`flex flex-row items-center gap-4 sm:gap-6 bg-[#FAFAFA] border border-zinc-200/90 rounded-[20px] sm:rounded-[24px] p-4 sm:p-6 hover:shadow-md hover:border-zinc-300 transition-all duration-300 w-full ${idx === 4 ? "md:col-span-2" : ""}`}>
-                  <div className="w-20 h-20 sm:w-28 sm:h-28 bg-white border border-zinc-200 rounded-xl sm:rounded-2xl flex flex-col items-center justify-center shrink-0 p-2 sm:p-3 relative shadow-[0_2px_6px_rgba(0,0,0,0.02)]">
-                    <uc.icon className="text-zinc-800 shrink-0" size={24} strokeWidth={1.5} />
-                    <span className="text-[9px] sm:text-xs font-bold text-center mt-1.5 sm:mt-2.5 text-zinc-900 leading-tight">
-                      {uc.shortLabel}
-                    </span>
-                  </div>
-                  <div className="flex-1 text-left">
-                    <h4 className="font-bold text-zinc-900 text-sm sm:text-base leading-snug mb-1">{uc.title}</h4>
-                    <p className="text-zinc-500 text-xs sm:text-sm leading-relaxed">{uc.desc}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-        </div>
-      </section>
-
-      {/* 5. PURPOSE-BUILT SECTION & TECH STACK (Black Background) */}
-      <section id="deployments" className="bg-black py-20 lg:py-28 border-b border-zinc-900">
-        <div className="max-w-7xl mx-auto px-6 md:px-12 space-y-16">
-          
-          <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-16">
-            
-            {/* Left Column: Grid */}
-            <div className="flex-1 space-y-8 max-w-xl text-left">
-              <div className="space-y-4">
-                <span className="text-xs uppercase tracking-widest text-[#00B47A] font-bold">06 / DEPLOYMENT ROBUSTNESS</span>
-                <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-white leading-tight">
-                  Purpose-built for<br />real-world deployment
-                </h2>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
-                {[
-                  { title: "Offline First", desc: "Capture in low connectivity environments.", icon: Wifi },
-                  { title: "Secure by Design", desc: "End-to-end encryption and hashed data.", icon: Lock },
-                  { title: "Real-Time Sync", desc: "Instant submissions when back online.", icon: Zap },
-                  { title: "Scalable Infrastructure", desc: "Built to support thousands of installations.", icon: Database }
-                ].map((item, idx) => (
-                  <div key={idx} className="flex gap-4 items-start group">
-                    <div className="w-11 h-11 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-[#00B47A] shrink-0 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] group-hover:border-[#00B47A]/40 transition-all duration-300">
-                      <item.icon size={20} strokeWidth={1.5} />
-                    </div>
-                    <div className="space-y-1">
-                      <h4 className="font-bold text-white text-sm">{item.title}</h4>
-                      <p className="text-zinc-400 text-xs leading-relaxed">{item.desc}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Right Column: World Map / Simulation Mockup */}
-            <div className="flex-1 w-full bg-zinc-950 rounded-2xl border border-zinc-900 p-6 space-y-4 shadow-xl">
-              <div className="flex items-center justify-between border-b border-zinc-900 pb-3">
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-[#00B47A] animate-pulse" />
-                  <span className="text-[10px] font-mono font-bold text-zinc-400 uppercase">PILOT PREPARATION MAP</span>
-                </div>
-                <span className="text-[9px] bg-zinc-900 text-[#00B47A] border border-zinc-800 px-2 py-0.5 rounded font-mono font-bold">
-                  GLOBAL PIPELINE
-                </span>
-              </div>
-
-              {/* Map grid mockup */}
-              <div className="aspect-[16/9] w-full rounded bg-zinc-900/60 border border-zinc-800/40 relative flex items-center justify-center overflow-hidden">
-                {/* Simulated Grid Dots */}
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_#1c2d2f_1px,_transparent_1px)] bg-[size:1rem_1rem] opacity-30" />
-                
-                {/* Region indicator */}
-                <div className="absolute w-24 h-24 rounded-full border border-[#00B47A]/20 bg-[#00B47A]/5 flex items-center justify-center animate-pulse">
-                  <MapPin size={24} className="text-[#00B47A]" />
-                </div>
-
-                <div className="absolute bottom-4 left-4 right-4 bg-black/80 px-3 py-2 rounded border border-zinc-800/80 font-mono text-[9px] flex justify-between items-center text-zinc-400">
-                  <span>LAT: 6.5244° N | LON: 3.3792° E</span>
-                  <span className="text-[#00B47A]">Validated Asset</span>
-                </div>
-              </div>
-
-              {/* Real-time simulation info */}
-              {logs.map((log, index) => (
-                <div key={index} className="bg-black border border-zinc-900 p-3 rounded font-mono text-[10px] flex justify-between items-center">
-                  <div className="space-y-0.5">
-                    <span className="text-zinc-500">INGESTION STATUS: VALIDATED</span>
-                    <p className="text-white font-bold">{log.location} Mini-Grid Submission</p>
-                  </div>
-                  <span className="text-[#00B47A] font-bold">Score: {log.trustScore}/100</span>
-                </div>
-              ))}
-            </div>
-
-          </div>
-
-          {/* Infrastructure Tech Stack & System Status Info */}
-          <div className="pt-12 border-t border-zinc-900 space-y-8">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div>
-                <span className="text-xs uppercase tracking-widest text-[#00B47A] font-bold">07 / Infrastructure Stack</span>
-                <p className="text-zinc-400 text-xs mt-1">
-                  Mobile Field Ingestion (Flutter) • FastAPI Validation Engine • Real-time Operations Dashboard (Next.js / Web) • Cryptographic Audit Trail • Local-first data capture with offline support
-                </p>
-              </div>
-              
-              <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-900 font-mono text-[10px] flex items-center gap-3 shrink-0">
-                <span className="w-2 h-2 rounded-full bg-[#00B47A] animate-ping" />
-                <span className="text-zinc-400">System Status: <span className="text-white font-bold">Operational</span></span>
-              </div>
-            </div>
-
-            <p className="text-zinc-500 text-xs leading-relaxed max-w-2xl text-left">
-              VeriField Nexus is currently in the pilot preparation stage. Early validation has been completed in controlled environments, and the platform is preparing for field integration with distributed solar mini-grid operators.
-            </p>
-          </div>
-
-        </div>
-      </section>
-
-      {/* 6. STATS BAR SECTION (White Background) */}
-      <section className="bg-white text-black py-12 border-b border-zinc-100">
-        <div className="max-w-7xl mx-auto px-6 md:px-12">
-          
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
-            
-            <div className="flex items-center gap-4 px-4 py-4 rounded-2xl bg-zinc-50 border border-zinc-100/65 shadow-sm hover:border-[#00B47A]/30 transition-all duration-300">
-              <div className="w-12 h-12 rounded-xl bg-emerald-500/5 border border-emerald-500/10 flex items-center justify-center text-[#00B47A] shrink-0 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)]">
-                <ShieldCheck size={20} strokeWidth={1.5} />
-              </div>
-              <div className="text-left">
-                <div className="text-lg font-bold text-black tracking-tight leading-snug">Pilot-Ready System</div>
-                <div className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider mt-1 leading-normal">Validated in controlled environments</div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-4 px-4 py-4 rounded-2xl bg-zinc-50 border border-zinc-100/65 shadow-sm hover:border-[#00B47A]/30 transition-all duration-300">
-              <div className="w-12 h-12 rounded-xl bg-emerald-500/5 border border-emerald-500/10 flex items-center justify-center text-[#00B47A] shrink-0 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)]">
-                <Zap size={20} strokeWidth={1.5} />
-              </div>
-              <div className="text-left">
-                <div className="text-lg font-bold text-black tracking-tight leading-snug">~600 kWp pipeline</div>
-                <div className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider mt-1 leading-normal">Distributed solar projects</div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-4 px-4 py-4 rounded-2xl bg-zinc-50 border border-zinc-100/65 shadow-sm hover:border-[#00B47A]/30 transition-all duration-300">
-              <div className="w-12 h-12 rounded-xl bg-emerald-500/5 border border-emerald-500/10 flex items-center justify-center text-[#00B47A] shrink-0 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)]">
-                <Cloud size={20} strokeWidth={1.5} />
-              </div>
-              <div className="text-left">
-                <div className="text-lg font-bold text-black tracking-tight leading-snug">Simulated Estimates</div>
-                <div className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider mt-1 leading-normal">Carbon impact model pending validation</div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-4 px-4 py-4 rounded-2xl bg-zinc-50 border border-zinc-100/65 shadow-sm hover:border-[#00B47A]/30 transition-all duration-300">
-              <div className="w-12 h-12 rounded-xl bg-emerald-500/5 border border-emerald-500/10 flex items-center justify-center text-[#00B47A] shrink-0 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)]">
-                <LinkIcon size={20} strokeWidth={1.5} />
-              </div>
-              <div className="text-left">
-                <div className="text-lg font-bold text-black tracking-tight leading-snug">Cryptographic Trail</div>
-                <div className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider mt-1 leading-normal">100% private secure audit logging</div>
-              </div>
-            </div>
-
-          </div>
-
-        </div>
-      </section>
-
-      {/* 7. READY TO BUILD / CTA SECTION (Black Background) */}
-      <section className="bg-black py-20 lg:py-28 border-b border-zinc-900">
-        <div className="max-w-7xl mx-auto px-6 md:px-12 flex flex-col md:flex-row items-center justify-between gap-12">
-          
-          <div className="space-y-4 max-w-xl text-left">
-            <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-white leading-tight">
-              Ready to build climate<br />infrastructure you can trust?
+          <div className="flex-1 space-y-6">
+            <h2 className="text-3xl md:text-4xl font-bold tracking-tight leading-tight">
+              The Challenge
             </h2>
-            <p className="text-zinc-400 text-sm md:text-base">
-              Join organizations verifying real impact with VeriField Nexus.
+            <p className="text-zinc-600 text-base md:text-lg leading-relaxed">
+              Climate projects are still managed with fragmented systems.<br /><br />
+              Manual field reporting, spreadsheets, disconnected software, and costly verification processes make climate projects difficult to monitor, verify, finance, and scale.
             </p>
           </div>
 
-          <div className="flex flex-col items-center md:items-end gap-3 shrink-0">
-            <button 
-              onClick={() => setIsModalOpen(true)}
-              className="inline-flex items-center justify-center gap-2 py-4 px-8 rounded-full bg-[#00B47A] text-black font-bold text-sm tracking-wider uppercase hover:bg-emerald-400 transition-all duration-300 shadow-lg shadow-[#00B47A]/10"
-            >
-              Request Access
-              <ArrowUpRight size={16} strokeWidth={2.5} />
-            </button>
-            <span className="text-[11px] text-zinc-500 font-medium">Get early access to the live system.</span>
+          <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-6">
+            {[
+              "Fragmented project data",
+              "Manual monitoring & reporting",
+              "Delayed verification cycles",
+              "Compliance complexity",
+              "Limited operational visibility",
+              "Slow access to carbon and climate finance"
+            ].map((item, idx) => (
+              <div key={idx} className="flex items-start gap-4 p-4 rounded-2xl bg-zinc-50 border border-zinc-100">
+                <div className="w-8 h-8 rounded-full bg-red-500/10 flex items-center justify-center text-red-500 shrink-0 mt-0.5">
+                  <XCircle size={16} strokeWidth={2} />
+                </div>
+                <p className="text-sm font-semibold text-zinc-800 leading-snug">{item}</p>
+              </div>
+            ))}
           </div>
 
         </div>
       </section>
 
-      {/* FOOTER (Black Background) */}
-      <footer className="bg-black py-16 border-t border-zinc-900">
-        <div className="max-w-7xl mx-auto px-6 md:px-12 flex flex-col md:flex-row items-center justify-between gap-8">
+      {/* 4. WHAT VERIFIELD DOES */}
+      <section id="platform" className="bg-zinc-50 text-black py-20 lg:py-28 border-b border-zinc-200">
+        <div className="max-w-[1400px] mx-auto px-6 md:px-12 space-y-16">
+          <div className="text-center space-y-4 max-w-3xl mx-auto">
+            <h2 className="text-3xl md:text-5xl font-bold tracking-tight">What VeriField Does</h2>
+            <p className="text-zinc-600 text-lg">One platform. Every stage of the climate project lifecycle.</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6">
+            {[
+              { title: "Deploy", desc: "Digitally onboard climate projects, assets, teams, and methodologies.", icon: ArrowUpRight },
+              { title: "Monitor", desc: "Collect trusted field data through mobile apps, IoT devices, SCADA, GIS, and remote sensing.", icon: Activity },
+              { title: "Verify", desc: "Automated QA/QC, digital MRV, evidence validation, and trust scoring.", icon: ShieldCheck },
+              { title: "Comply", desc: "Generate audit-ready reports aligned with Verra, Gold Standard, Article 6, and national regulations.", icon: FileCheck2 },
+              { title: "Finance", desc: "Prepare projects for carbon markets, ESG reporting, climate finance, and investment.", icon: LineChart }
+            ].map((feature, idx) => (
+              <div key={idx} className="bg-white border border-zinc-200 p-6 rounded-2xl shadow-sm hover:shadow-md transition-shadow">
+                <div className="w-12 h-12 rounded-xl bg-emerald-500/10 text-[#00B47A] flex items-center justify-center mb-6">
+                  <feature.icon size={24} />
+                </div>
+                <h3 className="text-xl font-bold mb-3">{feature.title}</h3>
+                <p className="text-sm text-zinc-600 leading-relaxed">{feature.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* 5. HOW IT WORKS */}
+      <section id="how-it-works" className="bg-white text-black py-20 lg:py-28 border-b border-zinc-100">
+        <div className="max-w-[1400px] mx-auto px-6 md:px-12 space-y-16">
+          <div className="text-center">
+            <h2 className="text-3xl md:text-5xl font-bold tracking-tight">How It Works</h2>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12 relative">
+            {[
+              {
+                step: 1,
+                title: "Deploy Projects",
+                desc: "Create organizations, projects, assets, methodologies, and field teams.",
+                icon: Building2
+              },
+              {
+                step: 2,
+                title: "Capture Trusted Data",
+                desc: "Offline-first mobile applications capture GPS, images, telemetry, documents, and evidence directly from the field.",
+                icon: Smartphone
+              },
+              {
+                step: 3,
+                title: "Verify & Monitor",
+                desc: "Automated validation engines detect anomalies, duplicates, missing evidence, and compliance issues.",
+                icon: ShieldCheck
+              },
+              {
+                step: 4,
+                title: "Report & Finance",
+                desc: "Generate monitoring reports, verification packages, registry exports, ESG reports, and investor dashboards.",
+                icon: BarChart
+              }
+            ].map((step, idx) => (
+              <div key={idx} className="flex gap-6 items-start bg-zinc-50 border border-zinc-200 rounded-3xl p-8 hover:bg-zinc-100 transition-colors">
+                <div className="w-16 h-16 rounded-2xl bg-white border border-zinc-200 flex items-center justify-center shrink-0 shadow-sm relative">
+                  <step.icon size={28} className="text-[#00B47A]" />
+                  <span className="absolute -top-3 -right-3 w-8 h-8 bg-black text-white font-bold rounded-full flex items-center justify-center border-4 border-zinc-50">
+                    {step.step}
+                  </span>
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-xl font-bold text-black">{step.title}</h3>
+                  <p className="text-zinc-600 leading-relaxed">{step.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* 6. CLIMATE SECTORS */}
+      <section id="industries" className="bg-black py-20 lg:py-28 border-b border-zinc-900">
+        <div className="max-w-[1400px] mx-auto px-6 md:px-12 space-y-16">
+          <div className="text-left space-y-4 max-w-3xl">
+            <h2 className="text-3xl md:text-5xl font-bold tracking-tight text-white">Climate Sectors</h2>
+            <p className="text-zinc-400 text-lg">Built for today's climate economy.</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[
+              { title: "Clean Cookstoves", desc: "Digital MRV for clean cooking programmes.", icon: Flame },
+              { title: "Hybrid Energy & Solar", desc: "Solar farms, C&I solar, rooftop systems, mini-grids, batteries, diesel displacement, and distributed energy.", icon: Zap },
+              { title: "Biochar", desc: "Feedstock tracking, production monitoring, carbon removals, and permanence.", icon: Leaf },
+              { title: "Electric Mobility", desc: "Fleet monitoring, EV charging infrastructure, emissions reduction, and transportation decarbonisation.", icon: Car }
+            ].map((sector, idx) => (
+              <div key={idx} className="bg-zinc-950 border border-zinc-800 p-8 rounded-3xl hover:border-[#00B47A]/50 transition-colors group">
+                <div className="w-14 h-14 rounded-2xl bg-zinc-900 flex items-center justify-center text-[#00B47A] mb-6 group-hover:bg-[#00B47A]/10 transition-colors">
+                  <sector.icon size={28} />
+                </div>
+                <h3 className="text-xl font-bold text-white mb-3">{sector.title}</h3>
+                <p className="text-sm text-zinc-400 leading-relaxed">{sector.desc}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="pt-12 border-t border-zinc-800">
+            <h4 className="text-sm font-bold uppercase tracking-widest text-[#00B47A] mb-8">Future-ready architecture supporting:</h4>
+            <div className="flex flex-wrap gap-4">
+              {[
+                { title: "Agriculture", icon: Leaf },
+                { title: "Forestry", icon: TreePine },
+                { title: "Blue Carbon", icon: Droplets },
+                { title: "Waste", icon: Database },
+                { title: "Industrial Decarbonisation", icon: Factory },
+                { title: "Carbon Removal", icon: Wind },
+                { title: "Nature-Based Solutions", icon: Globe }
+              ].map((item, idx) => (
+                <div key={idx} className="flex items-center gap-3 px-5 py-3 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-300">
+                  <item.icon size={16} className="text-[#00B47A]" />
+                  <span className="text-sm font-semibold">{item.title}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 7. CORE PLATFORM & Built for Every Stakeholder */}
+      <section className="bg-zinc-50 text-black py-20 lg:py-28 border-b border-zinc-200">
+        <div className="max-w-[1400px] mx-auto px-6 md:px-12 flex flex-col lg:flex-row gap-16">
           
-          <div className="flex flex-col items-center md:items-start gap-2">
+          <div className="flex-1 space-y-10">
+            <div className="space-y-4">
+              <h2 className="text-3xl md:text-4xl font-bold tracking-tight">Core Platform</h2>
+              <p className="text-zinc-600 text-lg">Built for production-scale climate infrastructure.</p>
+            </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {[
+                "Offline-first Mobile Apps",
+                "Dynamic Methodology Engine",
+                "Digital MRV",
+                "Compliance Engine",
+                "Jurisdiction Framework",
+                "Methodology Registry",
+                "GIS & Spatial Intelligence",
+                "IoT & SCADA Integration",
+                "AI-powered Verification",
+                "Digital Audit Trail",
+                "Climate Reporting",
+                "Carbon Registry Integration",
+                "ESG Reporting",
+                "Climate Finance Dashboard"
+              ].map((feature, idx) => (
+                <div key={idx} className="flex items-center gap-3 text-sm font-semibold text-zinc-800">
+                  <CheckCircle size={18} className="text-[#00B47A]" />
+                  {feature}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex-1 space-y-10 bg-white p-8 md:p-12 rounded-3xl border border-zinc-200 shadow-sm">
+            <div className="space-y-4">
+              <h2 className="text-3xl md:text-4xl font-bold tracking-tight">Built for Every Stakeholder</h2>
+            </div>
+            
+            <div className="flex flex-wrap gap-3">
+              {[
+                "Project Developers",
+                "Governments",
+                "Regulators",
+                "Utilities",
+                "Renewable Energy Developers",
+                "Carbon Project Developers",
+                "Investors",
+                "Banks",
+                "Verification Bodies",
+                "Auditors",
+                "NGOs",
+                "Development Finance Institutions"
+              ].map((stakeholder, idx) => (
+                <span key={idx} className="px-4 py-2 rounded-lg bg-zinc-100 border border-zinc-200 text-sm font-semibold text-zinc-800">
+                  {stakeholder}
+                </span>
+              ))}
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      {/* 8. WHY VERIFIELD & CURRENT STATUS */}
+      <section className="bg-white text-black py-20 lg:py-28 border-b border-zinc-100">
+        <div className="max-w-[1400px] mx-auto px-6 md:px-12 flex flex-col lg:flex-row gap-16">
+          
+          <div className="flex-1 space-y-8">
+            <div className="space-y-4">
+              <h2 className="text-3xl md:text-4xl font-bold tracking-tight">Why VeriField</h2>
+              <p className="text-zinc-600 text-lg">One operating system instead of ten disconnected tools.</p>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              {[
+                "Offline-first",
+                "Modular",
+                "Scalable",
+                "AI-powered",
+                "Registry-ready",
+                "Methodology-driven",
+                "Built for Africa",
+                "Global standards compliant"
+              ].map((item, idx) => (
+                <div key={idx} className="flex items-center gap-3">
+                  <span className="w-6 h-6 rounded-full bg-[#00B47A]/10 text-[#00B47A] flex items-center justify-center shrink-0">
+                    <Check size={14} strokeWidth={3} />
+                  </span>
+                  <span className="font-semibold text-zinc-800">{item}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex-1 space-y-8 bg-zinc-950 p-8 md:p-12 rounded-3xl border border-zinc-900 text-white">
+            <div className="space-y-4">
+              <h2 className="text-2xl font-bold tracking-tight text-white">Current Status</h2>
+              <div className="inline-block px-3 py-1 bg-yellow-500/20 text-yellow-400 text-xs font-bold uppercase tracking-wider rounded-full border border-yellow-500/30">
+                Production Pilot
+              </div>
+            </div>
+            
+            <div className="space-y-4">
+              {[
+                "Climate Infrastructure Operating System completed",
+                "Four production sectors (Clean Cookstoves, Hybrid Energy & Solar, Biochar, EV Mobility)",
+                "Dynamic methodology engine",
+                "Digital MRV",
+                "Compliance framework",
+                "600+ kWp renewable energy deployment pipeline",
+                "Preparing for live commercial pilots"
+              ].map((status, idx) => (
+                <div key={idx} className="flex items-start gap-3">
+                  <CheckCircle size={18} className="text-[#00B47A] shrink-0 mt-0.5" />
+                  <span className="text-sm text-zinc-300 leading-snug">{status}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      {/* 9. FINAL CTA */}
+      <section className="bg-black py-24 border-b border-zinc-900 text-center relative overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_#00B47A15_0%,_transparent_60%)]" />
+        <div className="max-w-3xl mx-auto px-6 relative z-10 space-y-8">
+          <h2 className="text-4xl md:text-5xl font-bold tracking-tight text-white leading-tight">
+            Build trusted climate infrastructure.
+          </h2>
+          <p className="text-xl md:text-2xl text-[#00B47A] font-semibold">
+            Monitor. Verify. Comply. Finance.
+          </p>
+          <div className="pt-8">
+            <Link 
+              href="/signup"
+              className="inline-flex items-center justify-center gap-2 py-4 px-10 rounded-full bg-[#00B47A] text-black font-bold text-sm tracking-wider uppercase hover:bg-emerald-400 transition-all duration-300 shadow-[0_0_30px_rgba(0,180,122,0.3)]"
+            >
+              Sign Up
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* FOOTER */}
+      <footer className="bg-zinc-950 py-16 border-t border-zinc-900">
+        <div className="max-w-[1400px] mx-auto px-6 md:px-12 flex flex-col md:flex-row justify-between gap-12">
+          
+          <div className="space-y-6 max-w-sm">
             <img 
               src="/logo-green.png" 
-              alt="VeriField Nexus" 
-              className="h-10 w-auto object-contain"
+              alt="VeriField" 
+              className="h-8 w-auto object-contain"
             />
-            <span className="text-[10px] text-zinc-500 font-semibold uppercase tracking-widest mt-1">Global Deployments</span>
+            <div className="space-y-2">
+              <p className="text-white font-bold tracking-tight text-lg">Climate Infrastructure Operating System</p>
+              <p className="text-zinc-400 text-sm leading-relaxed">
+                Building the digital infrastructure powering climate projects, carbon markets, and climate finance.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 text-zinc-500 text-sm font-semibold">
+              <Globe size={16} />
+              Lagos, Nigeria
+            </div>
           </div>
 
-          <div className="text-center">
-            <p className="text-xs text-zinc-400 font-medium">Infrastructure for verifiable climate impact.</p>
+          <div className="flex gap-16">
+            <div className="space-y-4">
+              <h4 className="text-white font-bold uppercase tracking-wider text-xs">Platform</h4>
+              <div className="flex flex-col gap-3 text-sm text-zinc-400">
+                <Link href="#platform" className="hover:text-[#00B47A] transition-colors">Core Platform</Link>
+                <Link href="#how-it-works" className="hover:text-[#00B47A] transition-colors">How It Works</Link>
+                <Link href="#industries" className="hover:text-[#00B47A] transition-colors">Climate Sectors</Link>
+              </div>
+            </div>
+            <div className="space-y-4">
+              <h4 className="text-white font-bold uppercase tracking-wider text-xs">Company</h4>
+              <div className="flex flex-col gap-3 text-sm text-zinc-400">
+                <Link href="#about" className="hover:text-[#00B47A] transition-colors">About</Link>
+                <Link href="/login" className="hover:text-[#00B47A] transition-colors">Sign In</Link>
+                <Link href="/signup" className="hover:text-[#00B47A] transition-colors">Sign Up</Link>
+              </div>
+            </div>
           </div>
 
-          <div>
-            <p className="text-xs text-zinc-500 font-semibold uppercase tracking-wider">
-              © 2024 VeriField Nexus. All rights reserved.
-            </p>
-          </div>
-
+        </div>
+        <div className="max-w-[1400px] mx-auto px-6 md:px-12 pt-12 mt-12 border-t border-zinc-900 flex flex-col md:flex-row justify-between items-center gap-4">
+          <p className="text-xs text-zinc-600 font-semibold uppercase tracking-wider">
+            © {new Date().getFullYear()} VeriField. All rights reserved.
+          </p>
         </div>
       </footer>
-
-      {/* CRYPTOGRAPHIC PARTNER ACCESS MODAL */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
-          <div className="relative w-full max-w-lg bg-[#0E1617] border border-[#213233] rounded-2xl shadow-2xl overflow-hidden animate-fade-in-up">
-            
-            {/* Modal Title bar */}
-            <div className="bg-[#141F20] px-6 py-4 border-b border-[#213233] flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Sparkles className="text-[#00B47A]" size={18} />
-                <span className="font-bold text-sm text-white">Request Partner Credentials</span>
-              </div>
-              <button 
-                onClick={resetForm}
-                className="text-[#5F6F6C] hover:text-white p-1.5 hover:bg-[#213233] rounded-lg transition-colors duration-200"
-              >
-                <X size={14} />
-              </button>
-            </div>
-
-            {/* Modal Form body */}
-            <div className="p-6">
-              {submittingState === "idle" && (
-                <form onSubmit={handleRequestAccess} className="space-y-4">
-                  <div>
-                    <label className="text-xs text-[#8E9E9B] font-semibold mb-1 block">Full Name</label>
-                    <input 
-                      type="text" 
-                      required
-                      value={formData.name}
-                      onChange={e => setFormData(prev => ({...prev, name: e.target.value}))}
-                      placeholder="e.g. Segun Adewale"
-                      className="w-full px-4 py-2.5 rounded-xl bg-[#090F10] border border-[#213233] text-white placeholder:text-zinc-700 text-xs focus:outline-none focus:border-[#00B47A] transition-colors"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-xs text-[#8E9E9B] font-semibold mb-1 block">Business Email</label>
-                    <input 
-                      type="email" 
-                      required
-                      value={formData.email}
-                      onChange={e => setFormData(prev => ({...prev, email: e.target.value}))}
-                      placeholder="e.g. s.adewale@energyco.ng"
-                      className="w-full px-4 py-2.5 rounded-xl bg-[#090F10] border border-[#213233] text-white placeholder:text-zinc-700 text-xs focus:outline-none focus:border-[#00B47A] transition-colors"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-xs text-[#8E9E9B] font-semibold mb-1 block">Phone Number (Optional)</label>
-                    <input 
-                      type="text" 
-                      value={formData.phone}
-                      onChange={e => setFormData(prev => ({...prev, phone: e.target.value}))}
-                      placeholder="e.g. +234 803 123 4567"
-                      className="w-full px-4 py-2.5 rounded-xl bg-[#090F10] border border-[#213233] text-white placeholder:text-zinc-700 text-xs focus:outline-none focus:border-[#00B47A] transition-colors"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-xs text-[#8E9E9B] font-semibold mb-1 block">Organization Name</label>
-                    <input 
-                      type="text" 
-                      required
-                      value={formData.org}
-                      onChange={e => setFormData(prev => ({...prev, org: e.target.value}))}
-                      placeholder="e.g. Clean Energy Africa"
-                      className="w-full px-4 py-2.5 rounded-xl bg-[#090F10] border border-[#213233] text-white placeholder:text-zinc-700 text-xs focus:outline-none focus:border-[#00B47A] transition-colors"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-xs text-[#8E9E9B] font-semibold mb-1 block">Project Sector</label>
-                      <input 
-                        type="text" 
-                        value={formData.projectType}
-                        onChange={e => setFormData(prev => ({...prev, projectType: e.target.value}))}
-                        placeholder="e.g. Distributed Energy, Carbon Removal"
-                        className="w-full px-4 py-2.5 rounded-xl bg-[#090F10] border border-[#213233] text-white placeholder:text-zinc-700 text-xs focus:outline-none focus:border-[#00B47A] transition-colors"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs text-[#8E9E9B] font-semibold mb-1 block">Operational Region</label>
-                      <input 
-                        type="text" 
-                        value={formData.region}
-                        onChange={e => setFormData(prev => ({...prev, region: e.target.value}))}
-                        placeholder="e.g. Lagos, Global"
-                        className="w-full px-4 py-2.5 rounded-xl bg-[#090F10] border border-[#213233] text-white placeholder:text-zinc-700 text-xs focus:outline-none focus:border-[#00B47A] transition-colors"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-xs text-[#8E9E9B] font-semibold mb-1 block">Additional Notes (Optional)</label>
-                    <textarea 
-                      rows={3}
-                      value={formData.notes}
-                      onChange={e => setFormData(prev => ({...prev, notes: e.target.value}))}
-                      placeholder="e.g. Integration with 600kWp solar grid project..."
-                      className="w-full px-4 py-2.5 rounded-xl bg-[#090F10] border border-[#213233] text-white placeholder:text-zinc-700 text-xs focus:outline-none focus:border-[#00B47A] transition-colors resize-none"
-                    />
-                  </div>
-
-                  <button 
-                    type="submit"
-                    className="w-full py-3 rounded-xl bg-[#00B47A] text-black font-bold text-xs uppercase hover:bg-emerald-400 transition-all duration-300"
-                  >
-                    Submit Access Request
-                  </button>
-                </form>
-              )}
-
-              {/* Progress Flow Animations */}
-              {submittingState === "submitting" && (
-                <div className="py-12 flex flex-col items-center justify-center space-y-6 text-center">
-                  <Loader2 className="animate-spin text-[#00B47A]" size={36} />
-                  
-                  <div className="space-y-1 font-mono">
-                    <p className="text-sm font-bold text-white">Submitting Access Request...</p>
-                    <p className="text-[10px] text-[#5F6F6C]">Awaiting gateway confirmation</p>
-                  </div>
-                </div>
-              )}
-
-              {/* Success Screen */}
-              {submittingState === "success" && (
-                <div className="py-8 text-center space-y-6">
-                  <div className="w-16 h-16 rounded-full bg-[#00B47A]/10 border border-[#00B47A] flex items-center justify-center mx-auto animate-pulse">
-                    <CheckCircle className="text-[#00B47A]" size={32} />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <h3 className="text-lg font-bold text-white">Onboarding Request Sent</h3>
-                    <p className="text-xs text-[#8E9E9B] max-w-sm mx-auto leading-relaxed">
-                      Thank you. Your request for partner credentials has been successfully submitted and is now in the review queue.
-                    </p>
-                  </div>
-
-                  <div className="bg-[#141F20] p-4 rounded-xl border border-[#213233] max-w-sm mx-auto space-y-2 text-left font-mono">
-                    <div className="flex justify-between items-center text-[10px]">
-                      <span className="text-[#5F6F6C]">EMAIL:</span>
-                      <span className="text-white font-bold">{formData.email}</span>
-                    </div>
-                    <div className="flex justify-between items-center text-[10px]">
-                      <span className="text-[#5F6F6C]">ORGANIZATION:</span>
-                      <span className="text-white font-bold">{formData.org}</span>
-                    </div>
-                    <div className="flex justify-between items-center text-[10px]">
-                      <span className="text-[#5F6F6C]">REGISTRATION STATUS:</span>
-                      <span className="text-yellow-500 font-bold">PENDING_REVIEW</span>
-                    </div>
-                    <div className="flex justify-between items-center text-[10px]">
-                      <span className="text-[#5F6F6C]">REVIEW QUEUE:</span>
-                      <span className="text-[#00B47A] font-bold">SUPER_ADMIN</span>
-                    </div>
-                  </div>
-
-                  <p className="text-[10px] text-[#5F6F6C] max-w-xs mx-auto leading-relaxed">
-                    Our compliance team will review your project credentials and issue login credentials via email once approved.
-                  </p>
-
-                  <button 
-                    onClick={resetForm}
-                    className="py-2.5 px-6 rounded-lg bg-[#141F20] hover:bg-[#213233] text-xs text-white border border-[#213233] transition-colors"
-                  >
-                    Close Window
-                  </button>
-                </div>
-              )}
-
-            </div>
-          </div>
-        </div>
-      )}
 
     </div>
   );
