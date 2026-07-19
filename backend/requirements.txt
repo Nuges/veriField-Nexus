@@ -38,3 +38,4 @@ cachetools==5.3.3
 asteval==0.9.31
 redis
 aiomqtt
+prometheus_client>=0.20.0
