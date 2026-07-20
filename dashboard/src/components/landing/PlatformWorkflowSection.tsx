@@ -70,9 +70,9 @@ export function PlatformWorkflowSection() {
             </p>
             <div className="p-1 rounded-2xl bg-white border border-zinc-200 shadow-sm">
               <img 
-                src="/dashboard-mock.png" 
-                alt="Platform Modules" 
-                className="w-full h-auto rounded-xl grayscale-[0.2] contrast-[1.05]" 
+                src="/mapdashboard-mock.png" 
+                alt="Platform Map Dashboard" 
+                className="w-full h-auto rounded-xl border border-zinc-100" 
               />
             </div>
           </div>

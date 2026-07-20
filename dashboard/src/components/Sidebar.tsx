@@ -181,7 +181,7 @@ export default function Sidebar() {
             className="h-10 w-auto object-contain block dark:hidden"
           />
           <img
-            src="/logo-green.png"
+            src="/logo-white.png"
             alt="VeriField Nexus"
             className="h-10 w-auto object-contain hidden dark:block"
           />
@@ -237,7 +237,7 @@ export default function Sidebar() {
               className="h-12 w-auto object-contain block dark:hidden"
             />
             <img
-              src="/logo-green.png"
+              src="/logo-white.png"
               alt="VeriField Nexus"
               className="h-12 w-auto object-contain hidden dark:block"
             />
@@ -294,7 +294,7 @@ export default function Sidebar() {
                 className="h-[68px] w-auto object-contain block dark:hidden"
               />
               <img
-                src="/logo-green.png"
+                src="/logo-white.png"
                 alt="VeriField Nexus"
                 className="h-[68px] w-auto object-contain hidden dark:block"
               />

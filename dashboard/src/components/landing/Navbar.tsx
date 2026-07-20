@@ -31,10 +31,11 @@ export function Navbar() {
     >
       <div className="max-w-[1280px] mx-auto px-6 h-16 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2">
-          {/* We use the appropriate logo based on scroll state. If Hero is dark, un-scrolled text should be white. But we'll just use a stable text logo or SVGs */}
-          <span className={cn("font-bold text-lg tracking-tight transition-colors", scrolled ? "text-zinc-900" : "text-white")}>
-            VeriField<span className="text-[#00B47A]">.</span>
-          </span>
+          <img 
+            src={scrolled ? "/logo-black.png" : "/logo-white.png"} 
+            alt="VeriField" 
+            className="h-5 w-auto object-contain transition-opacity"
+          />
         </Link>
 
         <nav className="hidden lg:flex items-center gap-8">
@@ -73,7 +74,7 @@ export function Navbar() {
             href="/signup"
             className="text-[13px] font-semibold bg-[#00B47A] text-white px-4 py-2 rounded-md hover:bg-emerald-500 transition-colors shadow-sm"
           >
-            Request Demo
+            Request Access
           </Link>
         </div>
       </div>

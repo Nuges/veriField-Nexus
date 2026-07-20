@@ -152,7 +152,7 @@ export default function LoginPage() {
             className="h-14 w-auto block dark:hidden object-contain mb-2"
           />
           <img
-            src="/logo-green.png"
+            src="/logo-white.png"
             alt="VeriField Nexus"
             className="h-14 w-auto hidden dark:block object-contain mb-2"
           />

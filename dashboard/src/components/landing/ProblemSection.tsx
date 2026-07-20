@@ -8,12 +8,33 @@ export function ProblemSection() {
     <section id="platform" className="bg-white text-[#0A0A0A] py-24 lg:py-32 border-b border-zinc-200">
       <div className="max-w-[1280px] mx-auto px-6">
         
-        {/* What VeriField Is */}
-        <div className="max-w-3xl mb-24">
-          <h2 className="text-sm font-semibold tracking-widest text-zinc-500 uppercase mb-4">The Infrastructure Layer</h2>
-          <p className="text-3xl md:text-4xl font-medium tracking-tight leading-[1.3] text-zinc-900">
-            VeriField is the <span className="font-semibold">Climate Infrastructure Operating System</span>. We provide the digital foundation to deploy, monitor, verify, and manage climate projects across multiple sectors globally.
-          </p>
+        {/* What VeriField Is + Dashboard Image */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center mb-32">
+          <div className="max-w-xl">
+            <h2 className="text-sm font-semibold tracking-widest text-zinc-500 uppercase mb-4">The Infrastructure Layer</h2>
+            <p className="text-3xl md:text-4xl font-medium tracking-tight leading-[1.3] text-zinc-900 mb-6">
+              VeriField is the <span className="font-semibold">Climate Infrastructure Operating System</span>. We provide the digital foundation to deploy, monitor, verify, and manage climate projects across multiple sectors globally.
+            </p>
+
+          </div>
+          
+          <motion.div 
+            initial={{ opacity: 0, x: 20 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6, ease: "easeOut" }}
+            className="relative"
+          >
+            {/* Soft decorative background glow */}
+            <div className="absolute inset-0 bg-[#00B47A]/5 blur-3xl rounded-full transform scale-110" />
+            <div className="relative rounded-xl border border-zinc-200/60 bg-white p-2 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.05)]">
+              <img 
+                src="/dashboard-mock.png" 
+                alt="VeriField Dashboard UI" 
+                className="w-full h-auto rounded-lg border border-zinc-100"
+              />
+            </div>
+          </motion.div>
         </div>
 
         {/* The Problem */}

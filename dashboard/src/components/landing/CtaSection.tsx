@@ -16,7 +16,7 @@ export function CtaSection() {
             href="/signup"
             className="flex items-center justify-center gap-2 h-14 px-8 rounded-md bg-white text-black font-semibold text-base hover:bg-zinc-100 transition-colors w-full sm:w-auto shadow-lg"
           >
-            Request Demo
+            Request Access
             <ArrowRight size={18} />
           </Link>
           <Link 

@@ -5,12 +5,12 @@ import { Zap, Flame, Leaf, Car, Beaker, TreePine, Droplets, Factory } from "luci
 
 export function ClimateSectorsSection() {
   return (
-    <section id="industries" className="bg-white text-[#0A0A0A] py-24 lg:py-32 border-b border-zinc-200">
+    <section id="industries" className="bg-[#050505] text-white py-24 lg:py-32 border-b border-zinc-900">
       <div className="max-w-[1280px] mx-auto px-6">
         
         <div className="mb-20 text-center max-w-2xl mx-auto">
-          <h2 className="text-3xl md:text-4xl font-semibold tracking-tight mb-6">Cross-Sector Architecture</h2>
-          <p className="text-zinc-500 text-lg">
+          <h2 className="text-3xl md:text-4xl font-semibold tracking-tight mb-6">Supported Sectors</h2>
+          <p className="text-zinc-400 text-lg">
             VeriField is not limited to a single asset class. Our methodology engine is built to support the entire spectrum of global climate infrastructure.
           </p>
         </div>
@@ -45,34 +45,29 @@ export function ClimateSectorsSection() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.5, delay: idx * 0.1 }}
-              className="group p-8 rounded-2xl bg-zinc-50 border border-zinc-200 hover:border-zinc-300 hover:bg-zinc-100/50 transition-colors"
+              className="group p-8 rounded-2xl bg-zinc-900/40 border border-zinc-800 hover:border-zinc-700 hover:bg-zinc-800/40 transition-colors"
             >
               <div className="flex items-center gap-4 mb-4">
-                <div className="w-12 h-12 rounded-xl bg-white border border-zinc-200 flex items-center justify-center shadow-sm">
-                  <sector.icon size={22} className="text-zinc-800" strokeWidth={1.5} />
+                <div className="w-12 h-12 rounded-xl bg-[#0A0A0A] border border-zinc-800 flex items-center justify-center shadow-sm">
+                  <sector.icon size={22} className="text-zinc-300" strokeWidth={1.5} />
                 </div>
-                <h3 className="text-xl font-semibold text-zinc-900 tracking-tight">{sector.title}</h3>
+                <h3 className="text-xl font-semibold text-white tracking-tight">{sector.title}</h3>
               </div>
-              <p className="text-zinc-500 leading-relaxed text-sm">{sector.desc}</p>
+              <p className="text-zinc-400 leading-relaxed text-sm">{sector.desc}</p>
             </motion.div>
           ))}
         </div>
 
-        {/* Future Architecture */}
-        <div className="pt-16 border-t border-zinc-200 text-center">
-          <h4 className="text-xs font-semibold uppercase tracking-widest text-zinc-400 mb-8">Architecture ready for future integrations</h4>
-          <div className="flex flex-wrap justify-center gap-4">
-            {[
-              { icon: TreePine, label: "Forestry & ARR" },
-              { icon: Droplets, label: "Blue Carbon" },
-              { icon: Factory, label: "Industrial Decarbonisation" },
-              { icon: Beaker, label: "Engineered Carbon Removal" }
-            ].map((item, idx) => (
-              <div key={idx} className="flex items-center gap-2 px-4 py-2 rounded-full border border-zinc-200 bg-white text-zinc-600 shadow-sm text-sm font-medium">
-                <item.icon size={16} className="text-zinc-400" />
-                {item.label}
-              </div>
-            ))}
+        {/* Framework Integrations (Moved here from IntegrationsSection) */}
+        <div className="text-center pt-20 border-t border-zinc-900 mt-20">
+          <h3 className="text-sm font-semibold tracking-widest text-zinc-500 uppercase mb-12">Supported Frameworks & Integrations</h3>
+          <div className="flex flex-wrap justify-center gap-x-12 gap-y-8 items-center opacity-60 grayscale hover:grayscale-0 transition-all duration-500">
+            <span className="text-xl font-bold font-serif tracking-tight text-white">Verra</span>
+            <span className="text-xl font-bold tracking-tighter text-white">Gold Standard</span>
+            <span className="text-xl font-bold font-mono text-white">CDM</span>
+            <span className="text-xl font-medium tracking-tight border border-current px-3 py-1 rounded-sm text-white">Article 6</span>
+            <span className="text-xl font-bold tracking-widest text-white">ISO 14064</span>
+            <span className="text-sm font-medium border-l-2 pl-4 py-1 border-current text-white">Nigeria Climate<br/>Change Act</span>
           </div>
         </div>
 

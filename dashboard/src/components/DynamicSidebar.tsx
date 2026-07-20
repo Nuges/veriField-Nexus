@@ -76,7 +76,7 @@ export default function DynamicSidebar() {
                 className="h-8 w-auto object-contain block dark:hidden"
               />
               <img
-                src="/logo-green.png"
+                src="/logo-white.png"
                 alt="VeriField Nexus"
                 className="h-8 w-auto object-contain hidden dark:block"
               />

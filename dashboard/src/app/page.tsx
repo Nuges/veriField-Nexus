@@ -3,7 +3,7 @@ import { HeroSection } from "@/components/landing/HeroSection";
 import { ProblemSection } from "@/components/landing/ProblemSection";
 import { PlatformWorkflowSection } from "@/components/landing/PlatformWorkflowSection";
 import { ClimateSectorsSection } from "@/components/landing/ClimateSectorsSection";
-import { IntegrationsSection } from "@/components/landing/IntegrationsSection";
+
 import { PilotMapSection } from "@/components/landing/PilotMapSection";
 import { CtaSection } from "@/components/landing/CtaSection";
 import { Footer } from "@/components/landing/Footer";
@@ -17,7 +17,7 @@ export default function LandingPage() {
         <ProblemSection />
         <PlatformWorkflowSection />
         <ClimateSectorsSection />
-        <IntegrationsSection />
+
         <PilotMapSection />
         <CtaSection />
       </main>

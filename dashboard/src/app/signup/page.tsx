@@ -68,7 +68,7 @@ export default function SignupPage() {
             className="h-12 w-auto block dark:hidden object-contain mb-1"
           />
           <img
-            src="/logo-green.png"
+            src="/logo-white.png"
             alt="VeriField Nexus"
             className="h-12 w-auto hidden dark:block object-contain mb-1"
           />

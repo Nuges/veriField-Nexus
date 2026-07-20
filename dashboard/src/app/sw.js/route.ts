@@ -49,7 +49,7 @@ export async function GET() {
     const PRECACHE_ASSETS = [
       "/capture",
       "/login",
-      "/logo-green.png",
+      "/logo-white.png",
       "/logo-black.png",
       "/favicon.ico",
       "/manifest.json"
