@@ -52,9 +52,9 @@ export function Footer() {
 
         <div className="flex flex-col md:flex-row items-center justify-between pt-8 border-t border-zinc-900 text-xs">
           <p>&copy; {new Date().getFullYear()} VeriField Technologies. All rights reserved.</p>
-          <div className="flex items-center gap-6 mt-4 md:mt-0">
-            <Link href="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link>
-            <Link href="/terms" className="hover:text-white transition-colors">Terms of Service</Link>
+          <div className="flex items-center gap-6 mt-4 md:mt-0 text-zinc-600 cursor-not-allowed">
+            <span>Privacy Policy</span>
+            <span>Terms of Service</span>
           </div>
         </div>
       </div>
