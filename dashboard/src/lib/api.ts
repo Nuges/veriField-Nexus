@@ -51,7 +51,8 @@ export interface AuditTask {
 // Base URL for the FastAPI backend
 // Always use relative paths so requests go through the Next.js rewrite proxy.
 // Only use an explicit URL if NEXT_PUBLIC_API_URL is set and non-empty.
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
+const rawApiBase = process.env.NEXT_PUBLIC_API_URL || "";
+const API_BASE = rawApiBase.replace(/\/+$/, "");
 export const API_V1 = `${API_BASE}/api/v1`;
 
 // Store the auth token in memory

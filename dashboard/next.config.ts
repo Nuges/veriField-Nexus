@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const isProd = process.env.NODE_ENV === "production";
-const BACKEND_URL = process.env.BACKEND_API_URL || (isProd ? 'https://verifield-nexus.onrender.com' : 'http://127.0.0.1:8000');
+const rawBackend = process.env.BACKEND_API_URL || (isProd ? 'https://verifield-nexus.onrender.com' : 'http://127.0.0.1:8000');
+const BACKEND_URL = rawBackend.replace(/\/+$/, "");
 
 const nextConfig: any = {
   /* config options here */
