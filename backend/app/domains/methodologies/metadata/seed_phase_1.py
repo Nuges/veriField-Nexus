@@ -44,9 +44,9 @@ from app.domains.methodologies.models.components import (
 
     VersionMonitoringTemplate)
 
-from app.domains.methodologies.models.legacy_mapping import \
-
-    LegacyMethodologyMapping
+from app.domains.methodologies.models.legacy_mapping import (
+    LegacyMethodologyMapping,
+)
 
 
 

@@ -250,9 +250,9 @@ async def get_workspace_schema(
 
     """
 
-    from app.domains.methodologies.services.dynamic_schema import \
-
-        DynamicSchemaEngine
+    from app.domains.methodologies.services.dynamic_schema import (
+        DynamicSchemaEngine,
+    )
 
 
 
@@ -396,9 +396,9 @@ async def execute_calculation(
 
     from app.domains.methodologies.calculation_engine import ExecutionEngine
 
-    from app.domains.methodologies.services.dynamic_schema import \
-
-        DynamicSchemaEngine
+    from app.domains.methodologies.services.dynamic_schema import (
+        DynamicSchemaEngine,
+    )
 
 
 

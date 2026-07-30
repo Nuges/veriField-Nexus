@@ -36,9 +36,9 @@ from app.domains.ai_trust_engine.api import router as ai_trust_engine_router
 
 from app.domains.authentication.api import router as auth_domain_router
 
-from app.domains.data_governance.routers.metadata import \
-
-    router as data_governance_router
+from app.domains.data_governance.routers.metadata import (
+    router as data_governance_router,
+)
 
 from app.domains.digital_twins.api import router as digital_twins_router
 
@@ -1208,9 +1208,9 @@ async def lifespan(app: FastAPI):
 
                 # Set up partitioned activities table
 
-                from app.db.partition_activities import \
-
-                    setup_activities_partitioning
+                from app.db.partition_activities import (
+                    setup_activities_partitioning,
+                )
 
 
 
