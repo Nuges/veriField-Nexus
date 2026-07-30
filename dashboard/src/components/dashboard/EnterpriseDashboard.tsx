@@ -280,7 +280,7 @@ export default function EnterpriseDashboard() {
 
             <>
 
-              <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-[#00B47A]/5 to-transparent border border-[#00B47A]/30 shadow-xs space-y-2">
+              <div className="p-4 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-xs space-y-2">
 
                 <div className="flex flex-wrap items-center justify-between gap-2">
 
@@ -288,9 +288,9 @@ export default function EnterpriseDashboard() {
 
                     <ShieldCheck size={18} className="text-[#00B47A] shrink-0" />
 
-                    <span className="font-extrabold text-[#00B47A] uppercase text-xs tracking-wider">
+                    <span className="font-bold text-[var(--color-text-primary)] uppercase text-xs tracking-wider">
 
-                      Mission Control Operational Summary
+                      Operational Summary
 
                     </span>
 
@@ -298,13 +298,13 @@ export default function EnterpriseDashboard() {
 
                 </div>
 
-                <p className="text-xs text-[var(--color-text-primary)] font-medium leading-relaxed">
+                <p className="text-xs text-[var(--color-text-secondary)] font-medium leading-relaxed">
 
                   {!hasSubmissions
 
-                    ? `"Workspace initialized for ${project?.name || titleName}. 0 field activities submitted. Emission telemetry stream active and awaiting field data capture."`
+                    ? `0 field activities submitted for ${project?.name || titleName}. Emission telemetry stream active and awaiting field data capture.`
 
-                    : `"Active project carbon yield tracking nominal across ${totalSubmissions} verified field submissions."`
+                    : `Active project carbon yield tracking operational across ${totalSubmissions} verified field submissions.`
 
                   }
 
@@ -314,11 +314,11 @@ export default function EnterpriseDashboard() {
 
 
 
-              {/* 2. PRIORITY ACTION QUEUE & CRITICAL SLA RISKS */}
+              {/* 2. ACTION REQUIRED & RISKS & ACTIONS */}
 
               <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
 
-                {/* Priority Action Queue (7 Cols) */}
+                {/* Action Required (7 Cols) */}
 
                 <div className="md:col-span-7 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-4 space-y-3">
 
@@ -328,9 +328,9 @@ export default function EnterpriseDashboard() {
 
                       <ShieldCheck size={16} className="text-[#00B47A] shrink-0" />
 
-                      <span className="font-extrabold text-xs uppercase tracking-wider text-[var(--color-text-primary)]">
+                      <span className="font-bold text-xs uppercase tracking-wider text-[var(--color-text-primary)]">
 
-                        Priority Action Queue
+                        Action Required
 
                       </span>
 
@@ -346,7 +346,7 @@ export default function EnterpriseDashboard() {
 
                       <div className="p-4 text-center text-zinc-500 text-xs font-mono rounded-xl bg-[var(--color-background)] border border-[var(--color-border)]">
 
-                        All operational queues clear. No pending QA clearances or field audit sign-offs required.
+                        No pending actions required.
 
                       </div>
 
@@ -372,7 +372,7 @@ export default function EnterpriseDashboard() {
 
                           href="/dashboard/verifications"
 
-                          className="px-3 py-1.5 rounded-lg bg-[#00B47A] text-white font-bold text-[11px] hover:bg-[#009b68] transition-all flex items-center gap-1 shadow-xs shrink-0 self-end sm:self-auto"
+                          className="px-3 py-1.5 rounded-lg bg-zinc-900 text-white font-bold text-[11px] hover:bg-black transition-all flex items-center gap-1 shadow-xs shrink-0 self-end sm:self-auto"
 
                         >
 
@@ -392,7 +392,7 @@ export default function EnterpriseDashboard() {
 
 
 
-                {/* Critical SLA Risks (5 Cols) */}
+                {/* Risks & Actions (5 Cols) */}
 
                 <div className="md:col-span-5 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-4 space-y-3">
 
@@ -400,11 +400,11 @@ export default function EnterpriseDashboard() {
 
                     <div className="flex items-center gap-2">
 
-                      <AlertOctagon size={16} className="text-emerald-400 shrink-0" />
+                      <AlertOctagon size={16} className="text-emerald-500 shrink-0" />
 
-                      <span className="font-extrabold text-xs uppercase tracking-wider text-[var(--color-text-primary)]">
+                      <span className="font-bold text-xs uppercase tracking-wider text-[var(--color-text-primary)]">
 
-                        Critical SLA & Risk Monitor
+                        Risks & Actions
 
                       </span>
 
@@ -418,17 +418,17 @@ export default function EnterpriseDashboard() {
 
                     <div className="p-3 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] flex items-start gap-2.5">
 
-                      <Clock size={16} className="text-emerald-400 shrink-0 mt-0.5" />
+                      <Clock size={16} className="text-emerald-500 shrink-0 mt-0.5" />
 
                       <div>
 
                         <p className="font-bold text-[var(--color-text-primary)]">
 
-                          {!hasSubmissions ? "No SLA Risks Detected" : "Audit SLA Tracking Nominal"}
+                          {!hasSubmissions ? "No SLA Risks Detected" : "SLA Tracking Operational"}
 
                         </p>
 
-                        <p className="text-[10px] text-zinc-500 font-mono mt-0.5">
+                        <p className="text-[10px] text-[var(--color-text-secondary)] font-mono mt-0.5">
 
                           {!hasSubmissions ? "All active verification pipelines nominal." : "SLA: Active • Owner: Lead Auditor"}
 
@@ -456,19 +456,19 @@ export default function EnterpriseDashboard() {
 
         {viewMode === "operations" && (
 
-          <div className="p-4 rounded-2xl bg-[var(--color-surface)] border border-emerald-500/30 text-xs font-sans flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 shadow-xl transition-all duration-300">
+          <div className="p-4 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] text-xs font-sans flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 shadow-sm transition-all duration-300">
 
             <div className="flex items-center space-x-2.5">
 
-              <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-500 shrink-0">
+              <div className="p-1.5 rounded-lg bg-zinc-900 text-white shrink-0">
 
                 <Terminal size={16} />
 
               </div>
 
-              <span className="font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+              <span className="font-bold uppercase tracking-wider text-[var(--color-text-primary)]">
 
-                OPERATIONS TELEMETRY & HARDWARE CONSOLE ACTIVE
+                HARDWARE & TELEMETRY CONSOLE ACTIVE
 
               </span>
 
@@ -476,9 +476,9 @@ export default function EnterpriseDashboard() {
 
             <div className="flex items-center space-x-2 text-xs text-[var(--color-text-secondary)] font-medium shrink-0">
 
-              <RefreshCw size={14} className="animate-spin text-emerald-500" />
+              <RefreshCw size={14} className="animate-spin text-[#00B47A]" />
 
-              <span>Streaming Live IoT Telemetry Feeds</span>
+              <span>Streaming IoT Telemetry Feeds</span>
 
             </div>
 

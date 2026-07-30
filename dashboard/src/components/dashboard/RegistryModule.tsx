@@ -82,16 +82,11 @@ export default function RegistryModule({ sectorCode }: { sectorCode?: string }) 
 
         <div>
 
-          <h3 className="text-xs font-black tracking-widest text-[var(--color-text-primary)] uppercase font-sans">
-
-            CERTIFIED ISSUANCE MANIFESTS
-
+          <h3 className="text-xs font-bold tracking-wider text-[var(--color-text-primary)] uppercase font-sans">
+            REGISTRY EXPORTS & REPORTING
           </h3>
-
           <p className="text-[11px] text-[var(--color-text-secondary)] mt-0.5 font-sans">
-
-            Export direct feeds to Verra & Gold Standard registries.
-
+            Export compliant dataset packages to Verra VCS & Gold Standard registries.
           </p>
 
         </div>

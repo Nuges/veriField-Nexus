@@ -91,113 +91,59 @@ export default function RoleBasedDashboard({ dashboardData, sectorCode }: RoleBa
       <div className="space-y-6 animate-fade-in">
 
         {/* Administrator Telemetry Surface */}
-
-        <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-[#00B47A]/5 to-transparent border border-[#00B47A]/30 shadow-xs space-y-2">
-
+        <div className="p-4 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-xs space-y-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
-
             <div className="flex flex-wrap items-center gap-2 min-w-0">
-
-              <span className="font-extrabold text-[#00B47A] uppercase text-xs tracking-wider">
-
-                Platform Governance & Infrastructure Telemetry
-
+              <span className="font-bold text-[var(--color-text-primary)] uppercase text-xs tracking-wider">
+                Platform Health & Infrastructure Status
               </span>
-
             </div>
-
           </div>
-
-          <p className="text-xs text-[var(--color-text-primary)] font-medium leading-relaxed">
-
+          <p className="text-xs text-[var(--color-text-secondary)] font-medium leading-relaxed">
             {totalSubmissions === 0
-
-              ? `"PgBouncer database connection pool is optimal (NullPool). Workspace active with 0 field submissions. 0 API throttling events detected."`
-
-              : `"PgBouncer connection pool optimal. ${activeTenants} active organization tenant emitting telemetry across ${totalSubmissions} field submissions."`
-
+              ? "Database connection pool optimal. Workspace active with 0 field submissions."
+              : `Database connection pool optimal. ${activeTenants} active organization tenant emitting telemetry across ${totalSubmissions} field submissions.`
             }
-
           </p>
-
         </div>
 
-
-
         {/* Administrator KPIs */}
-
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-
           <div className="p-4 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-xs space-y-1">
-
             <div className="flex items-center justify-between text-xs text-[var(--color-text-secondary)] font-bold">
-
-              <span>Platform Uptime</span>
-
+              <span>Platform Health</span>
               <Activity size={16} className="text-[#00B47A]" />
-
             </div>
-
-            <p className="text-xl font-black text-[var(--color-text-primary)]">100.0%</p>
-
-            <p className="text-[10px] text-emerald-400 font-mono">0 Failed Health Checks</p>
-
+            <p className="text-xl font-bold text-[var(--color-text-primary)]">Operational</p>
+            <p className="text-[10px] text-[var(--color-text-secondary)] font-mono">0 Failed Health Checks</p>
           </div>
 
-
-
           <div className="p-4 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-xs space-y-1">
-
             <div className="flex items-center justify-between text-xs text-[var(--color-text-secondary)] font-bold">
-
               <span>Active Organizations</span>
-
-              <Building size={16} className="text-emerald-400" />
-
+              <Building size={16} className="text-emerald-500" />
             </div>
-
-            <p className="text-xl font-black text-[var(--color-text-primary)]">{activeTenants} Tenant{activeTenants === 1 ? '' : 's'}</p>
-
-            <p className="text-[10px] text-emerald-400 font-mono">KYC Verified Workspace</p>
-
+            <p className="text-xl font-bold text-[var(--color-text-primary)]">{activeTenants} Tenant{activeTenants === 1 ? '' : 's'}</p>
+            <p className="text-[10px] text-[var(--color-text-secondary)] font-mono">KYC Verified Workspace</p>
           </div>
 
-
-
           <div className="p-4 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-xs space-y-1">
-
             <div className="flex items-center justify-between text-xs text-[var(--color-text-secondary)] font-bold">
-
-              <span>API Gateway Health</span>
-
+              <span>API Gateway Status</span>
               <Cpu size={16} className="text-[#00B47A]" />
-
             </div>
-
-            <p className="text-xl font-black text-[var(--color-text-primary)]">Nominal Latency</p>
-
-            <p className="text-[10px] text-emerald-400 font-mono">FastAPI / Uvicorn</p>
-
+            <p className="text-xl font-bold text-[var(--color-text-primary)]">FastAPI Active</p>
+            <p className="text-[10px] text-[var(--color-text-secondary)] font-mono">Uvicorn Async Worker</p>
           </div>
-
-
 
           <div className="p-4 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-xs space-y-1">
-
             <div className="flex items-center justify-between text-xs text-[var(--color-text-secondary)] font-bold">
-
-              <span>Database Locks</span>
-
-              <ShieldCheck size={16} className="text-emerald-400" />
-
+              <span>Database Status</span>
+              <ShieldCheck size={16} className="text-emerald-500" />
             </div>
-
-            <p className="text-xl font-black text-[var(--color-text-primary)]">0 Lock Timeouts</p>
-
-            <p className="text-[10px] text-emerald-400 font-mono">Clean Transaction Pooler</p>
-
+            <p className="text-xl font-bold text-[var(--color-text-primary)]">Pooler Active</p>
+            <p className="text-[10px] text-[var(--color-text-secondary)] font-mono">PostgreSQL / Supabase</p>
           </div>
-
         </div>
 
       </div>

@@ -50,13 +50,13 @@ export default function WidgetRenderer({ kpis, sectorCode }: { kpis?: KPI[]; sec
 
       return [
 
-        { code: "co2_reduced", label: "TOTAL CO₂ REDUCED", value: "155.5", unit: "tCO₂e", subtext: "Verified offset credits", iconName: "Leaf", colorTheme: "emerald" },
+        { code: "co2_reduced", label: "TOTAL CO₂ QUANTIFIED", value: "0", unit: "tCO₂e verified", iconName: "Leaf", colorTheme: "emerald" },
 
         { code: "households", label: "HOUSEHOLDS REACHED", value: "0", unit: "Stoves deployed in households", iconName: "Home", colorTheme: "blue" },
 
-        { code: "usage_rate", label: "STOVE USAGE RATE", value: "No data yet", unit: "Mean daily utilization rate", iconName: "Flame", colorTheme: "amber" },
+        { code: "usage_rate", label: "UTILISATION RATE", value: "No data", unit: "Mean daily utilisation rate", iconName: "Flame", colorTheme: "amber" },
 
-        { code: "portfolio_val", label: "PORTFOLIO CREDIT VALUE", value: "$2,333", unit: "At baseline price of $15/tCO2e", iconName: "DollarSign", colorTheme: "emerald" }
+        { code: "portfolio_val", label: "ESTIMATED CREDIT VALUE", value: "$0", unit: "At baseline price of $15/tCO2e", iconName: "DollarSign", colorTheme: "emerald" }
 
       ];
 
@@ -64,13 +64,13 @@ export default function WidgetRenderer({ kpis, sectorCode }: { kpis?: KPI[]; sec
 
       return [
 
-        { code: "co2_reduced", label: "TOTAL CO₂ REDUCED", value: "482.1", unit: "tCO₂e", subtext: "Displaced thermal emissions", iconName: "Leaf", colorTheme: "emerald" },
+        { code: "co2_reduced", label: "TOTAL CO₂ QUANTIFIED", value: "0", unit: "tCO₂e displaced", iconName: "Leaf", colorTheme: "emerald" },
 
-        { code: "active_assets", label: "ACTIVE ENERGY ASSETS", value: "14", unit: "Mini-grids & hybrid units", iconName: "Zap", colorTheme: "blue" },
+        { code: "active_assets", label: "ACTIVE ENERGY ASSETS", value: "0", unit: "Mini-grids & hybrid units", iconName: "Zap", colorTheme: "blue" },
 
-        { code: "generation", label: "TOTAL GENERATION", value: "1.2 GWh", unit: "Clean solar generation", iconName: "Layers", colorTheme: "amber" },
+        { code: "generation", label: "TOTAL GENERATION", value: "0 kWh", unit: "Clean solar generation", iconName: "Layers", colorTheme: "amber" },
 
-        { code: "diesel_avoided", label: "DIESEL AVOIDED", value: "184,200 L", unit: "Displaced generator fuel", iconName: "Fuel", colorTheme: "emerald" }
+        { code: "diesel_avoided", label: "DIESEL AVOIDED", value: "0 L", unit: "Displaced generator fuel", iconName: "Fuel", colorTheme: "emerald" }
 
       ];
 
@@ -78,13 +78,13 @@ export default function WidgetRenderer({ kpis, sectorCode }: { kpis?: KPI[]; sec
 
       return [
 
-        { code: "co2_reduced", label: "CARBON REMOVED", value: "890.0", unit: "tCO₂e", subtext: "Permanent sink storage", iconName: "Leaf", colorTheme: "emerald" },
+        { code: "co2_reduced", label: "CARBON REMOVED", value: "0", unit: "tCO₂e permanent sink", iconName: "Leaf", colorTheme: "emerald" },
 
-        { code: "biochar_produced", label: "BIOCHAR PRODUCED", value: "310", unit: "Tonnes high-carbon char", iconName: "Layers", colorTheme: "amber" },
+        { code: "biochar_produced", label: "BIOCHAR PRODUCED", value: "0", unit: "Tonnes high-carbon char", iconName: "Layers", colorTheme: "amber" },
 
         { code: "permanence", label: "CARBON PERMANENCE", value: "100+ Yrs", unit: "Soil sink durability", iconName: "ShieldCheck", colorTheme: "blue" },
 
-        { code: "credit_val", label: "PORTFOLIO CREDIT VALUE", value: "$133,500", unit: "At CORC price of $150/t", iconName: "DollarSign", colorTheme: "emerald" }
+        { code: "credit_val", label: "ESTIMATED CREDIT VALUE", value: "$0", unit: "At CORC price of $150/t", iconName: "DollarSign", colorTheme: "emerald" }
 
       ];
 
@@ -94,13 +94,13 @@ export default function WidgetRenderer({ kpis, sectorCode }: { kpis?: KPI[]; sec
 
       return [
 
-        { code: "co2_reduced", label: "CO₂ DISPLACED", value: "94.2", unit: "tCO₂e", subtext: "EV fleet zero-emissions", iconName: "Leaf", colorTheme: "emerald" },
+        { code: "co2_reduced", label: "CO₂ DISPLACED", value: "0", unit: "tCO₂e EV fleet emissions", iconName: "Leaf", colorTheme: "emerald" },
 
-        { code: "charging_sessions", label: "CHARGING SESSIONS", value: "12,480", unit: "Completed fast charges", iconName: "Zap", colorTheme: "blue" },
+        { code: "charging_sessions", label: "CHARGING SESSIONS", value: "0", unit: "Completed charges", iconName: "Zap", colorTheme: "blue" },
 
-        { code: "kwh_delivered", label: "KWH DELIVERED", value: "340 MWh", unit: "Total grid power delivered", iconName: "Layers", colorTheme: "amber" },
+        { code: "active_vehicles", label: "ACTIVE VEHICLES", value: "0", unit: "Monitored EV units", iconName: "Globe", colorTheme: "amber" },
 
-        { code: "fleet_util", label: "FLEET UTILISATION", value: "88.4%", unit: "Active charging uptime", iconName: "Activity", colorTheme: "emerald" }
+        { code: "credit_val", label: "ESTIMATED CREDIT VALUE", value: "$0", unit: "At baseline price", iconName: "DollarSign", colorTheme: "emerald" }
 
       ];
 
