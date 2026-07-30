@@ -164,19 +164,11 @@ export function PlatformWorkflowSection() {
 
             {/* Featured Module: AI-Powered Verification */}
 
-            <div className="p-6 rounded-xl bg-white border border-emerald-100 shadow-sm relative overflow-hidden">
+            <div className="p-6 rounded-xl bg-white border border-zinc-200 shadow-sm">
 
-              <div className="absolute top-0 left-0 bottom-0 w-1 bg-[#00B47A]" />
+              <h3 className="text-base font-semibold text-zinc-900 mb-2">AI-Powered Verification</h3>
 
-              <div className="flex items-center gap-3 mb-2">
-
-                <CheckCircle2 size={18} className="text-[#00B47A]" strokeWidth={2.5} />
-
-                <h3 className="text-base font-semibold text-zinc-900">AI-Powered Verification</h3>
-
-              </div>
-
-              <p className="text-xs text-zinc-600 leading-relaxed pl-7">
+              <p className="text-xs text-zinc-600 leading-relaxed">
 
                 AI-assisted validation of field evidence, telemetry, and project data to identify anomalies, assess trust signals, and accelerate verification workflows.
 

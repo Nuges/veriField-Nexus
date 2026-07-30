@@ -24,16 +24,16 @@ export function Navbar() {
       transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
       className={cn(
         "fixed top-0 inset-x-0 z-50 transition-all duration-300 border-b",
-        scrolled 
-          ? "bg-white/80 backdrop-blur-md border-zinc-200 shadow-sm" 
+        scrolled
+          ? "bg-white/80 backdrop-blur-md border-zinc-200 shadow-sm"
           : "bg-transparent border-transparent"
       )}
     >
       <div className="max-w-[1280px] mx-auto px-6 h-16 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2">
-          <img 
-            src={scrolled ? "/logo-black.png" : "/logo-white.png"} 
-            alt="VeriField" 
+          <img
+            src={scrolled ? "/logo-black.png" : "/logo-white.png"}
+            alt="VeriField"
             className="h-5 w-auto object-contain transition-opacity"
           />
         </Link>
@@ -47,8 +47,8 @@ export function Navbar() {
             { label: "Resources", href: "#resources" },
             { label: "Company", href: "#company" },
           ].map((item) => (
-            <Link 
-              key={item.label} 
+            <Link
+              key={item.label}
               href={item.href}
               className={cn(
                 "text-[13px] font-medium tracking-tight transition-colors",
@@ -61,8 +61,8 @@ export function Navbar() {
         </nav>
 
         <div className="flex items-center gap-4">
-          <Link 
-            href="/login" 
+          <Link
+            href="/login"
             className={cn(
               "text-[13px] font-medium tracking-tight transition-colors",
               scrolled ? "text-zinc-600 hover:text-zinc-900" : "text-zinc-300 hover:text-white"
@@ -70,9 +70,14 @@ export function Navbar() {
           >
             Sign In
           </Link>
-          <Link 
+          <Link
             href="/signup"
-            className="text-[13px] font-semibold bg-[#00B47A] text-white px-4 py-2 rounded-md hover:bg-emerald-500 transition-colors shadow-sm"
+            className={cn(
+              "text-[13px] font-medium px-4 py-2 rounded-md transition-all shadow-sm border",
+              scrolled
+                ? "bg-zinc-900 text-white hover:bg-black border-zinc-900"
+                : "bg-white text-zinc-900 hover:bg-zinc-100 border-white"
+            )}
           >
             Request Access
           </Link>
