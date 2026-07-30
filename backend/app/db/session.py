@@ -132,25 +132,37 @@ async_session_factory = async_sessionmaker(
 
 
 
-# Fallback SQLite Engine for offline/sandboxed execution
+# Fallback SQLite Engine for offline/sandboxed execution (Lazy Initialized)
 
-fallback_db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../verifield_dev.db"))
+fallback_engine = None
 
-fallback_db_url = f"sqlite+aiosqlite:///{fallback_db_path}"
-
-fallback_engine = create_async_engine(fallback_db_url, echo=False)
+fallback_session_factory = None
 
 
 
-fallback_session_factory = async_sessionmaker(
+def _get_fallback_session_factory():
 
-    fallback_engine,
+    global fallback_engine, fallback_session_factory
 
-    class_=AsyncSession,
+    if fallback_session_factory is None:
 
-    expire_on_commit=False,
+        fallback_db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../verifield_dev.db"))
 
-)
+        fallback_db_url = f"sqlite+aiosqlite:///{fallback_db_path}"
+
+        fallback_engine = create_async_engine(fallback_db_url, echo=False)
+
+        fallback_session_factory = async_sessionmaker(
+
+            fallback_engine,
+
+            class_=AsyncSession,
+
+            expire_on_commit=False,
+
+        )
+
+    return fallback_session_factory
 
 
 
@@ -181,17 +193,14 @@ def compile_uuid_sqlite(type_, compiler, **kw):
 
 
 async def _init_fallback_db():
-
     global _fallback_initialized
-
     if _fallback_initialized:
-
         return
 
+    _get_fallback_session_factory()
+
     from app.db.base import Base
-
     from app.core.security import get_password_hash
-
     from sqlalchemy import text
 
 
@@ -435,12 +444,10 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
             return
 
     except Exception as err:
-
         # Fallback to local SQLite when remote DB has network/DNS issues
-
         await _init_fallback_db()
-
-        async with fallback_session_factory() as session:
+        factory = _get_fallback_session_factory()
+        async with factory() as session:
 
             try:
 
