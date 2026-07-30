@@ -2,6 +2,10 @@
 
 
 
+
+
+
+
 import { motion } from "framer-motion";
 
 import { Layers, Zap, Search, Shield, BarChart3, Cloud, CheckCircle2 } from "lucide-react";
@@ -36,7 +40,7 @@ const WORKFLOW_STEPS = [
 
     title: "Verify Impact",
 
-    desc: "Run automated validation engines to detect anomalies, duplicates, missing evidence, and methodology compliance issues."
+    desc: "Run automated and AI-assisted validation engines to detect anomalies, duplicate evidence, missing data, and methodology compliance issues."
 
   },
 
@@ -156,45 +160,73 @@ export function PlatformWorkflowSection() {
 
 
 
-          <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-6">
+          <div className="lg:col-span-7 flex flex-col gap-6">
 
-            {[
+            {/* Featured Module: AI-Powered Verification */}
 
-              "Offline-first Mobile Apps",
+            <div className="p-6 rounded-xl bg-white border border-emerald-100 shadow-sm relative overflow-hidden">
 
-              "Dynamic Methodology Engine",
+              <div className="absolute top-0 left-0 bottom-0 w-1 bg-[#00B47A]" />
 
-              "Digital MRV",
+              <div className="flex items-center gap-3 mb-2">
 
-              "Compliance Engine",
+                <CheckCircle2 size={18} className="text-[#00B47A]" strokeWidth={2.5} />
 
-              "Jurisdiction Framework",
-
-              "Methodology Registry",
-
-              "GIS & Spatial Intelligence",
-
-              "IoT & SCADA Integration",
-
-              "Automated Verification & Anomaly Detection",
-
-              "Digital Audit Trail",
-
-              "Climate Reporting",
-
-              "Carbon Registry Integration"
-
-            ].map((module, idx) => (
-
-              <div key={idx} className="flex items-center gap-3 border-b border-zinc-100 pb-4">
-
-                <CheckCircle2 size={16} className="text-[#00B47A]" strokeWidth={2.5} />
-
-                <span className="text-sm font-medium text-zinc-800">{module}</span>
+                <h3 className="text-base font-semibold text-zinc-900">AI-Powered Verification</h3>
 
               </div>
 
-            ))}
+              <p className="text-xs text-zinc-600 leading-relaxed pl-7">
+
+                AI-assisted validation of field evidence, telemetry, and project data to identify anomalies, assess trust signals, and accelerate verification workflows.
+
+              </p>
+
+            </div>
+
+
+
+            {/* Core Modules Checklist */}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4 pt-2">
+
+              {[
+
+                "Offline-first Mobile Apps",
+
+                "Dynamic Methodology Engine",
+
+                "Digital MRV Engine",
+
+                "Compliance Engine",
+
+                "Jurisdiction Framework",
+
+                "Methodology Registry",
+
+                "GIS & Spatial Intelligence",
+
+                "IoT & SCADA Integration",
+
+                "Digital Audit Trail",
+
+                "Climate Reporting",
+
+                "Carbon Registry Integration"
+
+              ].map((module, idx) => (
+
+                <div key={idx} className="flex items-center gap-3 border-b border-zinc-100 pb-3">
+
+                  <CheckCircle2 size={16} className="text-[#00B47A]" strokeWidth={2.5} />
+
+                  <span className="text-sm font-medium text-zinc-800">{module}</span>
+
+                </div>
+
+              ))}
+
+            </div>
 
           </div>
 
