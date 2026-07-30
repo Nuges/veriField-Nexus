@@ -20,7 +20,7 @@ async def main():
             print("Captured At:", a.captured_at)
             print("Created At:", a.created_at)
             print("User ID:", a.user_id)
-        
+
         # Test what admin gets (No user_id filter)
         res = await db.execute(select(Activity).order_by(Activity.captured_at.desc()).limit(5))
         acts = res.scalars().all()

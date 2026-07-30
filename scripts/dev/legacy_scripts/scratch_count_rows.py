@@ -9,9 +9,9 @@ async def main():
     db_url = os.getenv('DATABASE_URL')
     if db_url.startswith('postgresql+asyncpg://'):
         db_url = db_url.replace('postgresql+asyncpg://', 'postgresql://')
-        
+
     conn = await asyncpg.connect(db_url)
-    
+
     print("=== Database Row Counts ===")
     tables = ['users', 'properties', 'activities', 'carbon_calculations', 'sensor_readings', 'trust_logs', 'anomaly_flags']
     for t in tables:
@@ -20,7 +20,7 @@ async def main():
             print(f"Table '{t}': {cnt} rows")
         except Exception as e:
             print(f"Table '{t}': Error {e}")
-            
+
     await conn.close()
 
 if __name__ == "__main__":

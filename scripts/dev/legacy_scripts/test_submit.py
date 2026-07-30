@@ -26,7 +26,7 @@ async def main():
             latitude=6.5244,
             longitude=3.3792
         )
-        
+
         # Manually invoke the endpoint logic or just print to see if we can connect
         print("Schema validated fine!")
 

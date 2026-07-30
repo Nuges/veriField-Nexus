@@ -9,14 +9,14 @@ async def main():
     db_url = os.getenv('DATABASE_URL')
     if db_url.startswith('postgresql+asyncpg://'):
         db_url = db_url.replace('postgresql+asyncpg://', 'postgresql://')
-    
+
     conn = await asyncpg.connect(db_url)
     print("=== Connected to DB ===")
-    
+
     rows = await conn.fetch("SELECT methodology_used, COUNT(*), SUM(tco2e_generated) FROM carbon_calculations GROUP BY methodology_used;")
     for r in rows:
         print(dict(r))
-        
+
     await conn.close()
 
 if __name__ == "__main__":

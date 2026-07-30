@@ -17,15 +17,15 @@ async def main():
     # Generate admin token
     payload = {
         "sub": "192a5308-6e3c-404c-a644-c021a9e7884c",
-        "email": "segunoluwole22@gmail.com",
+        "email": "test.user@example.invalid",
         "dev_mode": True,
         # datetime.now(timezone.utc) is safe and modern
         "exp": datetime.now(timezone.utc) + timedelta(hours=1)
     }
     token = jwt.encode(payload, settings.jwt_secret, algorithm="HS256")
-    
+
     headers = {"Authorization": f"Bearer {token}"}
-    
+
     async with httpx.AsyncClient(timeout=30.0) as client:
         # Test 1: Query with human-readable site_id
         site_id = "VF-EN-LAG-1001"
@@ -43,9 +43,9 @@ async def main():
             print(f"Daily generation list: {data1.get('daily_generation_kwh')}")
         else:
             print(f"Response: {data1}")
-            
+
         print("\n" + "="*50 + "\n")
-        
+
         # Test 2: Query with UUID (activity ID)
         activity_uuid = "2e02843d-3e13-4967-a3be-a1a79dbe00db"
         res2 = await client.get(
@@ -60,9 +60,9 @@ async def main():
             print(f"Readings count: {len(data2['readings'])}")
         else:
             print(f"Response: {data2}")
-            
+
         print("\n" + "="*50 + "\n")
-        
+
         # Test 3: Query with non-existent site_id (should NOT be 404, should be custom empty response)
         fake_site = "VF-EN-FAKE-9999"
         res3 = await client.get(

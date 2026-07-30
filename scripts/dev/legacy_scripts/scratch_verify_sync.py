@@ -14,18 +14,18 @@ from app.core.config import settings
 def main():
     payload = {
         "sub": "192a5308-6e3c-404c-a644-c021a9e7884c",
-        "email": "segunoluwole22@gmail.com",
+        "email": "test.user@example.invalid",
         "dev_mode": True,
         "exp": datetime.now(timezone.utc) + timedelta(hours=1)
     }
     token = jwt.encode(payload, settings.jwt_secret, algorithm="HS256")
-    
+
     # Test 1: Get activities
     req = urllib.request.Request(
         "http://127.0.0.1:8000/api/v1/activities",
         headers={"Authorization": f"Bearer {token}"}
     )
-    
+
     print("Sending request to /api/v1/activities...")
     try:
         with urllib.request.urlopen(req, timeout=5) as response:

@@ -7,7 +7,7 @@ async def fix_properties():
     async with async_session_maker() as session:
         result = await session.execute(select(Property))
         properties = result.scalars().all()
-        
+
         count = 0
         for prop in properties:
             if not prop.sustainability_metrics or prop.sustainability_metrics == {}:
@@ -17,7 +17,7 @@ async def fix_properties():
                     "status": "Awaiting Review"
                 }
                 count += 1
-                
+
         await session.commit()
         print(f"✅ Successfully updated {count} existing properties with default metrics!")
 

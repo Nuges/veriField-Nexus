@@ -330,7 +330,7 @@ export default function SignupPage() {
 
                       onChange={(e) => setEmail(e.target.value)}
 
-                      placeholder="e.g. dapo@gmail.com"
+                      placeholder="e.g. alex@company.com"
 
                       required
 

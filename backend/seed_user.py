@@ -8,8 +8,8 @@ async def seed():
     async with async_session_factory() as session:
         pw_hash = get_password_hash("Lovelyday1")
         emails = [
-            ("segunoluwole22@gmail.com", "Segun Oluwole"),
-            ("phil@gmail.com", "Phil Admin"),
+            ("segun@example.invalid", "Segun Oluwole"),
+            ("phil@example.invalid", "Phil Admin"),
             ("admin@verifield.io", "VeriField Admin")
         ]
         for email, name in emails:

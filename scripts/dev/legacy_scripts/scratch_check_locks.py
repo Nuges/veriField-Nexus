@@ -9,22 +9,22 @@ async def main():
     db_url = os.getenv('DATABASE_URL')
     if db_url.startswith('postgresql+asyncpg://'):
         db_url = db_url.replace('postgresql+asyncpg://', 'postgresql://')
-        
+
     conn = await asyncpg.connect(db_url)
     print("=== Connected to DB ===")
-    
+
     print("\n--- Active Queries ---")
     queries = await conn.fetch("""
-        SELECT pid, state, query, age(clock_timestamp(), query_start) as age 
-        FROM pg_stat_activity 
+        SELECT pid, state, query, age(clock_timestamp(), query_start) as age
+        FROM pg_stat_activity
         WHERE state != 'idle' AND pid != pg_backend_pid();
     """)
     for q in queries:
         print(dict(q))
-        
+
     print("\n--- Locks ---")
     locks = await conn.fetch("""
-        SELECT 
+        SELECT
             coalesce(t.schemaname, '') || '.' || coalesce(t.relname, '') as relation,
             l.mode,
             l.locktype,
@@ -38,7 +38,7 @@ async def main():
     """)
     for l in locks:
         print(dict(l))
-        
+
     await conn.close()
 
 if __name__ == "__main__":

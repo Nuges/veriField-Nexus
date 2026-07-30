@@ -15,7 +15,7 @@ async def main():
         print("=== DATABASE USERS ===")
         for u in users:
             print(f"ID: {u.id} | Email: {u.email} | Role: {u.role} | Org: {u.organization} | Name: {u.full_name}")
-            
+
         # Get count of activities per user ID
         res_acts = await db.execute(
             select(Activity.user_id, func.count(Activity.id))

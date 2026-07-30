@@ -36,21 +36,21 @@ for filepath in files:
     if not os.path.exists(filepath):
         print(f"Skipping {filepath}")
         continue
-    
+
     with open(filepath, "r") as f:
         content = f.read()
-        
+
     for old, new in replacements:
         content = content.replace(old, new)
-        
+
     for old, new in button_fixes:
         content = content.replace(old, new)
-        
+
     # Remove hardcoded figures
     # In jurisdiction/[id]/page.tsx
     content = content.replace('<span className="text-3xl font-black text-emerald-400">98</span>', '<span className="text-3xl font-black text-emerald-600 dark:text-emerald-400">{context?.health_score || "100"}</span>')
-    
+
     with open(filepath, "w") as f:
         f.write(content)
-    
+
     print(f"Updated {filepath}")

@@ -8,7 +8,7 @@ def main():
     try:
         response = client.post(
             "/api/v1/auth/login",
-            json={"email": "cue@gmail.com", "password": "password"}
+            json={"email": "test.user@example.invalid", "password": "password"}
         )
         print(response.status_code)
         print(response.text)

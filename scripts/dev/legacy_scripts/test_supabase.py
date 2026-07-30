@@ -13,7 +13,7 @@ async def check_buckets():
             headers={"Authorization": f"Bearer {key}", "apikey": key}
         )
         print("Buckets:", res.status_code, res.text)
-        
+
         # If activity-photos doesn't exist, create it
         buckets = res.json()
         if isinstance(buckets, list):

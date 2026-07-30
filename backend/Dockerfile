@@ -22,6 +22,14 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
+# Create non-root user and assign permissions
+RUN groupadd -g 10001 verifield && \
+    useradd -u 10001 -g verifield -s /bin/bash -m verifield && \
+    chown -R verifield:verifield /app
+
+# Switch to non-root user
+USER 10001
+
 # Expose port
 EXPOSE 8000
 

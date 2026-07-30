@@ -18,15 +18,15 @@ async def main():
         db_url = db_url.replace("postgres://", "postgresql+asyncpg://", 1)
     elif db_url.startswith("postgresql://"):
         db_url = db_url.replace("postgresql://", "postgresql+asyncpg://", 1)
-        
+
     if "?" not in db_url:
         db_url += "?prepared_statement_cache_size=0"
     else:
         db_url += "&prepared_statement_cache_size=0"
-        
+
     engine = create_async_engine(db_url)
     async_session_factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
-    
+
     import time
     start = time.time()
     try:

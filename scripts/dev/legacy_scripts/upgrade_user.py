@@ -8,7 +8,7 @@ async def main():
     engine = create_async_engine(settings.database_url.replace("postgres://", "postgresql+asyncpg://"))
     SessionLocal = async_sessionmaker(engine, expire_on_commit=False)
     async with SessionLocal() as db:
-        res = await db.execute(select(User).where(User.email == "pete@gmail.com"))
+        res = await db.execute(select(User).where(User.email == "pete@example.invalid"))
         user = res.scalar_one_or_none()
         if user:
             print(f"Found user {user.email} with role {user.role}. Upgrading to admin...")
@@ -16,6 +16,6 @@ async def main():
             await db.commit()
             print("Upgraded successfully!")
         else:
-            print("User pete@gmail.com not found!")
+            print("User pete@example.invalid not found!")
 
 asyncio.run(main())
