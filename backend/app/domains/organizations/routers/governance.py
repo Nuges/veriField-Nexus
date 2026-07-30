@@ -188,184 +188,128 @@ async def provision_user_account(
 
 
 
-    target_org_id = organization_id
-
-
+    # Coerce organization_id to UUID if string is passed
+    target_org_id: Optional[uuid.UUID] = None
+    if organization_id:
+        if isinstance(organization_id, uuid.UUID):
+            target_org_id = organization_id
+        else:
+            try:
+                target_org_id = uuid.UUID(str(organization_id).strip())
+            except ValueError:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Invalid organization_id UUID format: '{organization_id}'."
+                )
 
     # 3. RBAC / ABAC Boundary Checks for Org Admins
-
     if actor_user.role in ("ORG_ADMIN", "admin"):
-
         # Org Admins cannot create users in another organization
-
-        if organization_id and str(organization_id) != str(actor_user.organization_id):
-
+        if target_org_id and str(target_org_id) != str(actor_user.organization_id):
             audit_entry = SecurityAuditLog(
-
                 id=uuid.uuid4(),
-
                 actor_user_id=actor_user.id,
-
                 target_user_id=None,
-
-                organization_id=organization_id,
-
+                organization_id=target_org_id,
                 action="ACCOUNT_CREATION_DENIED",
-
                 result="FORBIDDEN",
-
                 metadata_json={
-
                     "attempted_role": role,
-
-                    "attempted_org": str(organization_id),
-
+                    "attempted_org": str(target_org_id),
                     "reason": "Cross-tenant account creation attempted by Org Admin"
-
                 }
-
             )
-
             db.add(audit_entry)
-
             await db.commit()
 
-
-
             await EventBus.publish(
-
                 stream_name="access_events",
-
                 event_type="AccountCreationDenied",
-
                 payload={
-
                     "actor_user_id": str(actor_user.id),
-
                     "attempted_role": role,
-
                     "reason": "Cross-tenant organization restriction",
-
                     "result": "FORBIDDEN",
-
                 },
-
                 actor_id=str(actor_user.id)
-
             )
-
-
 
             raise HTTPException(
-
                 status_code=status.HTTP_403_FORBIDDEN,
-
                 detail="Organization Administrators cannot create accounts for another organization."
-
             )
-
-
 
         # Org Admins cannot create Super Admin or Org Admin accounts
-
         if role_upper in ("SUPER_ADMIN", "ORG_ADMIN", "ADMIN"):
-
             audit_entry = SecurityAuditLog(
-
                 id=uuid.uuid4(),
-
                 actor_user_id=actor_user.id,
-
                 target_user_id=None,
-
                 organization_id=actor_user.organization_id,
-
                 action="ACCOUNT_CREATION_DENIED",
-
                 result="FORBIDDEN",
-
                 metadata_json={
-
                     "attempted_role": role,
-
                     "reason": "Role escalation attempted by Org Admin"
-
                 }
-
             )
-
             db.add(audit_entry)
-
             await db.commit()
 
-
-
             await EventBus.publish(
-
                 stream_name="access_events",
-
                 event_type="AccountCreationDenied",
-
                 payload={
-
                     "actor_user_id": str(actor_user.id),
-
                     "attempted_role": role,
-
                     "reason": "Role escalation policy restriction",
-
                     "result": "FORBIDDEN",
-
                 },
-
                 actor_id=str(actor_user.id)
-
             )
-
-
 
             raise HTTPException(
-
                 status_code=status.HTTP_403_FORBIDDEN,
-
                 detail="Organization Administrators cannot provision Super Admin or Organization Admin accounts."
-
             )
-
-
 
         target_org_id = actor_user.organization_id
 
+    # If organization_id is missing, attempt resolution by organization name if supplied
+    requested_org_name = (meta_data or {}).get("organization") or (meta_data or {}).get("organization_name")
+    if not target_org_id and requested_org_name:
+        org_lookup = await db.execute(
+            select(Organization).where(
+                or_(
+                    func.lower(Organization.name) == requested_org_name.strip().lower()
+                )
+            )
+        )
+        found_org = org_lookup.scalars().first()
+        if found_org:
+            target_org_id = found_org.id
 
+    # If Super Admin provisions a non-Super-Admin role without passing organization_id, bind to primary org if available
+    if actor_user.role in ("SUPER_ADMIN", "ADMIN") and not target_org_id and role_upper not in ("SUPER_ADMIN", "ADMIN", "REGULATOR"):
+        first_org_res = await db.execute(select(Organization).where(Organization.is_deleted == False).order_by(Organization.created_at.asc()).limit(1))
+        first_org = first_org_res.scalars().first()
+        if first_org:
+            target_org_id = first_org.id
 
     # Non-Super Admin / Non-Regulator roles require an organization_id
-
-    if role_upper not in ("SUPER_ADMIN", "REGULATOR") and not target_org_id:
-
+    if role_upper not in ("SUPER_ADMIN", "ADMIN", "REGULATOR") and not target_org_id:
         raise HTTPException(
-
             status_code=status.HTTP_400_BAD_REQUEST,
-
             detail=f"Target organization_id is required for role '{role_upper}'."
-
         )
 
-
-
     # 4. Resolve Organization Name
-
     org_name = None
-
     if target_org_id:
-
         org_res = await db.execute(select(Organization).where(Organization.id == target_org_id))
-
         org = org_res.scalar_one_or_none()
-
         if not org:
-
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Target organization not found.")
-
         org_name = org.name
 
 

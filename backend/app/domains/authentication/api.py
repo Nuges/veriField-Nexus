@@ -192,28 +192,21 @@ async def create_user(
 
 
 
+    meta_dict = payload.meta_data or {}
+    if payload.organization and "organization" not in meta_dict:
+        meta_dict["organization"] = payload.organization
+
     res = await provision_user_account(
-
         db=db,
-
         actor_user=current_user,
-
         full_name=payload.full_name,
-
         email=payload.email or f"user_{uuid.uuid4().hex[:6]}@verifield.io",
-
         role=payload.role or "field_agent",
-
         organization_id=payload.organization_id or current_user.organization_id,
-
         phone=payload.phone,
-
         custom_password=payload.password,
-
-        meta_data=payload.meta_data,
-
+        meta_data=meta_dict,
     )
-
     return UserResponse.model_validate(res["user"])
 
 
