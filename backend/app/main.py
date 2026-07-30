@@ -477,350 +477,215 @@ async def lifespan(app: FastAPI):
 
 
                 # === Sector Engines & AI Memory Schema Synchronization ===
+                try:
+                    await session.execute(text('CREATE EXTENSION IF NOT EXISTS "pgcrypto"'))
+                    await session.execute(text('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"'))
+                    await session.commit()
+                except Exception as ext_err:
+                    logger.debug(f"PostgreSQL extension initialization notice: {ext_err}")
+                    await session.rollback()
 
-                await session.execute(text("""
-
+                tables_sql = [
+                    """
                     CREATE TABLE IF NOT EXISTS biochar_batches (
-
                         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-
                         project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-
                         batch_number VARCHAR(50) NOT NULL UNIQUE,
-
                         facility_name VARCHAR(100) NOT NULL,
-
                         kiln_id VARCHAR(50) NOT NULL,
-
                         feedstock_type VARCHAR(100) NOT NULL,
-
                         feedstock_weight_tonnes FLOAT NOT NULL,
-
                         moisture_content_pct FLOAT NOT NULL,
-
                         origin_location VARCHAR(255),
-
                         pyrolysis_temp_celsius FLOAT NOT NULL,
-
                         residence_time_minutes FLOAT NOT NULL,
-
                         kiln_operator_id UUID,
-
                         biochar_yield_tonnes FLOAT NOT NULL,
-
                         fixed_carbon_pct FLOAT NOT NULL DEFAULT 75.0,
-
                         ash_content_pct FLOAT NOT NULL DEFAULT 5.0,
-
                         molar_h_c_ratio FLOAT NOT NULL DEFAULT 0.4,
-
                         carbon_permanence_factor FLOAT NOT NULL DEFAULT 0.85,
-
                         net_co2e_removed_tonnes FLOAT NOT NULL,
-
                         lab_report_number VARCHAR(100),
-
                         lab_sample_id VARCHAR(100),
-
                         quality_grade VARCHAR(20) NOT NULL DEFAULT 'GRADE_A',
-
                         lab_document_url TEXT,
-
                         status VARCHAR(30) NOT NULL DEFAULT 'PRODUCED',
-
                         has_anomaly BOOLEAN DEFAULT FALSE,
-
                         anomaly_reason TEXT,
-
                         metadata_json JSONB DEFAULT '{}'::jsonb,
-
                         created_at TIMESTAMPTZ DEFAULT now(),
-
                         updated_at TIMESTAMPTZ DEFAULT now()
-
                     );
-
+                    """,
+                    """
                     CREATE TABLE IF NOT EXISTS biochar_inventories (
-
                         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-
                         batch_id UUID NOT NULL REFERENCES biochar_batches(id) ON DELETE CASCADE,
-
                         storage_location VARCHAR(200) NOT NULL,
-
                         current_stock_tonnes FLOAT NOT NULL,
-
                         application_soil_type VARCHAR(100),
-
                         application_date TIMESTAMPTZ,
-
                         created_at TIMESTAMPTZ DEFAULT now()
-
                     );
-
+                    """,
+                    """
                     CREATE TABLE IF NOT EXISTS ev_charging_stations (
-
                         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-
                         project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-
                         station_code VARCHAR(50) NOT NULL UNIQUE,
-
                         operator_name VARCHAR(100) NOT NULL,
-
                         location_name VARCHAR(200) NOT NULL,
-
                         latitude FLOAT NOT NULL,
-
                         longitude FLOAT NOT NULL,
-
                         charger_type VARCHAR(50) NOT NULL DEFAULT 'DC_FAST',
-
                         max_output_kw FLOAT NOT NULL DEFAULT 50.0,
-
                         grid_emission_factor_kg_kwh FLOAT NOT NULL DEFAULT 0.45,
-
                         renewable_source_pct FLOAT NOT NULL DEFAULT 0.0,
-
                         is_active BOOLEAN DEFAULT TRUE,
-
                         created_at TIMESTAMPTZ DEFAULT now()
-
                     );
-
+                    """,
+                    """
                     CREATE TABLE IF NOT EXISTS ev_charging_sessions (
-
                         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-
                         station_id UUID NOT NULL REFERENCES ev_charging_stations(id) ON DELETE CASCADE,
-
                         vehicle_vin VARCHAR(100) NOT NULL,
-
                         fleet_operator_id VARCHAR(100),
-
                         start_time TIMESTAMPTZ NOT NULL,
-
                         end_time TIMESTAMPTZ NOT NULL,
-
                         energy_consumed_kwh FLOAT NOT NULL,
-
                         distance_displaced_km FLOAT NOT NULL,
-
                         baseline_vehicle_type VARCHAR(50) NOT NULL DEFAULT 'ICE_DIESEL',
-
                         battery_state_of_health_pct FLOAT NOT NULL DEFAULT 98.0,
-
                         baseline_emission_factor_g_km FLOAT NOT NULL DEFAULT 220.0,
-
                         net_co2e_avoided_kg FLOAT NOT NULL,
-
                         has_anomaly BOOLEAN DEFAULT FALSE,
-
                         anomaly_reason TEXT,
-
                         metadata_json JSONB DEFAULT '{}'::jsonb,
-
                         created_at TIMESTAMPTZ DEFAULT now()
-
                     );
-
+                    """,
+                    """
                     CREATE TABLE IF NOT EXISTS household_beneficiaries (
-
                         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-
                         project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-
                         household_code VARCHAR(50) NOT NULL UNIQUE,
-
                         head_of_household VARCHAR(150) NOT NULL,
-
                         phone_number VARCHAR(30),
-
                         address VARCHAR(255) NOT NULL,
-
                         community_name VARCHAR(100) NOT NULL,
-
                         latitude FLOAT NOT NULL,
-
                         longitude FLOAT NOT NULL,
-
                         family_members_count INTEGER NOT NULL DEFAULT 5,
-
                         baseline_fuel_type VARCHAR(50) NOT NULL DEFAULT 'WOOD_FIRE',
-
                         baseline_fuel_kg_per_day FLOAT NOT NULL DEFAULT 7.5,
-
                         is_active BOOLEAN DEFAULT TRUE,
-
                         created_at TIMESTAMPTZ DEFAULT now()
-
                     );
-
+                    """,
+                    """
                     CREATE TABLE IF NOT EXISTS cookstove_devices (
-
                         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-
                         household_id UUID NOT NULL REFERENCES household_beneficiaries(id) ON DELETE CASCADE,
-
                         serial_number VARCHAR(100) NOT NULL UNIQUE,
-
                         stove_model VARCHAR(100) NOT NULL,
-
                         thermal_efficiency_pct FLOAT NOT NULL DEFAULT 45.0,
-
                         fuel_type_used VARCHAR(50) NOT NULL DEFAULT 'PELLETS',
-
                         installation_date TIMESTAMPTZ NOT NULL,
-
                         installer_agent_id UUID,
-
                         photo_evidence_url TEXT,
-
                         photo_hash VARCHAR(64),
-
                         status VARCHAR(30) NOT NULL DEFAULT 'DEPLOYED',
-
                         created_at TIMESTAMPTZ DEFAULT now()
-
                     );
-
+                    """,
+                    """
                     CREATE TABLE IF NOT EXISTS cookstove_usage_surveys (
-
                         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-
                         stove_id UUID NOT NULL REFERENCES cookstove_devices(id) ON DELETE CASCADE,
-
                         surveyor_user_id UUID NOT NULL,
-
                         survey_date TIMESTAMPTZ NOT NULL,
-
                         is_stove_in_use BOOLEAN NOT NULL DEFAULT TRUE,
-
                         reported_daily_usage_hours FLOAT NOT NULL DEFAULT 3.5,
-
                         fuel_consumed_kg_per_day FLOAT NOT NULL DEFAULT 2.1,
-
                         thermal_tampering_detected BOOLEAN DEFAULT FALSE,
-
                         is_primary_cooking_method BOOLEAN DEFAULT TRUE,
-
                         calculated_co2e_reduction_tonnes FLOAT NOT NULL,
-
                         has_fraud_flag BOOLEAN DEFAULT FALSE,
-
                         fraud_reason TEXT,
-
                         created_at TIMESTAMPTZ DEFAULT now()
-
                     );
-
+                    """,
+                    """
                     CREATE TABLE IF NOT EXISTS solar_array_assets (
-
                         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-
                         project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-
                         site_code VARCHAR(50) NOT NULL UNIQUE,
-
                         site_name VARCHAR(100) NOT NULL,
-
                         latitude FLOAT NOT NULL,
-
                         longitude FLOAT NOT NULL,
-
                         capacity_kwp FLOAT NOT NULL DEFAULT 100.0,
-
                         battery_capacity_kwh FLOAT NOT NULL DEFAULT 200.0,
-
                         diesel_generator_kw FLOAT NOT NULL DEFAULT 150.0,
-
                         inverter_brand VARCHAR(50) DEFAULT 'SMA',
-
                         meter_serial_number VARCHAR(100),
-
                         baseline_diesel_ef_kg_kwh FLOAT NOT NULL DEFAULT 0.744,
-
                         annual_degradation_pct FLOAT NOT NULL DEFAULT 0.5,
-
                         status VARCHAR(30) DEFAULT 'OPERATIONAL',
-
                         created_at TIMESTAMPTZ DEFAULT now()
-
                     );
-
+                    """,
+                    """
                     CREATE TABLE IF NOT EXISTS energy_telemetry_logs (
-
                         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-
                         solar_asset_id UUID NOT NULL REFERENCES solar_array_assets(id) ON DELETE CASCADE,
-
                         timestamp TIMESTAMPTZ NOT NULL DEFAULT now(),
-
                         solar_generation_kwh FLOAT NOT NULL DEFAULT 0.0,
-
                         battery_discharge_kwh FLOAT NOT NULL DEFAULT 0.0,
-
                         diesel_generation_kwh FLOAT NOT NULL DEFAULT 0.0,
-
                         diesel_fuel_consumed_liters FLOAT NOT NULL DEFAULT 0.0,
-
                         grid_displaced_kwh FLOAT NOT NULL DEFAULT 0.0,
-
                         net_co2e_avoided_tonnes FLOAT NOT NULL DEFAULT 0.0,
-
                         has_anomaly BOOLEAN DEFAULT FALSE,
-
                         anomaly_reason TEXT,
-
                         created_at TIMESTAMPTZ DEFAULT now()
-
                     );
-
+                    """,
+                    """
                     CREATE TABLE IF NOT EXISTS ai_decision_memory (
-
                         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-
                         user_id VARCHAR(100),
-
                         project_id VARCHAR(100),
-
                         recommendation_type VARCHAR(100) NOT NULL,
-
                         recommendation_payload JSONB DEFAULT '{}'::jsonb,
-
                         user_action VARCHAR(50) NOT NULL,
-
                         impact_metrics JSONB DEFAULT '{}'::jsonb,
-
                         created_at TIMESTAMPTZ DEFAULT now()
-
                     );
-
+                    """,
+                    """
                     CREATE TABLE IF NOT EXISTS document_chunks (
-
                         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-
                         document_id VARCHAR(100) NOT NULL,
-
                         project_id VARCHAR(100),
-
                         title VARCHAR(255) NOT NULL,
-
                         document_type VARCHAR(50) NOT NULL,
-
                         chunk_index INTEGER NOT NULL,
-
                         content TEXT NOT NULL,
-
                         chunk_hash VARCHAR(64) UNIQUE NOT NULL,
-
                         created_at TIMESTAMPTZ DEFAULT now()
-
                     );
+                    """
+                ]
 
-                """))
-
-                await session.commit()
+                for stmt in tables_sql:
+                    try:
+                        await session.execute(text(stmt))
+                        await session.commit()
+                    except Exception as tbl_err:
+                        logger.warning(f"Table creation notice: {tbl_err}")
+                        await session.rollback()
 
                 logger.info("Sector Engines and AI Memory schemas synchronized successfully!")
 
