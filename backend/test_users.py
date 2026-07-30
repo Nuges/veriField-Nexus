@@ -1,15 +1,12 @@
 import asyncio
-from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy import text
-
-DATABASE_URL = "postgresql+asyncpg://postgres.rxlfxrbyhagyofzfwzoa:TaMpn243vupkPUWL@34.241.16.247:5432/postgres"
+from app.db.session import async_session_factory
 
 async def main():
-    engine = create_async_engine(DATABASE_URL)
-    async with engine.connect() as conn:
-        res = await conn.execute(text("SELECT email FROM users LIMIT 5;"))
-        rows = res.fetchall()
-        for r in rows:
-            print(f"User: {r[0]}")
+    async with async_session_factory() as db:
+        res = await db.execute(text("SELECT email, licensed_sectors, licensed_methodologies FROM users WHERE role='ORG_ADMIN'"))
+        for row in res.fetchall():
+            print(row)
 
-asyncio.run(main())
+if __name__ == "__main__":
+    asyncio.run(main())

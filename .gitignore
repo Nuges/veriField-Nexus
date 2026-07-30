@@ -1,46 +1,113 @@
 # Environments
+
 .env
+
 .env.*
+
 !.env.example
+
 venv/
+
 env/
+
 __pycache__/
+
 *.pyc
 
+
+
 # Node
+
 node_modules/
+
 .next/
+
 out/
+
 build/
 
+
+
 # Flutter
+
 .dart_tool/
+
 .flutter-plugins
+
 .flutter-plugins-dependencies
+
 .packages
+
 .pub-cache/
+
 .pub/
+
 /build/
 
+
+
 # IDEs
+
 .idea/
+
 .vscode/
+
 *.swp
+
 *.swo
+
 *.iml
+
 .DS_Store
 
+
+
 # SDK output
+
 dist/
+
 sdk/dist/
+
 target/
 
+
+
 # Local logs
+
 *.log
+
 backend/uvicorn.log
+
 .vercel
+
 .env*.local
 
-# Ignored scratch and cache
+
+
+# Ignored scratch, cache, logs, and local databases
+
 scratch/
+
 .cache/
+
+*.db
+
+*.sqlite
+
+*.sqlite3
+
+coverage/
+
+htmlcov/
+
+*.apk
+
+backend.log
+
+dashboard.log
+
+worker.log
+
+pytest_cov.log
+
+coverage.xml

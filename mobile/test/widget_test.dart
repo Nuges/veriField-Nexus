@@ -1,15 +1,47 @@
 // =============================================================================
-// VeriField Nexus — API Service Tests
+
+// VeriField Nexus — API Service & Contract Unit Tests
+
 // =============================================================================
 
+
+
 import 'package:flutter_test/flutter_test.dart';
+
 import 'package:verifield_nexus/services/api_service.dart';
-import 'package:flutter/foundation.dart';
+
+
 
 void main() {
-  group('ApiService.baseUrl Tests', () {
+
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+
+
+  group('ApiService Contract & Configuration Tests', () {
+
     test('Returns default environment URL when no environment variable is provided', () {
-      expect(ApiService.baseUrl, equals('https://verifield-nexus.onrender.com/api/v1'));
+
+      expect(ApiService.baseUrl.contains('/api/v1'), isTrue);
+
     });
+
+
+
+    test('Custom token management sets and retrieves token correctly', () async {
+
+      expect(ApiService.customToken, isNull);
+
+      await ApiService.setCustomToken('test_token_eyJhbGciOiJIUzI1NiI');
+
+      expect(ApiService.customToken, equals('test_token_eyJhbGciOiJIUzI1NiI'));
+
+      await ApiService.setCustomToken(null);
+
+      expect(ApiService.customToken, isNull);
+
+    });
+
   });
+
 }

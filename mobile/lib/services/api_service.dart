@@ -1,250 +1,593 @@
 // =============================================================================
+
 // VeriField Nexus — API Service
+
 // =============================================================================
+
 // HTTP client wrapper for the FastAPI backend.
+
 // Handles token attachment, error handling, and request formatting.
+
 // =============================================================================
+
+
 
 import 'dart:convert';
+
 import 'package:http/http.dart' as http;
+
 import 'package:flutter/foundation.dart';
+
 import 'package:image_picker/image_picker.dart';
+
 import 'package:shared_preferences/shared_preferences.dart';
+
 import '../core/config/supabase_config.dart';
 
+
+
 /// Centralized API client for communicating with the FastAPI backend.
+
 class ApiService {
-  static const String apiBaseUrl = String.fromEnvironment(
-    'API_BASE_URL',
-    defaultValue: 'http://127.0.0.1:8000',
-  );
+
+  static String _customBaseUrl = 'http://127.0.0.1:8000';
+
+
+
+  static String get apiBaseUrl {
+
+    const envUrl = String.fromEnvironment('API_BASE_URL', defaultValue: '');
+
+    if (envUrl.isNotEmpty) return envUrl;
+
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+
+      return 'http://10.0.2.2:8000';
+
+    }
+
+    return _customBaseUrl;
+
+  }
+
+
+
+  static void setCustomServerUrl(String url) {
+
+    var cleaned = url.trim().replaceAll(RegExp(r'/+$'), '');
+
+    if (!cleaned.startsWith('http://') && !cleaned.startsWith('https://')) {
+
+      cleaned = 'http://$cleaned';
+
+    }
+
+    _customBaseUrl = cleaned;
+
+    debugPrint('[ApiService] Custom Server URL updated: $_customBaseUrl');
+
+  }
+
+
 
   static String get baseUrl {
+
     debugPrint('[ApiService] API Base URL requested: $apiBaseUrl/api/v1');
+
     return '$apiBaseUrl/api/v1';
+
   }
+
+
 
   static String? _customToken;
 
+
+
   static String? get customToken => _customToken;
 
+
+
   static Future<void> init() async {
+
     try {
+
       final prefs = await SharedPreferences.getInstance();
+
       _customToken = prefs.getString('auth_token');
+
       debugPrint('[ApiService] Initialized: customToken loaded: ${_customToken != null ? "exists" : "null"}');
+
     } catch (e) {
+
       debugPrint('[ApiService] Failed to initialize persistent customToken: $e');
+
     }
+
   }
+
+
 
   static Future<void> setCustomToken(String? token) async {
+
     _customToken = token;
+
     try {
+
       final prefs = await SharedPreferences.getInstance();
+
       if (token == null) {
+
         await prefs.remove('auth_token');
+
         debugPrint('[ApiService] customToken cleared from SharedPreferences');
+
       } else {
+
         await prefs.setString('auth_token', token);
+
         debugPrint('[ApiService] customToken saved to SharedPreferences');
+
       }
+
     } catch (e) {
+
       debugPrint('[ApiService] Failed to save/clear customToken: $e');
+
     }
+
   }
+
+
 
   /// Log in with email and password via FastAPI backend.
+
   static Future<Map<String, dynamic>> login(String email, String password) async {
+
     final url = '$baseUrl/auth/login';
+
     debugPrint('[ApiService] Attempting backend login at: $url for email: $email');
-    
+
+
+
     final response = await http.post(
+
       Uri.parse(url),
+
       headers: {
+
         'Content-Type': 'application/json',
+
       },
+
       body: jsonEncode({
+
         'email': email,
+
         'password': password,
+
       }),
+
     ).timeout(const Duration(seconds: 45));
-    
+
+
+
     debugPrint('[ApiService] Backend login status code: ${response.statusCode}');
+
     return _handleResponse(response);
+
   }
+
+
+
+  /// Sign up with email and password via FastAPI backend.
+
+  static Future<Map<String, dynamic>> signup(String email, String password, String fullName) async {
+
+    final url = '$baseUrl/auth/signup';
+
+    debugPrint('[ApiService] Attempting backend signup at: $url for email: $email');
+
+
+
+    final response = await http.post(
+
+      Uri.parse(url),
+
+      headers: {
+
+        'Content-Type': 'application/json',
+
+      },
+
+      body: jsonEncode({
+
+        'email': email,
+
+        'password': password,
+
+        'full_name': fullName,
+
+      }),
+
+    ).timeout(const Duration(seconds: 45));
+
+
+
+    debugPrint('[ApiService] Backend signup status code: ${response.statusCode}');
+
+    return _handleResponse(response);
+
+  }
+
+
 
   /// Check server connectivity by querying /health endpoint.
-  /// Retries up to 3 times with increasing timeouts to handle Render cold starts.
+
+  /// Auto-discovers and falls back across localhost, 127.0.0.1, 10.0.2.2, and custom URLs.
+
   static Future<bool> checkServerConnection() async {
-    final healthUrl = '$apiBaseUrl/health';
-    debugPrint('[ApiService] Verifying server reachability at: $healthUrl');
-    
-    // Retry up to 3 times with increasing timeouts (Render free tier can take 30-60s to wake)
-    final timeouts = [const Duration(seconds: 10), const Duration(seconds: 20), const Duration(seconds: 30)];
-    
-    for (int attempt = 0; attempt < timeouts.length; attempt++) {
-      try {
-        debugPrint('[ApiService] Connection attempt ${attempt + 1}/${timeouts.length} (timeout: ${timeouts[attempt].inSeconds}s)');
-        final response = await http.get(Uri.parse(healthUrl)).timeout(timeouts[attempt]);
-        debugPrint('[ApiService] Server responded with status code: ${response.statusCode}');
-        if (response.statusCode == 200) return true;
-      } catch (e) {
-        debugPrint('[ApiService] Connection attempt ${attempt + 1} failed: $e');
-        if (attempt < timeouts.length - 1) {
-          // Wait 2 seconds before retrying
-          await Future.delayed(const Duration(seconds: 2));
+
+    final candidateHosts = [
+
+      apiBaseUrl,
+
+      if (apiBaseUrl.contains('127.0.0.1')) apiBaseUrl.replaceAll('127.0.0.1', 'localhost'),
+
+      if (apiBaseUrl.contains('localhost')) apiBaseUrl.replaceAll('localhost', '127.0.0.1'),
+
+      'http://127.0.0.1:8000',
+
+      'http://localhost:8000',
+
+      'http://10.0.2.2:8000',
+
+    ];
+
+
+
+    for (final host in candidateHosts) {
+
+      final cleanHost = host.trim().replaceAll(RegExp(r'/+$'), '');
+
+      final candidateHealthUrls = [
+
+        '$cleanHost/health',
+
+        '$cleanHost/api/v1/health',
+
+      ];
+
+
+
+      for (final healthUrl in candidateHealthUrls) {
+
+        try {
+
+          debugPrint('[ApiService] Probing server reachability at: $healthUrl');
+
+          final response = await http.get(Uri.parse(healthUrl)).timeout(const Duration(seconds: 5));
+
+          debugPrint('[ApiService] Probed $healthUrl -> Status: ${response.statusCode}');
+
+          if (response.statusCode == 200) {
+
+            _customBaseUrl = cleanHost;
+
+            debugPrint('[ApiService] Connection established! Auto-locked to server URL: $_customBaseUrl');
+
+            return true;
+
+          }
+
+        } catch (e) {
+
+          debugPrint('[ApiService] Probe failed for $healthUrl: $e');
+
         }
+
       }
+
     }
-    
-    debugPrint('[ApiService] All connection attempts failed for: $healthUrl');
+
+
+
+    debugPrint('[ApiService] All candidate server connection probes failed.');
+
     return false;
+
   }
+
+
 
   /// Format an image URL to be fully qualified, handling relative paths and emulator localhost mapping.
+
   static String formatImageUrl(String? url) {
+
     if (url == null || url.isEmpty) return '';
+
     if (url.startsWith('/static/')) {
+
       final host = baseUrl.replaceAll('/api/v1', '');
+
       return '$host$url';
+
     }
+
     if (defaultTargetPlatform == TargetPlatform.android && !kIsWeb) {
+
       return url.replaceAll('localhost', '10.0.2.2').replaceAll('127.0.0.1', '10.0.2.2');
+
     }
+
     return url;
+
   }
+
+
 
   /// Get the current auth token from Supabase session.
+
   static String? get _authToken =>
+
       _customToken ?? SupabaseConfig.currentSession?.accessToken;
 
+
+
   /// Standard headers with auth token.
+
   static Map<String, String> get _headers {
+
     final token = _authToken;
+
     final headers = {
+
       'Content-Type': 'application/json',
+
       if (token != null) 'Authorization': 'Bearer $token',
+
     };
+
     debugPrint('[ApiService] Request Headers: $headers');
+
     return headers;
+
   }
 
+
+
   // =========================================================================
+
   // Generic HTTP Methods
+
   // =========================================================================
+
+
 
   /// Perform a GET request.
+
   static Future<Map<String, dynamic>> get(String endpoint) async {
+
     final response = await http.get(
+
       Uri.parse('$baseUrl$endpoint'),
+
       headers: _headers,
+
     );
+
     return _handleResponse(response);
+
   }
+
+
 
   /// Perform a POST request.
+
   static Future<Map<String, dynamic>> post(
+
     String endpoint, {
+
     Map<String, dynamic>? body,
+
   }) async {
+
     final response = await http.post(
+
       Uri.parse('$baseUrl$endpoint'),
+
       headers: _headers,
+
       body: body != null ? jsonEncode(body) : null,
+
     );
+
     return _handleResponse(response);
+
   }
+
+
 
   /// Perform a PUT request.
+
   static Future<Map<String, dynamic>> put(
+
     String endpoint, {
+
     Map<String, dynamic>? body,
+
   }) async {
+
     final response = await http.put(
+
       Uri.parse('$baseUrl$endpoint'),
+
       headers: _headers,
+
       body: body != null ? jsonEncode(body) : null,
+
     );
+
     return _handleResponse(response);
+
   }
+
+
 
   /// Perform a PATCH request.
+
   static Future<Map<String, dynamic>> patch(
+
     String endpoint, {
+
     Map<String, dynamic>? body,
+
   }) async {
+
     final response = await http.patch(
+
       Uri.parse('$baseUrl$endpoint'),
+
       headers: _headers,
+
       body: body != null ? jsonEncode(body) : null,
+
     );
+
     return _handleResponse(response);
+
   }
+
+
 
   /// Perform a DELETE request.
+
   static Future<Map<String, dynamic>> delete(String endpoint) async {
+
     final response = await http.delete(
+
       Uri.parse('$baseUrl$endpoint'),
+
       headers: _headers,
+
     );
+
     return _handleResponse(response);
+
   }
+
+
 
   /// Upload an avatar image file.
+
   static Future<Map<String, dynamic>> uploadAvatar(XFile file) async {
+
     final uri = Uri.parse('$baseUrl/auth/upload-avatar');
+
     final request = http.MultipartRequest('POST', uri);
+
     if (_authToken != null) {
+
       request.headers['Authorization'] = 'Bearer $_authToken';
+
     }
+
     if (kIsWeb) {
+
       final bytes = await file.readAsBytes();
+
       final multipartFile = http.MultipartFile.fromBytes(
+
         'file',
+
         bytes,
+
         filename: file.name,
+
       );
+
       request.files.add(multipartFile);
+
     } else {
+
       final multipartFile = await http.MultipartFile.fromPath('file', file.path);
+
       request.files.add(multipartFile);
+
     }
+
     final streamedResponse = await request.send();
+
     final response = await http.Response.fromStream(streamedResponse);
+
     return _handleResponse(response);
+
   }
 
+
+
   // =========================================================================
+
   // Response Handler
+
   // =========================================================================
+
+
 
   /// Parse API response and handle errors.
+
   static Map<String, dynamic> _handleResponse(http.Response response) {
+
     final body = jsonDecode(response.body);
 
+
+
     if (response.statusCode >= 200 && response.statusCode < 300) {
+
       if (body is Map<String, dynamic>) return body;
+
       if (body is List) return {'data': body};
+
       return {'data': body};
+
     }
 
+
+
     // Error response
+
     final detail = body is Map ? body['detail'] ?? 'Unknown error' : 'Unknown error';
+
     throw ApiException(
+
       statusCode: response.statusCode,
+
       message: detail.toString(),
+
     );
+
   }
+
 }
 
+
+
 /// Custom exception for API errors.
+
 class ApiException implements Exception {
+
   final int statusCode;
+
   final String message;
+
+
 
   ApiException({required this.statusCode, required this.message});
 
+
+
   @override
+
   String toString() => 'ApiException($statusCode): $message';
+
 }

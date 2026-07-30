@@ -1,0 +1,43 @@
+{
+
+  "providers": {
+
+    "openrouter": {
+
+      "baseUrl": "https://openrouter.ai/api/v1",
+
+      "apiKey": "YOUR_OPENROUTER_API_KEY",
+
+      "models": [
+
+        {
+
+          "id": "deepseek/deepseek-r1",
+
+          "name": "DeepSeek-R1 (Reasoning)",
+
+          "provider": "openrouter",
+
+          "description": "DeepSeek-R1 OpenRouter Reasoning Engine"
+
+        },
+
+        {
+
+          "id": "qwen/qwen-2.5-coder-32b-instruct",
+
+          "name": "Qwen 2.5 Coder (32B)",
+
+          "provider": "openrouter",
+
+          "description": "Qwen 2.5 Coding Model via OpenRouter"
+
+        }
+
+      ]
+
+    }
+
+  }
+
+}
