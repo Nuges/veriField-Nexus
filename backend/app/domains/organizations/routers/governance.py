@@ -190,17 +190,15 @@ async def provision_user_account(
 
     # Coerce organization_id to UUID if string is passed
     target_org_id: Optional[uuid.UUID] = None
-    if organization_id:
+    if organization_id and str(organization_id).strip() and str(organization_id).strip().lower() != "null":
         if isinstance(organization_id, uuid.UUID):
             target_org_id = organization_id
         else:
             try:
                 target_org_id = uuid.UUID(str(organization_id).strip())
             except ValueError:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Invalid organization_id UUID format: '{organization_id}'."
-                )
+                # If invalid UUID string, treat target_org_id as None and resolve below
+                target_org_id = None
 
     # 3. RBAC / ABAC Boundary Checks for Org Admins
     if actor_user.role in ("ORG_ADMIN", "admin"):
@@ -275,7 +273,7 @@ async def provision_user_account(
 
         target_org_id = actor_user.organization_id
 
-    # If organization_id is missing, attempt resolution by organization name if supplied
+    # Fallback Step 1: If organization_id is missing, attempt resolution by organization name if supplied
     requested_org_name = (meta_data or {}).get("organization") or (meta_data or {}).get("organization_name")
     if not target_org_id and requested_org_name:
         org_lookup = await db.execute(
@@ -289,12 +287,28 @@ async def provision_user_account(
         if found_org:
             target_org_id = found_org.id
 
-    # If Super Admin provisions a non-Super-Admin role without passing organization_id, bind to primary org if available
-    if actor_user.role in ("SUPER_ADMIN", "ADMIN") and not target_org_id and role_upper not in ("SUPER_ADMIN", "ADMIN", "REGULATOR"):
+    # Fallback Step 2: If target_org_id is missing, check actor_user's organization_id
+    if not target_org_id and actor_user.organization_id:
+        target_org_id = actor_user.organization_id
+
+    # Fallback Step 3: If target_org_id is missing, query primary active organization in system
+    if not target_org_id and role_upper not in ("SUPER_ADMIN", "ADMIN", "REGULATOR"):
         first_org_res = await db.execute(select(Organization).where(Organization.is_deleted == False).order_by(Organization.created_at.asc()).limit(1))
         first_org = first_org_res.scalars().first()
         if first_org:
             target_org_id = first_org.id
+
+    # Fallback Step 4: If no organization exists in system at all, auto-provision default Primary Tenant Organization
+    if not target_org_id and role_upper not in ("SUPER_ADMIN", "ADMIN", "REGULATOR"):
+        default_org = Organization(
+            id=uuid.uuid4(),
+            name="VeriField Primary Tenant",
+            org_type="DEVELOPER",
+            status="ACTIVE",
+        )
+        db.add(default_org)
+        await db.flush()
+        target_org_id = default_org.id
 
     # Non-Super Admin / Non-Regulator roles require an organization_id
     if role_upper not in ("SUPER_ADMIN", "ADMIN", "REGULATOR") and not target_org_id:
