@@ -409,13 +409,14 @@ export default function LoginPage() {
         <div className="text-center mb-8 flex flex-col items-center justify-center">
 
           <img
-
             src="/logo-black.png"
-
             alt="VeriField Nexus"
-
-            className="h-8 w-auto object-contain mb-2"
-
+            className="h-8 w-auto object-contain block dark:hidden mb-2"
+          />
+          <img
+            src="/logo-white.png"
+            alt="VeriField Nexus"
+            className="h-8 w-auto object-contain hidden dark:block mb-2"
           />
 
           <p className="text-[var(--color-text-secondary)] text-xs mt-1 font-semibold uppercase tracking-widest opacity-80">
