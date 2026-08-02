@@ -372,22 +372,22 @@ function SuperAdminDashboard() {
 
 
 
-    if (orgs.length === 0) {
-
+    // Always fetch fresh organizations for the wizard
+    try {
       const o = await fetchAllOrganizations();
-
       setOrgs(o);
-
+    } catch (e) {
+      console.error("Failed to load organizations for wizard:", e);
     }
 
     if (rolesList.length === 0) {
-
-      const r = await fetchAdminRoles();
-
-      setRolesList(r);
-
+      try {
+        const r = await fetchAdminRoles();
+        setRolesList(r);
+      } catch (e) {
+        console.error("Failed to load roles for wizard:", e);
+      }
     }
-
   };
 
 
@@ -522,9 +522,11 @@ function SuperAdminDashboard() {
 
       if (activeTab === "leads") {
 
-        const res = await fetchAccessRequests();
+        const [res, o] = await Promise.all([fetchAccessRequests(), fetchAllOrganizations()]);
 
         setRequests(res);
+
+        setOrgs(o);
 
       } else if (activeTab === "organizations") {
 
@@ -534,9 +536,11 @@ function SuperAdminDashboard() {
 
       } else if (activeTab === "users") {
 
-        const res = await fetchAllUsersGlobal();
+        const [res, o] = await Promise.all([fetchAllUsersGlobal(), fetchAllOrganizations()]);
 
         setUsers(res);
+
+        setOrgs(o);
 
       } else if (activeTab === "roles") {
 

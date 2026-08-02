@@ -2119,9 +2119,13 @@ export async function deleteAccessRequest(id: string) {
 
 
 export async function fetchAllOrganizations() {
-
-  return apiFetch<any[]>("/organizations");
-
+  try {
+    const result = await apiFetch<any[]>("/organizations");
+    return Array.isArray(result) ? result : [];
+  } catch (e) {
+    console.error("Failed to fetch organizations:", e);
+    return [];
+  }
 }
 
 
