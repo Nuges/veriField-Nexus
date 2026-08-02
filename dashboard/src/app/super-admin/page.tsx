@@ -4215,27 +4215,18 @@ function SuperAdminDashboard() {
                       </label>
 
                       <select
-
                         value={createForm.organizationId}
-
                         onChange={(e) => handleOrgChangeInWizard(e.target.value)}
-
                         className="w-full bg-[#090F10] border border-[#213233] focus:border-[#00B47A] rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none transition-colors"
-
                       >
-
                         <option value="">-- No Organization (System Platform) --</option>
-
-                        {orgs.map((o) => (
-
-                          <option key={o.id} value={o.id}>
-
-                            {o.name} ({o.status || "ACTIVE"}) — ID: {o.id.substring(0, 8)}...
-
-                          </option>
-
-                        ))}
-
+                        {orgs
+                          .filter((o) => !o.name.startsWith("Test ") && !o.name.startsWith("Hardening ") && !o.name.startsWith("Attack "))
+                          .map((o) => (
+                            <option key={o.id} value={o.id}>
+                              {o.name} ({o.status || "ACTIVE"})
+                            </option>
+                          ))}
                       </select>
 
                     </div>
