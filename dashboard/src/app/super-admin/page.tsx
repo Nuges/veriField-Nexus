@@ -376,6 +376,14 @@ function SuperAdminDashboard() {
     try {
       const o = await fetchAllOrganizations();
       setOrgs(o);
+      const valid = (o || []).filter((item: any) => !item.name.startsWith("Test ") && !item.name.startsWith("Hardening ") && !item.name.startsWith("Attack "));
+      if (valid.length > 0) {
+        setCreateForm(prev => ({ ...prev, organizationId: valid[0].id }));
+        try {
+          const projs = await fetchOrganizationProjects(valid[0].id);
+          setOrgProjects(projs || []);
+        } catch (e) {}
+      }
     } catch (e) {
       console.error("Failed to load organizations for wizard:", e);
     }
@@ -4219,7 +4227,11 @@ function SuperAdminDashboard() {
                         onChange={(e) => handleOrgChangeInWizard(e.target.value)}
                         className="w-full bg-[#090F10] border border-[#213233] focus:border-[#00B47A] rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none transition-colors"
                       >
-                        <option value="">-- No Organization (System Platform) --</option>
+                        {createForm.role === "SUPER_ADMIN" || createForm.role === "REGULATOR" ? (
+                          <option value="">-- System Platform Scope (No Organization) --</option>
+                        ) : (
+                          <option value="">-- Choose an Organization --</option>
+                        )}
                         {orgs
                           .filter((o) => !o.name.startsWith("Test ") && !o.name.startsWith("Hardening ") && !o.name.startsWith("Attack "))
                           .map((o) => (
@@ -4554,15 +4566,15 @@ function SuperAdminDashboard() {
                         }
 
                         if (createStep === 3) {
-
                           if (createForm.role !== "SUPER_ADMIN" && createForm.role !== "REGULATOR" && !createForm.organizationId) {
-
-                            setProvisionError("Organization selection is required for this role.");
-
-                            return;
-
+                            const valid = (orgs || []).filter((item: any) => !item.name.startsWith("Test ") && !item.name.startsWith("Hardening ") && !item.name.startsWith("Attack "));
+                            if (valid.length > 0) {
+                              handleOrgChangeInWizard(valid[0].id);
+                            } else {
+                              setProvisionError("Organization selection is required for this role. Please select or create an organization.");
+                              return;
+                            }
                           }
-
                         }
 
                         setProvisionError("");
