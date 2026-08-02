@@ -2208,6 +2208,8 @@ export async function createAdminUserAccount(payload: {
 
   project_memberships?: Array<{ project_id: string; role: string }>;
 
+  meta_data?: Record<string, any>;
+
 }): Promise<{
 
   user: any;

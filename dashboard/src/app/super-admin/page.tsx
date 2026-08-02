@@ -308,22 +308,26 @@ function SuperAdminDashboard() {
 
   const [createStep, setCreateStep] = useState<1 | 2 | 3 | 4 | 5>(1);
 
-  const [createForm, setCreateForm] = useState({
-
+  const [createForm, setCreateForm] = useState<{
+    fullName: string;
+    email: string;
+    phone: string;
+    jobTitle: string;
+    role: string;
+    organizationId: string;
+    password: string;
+    orgMode: "existing" | "new";
+    newOrgName: string;
+  }>({
     fullName: "",
-
     email: "",
-
     phone: "",
-
     jobTitle: "",
-
     role: "FIELD_AGENT",
-
     organizationId: "",
-
     password: "",
-
+    orgMode: "existing",
+    newOrgName: "",
   });
 
   const [createProjectMemberships, setCreateProjectMemberships] = useState<Array<{ project_id: string; role: string }>>([]);
@@ -347,21 +351,15 @@ function SuperAdminDashboard() {
     setCreateStep(1);
 
     setCreateForm({
-
       fullName: "",
-
       email: "",
-
       phone: "",
-
       jobTitle: "",
-
       role: "FIELD_AGENT",
-
       organizationId: "",
-
       password: "",
-
+      orgMode: "existing",
+      newOrgName: "",
     });
 
     setCreateProjectMemberships([]);
@@ -490,11 +488,13 @@ function SuperAdminDashboard() {
 
         role: createForm.role,
 
-        organization_id: createForm.organizationId || undefined,
+        organization_id: createForm.orgMode === "new" ? undefined : (createForm.organizationId || undefined),
 
         password: createForm.password || undefined,
 
         project_memberships: createProjectMemberships,
+
+        meta_data: createForm.orgMode === "new" && createForm.newOrgName.trim() ? { organization: createForm.newOrgName.trim(), organization_name: createForm.newOrgName.trim() } : undefined,
 
       });
 
@@ -4214,51 +4214,82 @@ function SuperAdminDashboard() {
 
 
 
-                    <div className="space-y-2">
-
-                      <label className="text-[10px] uppercase tracking-wider text-zinc-400 font-bold block">
-
-                        Select SaaS Tenant Organization {createForm.role !== "SUPER_ADMIN" && "*"}
-
-                      </label>
-
-                      <select
-                        value={createForm.organizationId}
-                        onChange={(e) => handleOrgChangeInWizard(e.target.value)}
-                        className="w-full bg-[#090F10] border border-[#213233] focus:border-[#00B47A] rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none transition-colors"
-                      >
-                        {createForm.role === "SUPER_ADMIN" || createForm.role === "REGULATOR" ? (
-                          <option value="">-- System Platform Scope (No Organization) --</option>
-                        ) : (
-                          <option value="">-- Choose an Organization --</option>
-                        )}
-                        {orgs
-                          .filter((o) => !o.name.startsWith("Test ") && !o.name.startsWith("Hardening ") && !o.name.startsWith("Attack "))
-                          .map((o) => (
-                            <option key={o.id} value={o.id}>
-                              {o.name} ({o.status || "ACTIVE"})
-                            </option>
-                          ))}
-                      </select>
-
-                    </div>
-
-
-
-                    {createForm.organizationId && (
-
-                      <div className="p-3 rounded-xl bg-[#090F10] border border-[#213233] space-y-1 text-xs">
-
-                        <span className="text-[10px] text-zinc-500 font-bold uppercase block">Selected Tenant</span>
-
-                        <p className="text-white font-bold">
-
-                          {orgs.find(o => o.id === createForm.organizationId)?.name}
-
-                        </p>
-
+                    {createForm.role !== "SUPER_ADMIN" && (
+                      <div className="flex items-center gap-2 p-1 bg-[#090F10] border border-[#213233] rounded-xl mb-3">
+                        <button
+                          type="button"
+                          onClick={() => setCreateForm(prev => ({ ...prev, orgMode: "existing" }))}
+                          className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold transition-colors ${
+                            createForm.orgMode === "existing"
+                              ? "bg-[#00B47A] text-black font-bold"
+                              : "text-zinc-400 hover:text-white"
+                          }`}
+                        >
+                          Select Existing Organization
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setCreateForm(prev => ({ ...prev, orgMode: "new" }))}
+                          className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold transition-colors ${
+                            createForm.orgMode === "new"
+                              ? "bg-[#00B47A] text-black font-bold"
+                              : "text-zinc-400 hover:text-white"
+                          }`}
+                        >
+                          + Create New Organization
+                        </button>
                       </div>
+                    )}
 
+                    {createForm.orgMode === "new" && createForm.role !== "SUPER_ADMIN" ? (
+                      <div className="space-y-2">
+                        <label className="text-[10px] uppercase tracking-wider text-zinc-400 font-bold block">
+                          New SaaS Tenant Organization Name *
+                        </label>
+                        <input
+                          type="text"
+                          value={createForm.newOrgName || ""}
+                          onChange={(e) => setCreateForm(prev => ({ ...prev, newOrgName: e.target.value }))}
+                          placeholder="e.g. Acme Climate Tech Ltd, Solaria West Africa"
+                          className="w-full bg-[#090F10] border border-[#213233] focus:border-[#00B47A] rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none transition-colors"
+                        />
+                        <p className="text-[10px] text-emerald-400 italic">
+                          A new SaaS Tenant Organization will be automatically created and bound to this {createForm.role} account upon submission.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <label className="text-[10px] uppercase tracking-wider text-zinc-400 font-bold block">
+                          Select SaaS Tenant Organization {createForm.role !== "SUPER_ADMIN" && "*"}
+                        </label>
+                        <select
+                          value={createForm.organizationId}
+                          onChange={(e) => handleOrgChangeInWizard(e.target.value)}
+                          className="w-full bg-[#090F10] border border-[#213233] focus:border-[#00B47A] rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none transition-colors"
+                        >
+                          {createForm.role === "SUPER_ADMIN" || createForm.role === "REGULATOR" ? (
+                            <option value="">-- System Platform Scope (No Organization) --</option>
+                          ) : (
+                            <option value="">-- Choose an Organization --</option>
+                          )}
+                          {orgs
+                            .filter((o) => !o.name.startsWith("Test ") && !o.name.startsWith("Hardening ") && !o.name.startsWith("Attack "))
+                            .map((o) => (
+                              <option key={o.id} value={o.id}>
+                                {o.name} ({o.status || "ACTIVE"})
+                              </option>
+                            ))}
+                        </select>
+                      </div>
+                    )}
+
+                    {createForm.orgMode === "existing" && createForm.organizationId && (
+                      <div className="p-3 rounded-xl bg-[#090F10] border border-[#213233] space-y-1 text-xs">
+                        <span className="text-[10px] text-zinc-500 font-bold uppercase block">Selected Tenant</span>
+                        <p className="text-white font-bold">
+                          {orgs.find(o => o.id === createForm.organizationId)?.name}
+                        </p>
+                      </div>
                     )}
 
                   </div>
@@ -4566,13 +4597,20 @@ function SuperAdminDashboard() {
                         }
 
                         if (createStep === 3) {
-                          if (createForm.role !== "SUPER_ADMIN" && createForm.role !== "REGULATOR" && !createForm.organizationId) {
-                            const valid = (orgs || []).filter((item: any) => !item.name.startsWith("Test ") && !item.name.startsWith("Hardening ") && !item.name.startsWith("Attack "));
-                            if (valid.length > 0) {
-                              handleOrgChangeInWizard(valid[0].id);
-                            } else {
-                              setProvisionError("Organization selection is required for this role. Please select or create an organization.");
-                              return;
+                          if (createForm.role !== "SUPER_ADMIN" && createForm.role !== "REGULATOR") {
+                            if (createForm.orgMode === "new") {
+                              if (!createForm.newOrgName || !createForm.newOrgName.trim()) {
+                                setProvisionError("Please enter a name for the new Organization.");
+                                return;
+                              }
+                            } else if (!createForm.organizationId) {
+                              const valid = (orgs || []).filter((item: any) => !item.name.startsWith("Test ") && !item.name.startsWith("Hardening ") && !item.name.startsWith("Attack "));
+                              if (valid.length > 0) {
+                                handleOrgChangeInWizard(valid[0].id);
+                              } else {
+                                setProvisionError("Please select an organization or click '+ Create New Organization'.");
+                                return;
+                              }
                             }
                           }
                         }

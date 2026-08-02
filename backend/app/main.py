@@ -702,29 +702,28 @@ async def lifespan(app: FastAPI):
                 await session.execute(text("""
 
                     CREATE TABLE IF NOT EXISTS organizations (
-
                         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-
                         name VARCHAR(255) NOT NULL UNIQUE,
-
                         created_by UUID NULL,
-
                         status VARCHAR(20) DEFAULT 'ACTIVE',
-
                         version INTEGER DEFAULT 1,
-
                         is_deleted BOOLEAN DEFAULT FALSE,
-
                         deleted_at TIMESTAMP WITH TIME ZONE,
-
                         meta_data JSONB DEFAULT '{}'::jsonb,
-
                         created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
-
                         updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
-
-                    )
-
+                    );
+                    CREATE TABLE IF NOT EXISTS security_audit_logs (
+                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                        actor_user_id UUID,
+                        target_user_id UUID,
+                        organization_id UUID,
+                        project_id UUID,
+                        action VARCHAR(100) NOT NULL,
+                        result VARCHAR(50) NOT NULL,
+                        metadata_json JSONB DEFAULT '{}'::jsonb,
+                        created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+                    );
                 """))
 
                 await session.execute(

@@ -273,19 +273,29 @@ async def provision_user_account(
 
         target_org_id = actor_user.organization_id
 
-    # Fallback Step 1: If organization_id is missing, attempt resolution by organization name if supplied
+    # Fallback Step 1: If organization_id is missing, attempt resolution by organization name if supplied (or create new)
     requested_org_name = (meta_data or {}).get("organization") or (meta_data or {}).get("organization_name")
-    if not target_org_id and requested_org_name:
+    if not target_org_id and requested_org_name and str(requested_org_name).strip():
+        clean_name = str(requested_org_name).strip()
         org_lookup = await db.execute(
             select(Organization).where(
-                or_(
-                    func.lower(Organization.name) == requested_org_name.strip().lower()
-                )
+                func.lower(Organization.name) == clean_name.lower()
             )
         )
         found_org = org_lookup.scalars().first()
         if found_org:
             target_org_id = found_org.id
+        else:
+            # Auto-create new organization when provisioning Admin with new org name
+            new_org = Organization(
+                id=uuid.uuid4(),
+                name=clean_name,
+                org_type="DEVELOPER",
+                status="ACTIVE",
+            )
+            db.add(new_org)
+            await db.flush()
+            target_org_id = new_org.id
 
     # Fallback Step 2: If target_org_id is missing, check actor_user's organization_id
     if not target_org_id and actor_user.organization_id:
