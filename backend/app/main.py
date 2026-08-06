@@ -700,7 +700,6 @@ async def lifespan(app: FastAPI):
                 logger.info("Syncing SaaS multi-tenancy schema updates...")
 
                 await session.execute(text("""
-
                     CREATE TABLE IF NOT EXISTS organizations (
                         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                         name VARCHAR(255) NOT NULL UNIQUE,
@@ -712,7 +711,10 @@ async def lifespan(app: FastAPI):
                         meta_data JSONB DEFAULT '{}'::jsonb,
                         created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
                         updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
-                    );
+                    )
+                """))
+
+                await session.execute(text("""
                     CREATE TABLE IF NOT EXISTS security_audit_logs (
                         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                         actor_user_id UUID,
@@ -723,7 +725,7 @@ async def lifespan(app: FastAPI):
                         result VARCHAR(50) NOT NULL,
                         metadata_json JSONB DEFAULT '{}'::jsonb,
                         created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
-                    );
+                    )
                 """))
 
                 await session.execute(
