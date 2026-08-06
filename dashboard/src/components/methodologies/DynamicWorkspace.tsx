@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { CheckCircle, AlertCircle, FileText, Upload, ChevronRight, Activity, MapPin, Calculator, ShieldCheck } from "lucide-react";
+import { apiFetch } from "@/lib/api";
 
 export default function DynamicWorkspace({ methodologyId }: { methodologyId: string }) {
   const [schema, setSchema] = useState<any>(null);
@@ -14,9 +15,7 @@ export default function DynamicWorkspace({ methodologyId }: { methodologyId: str
   useEffect(() => {
     async function fetchSchema() {
       try {
-        const response = await fetch(`http://localhost:8000/api/v1/methodologies/${methodologyId}/workspace-schema`);
-        if (!response.ok) throw new Error("Failed to load schema");
-        const data = await response.json();
+        const data = await apiFetch(`/methodologies/${methodologyId}/workspace-schema`);
         setSchema(data);
       } catch (err) {
         console.error(err);
@@ -52,12 +51,10 @@ export default function DynamicWorkspace({ methodologyId }: { methodologyId: str
   const executeCalculation = async () => {
     setCalcLoading(true);
     try {
-      const response = await fetch(`http://localhost:8000/api/v1/methodologies/${methodologyId}/calculate`, {
+      const result = await apiFetch(`/methodologies/${methodologyId}/calculate`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
       });
-      const result = await response.json();
       setCalculationResult(result);
     } catch (err) {
       console.error(err);

@@ -96,7 +96,7 @@ export default function AnalyticsPage() {
 
           <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">
 
-            Methodology: <span className="font-mono font-bold text-[var(--color-text-primary)]">{activeMethodology || "AMS-II.G"}</span> (Read-Only Certified)
+            Methodology: <span className="font-mono font-bold text-[var(--color-text-primary)]">{activeMethodology || (activeSector === "hybrid_energy" ? "ACM0002" : activeSector === "biochar" ? "VM0042" : activeSector === "ev_mobility" ? "AMS-III.C" : "AMS-II.G")}</span> (Read-Only Certified)
 
           </p>
 

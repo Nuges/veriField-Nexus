@@ -162,7 +162,7 @@ async def get_agent_performance(db: AsyncSession = Depends(get_db)):
 
             "score": round(r[3] or 0, 1),
 
-            "trend": "+0%", # Placeholder for trend as it requires complex temporal query
+            "trend": None,
 
             "submissions": r[2],
 

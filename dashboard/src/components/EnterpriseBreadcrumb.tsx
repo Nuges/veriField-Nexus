@@ -218,7 +218,7 @@ export default function EnterpriseBreadcrumb() {
 
         <div className="flex items-center gap-1 font-mono text-[10px] sm:text-[11px] px-1.5 sm:px-2 py-0.5 rounded bg-emerald-500/10 text-[#00B47A] border border-emerald-500/20 font-bold shrink-0">
 
-          <span>{activeMethodology || "AMS-II.G"}</span>
+          <span>{activeMethodology || (activeSector === "hybrid_energy" ? "ACM0002" : activeSector === "biochar" ? "VM0042" : activeSector === "ev_mobility" ? "AMS-III.C" : "AMS-II.G")}</span>
 
         </div>
 

@@ -11,6 +11,7 @@ import Link from "next/link";
 import { ShieldCheck, Mail, User, Building, Loader2, Sparkles, MapPin, Activity } from "lucide-react";
 
 import { createAccessRequest, fetchMethodologyFamilies } from "@/lib/api";
+import { ThemeLogo } from "@/components/common/ThemeLogo";
 
 
 
@@ -172,25 +173,7 @@ export default function SignupPage() {
 
         <div className="text-center mb-6 flex flex-col items-center justify-center">
 
-          <img
-
-            src="/logo-black.png"
-
-            alt="VeriField Nexus"
-
-            className="h-8 w-auto object-contain block dark:hidden mb-2"
-
-          />
-
-          <img
-
-            src="/logo-white.png"
-
-            alt="VeriField Nexus"
-
-            className="h-8 w-auto object-contain hidden dark:block mb-2"
-
-          />
+          <ThemeLogo className="h-8 w-auto object-contain mb-2" />
 
         </div>
 

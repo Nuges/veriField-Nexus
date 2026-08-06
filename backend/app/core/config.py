@@ -150,6 +150,12 @@ class Settings(BaseSettings):
 
     twilio_validate_signature: bool = True
 
+    # --- Resend / Email Configuration (Deferred pending production domain) ---
+    email_notifications_enabled: bool = False
+    resend_api_key: str = ""
+    resend_from_email: str = ""
+    resend_from_name: str = "VeriField Nexus"
+
 
 
     # --- Registry Configuration ---

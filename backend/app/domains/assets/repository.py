@@ -64,8 +64,9 @@ class AssetRepository:
 
 
 
+        from sqlalchemy import asc
+        stmt = stmt.order_by(asc(Asset.name))
         res = await self.db.execute(stmt)
-
         return list(res.scalars().all())
 
 

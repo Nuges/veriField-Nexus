@@ -69,6 +69,7 @@ The platform supports 4 canonical methodology families:
 - **Multi-Tenant Isolation**: Strict organization-level data scoping across all API endpoints and database queries.
 - **Authentication**: JWT-based session handling, optional Multi-Factor Authentication (MFA - TOTP/WebAuthn), and Enterprise Single Sign-On (SSO - SAML/OIDC).
 - **Audit Logging**: Immutable event logging for administrative actions, password resets, role modifications, and verification decisions.
+- **Email Notifications Status**: Transactional email notifications (user registration welcome, super-admin account approval, password setup links) are explicitly **DEFERRED** until a production-owned domain and Resend sender identity are configured. Authentication and user account provisioning operate seamlessly without requiring email delivery. Email service credentials must be configured strictly via environment variables (`EMAIL_NOTIFICATIONS_ENABLED=false`, `RESEND_API_KEY=`, `RESEND_FROM_EMAIL=`).
 
 ---
 

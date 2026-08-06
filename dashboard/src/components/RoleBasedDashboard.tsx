@@ -332,7 +332,7 @@ export default function RoleBasedDashboard({ dashboardData, sectorCode }: RoleBa
 
   // 4. VVB AUDITOR VIEW
 
-  if (role === "AUDITOR" || role === "VVB") {
+  if (role === "AUDITOR" || role === "VVB" || role === "VERIFIER") {
 
     return (
 

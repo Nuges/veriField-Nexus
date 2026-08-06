@@ -212,7 +212,13 @@ async def get_access_requests(
 
 
 
-        query += " ORDER BY created_at DESC"
+        query += """ ORDER BY 
+            CASE status 
+                WHEN 'PENDING' THEN 1 
+                WHEN 'APPROVED' THEN 2 
+                WHEN 'REJECTED' THEN 3 
+                ELSE 4 
+            END, created_at DESC"""
 
 
 
@@ -479,20 +485,43 @@ async def approve_access_request(
 
 
     if sector_id_str:
+        clean_sec = str(sector_id_str).strip().lower()
+        alias_code = None
+        if "hybrid" in clean_sec or "energy" in clean_sec or "solar" in clean_sec:
+            alias_code = "HYBRID_ENERGY"
+        elif "ev" in clean_sec or "mobility" in clean_sec or "electric" in clean_sec:
+            alias_code = "EV_MOBILITY"
+        elif "biochar" in clean_sec:
+            alias_code = "BIOCHAR"
+        elif "cook" in clean_sec or "stove" in clean_sec:
+            alias_code = "COOKSTOVES"
+        else:
+            alias_code = clean_sec.upper()
 
         res_sec = await db.execute(
-
-            text("SELECT id, code FROM methodology_families WHERE id = :val OR UPPER(code) = UPPER(:val)"),
-
-            {"val": sector_id_str}
-
+            text("""
+                SELECT id, code FROM methodology_families 
+                WHERE id = :val OR UPPER(code) = UPPER(:val) OR UPPER(code) = UPPER(:alias)
+            """),
+            {"val": sector_id_str, "alias": alias_code or sector_id_str}
         )
-
         sec_row = res_sec.fetchone()
-
         if sec_row:
+            code_val = str(sec_row[1]) if len(sec_row) > 1 else str(sec_row.code)
+            licensed_sectors.append(code_val)
+        elif alias_code:
+            licensed_sectors.append(alias_code)
 
-            licensed_sectors.append(sec_row.code)
+    if not licensed_sectors and use_case:
+        uc_clean = str(use_case).lower()
+        if "hybrid" in uc_clean or "energy" in uc_clean or "solar" in uc_clean:
+            licensed_sectors.append("HYBRID_ENERGY")
+        elif "ev" in uc_clean or "mobility" in uc_clean or "electric" in uc_clean:
+            licensed_sectors.append("EV_MOBILITY")
+        elif "biochar" in uc_clean:
+            licensed_sectors.append("BIOCHAR")
+        elif "cook" in uc_clean or "stove" in uc_clean:
+            licensed_sectors.append("COOKSTOVES")
 
 
 

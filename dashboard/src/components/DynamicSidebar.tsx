@@ -19,6 +19,7 @@
 
 
 import Link from "next/link";
+import { ThemeLogo } from "@/components/common/ThemeLogo";
 
 import { usePathname } from "next/navigation";
 
@@ -390,9 +391,20 @@ export default function DynamicSidebar() {
 
     }
 
+    // Admin-level roles get full navigation
+    if (userRole === "ADMIN" || userRole === "ORG_ADMIN" || userRole === "SUPER_ADMIN" || userRole === "PORTFOLIO_MANAGER" || userRole === "IOT_ENGINEER") {
+      return defaultNav;
+    }
 
-
-    return defaultNav;
+    // Restrictive default for business/unmapped roles
+    return [
+      { label: "Mission Control", icon: "LayoutDashboard", href: "/dashboard" },
+      { label: "Projects", icon: "Briefcase", href: "/dashboard/projects" },
+      { label: "Monitoring", icon: "Activity", href: "/dashboard/monitoring" },
+      { label: "Reports", icon: "FileText", href: "/dashboard/analytics" },
+      { label: "AI Assistant", icon: "Bot", href: "/dashboard/ai" },
+      { label: "Settings", icon: "Settings", href: "/dashboard/settings" },
+    ];
 
   };
 
@@ -436,15 +448,7 @@ export default function DynamicSidebar() {
 
             <div className="flex items-center gap-2">
 
-              <img
-
-                src={isDark ? "/logo-white.png" : "/logo-black.png"}
-
-                alt="VeriField Nexus"
-
-                className="h-6 w-auto object-contain"
-
-              />
+              <ThemeLogo className="h-6 w-auto object-contain" />
 
             </div>
 

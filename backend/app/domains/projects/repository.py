@@ -150,10 +150,11 @@ class ProjectRepository:
 
 
 
+        from sqlalchemy import asc, desc
+        stmt = stmt.order_by(asc(Project.name), desc(Project.created_at))
+
         # Count total
-
         count_res = await self.db.execute(count_stmt)
-
         total = count_res.scalar() or 0
 
 

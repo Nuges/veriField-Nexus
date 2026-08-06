@@ -368,30 +368,32 @@ async def get_current_user(
 
         if is_uuid_sub:
 
+            from sqlalchemy.orm import selectinload
             uuid_obj = _uuid.UUID(user_id) if isinstance(user_id, str) else user_id
-
-            result = await asyncio.wait_for(
-
-                db.execute(select(User).where(User.id == uuid_obj)),
-
-                timeout=20.0,
-
-            )
-
+            try:
+                result = await asyncio.wait_for(
+                    db.execute(select(User).options(selectinload(User.organization_rel)).where(User.id == uuid_obj)),
+                    timeout=20.0,
+                )
+            except Exception:
+                result = await asyncio.wait_for(
+                    db.execute(select(User).where(User.id == uuid_obj)),
+                    timeout=20.0,
+                )
         else:
-
+            from sqlalchemy.orm import selectinload
             # 'sub' is an email — look up by email directly (case-insensitive)
-
             clean_sub = user_id.lower().strip()
-
-            result = await asyncio.wait_for(
-
-                db.execute(select(User).where((User.email == clean_sub) | (User.email == user_id))),
-
-                timeout=20.0,
-
-            )
-
+            try:
+                result = await asyncio.wait_for(
+                    db.execute(select(User).options(selectinload(User.organization_rel)).where((User.email == clean_sub) | (User.email == user_id))),
+                    timeout=20.0,
+                )
+            except Exception:
+                result = await asyncio.wait_for(
+                    db.execute(select(User).where((User.email == clean_sub) | (User.email == user_id))),
+                    timeout=20.0,
+                )
         user = result.scalar_one_or_none()
 
 
@@ -540,7 +542,7 @@ async def get_current_user(
 
                 user_uuid = _uuid.uuid4()
 
-
+            now = datetime.now(timezone.utc)
 
             virtual_user = User(
 

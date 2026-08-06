@@ -25,6 +25,8 @@ import { ShieldCheck, Mail, Lock, Loader2, KeyRound, ArrowLeft } from "lucide-re
 import { loginAdmin, setAuthToken, changePassword, verifyMFALogin, useMFARecovery, getSSOProviders, initiateSSOLogin } from "@/lib/api";
 
 import { safeStorage } from "@/lib/storage";
+import { isDashboardRoleAllowed } from "@/lib/roles";
+import { ThemeLogo } from "@/components/common/ThemeLogo";
 
 
 
@@ -202,30 +204,8 @@ export default function LoginPage() {
 
 
 
-      const allowedRoles = [
-
-        "admin", "auditor", "SUPER_ADMIN", "ORG_ADMIN",
-
-        "JURISDICTION_ADMIN", "COMPLIANCE_ADMIN", "FIELD_AGENT",
-
-        "PORTFOLIO_MANAGER", "PROGRAMME_MANAGER", "PROJECT_MANAGER",
-
-        "EXECUTIVE", "INVESTOR", "CLIENT", "IOT_ENGINEER", "OPERATIONS_ENGINEER"
-
-      ];
-
-
-
-      // Normalize role string comparison
-
-      const userRoleStr = (result.user?.role || "").toUpperCase().replace(" ", "_");
-
-
-
-      if (!isMobileCapture && !allowedRoles.includes(userRoleStr) && !allowedRoles.includes(result.user?.role)) {
-
+      if (!isMobileCapture && !isDashboardRoleAllowed(result.user?.role)) {
         throw new Error("Access denied. This system is restricted to verification personnel only.");
-
       }
 
 
@@ -243,9 +223,13 @@ export default function LoginPage() {
       } else {
 
         setAuthToken(result.access_token);
-
         safeStorage.setItem("vf_token", result.access_token);
-
+        if (result.user) {
+          safeStorage.setItem("vf_user", JSON.stringify(result.user));
+          if (result.user.id) {
+            safeStorage.removeItem(`vf_workspace_${result.user.id}`);
+          }
+        }
         window.location.href = targetRedirect;
 
       }
@@ -408,16 +392,7 @@ export default function LoginPage() {
 
         <div className="text-center mb-8 flex flex-col items-center justify-center">
 
-          <img
-            src="/logo-black.png"
-            alt="VeriField Nexus"
-            className="h-8 w-auto object-contain block dark:hidden mb-2"
-          />
-          <img
-            src="/logo-white.png"
-            alt="VeriField Nexus"
-            className="h-8 w-auto object-contain hidden dark:block mb-2"
-          />
+          <ThemeLogo className="h-8 w-auto object-contain mb-2" />
 
           <p className="text-[var(--color-text-secondary)] text-xs mt-1 font-semibold uppercase tracking-widest opacity-80">
 

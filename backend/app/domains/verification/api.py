@@ -94,14 +94,39 @@ async def submit_audit_report(
     return await service.submit_audit_report(data, actor_id=current_user.id, db=db)
 
 @router.get("/sensors/{asset_id}")
-async def get_sensor_readings(asset_id: str, db: AsyncSession = Depends(get_db)):
-    # Hardware/IoT telemetry should ideally be queried from TSDB or iiot domain.
-    # For now, return empty or query from hardware assets if available to avoid 404.
-    return []
+async def get_sensor_readings(
+    asset_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    from fastapi.responses import JSONResponse
+    return JSONResponse(
+        status_code=501,
+        content={"detail": "Sensor telemetry integration not yet implemented", "asset_id": asset_id},
+    )
 
 @router.get("/community/{asset_id}")
-async def get_asset_community_validations(asset_id: str, db: AsyncSession = Depends(get_db)):
+async def get_asset_community_validations(
+    asset_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.role != "SUPER_ADMIN" and current_user.organization_id:
+        from sqlalchemy import text
+        # Verify asset ownership if asset is a UUID
+        try:
+            from uuid import UUID
+            asset_uuid = UUID(asset_id)
+            chk_query = text("SELECT organization_id FROM assets WHERE id = :aid")
+            asset_res = await db.execute(chk_query, {"aid": asset_uuid})
+            asset_row = asset_res.mappings().first()
+            if asset_row and asset_row["organization_id"] != current_user.organization_id:
+                raise HTTPException(status_code=403, detail="Access to asset in another organization forbidden")
+        except ValueError:
+            pass
+
     from sqlalchemy import text
     query = text("SELECT id, asset_id, validator_id, response, timestamp FROM community_validations WHERE asset_id = :aid ORDER BY timestamp DESC")
     res = await db.execute(query, {"aid": asset_id})
     return [dict(r) for r in res.mappings().all()]
+

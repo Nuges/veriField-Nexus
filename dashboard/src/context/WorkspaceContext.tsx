@@ -33,9 +33,8 @@ import {
   buildMethodologyToFamilyMap,
 
   resolveUserWorkspace,
-
   validateCachedWorkspace,
-
+  canonicalSectorCode,
   classifyRecord,
 
   normalizeSector,
@@ -165,67 +164,49 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
 
   const [activeSector, setActiveSector] = useState<string>(() => {
-
     if (typeof window === "undefined") return "cookstoves";
-
     try {
-
       const params = new URLSearchParams(window.location.search);
-
       const urlWs = params.get("workspace");
-
-      if (urlWs) return urlWs;
-
-
+      if (urlWs) return canonicalSectorCode(urlWs);
 
       const cachedUserStr = safeStorage.getItem(STORAGE_KEY_USER);
-
       if (cachedUserStr) {
-
         const u = JSON.parse(cachedUserStr);
+        const licensed = Array.isArray(u.licensed_sectors) ? u.licensed_sectors : [];
+        if (licensed.length > 0) {
+          const firstSec = canonicalSectorCode(licensed[0]);
+          if (firstSec && firstSec !== "generic") return firstSec;
+        }
 
         const cachedWs = safeStorage.getItem(workspaceStorageKey(u.id));
-
-        if (cachedWs && cachedWs !== "generic") return cachedWs;
-
-
-
-        const licensed = Array.isArray(u.licensed_sectors) ? u.licensed_sectors : [];
-
-        if (licensed.length > 0) return licensed[0].toLowerCase().trim();
-
+        if (cachedWs && cachedWs !== "generic") return canonicalSectorCode(cachedWs);
       }
-
     } catch {}
-
     return "cookstoves";
-
   });
 
-
-
   const [activeMethodology, setActiveMethodology] = useState<string>(() => {
-
-    if (typeof window === "undefined") return "AMS-II.G";
-
     try {
+      if (typeof window !== "undefined") {
+        const params = new URLSearchParams(window.location.search);
+        const urlMeth = params.get("methodology");
+        if (urlMeth) return urlMeth;
 
-      const cachedUserStr = safeStorage.getItem(STORAGE_KEY_USER);
-
-      if (cachedUserStr) {
-
-        const u = JSON.parse(cachedUserStr);
-
-        const licensedMeths = Array.isArray(u.licensed_methodologies) ? u.licensed_methodologies : [];
-
-        if (licensedMeths.length > 0) return licensedMeths[0];
-
+        const cachedUserStr = safeStorage.getItem(STORAGE_KEY_USER);
+        if (cachedUserStr) {
+          const u = JSON.parse(cachedUserStr);
+          const licensedMeths = Array.isArray(u.licensed_methodologies) ? u.licensed_methodologies : [];
+          if (licensedMeths.length > 0) return licensedMeths[0];
+        }
       }
-
     } catch {}
 
+    const cleanSec = canonicalSectorCode(activeSector);
+    if (cleanSec === "hybrid_energy") return "ACM0002";
+    if (cleanSec === "biochar") return "VM0042";
+    if (cleanSec === "ev_mobility") return "AMS-III.C";
     return "AMS-II.G";
-
   });
 
 
@@ -389,15 +370,16 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
 
     if (registry[finalWorkspace]) {
-
       const methodologies = registry[finalWorkspace].methodologyCodes || [];
-
-      if (methodologies.length > 0) {
-
+      const userMeths = Array.isArray(u.licensed_methodologies) ? u.licensed_methodologies : [];
+      const matchingMeth = userMeths.find(m =>
+        methodologies.some((x: string) => x.toLowerCase() === m.toLowerCase())
+      );
+      if (matchingMeth) {
+        setActiveMethodology(matchingMeth);
+      } else if (methodologies.length > 0) {
         setActiveMethodology(methodologies[0]);
-
       }
-
     }
 
   }, []);
@@ -518,7 +500,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     } catch (err: any) {
 
-      const isAuthError = err?.message === "Not authenticated" || err?.message?.includes("Not authenticated") || err?.message?.includes("401");
+      const isAuthError = err?.status === 401 || err?.statusCode === 401 || err?.message === "Not authenticated";
 
       if (isAuthError) {
 

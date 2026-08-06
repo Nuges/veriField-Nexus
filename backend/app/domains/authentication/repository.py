@@ -29,20 +29,21 @@ class UserRepository:
 
 
     async def get_by_id(
-
         self, user_id: UUID, organization_id: Optional[UUID] = None
-
     ) -> Optional[User]:
-
-        stmt = select(User).where(User.id == user_id, User.is_deleted == False)
-
-        if organization_id:
-
-            stmt = stmt.where(User.organization_id == organization_id)
-
-        res = await self.db.execute(stmt)
-
-        return res.scalar_one_or_none()
+        from sqlalchemy.orm import selectinload
+        try:
+            stmt = select(User).options(selectinload(User.organization_rel)).where(User.id == user_id, User.is_deleted == False)
+            if organization_id:
+                stmt = stmt.where(User.organization_id == organization_id)
+            res = await self.db.execute(stmt)
+            return res.scalar_one_or_none()
+        except Exception:
+            stmt = select(User).where(User.id == user_id, User.is_deleted == False)
+            if organization_id:
+                stmt = stmt.where(User.organization_id == organization_id)
+            res = await self.db.execute(stmt)
+            return res.scalar_one_or_none()
 
 
 
@@ -107,46 +108,52 @@ class UserRepository:
 
 
     async def list_by_organization(
-
         self, organization_id: UUID, limit: int = 100, offset: int = 0
-
     ) -> List[User]:
-
-        stmt = (
-
-            select(User)
-
-            .where(User.organization_id == organization_id, User.is_deleted == False)
-
-            .limit(limit)
-
-            .offset(offset)
-
+        from sqlalchemy import case, asc, desc
+        role_order = case(
+            (User.role == 'SUPER_ADMIN', 1),
+            (User.role == 'ADMIN', 2),
+            (User.role == 'ORG_ADMIN', 3),
+            (User.role == 'PORTFOLIO_MANAGER', 4),
+            (User.role == 'PROJECT_MANAGER', 5),
+            (User.role == 'FIELD_AGENT', 6),
+            (User.role == 'AUDITOR', 7),
+            else_=8
         )
-
+        stmt = (
+            select(User)
+            .where(User.organization_id == organization_id, User.is_deleted == False)
+            .order_by(role_order, asc(User.full_name), desc(User.created_at))
+            .limit(limit)
+            .offset(offset)
+        )
         res = await self.db.execute(stmt)
-
         return list(res.scalars().all())
 
-
-
     async def list_all(
-
         self, limit: int = 100, offset: int = 0
-
     ) -> List[User]:
-
-        stmt = (
-
-            select(User)
-
-            .where(User.is_deleted == False)
-
-            .limit(limit)
-
-            .offset(offset)
-
+        from sqlalchemy import case, asc, desc
+        role_order = case(
+            (User.role == 'SUPER_ADMIN', 1),
+            (User.role == 'ADMIN', 2),
+            (User.role == 'ORG_ADMIN', 3),
+            (User.role == 'PORTFOLIO_MANAGER', 4),
+            (User.role == 'PROJECT_MANAGER', 5),
+            (User.role == 'FIELD_AGENT', 6),
+            (User.role == 'AUDITOR', 7),
+            else_=8
         )
+        stmt = (
+            select(User)
+            .where(User.is_deleted == False)
+            .order_by(role_order, asc(User.full_name), desc(User.created_at))
+            .limit(limit)
+            .offset(offset)
+        )
+        res = await self.db.execute(stmt)
+        return list(res.scalars().all())
 
         res = await self.db.execute(stmt)
 

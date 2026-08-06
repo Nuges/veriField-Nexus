@@ -29,9 +29,11 @@ class OrganizationRepository:
         return res.scalar_one_or_none()
 
     async def list_all(self, skip: int = 0, limit: int = 100) -> List[Organization]:
+        from sqlalchemy import asc
         stmt = (
             select(Organization)
             .where(Organization.is_deleted == False)
+            .order_by(asc(Organization.name))
             .offset(skip)
             .limit(limit)
         )

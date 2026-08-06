@@ -19,6 +19,7 @@
 
 
 import Sidebar from "@/components/DynamicSidebar";
+import { isDashboardRoleAllowed } from "@/lib/roles";
 
 import EnterpriseBreadcrumb from "@/components/EnterpriseBreadcrumb";
 
@@ -95,19 +96,12 @@ function DashboardLayoutContent({
 
 
   useEffect(() => {
-
     if (!user) return;
 
-
-
-    if (!["admin", "auditor", "SUPER_ADMIN", "ORG_ADMIN", "FIELD_AGENT", "PORTFOLIO_MANAGER", "IOT_ENGINEER"].includes(user.role)) {
-
+    if (!isDashboardRoleAllowed(user.role)) {
       localStorage.clear();
-
       router.push("/login?error=unauthorized");
-
     }
-
   }, [user, router]);
 
 

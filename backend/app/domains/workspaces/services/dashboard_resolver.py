@@ -83,62 +83,53 @@ class DashboardResolverService:
 
 
         if not family:
+            clean_w = w_str.lower().strip()
+            if "hybrid" in clean_w or "energy" in clean_w or "solar" in clean_w:
+                target_code = "HYBRID_ENERGY"
+            elif "ev" in clean_w or "mobility" in clean_w or "electric" in clean_w:
+                target_code = "EV_MOBILITY"
+            elif "biochar" in clean_w:
+                target_code = "BIOCHAR"
+            elif "cook" in clean_w or "stove" in clean_w:
+                target_code = "COOKSTOVES"
+            else:
+                target_code = clean_w.upper()
 
             family_res = await self.db.execute(
-
-                select(MethodologyFamily).where(func.lower(MethodologyFamily.code) == w_str.lower())
-
+                select(MethodologyFamily).where(
+                    (func.upper(MethodologyFamily.code) == target_code) |
+                    (func.lower(MethodologyFamily.code) == clean_w)
+                )
             )
-
-            family = family_res.scalar_one_or_none()
-
-
+            family = family_res.scalars().first()
 
         methodology = None
-
         m_str = str(methodology_id).strip()
-
         try:
-
             m_uuid = UUID(m_str)
-
             meth_res = await self.db.execute(select(Methodology).where(Methodology.id == m_uuid))
-
             methodology = meth_res.scalar_one_or_none()
-
         except ValueError:
-
             pass
 
-
-
-        if not methodology:
-
+        if not methodology and m_str:
+            clean_m = m_str.upper().strip()
             meth_res = await self.db.execute(
-
-                select(Methodology).where(func.lower(Methodology.code) == m_str.lower())
-
+                select(Methodology).where(
+                    (func.upper(Methodology.code) == clean_m) |
+                    (func.lower(Methodology.code) == m_str.lower())
+                )
             )
-
-            methodology = meth_res.scalar_one_or_none()
-
-
-
-        if not methodology and family:
-
-            meth_res = await self.db.execute(
-
-                select(Methodology).where(Methodology.family_id == family.id)
-
-            )
-
             methodology = meth_res.scalars().first()
 
+        if methodology and family and methodology.family_id and family.id and methodology.family_id != family.id:
+            methodology = None
 
-
-        if not family or not methodology:
-
-            raise ValueError(f"Workspace or Methodology not found (workspace_id={workspace_id}, methodology_id={methodology_id})")
+        if not methodology and family:
+            meth_res = await self.db.execute(
+                select(Methodology).where(Methodology.family_id == family.id)
+            )
+            methodology = meth_res.scalars().first()
 
 
 
@@ -183,21 +174,17 @@ class DashboardResolverService:
         try:
 
             # Query all assets for organization
-
             asset_stmt = select(Asset)
-
+            if organization_id:
+                asset_stmt = asset_stmt.where(Asset.organization_id == organization_id)
             asset_res = await self.db.execute(asset_stmt)
-
             all_assets = asset_res.scalars().all()
 
-
-
             # Query all activities for organization
-
             act_stmt = select(Activity)
-
+            if organization_id:
+                act_stmt = act_stmt.where(Activity.organization_id == organization_id)
             act_res = await self.db.execute(act_stmt)
-
             all_activities = act_res.scalars().all()
 
 
@@ -596,28 +583,39 @@ class DashboardResolverService:
 
 
 
+        # Resolve dynamic fallbacks based on code_upper
+        if "HYBRID" in code_upper or "ENERGY" in code_upper:
+            default_code = "HYBRID_ENERGY"
+            default_name = "Hybrid Energy & Mini-grids"
+            default_m_code = "ACM0002"
+            default_m_name = "Grid-connected Electricity Generation from Renewable Sources"
+        elif "BIOCHAR" in code_upper:
+            default_code = "BIOCHAR"
+            default_name = "Biochar Carbon Removal"
+            default_m_code = "VM0042"
+            default_m_name = "Methodology for Biochar Carbon Removal"
+        elif "EV" in code_upper or "MOBILITY" in code_upper:
+            default_code = "EV_MOBILITY"
+            default_name = "EV Mobility"
+            default_m_code = "AMS-III.C"
+            default_m_name = "Emission Reductions by Electric and Hybrid Vehicles"
+        else:
+            default_code = "COOKSTOVES"
+            default_name = "Clean Cookstoves"
+            default_m_code = "AMS-II.G"
+            default_m_name = "Energy Efficiency in Thermal Applications"
+
         return {
-
             "workspace": {
-
-                "id": str(family.id) if family else "cookstoves",
-
-                "code": family.code if family else code_upper,
-
-                "name": family.name if family else "Clean Cookstoves",
-
-                "badge": f"{(family.name if family else code_upper).upper()} ENGINE"
-
+                "id": str(family.id) if family else default_code.lower(),
+                "code": family.code if family else default_code,
+                "name": family.name if family else default_name,
+                "badge": f"{(family.name if family else default_name).upper()} ENGINE"
             },
-
             "methodology": {
-
-                "id": str(methodology.id) if methodology else "ams_ii_g",
-
-                "code": methodology.code if methodology else "AMS-II.G",
-
-                "name": methodology.name if methodology else "Energy Efficiency in Thermal Applications"
-
+                "id": str(methodology.id) if methodology else default_m_code.lower().replace("-", "_").replace(".", "_"),
+                "code": methodology.code if methodology else default_m_code,
+                "name": methodology.name if methodology else default_m_name
             },
 
             "project": {

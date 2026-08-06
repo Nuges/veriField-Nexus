@@ -11,7 +11,7 @@
 import React, { useState, useEffect } from "react";
 
 import { useWorkspace } from "@/context/WorkspaceContext";
-
+import { canonicalSectorCode } from "@/lib/moduleRegistry";
 import { fetchDashboardPayload } from "@/lib/api";
 
 import DashboardHeader from "./DashboardHeader";
@@ -224,11 +224,11 @@ export default function EnterpriseDashboard() {
 
 
 
-  const sectorCode = workspace?.code || activeSector || "COOKSTOVES";
+  const sectorCode = canonicalSectorCode(workspace?.code || activeSector) || "cookstoves";
 
-  const badgeName = workspace?.badge || `${sectorCode.replace("_", " ")} ENGINE`;
+  const badgeName = workspace?.badge || `${sectorCode.toUpperCase().replace("_", " ")} ENGINE`;
 
-  const titleName = workspace?.name || `${sectorCode.replace("_", " ")} Sector`;
+  const titleName = workspace?.name || `${sectorCode.toUpperCase().replace("_", " ")} Sector`;
 
 
 

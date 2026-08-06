@@ -466,7 +466,9 @@ export async function apiFetch<T>(
 
     }
 
-    return interceptors.error(new Error(errorMessage));
+    const apiError: any = new Error(errorMessage);
+    apiError.status = response.status;
+    return interceptors.error(apiError);
 
   }
 
@@ -536,29 +538,8 @@ export async function loginAdmin(email: string, password: string) {
 
     });
 
-    // Fallback to direct local backend port 8000 if Next.js proxy returns server error
 
-    if (!response.ok && response.status >= 500 && !API_V1.startsWith("http://localhost:8000")) {
 
-      try {
-
-        const directRes = await fetch("http://localhost:8000/api/v1/auth/login", {
-
-          method: "POST",
-
-          headers: { "Content-Type": "application/json" },
-
-          body: JSON.stringify({ email, password }),
-
-          cache: "no-store",
-
-        });
-
-        if (directRes.ok) response = directRes;
-
-      } catch (_) {}
-
-    }
 
     clearTimeout(timeoutId);
 

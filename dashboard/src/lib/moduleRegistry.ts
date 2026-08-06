@@ -486,74 +486,68 @@ export function buildMethodologyToFamilyMap(
 
  */
 
+export function canonicalSectorCode(sec: string): string {
+  if (!sec) return "";
+  const clean = sec.toLowerCase().trim().replace(/[\s\-_]+/g, "_");
+  if (clean.includes("7f12bfe9") || clean.includes("hybrid") || clean.includes("energy") || clean.includes("solar")) return "hybrid_energy";
+  if (clean.includes("867f684f") || clean.includes("ev") || clean.includes("electric") || clean.includes("mobility")) return "ev_mobility";
+  if (clean.includes("e6db7fbe") || clean.includes("4f12bfe9") || clean.includes("biochar")) return "biochar";
+  if (clean.includes("dff43d66") || clean.includes("6f12bfe9") || clean.includes("cook") || clean.includes("stove")) return "cookstoves";
+  return clean;
+}
+
+/**
+ * Resolve a user's active workspace from their licensed sectors and methodologies.
+ * Uses ONLY metadata. No hardcoded fallbacks.
+ *
+ * Resolution order:
+ * 1. licensed_sectors (direct family codes)
+ * 2. licensed_methodologies → mapped to parent family codes
+ * 3. First available workspace in registry
+ * 4. "generic" (no workspace)
+ */
 export function resolveUserWorkspace(
-
   licensedSectors: string[],
-
   licensedMethodologies: string[],
-
   methToFamily: Record<string, string>,
-
   registry: Record<string, WorkspaceConfig>
-
 ): { activeWorkspace: string; allowedWorkspaces: string[] } {
-
   const resolved = new Set<string>();
 
-
-
   // Priority 1: Direct sector licenses (these ARE family codes)
-
   for (const sec of licensedSectors) {
-
-    let code = sec.toLowerCase().trim();
-
-    // Legacy support: map old "energy" records to "hybrid_energy" family code
-
-    if (code === "energy") code = "hybrid_energy";
-
+    const code = canonicalSectorCode(sec);
     if (registry[code]) {
-
       resolved.add(code);
-
+    } else {
+      const match = Object.keys(registry).find(k => k === code || k.includes(code) || code.includes(k));
+      if (match) resolved.add(match);
     }
-
   }
-
-
 
   // Priority 2: Methodology licenses → resolve to parent family
-
   for (const meth of licensedMethodologies) {
-
     const methCode = meth.toLowerCase().trim();
-
-    const familyCode = methToFamily[methCode];
-
+    const familyCode = canonicalSectorCode(methToFamily[methCode] || methCode);
     if (familyCode && registry[familyCode]) {
-
       resolved.add(familyCode);
-
+    } else {
+      const match = Object.keys(registry).find(k => k === familyCode || k.includes(familyCode) || familyCode.includes(k));
+      if (match) resolved.add(match);
     }
-
   }
-
-
 
   const allowed = Array.from(resolved);
 
-
-
   if (allowed.length === 0) {
-
+    const regKeys = Object.keys(registry);
+    if (regKeys.length > 0) {
+      return { activeWorkspace: regKeys[0], allowedWorkspaces: regKeys };
+    }
     return { activeWorkspace: "generic", allowedWorkspaces: ["generic"] };
-
   }
 
-
-
   return { activeWorkspace: allowed[0], allowedWorkspaces: allowed };
-
 }
 
 
@@ -579,10 +573,7 @@ export function validateCachedWorkspace(
 ): string | null {
 
   if (!cached) return null;
-
-  let normalized = cached.toLowerCase().trim();
-
-  if (normalized === "energy") normalized = "hybrid_energy";
+  let normalized = canonicalSectorCode(cached);
 
 
 

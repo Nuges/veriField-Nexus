@@ -12,11 +12,15 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class SupabaseConfig {
   SupabaseConfig._();
 
-  // TODO: Replace with your actual Supabase project URL
-  static const String url = 'https://rxlfxrbyhagyofzfwzoa.supabase.co';
+  static const String url = String.fromEnvironment(
+    'SUPABASE_URL',
+    defaultValue: 'https://your-supabase-project.supabase.co',
+  );
 
-  // TODO: Replace with your actual Supabase anon key
-  static const String anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ4bGZ4cmJ5aGFneW9memZ3em9hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1MzQ0MTcsImV4cCI6MjA5MzExMDQxN30.KRy4CNbJ1VE-ow2IzTRrZfbTinIJWpph-HZ4q6Pu_Uw';
+  static const String anonKey = String.fromEnvironment(
+    'SUPABASE_ANON_KEY',
+    defaultValue: 'YOUR_SUPABASE_ANON_KEY_PLACEHOLDER',
+  );
 
   /// Initialize the Supabase client. Call this in main() before runApp().
   static Future<void> initialize() async {

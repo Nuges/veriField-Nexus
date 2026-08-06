@@ -802,7 +802,7 @@ export default function PropertiesPage() {
 
                   <div className="w-full bg-[var(--color-background)] border border-[var(--color-border)] rounded-xl px-3 py-2 text-[11px] font-mono font-bold text-[#00B47A] truncate">
 
-                    {activeMethodology || "AMS-II.G"} (Locked)
+                    {activeMethodology || (activeSector === "hybrid_energy" ? "ACM0002" : activeSector === "biochar" ? "VM0042" : activeSector === "ev_mobility" ? "AMS-III.C" : "AMS-II.G")} (Locked)
 
                   </div>
 

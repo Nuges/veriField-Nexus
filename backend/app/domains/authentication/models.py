@@ -177,40 +177,37 @@ class User(Base):
             pass
 
         if self.meta_data and isinstance(self.meta_data, dict):
-
-            return self.meta_data.get("licensed_methodologies", ["AMS-II.G"])
-
-        return ["AMS-II.G"]
-
-
+            return self.meta_data.get("licensed_methodologies", [])
+        return []
 
     @property
-
     def licensed_sectors(self) -> list:
-
         if self.role == "SUPER_ADMIN":
-
             return []
-
         try:
-
             if self.organization_rel:
-
                 ls = getattr(self.organization_rel, "licensed_sectors", [])
-
                 if ls:
-
-                    return ls
-
+                    res = []
+                    for item in ls:
+                        clean_item = str(item).upper().strip()
+                        if "7F12BFE9" in clean_item or "HYBRID" in clean_item or "ENERGY" in clean_item:
+                            res.append("HYBRID_ENERGY")
+                        elif "867F684F" in clean_item or "EV" in clean_item or "MOBILITY" in clean_item:
+                            res.append("EV_MOBILITY")
+                        elif "E6DB7FBE" in clean_item or "4F12BFE9" in clean_item or "BIOCHAR" in clean_item:
+                            res.append("BIOCHAR")
+                        elif "DFF43D66" in clean_item or "6F12BFE9" in clean_item or "COOK" in clean_item:
+                            res.append("COOKSTOVES")
+                        else:
+                            res.append(item)
+                    return res
         except Exception:
-
             pass
 
         if self.meta_data and isinstance(self.meta_data, dict):
-
-            return self.meta_data.get("licensed_sectors", ["cookstoves"])
-
-        return ["cookstoves"]
+            return self.meta_data.get("licensed_sectors", [])
+        return []
 
 
 

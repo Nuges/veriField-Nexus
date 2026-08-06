@@ -19,6 +19,7 @@
 import { useState, useEffect } from "react";
 
 import { useToast } from "@/components/Toast";
+import { RolePermissionConsole } from "@/components/access-control/RolePermissionConsole";
 
 import { useRouter } from "next/navigation";
 
@@ -2230,73 +2231,19 @@ function SuperAdminDashboard() {
 
           {activeTab === "roles" && (
 
-            <div className="flex-1 space-y-6">
+            <div className="flex-1">
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-
-                {rolesList.map((r) => (
-
-                  <div key={r.code} className="bg-[#090F10] border border-[#213233] rounded-xl p-4 space-y-3 shadow-xs">
-
-                    <div className="flex items-center justify-between">
-
-                      <span className="text-xs font-black text-white uppercase tracking-wider">{r.name}</span>
-
-                      <span className={`text-[9px] font-mono font-bold px-2 py-0.5 rounded border uppercase ${
-
-                        r.scope === "PLATFORM" ? "bg-purple-500/10 border-purple-500/30 text-purple-400" :
-
-                        r.scope === "ORGANIZATION" ? "bg-blue-500/10 border-blue-500/30 text-blue-400" :
-
-                        "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
-
-                      }`}>
-
-                        {r.scope}
-
-                      </span>
-
-                    </div>
-
-                    <p className="text-[10px] text-zinc-400 leading-relaxed">{r.description}</p>
-
-                    <div className="flex items-center justify-between border-t border-[#141F20] pt-2 text-[10px] font-mono text-zinc-500">
-
-                      <span>Permissions: <strong className="text-white">{r.permissions?.length || 0}</strong></span>
-
-                      <span>Assigned: <strong className="text-[#00B47A]">{r.user_count} User(s)</strong></span>
-
-                    </div>
-
-                  </div>
-
-                ))}
-
-              </div>
-
-
-
-              <div className="bg-[#090F10] border border-[#213233] rounded-2xl p-5 space-y-3">
-
-                <h3 className="text-xs font-extrabold uppercase tracking-wider text-white">System Permission Matrix ({permissionsList.length} Atomic Permissions)</h3>
-
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 text-xs font-mono">
-
-                  {permissionsList.map((p, idx) => (
-
-                    <div key={idx} className="p-2.5 rounded-lg bg-[#141F20]/50 border border-[#213233] flex items-center justify-between">
-
-                      <span className="text-zinc-300 truncate">{p.code}</span>
-
-                      <span className="text-[9px] text-[#00B47A] uppercase">{p.category}</span>
-
-                    </div>
-
-                  ))}
-
-                </div>
-
-              </div>
+              <RolePermissionConsole
+                roles={rolesList}
+                permissionsList={permissionsList}
+                users={users}
+                onRefresh={async () => {
+                  try {
+                    const r = await fetchAdminRoles();
+                    setRolesList(r);
+                  } catch (e) {}
+                }}
+              />
 
             </div>
 

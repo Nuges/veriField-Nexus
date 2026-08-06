@@ -120,47 +120,22 @@ async def log_energy_telemetry(
 
         raise HTTPException(status_code=404, detail="Solar Array Asset not found")
 
+    from app.domains.energy.schemas import EnergyTelemetryCreate
+    from app.domains.energy.service import EnergyQuantificationEngine
 
+    telemetry_data = EnergyTelemetryCreate(
+        solar_asset_id=solar_asset_id,
+        solar_generation_kwh=solar_generation_kwh,
+        battery_discharge_kwh=battery_discharge_kwh,
+        diesel_generation_kwh=diesel_generation_kwh,
+        diesel_fuel_consumed_liters=diesel_fuel_consumed_liters,
+    )
 
-    # Diesel displacement CO2 calculation
-
-    # CO2 avoided = (Solar Gen + Battery Discharge) * Baseline EF (0.744 kg/kWh) / 1000
-
-    clean_kwh = solar_generation_kwh + battery_discharge_kwh
-
-    net_co2e_t = round((clean_kwh * asset.baseline_diesel_ef_kg_kwh) / 1000.0, 3)
-
-
-
-    # Anomaly Detection
-
-    has_anomaly = False
-
-    reasons = []
-
-
-
-    # Inverter over-generation check (capacity factor > 100%)
-
-    if solar_generation_kwh > (asset.capacity_kwp * 24.0):
-
-        has_anomaly = True
-
-        reasons.append("Solar generation exceeds physical theoretical maximum array capacity.")
-
-
-
-    if diesel_fuel_consumed_liters > 0 and diesel_generation_kwh == 0:
-
-        has_anomaly = True
-
-        reasons.append("Diesel fuel consumed without registered electrical generation.")
-
-
-
-    anomaly_str = "; ".join(reasons) if has_anomaly else None
-
-
+    clean_kwh, net_co2e_t, has_anomaly, anomaly_str = EnergyQuantificationEngine.calculate_co2_avoidance(
+        telemetry_data,
+        baseline_diesel_ef_kg_kwh=asset.baseline_diesel_ef_kg_kwh,
+        capacity_kwp=asset.capacity_kwp,
+    )
 
     log = EnergyTelemetryLog(
 
