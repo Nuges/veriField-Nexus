@@ -510,7 +510,7 @@ export default function VerificationPipelineStages({
 
               {/* Middle Row: Percentage & Count */}
 
-              <div className="flex items-baseline justify-between pt-1">
+              <div className="flex items-center justify-between gap-2.5 pt-1">
 
                 <span className={`text-xl sm:text-2xl font-black font-mono tracking-tight ${st.textColor}`}>
 
@@ -518,7 +518,7 @@ export default function VerificationPipelineStages({
 
                 </span>
 
-                <span className={`text-xs font-bold font-mono px-2 py-0.5 rounded-md border ${st.badgeBg}`}>
+                <span className={`text-xs font-bold font-mono px-2 py-0.5 rounded-md border shrink-0 ${st.badgeBg}`}>
 
                   {cnt}
 

@@ -70,6 +70,8 @@ import {
 
   updateAgentStatus,
 
+  updateUserAccount,
+
   adminSuspendUser,
 
   adminReactivateUser
@@ -224,13 +226,27 @@ export default function ProjectsPage() {
 
 
 
-      // 2. Status / Role Update if changed
+      // 2. Status / Name / Role Update if changed
 
       const isSuspended = selectedUser.is_suspended || selectedUser.status === "suspended";
 
-      if (editName !== selectedUser.full_name || editRole !== (selectedUser.role || "").toUpperCase()) {
+      if (
 
-        await updateAgentStatus(selectedUser.id, isSuspended ? "suspended" : "active");
+        editName !== selectedUser.full_name ||
+
+        editRole !== (selectedUser.role || "").toUpperCase()
+
+      ) {
+
+        await updateUserAccount(selectedUser.id, {
+
+          full_name: editName,
+
+          role: editRole,
+
+          status: isSuspended ? "suspended" : "active"
+
+        });
 
         toast.success("Account Updated", `User profile for ${editName} saved.`);
 
@@ -390,15 +406,15 @@ export default function ProjectsPage() {
 
         aiRecommendation="All project spatial boundaries, baseline emissions, and organization team access controls active."
 
-        primaryNextActionLabel="+ Create User Account"
+        primaryNextActionLabel=""
 
-        onPrimaryNextAction={() => setIsCreateOpen(true)}
+        onPrimaryNextAction={() => {}}
 
       />
 
 
 
-      {/* PROJECT TEAM ROSTER & ORGANIZATION ASSIGNMENTS */}
+      {/* 🏛️ ORGANIZATION ADMINISTRATORS */}
 
       <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-5 shadow-sm space-y-4">
 
@@ -406,9 +422,9 @@ export default function ProjectsPage() {
 
           <div className="flex items-center gap-3">
 
-            <div className="p-2.5 rounded-xl bg-[#00B47A]/10 text-[#00B47A] border border-[#00B47A]/20">
+            <div className="p-2.5 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/20">
 
-              <Users size={20} />
+              <Shield size={20} />
 
             </div>
 
@@ -416,13 +432,13 @@ export default function ProjectsPage() {
 
               <h2 className="text-sm font-extrabold uppercase tracking-wider text-[var(--color-text-primary)]">
 
-                Project Team & Organization Accounts
+                Organization Administrators
 
               </h2>
 
               <p className="text-xs text-[var(--color-text-secondary)]">
 
-                Manage real team accounts, assign operational roles, and execute secure password resets.
+                Manage organization administrators, account privileges, and secure password resets.
 
               </p>
 
@@ -454,137 +470,295 @@ export default function ProjectsPage() {
 
 
 
-        {/* REAL USERS GRID */}
+        {/* REAL ADMINS GRID */}
 
         {isLoadingUsers ? (
 
-          <div className="py-12 text-center space-y-2">
+          <div className="py-8 text-center space-y-2">
 
             <RefreshCw size={20} className="animate-spin text-[#00B47A] mx-auto" />
 
-            <p className="text-xs font-mono text-zinc-500">Fetching real organization accounts from database...</p>
-
-          </div>
-
-        ) : realUsers.length === 0 ? (
-
-          <div className="p-8 text-center bg-[var(--color-background)] rounded-xl border border-[var(--color-border)] space-y-3">
-
-            <Users size={28} className="text-zinc-600 mx-auto" />
-
-            <p className="text-xs font-bold text-[var(--color-text-primary)]">No Team Accounts Provisioned Yet</p>
-
-            <p className="text-[11px] text-zinc-500 max-w-sm mx-auto">
-
-              Create individual accounts for field agents, auditors, or managers to assign operational privileges.
-
-            </p>
-
-            {isSuperAdminOrAdmin && (
-
-              <button
-
-                onClick={() => setIsCreateOpen(true)}
-
-                className="px-4 py-2 rounded-xl bg-[#00B47A] text-white font-bold text-xs hover:bg-[#009b68] inline-flex items-center gap-1.5 cursor-pointer mt-2"
-
-              >
-
-                <UserPlus size={14} />
-
-                <span>Create First Account</span>
-
-              </button>
-
-            )}
+            <p className="text-xs font-mono text-zinc-500">Loading organization administrators...</p>
 
           </div>
 
         ) : (
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          (() => {
 
-            {realUsers.map((u) => {
+            const orgAdmins = realUsers.filter(u => ["ORG_ADMIN", "SUPER_ADMIN", "ADMIN"].includes((u.role || "").toUpperCase()));
 
-              const roleClean = (u.role || "USER").toUpperCase().replace(/_/g, " ");
-
-              const isSuspended = u.is_suspended || u.status === "suspended";
-
-
+            if (orgAdmins.length === 0) {
 
               return (
 
-                <div
+                <div className="p-6 text-center bg-[var(--color-background)] rounded-xl border border-[var(--color-border)]">
 
-                  key={u.id}
-
-                  onClick={() => openUserModal(u)}
-
-                  className={`p-3.5 rounded-xl bg-[var(--color-background)] border transition-all flex items-start justify-between gap-2.5 shadow-xs cursor-pointer group active:scale-[0.98] ${
-
-                    isSuspended ? "border-red-500/30 opacity-70" : "border-[var(--color-border)] hover:border-[#00B47A]/50 hover:shadow-md"
-
-                  }`}
-
-                  title="Click to manage account & password"
-
-                >
-
-                  <div className="flex items-start gap-2.5 min-w-0">
-
-                    <div className="p-2 rounded-lg bg-emerald-500/10 text-[#00B47A] shrink-0 mt-0.5">
-
-                      <Users size={16} />
-
-                    </div>
-
-                    <div className="min-w-0">
-
-                      <div className="flex items-center gap-1.5">
-
-                        <span className="text-[9px] font-black text-[var(--color-text-secondary)] uppercase tracking-wider group-hover:text-[#00B47A] transition-colors">
-
-                          {roleClean}
-
-                        </span>
-
-                        {isSuspended && (
-
-                          <span className="text-[8px] font-mono font-bold px-1.5 py-0.2 bg-red-500/20 text-red-400 rounded">
-
-                            SUSPENDED
-
-                          </span>
-
-                        )}
-
-                      </div>
-
-                      <p className="text-xs font-bold text-[var(--color-text-primary)] truncate mt-0.5">
-
-                        {u.full_name || u.name || "Unnamed Account"}
-
-                      </p>
-
-                      <p className="text-[9px] font-mono text-[var(--color-text-muted)] truncate">{u.email}</p>
-
-                    </div>
-
-                  </div>
-
-                  <div className="p-1.5 rounded bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text-secondary)] group-hover:text-[#00B47A] shrink-0">
-
-                    <Edit3 size={12} />
-
-                  </div>
+                  <p className="text-xs font-bold text-[var(--color-text-primary)]">No Organization Administrators Found</p>
 
                 </div>
 
               );
 
-            })}
+            }
+
+            return (
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+
+                {orgAdmins.map((u) => {
+
+                  const roleClean = (u.role || "USER").toUpperCase().replace(/_/g, " ");
+
+                  const isSuspended = u.is_suspended || u.status === "suspended";
+
+                  return (
+
+                    <div
+
+                      key={u.id}
+
+                      onClick={() => openUserModal(u)}
+
+                      className={`p-3.5 rounded-xl bg-[var(--color-background)] border transition-all flex items-start justify-between gap-2.5 shadow-xs cursor-pointer group active:scale-[0.98] ${
+
+                        isSuspended ? "border-red-500/30 opacity-70" : "border-[var(--color-border)] hover:border-purple-500/50 hover:shadow-md"
+
+                      }`}
+
+                      title="Click to manage account & password"
+
+                    >
+
+                      <div className="flex items-start gap-2.5 min-w-0">
+
+                        <div className="p-2 rounded-lg bg-purple-500/10 text-purple-400 shrink-0 mt-0.5">
+
+                          <Shield size={16} />
+
+                        </div>
+
+                        <div className="min-w-0">
+
+                          <div className="flex items-center gap-1.5">
+
+                            <span className="text-[9px] font-black text-purple-400 uppercase tracking-wider">
+
+                              {roleClean}
+
+                            </span>
+
+                            {isSuspended && (
+
+                              <span className="text-[8px] font-mono font-bold px-1.5 py-0.2 bg-red-500/20 text-red-400 rounded">
+
+                                SUSPENDED
+
+                              </span>
+
+                            )}
+
+                          </div>
+
+                          <p className="text-xs font-bold text-[var(--color-text-primary)] truncate mt-0.5">
+
+                            {u.full_name || u.name || "Unnamed Account"}
+
+                          </p>
+
+                          <p className="text-[9px] font-mono text-[var(--color-text-muted)] truncate">{u.email}</p>
+
+                        </div>
+
+                      </div>
+
+                      <div className="p-1.5 rounded bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text-secondary)] group-hover:text-purple-400 shrink-0">
+
+                        <Edit3 size={12} />
+
+                      </div>
+
+                    </div>
+
+                  );
+
+                })}
+
+              </div>
+
+            );
+
+          })()
+
+        )}
+
+      </div>
+
+
+
+      {/* 👷 PROJECT OPERATIONAL TEAM */}
+
+      <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-5 shadow-sm space-y-4">
+
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[var(--color-border)] pb-4">
+
+          <div className="flex items-center gap-3">
+
+            <div className="p-2.5 rounded-xl bg-[#00B47A]/10 text-[#00B47A] border border-[#00B47A]/20">
+
+              <Users size={20} />
+
+            </div>
+
+            <div>
+
+              <h2 className="text-sm font-extrabold uppercase tracking-wider text-[var(--color-text-primary)]">
+
+                Project Operational Team
+
+              </h2>
+
+              <p className="text-xs text-[var(--color-text-secondary)]">
+
+                Field agents, project managers, and auditors assigned to project operations and MRV workflows.
+
+              </p>
+
+            </div>
 
           </div>
+
+        </div>
+
+
+
+        {/* REAL OPERATIONAL USERS GRID */}
+
+        {isLoadingUsers ? (
+
+          <div className="py-8 text-center space-y-2">
+
+            <RefreshCw size={20} className="animate-spin text-[#00B47A] mx-auto" />
+
+            <p className="text-xs font-mono text-zinc-500">Loading project operational team...</p>
+
+          </div>
+
+        ) : (
+
+          (() => {
+
+            const opUsers = realUsers.filter(u => !["ORG_ADMIN", "SUPER_ADMIN", "ADMIN"].includes((u.role || "").toUpperCase()));
+
+            if (opUsers.length === 0) {
+
+              return (
+
+                <div className="p-6 text-center bg-[var(--color-background)] rounded-xl border border-[var(--color-border)] space-y-2">
+
+                  <Users size={24} className="text-zinc-600 mx-auto" />
+
+                  <p className="text-xs font-bold text-[var(--color-text-primary)]">No Project-Specific Operational Members Assigned Yet</p>
+
+                  <p className="text-[11px] text-zinc-500 max-w-md mx-auto">
+
+                    Field agents, project managers, and auditors assigned to specific climate projects will appear here. Click "+ Create User Account" above to add operational team members.
+
+                  </p>
+
+                </div>
+
+              );
+
+            }
+
+            return (
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+
+                {opUsers.map((u) => {
+
+                  const roleClean = (u.role || "USER").toUpperCase().replace(/_/g, " ");
+
+                  const isSuspended = u.is_suspended || u.status === "suspended";
+
+                  return (
+
+                    <div
+
+                      key={u.id}
+
+                      onClick={() => openUserModal(u)}
+
+                      className={`p-3.5 rounded-xl bg-[var(--color-background)] border transition-all flex items-start justify-between gap-2.5 shadow-xs cursor-pointer group active:scale-[0.98] ${
+
+                        isSuspended ? "border-red-500/30 opacity-70" : "border-[var(--color-border)] hover:border-[#00B47A]/50 hover:shadow-md"
+
+                      }`}
+
+                      title="Click to manage account & password"
+
+                    >
+
+                      <div className="flex items-start gap-2.5 min-w-0">
+
+                        <div className="p-2 rounded-lg bg-emerald-500/10 text-[#00B47A] shrink-0 mt-0.5">
+
+                          <Users size={16} />
+
+                        </div>
+
+                        <div className="min-w-0">
+
+                          <div className="flex items-center gap-1.5">
+
+                            <span className="text-[9px] font-black text-[var(--color-text-secondary)] uppercase tracking-wider group-hover:text-[#00B47A] transition-colors">
+
+                              {roleClean}
+
+                            </span>
+
+                            {isSuspended && (
+
+                              <span className="text-[8px] font-mono font-bold px-1.5 py-0.2 bg-red-500/20 text-red-400 rounded">
+
+                                SUSPENDED
+
+                              </span>
+
+                            )}
+
+                          </div>
+
+                          <p className="text-xs font-bold text-[var(--color-text-primary)] truncate mt-0.5">
+
+                            {u.full_name || u.name || "Unnamed Account"}
+
+                          </p>
+
+                          <p className="text-[9px] font-mono text-[var(--color-text-muted)] truncate">{u.email}</p>
+
+                        </div>
+
+                      </div>
+
+                      <div className="p-1.5 rounded bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text-secondary)] group-hover:text-[#00B47A] shrink-0">
+
+                        <Edit3 size={12} />
+
+                      </div>
+
+                    </div>
+
+                  );
+
+                })}
+
+              </div>
+
+            );
+
+          })()
 
         )}
 

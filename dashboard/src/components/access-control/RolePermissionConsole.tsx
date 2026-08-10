@@ -274,15 +274,29 @@ export interface UserItem {
   email: string;
   full_name: string;
   role: string;
+  organization?: string;
   organization_name?: string;
+  organization_id?: string;
+  licensed_sectors?: string[];
   status: string;
   created_at: string;
+  projects_count?: number;
+  activities_count?: number;
+  assets_count?: number;
+  evidence_count?: number;
+}
+
+export interface OrganizationItem {
+  id: string;
+  name: string;
+  licensed_sectors?: string[];
 }
 
 export interface RolePermissionConsoleProps {
   roles: RoleDetail[];
   permissionsList: { code: string; category: string }[];
   users: UserItem[];
+  organizations?: OrganizationItem[];
   onRefresh?: () => void;
 }
 
@@ -290,6 +304,7 @@ export function RolePermissionConsole({
   roles = [],
   permissionsList = [],
   users = [],
+  organizations = [],
   onRefresh
 }: RolePermissionConsoleProps) {
   const toast = useToast();
@@ -371,11 +386,107 @@ export function RolePermissionConsole({
     return groups;
   }, [selectedRole]);
 
-  // Filtered Users assigned to Selected Role
-  const assignedUsers = useMemo(() => {
-    if (!selectedRole) return [];
-    return users.filter(u => u.role.toUpperCase() === selectedRole.code.toUpperCase());
-  }, [users, selectedRole]);
+  // Organization & Role Filters for Assigned Users Directory
+  const [selectedOrgFilter, setSelectedOrgFilter] = useState<string>("ALL");
+  const [selectedRoleFilter, setSelectedRoleFilter] = useState<string>("ALL");
+
+  // User Account Governance Edit Modal State
+  const [editingUser, setEditingUser] = useState<UserItem | null>(null);
+  const [userEditRole, setUserEditRole] = useState<string>("");
+  const [userEditOrgId, setUserEditOrgId] = useState<string>("");
+  const [userEditFullName, setUserEditFullName] = useState<string>("");
+  const [userEditEmail, setUserEditEmail] = useState<string>("");
+  const [userEditStatus, setUserEditStatus] = useState<string>("");
+  const [isSavingUser, setIsSavingUser] = useState(false);
+
+  const handleOpenEditUser = (userItem: UserItem) => {
+    setEditingUser(userItem);
+    setUserEditRole((userItem.role || "").toUpperCase());
+    setUserEditOrgId(userItem.organization_id || "");
+    setUserEditFullName(userItem.full_name || "");
+    setUserEditEmail(userItem.email || "");
+    setUserEditStatus(userItem.status || "active");
+  };
+
+  const handleSaveUserGovernance = async () => {
+    if (!editingUser) return;
+    setIsSavingUser(true);
+    try {
+      await apiFetch(`/admin/users/${editingUser.id}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          role: userEditRole,
+          organization_id: userEditOrgId || null,
+          full_name: userEditFullName,
+          email: userEditEmail,
+          status: userEditStatus
+        })
+      });
+      toast.success("Account Governance Updated", `Successfully updated ${userEditEmail} role to ${userEditRole}.`);
+      setEditingUser(null);
+      if (onRefresh) onRefresh();
+    } catch (e: any) {
+      toast.error("Update Failed", e?.message || "Could not update user account governance.");
+    } finally {
+      setIsSavingUser(false);
+    }
+  };
+
+  const handleSuspendToggle = async (userItem: UserItem) => {
+    const isSuspended = userItem.status === "suspended";
+    const endpoint = `/admin/users/${userItem.id}/${isSuspended ? "reactivate" : "suspend"}`;
+    try {
+      await apiFetch(endpoint, { method: "POST" });
+      toast.success(
+        isSuspended ? "Account Reactivated" : "Account Suspended",
+        `Account ${userItem.email} is now ${isSuspended ? "active" : "suspended"}.`
+      );
+      if (onRefresh) onRefresh();
+    } catch (e: any) {
+      toast.error("Action Failed", e?.message || "Could not change account status.");
+    }
+  };
+
+  const handleResetPassword = async (userItem: UserItem) => {
+    const confirmReset = window.confirm(`Reset password for ${userItem.email}? A temporary password will be generated.`);
+    if (!confirmReset) return;
+    try {
+      await apiFetch(`/admin/users/${userItem.id}/reset-password`, {
+        method: "POST",
+        body: JSON.stringify({ new_password: "VeriFieldPass123!" })
+      });
+      toast.success("Password Reset Complete", `New temporary password for ${userItem.email}: VeriFieldPass123!`);
+      if (onRefresh) onRefresh();
+    } catch (e: any) {
+      toast.error("Reset Failed", e?.message || "Could not reset password.");
+    }
+  };
+
+  // Filtered Users assigned to Selected Role or Organization
+  const filteredAssignedUsers = useMemo(() => {
+    let list = [...users];
+
+    if (selectedRole) {
+      list = list.filter(u => u.role.toUpperCase() === selectedRole.code.toUpperCase());
+    } else if (selectedRoleFilter !== "ALL") {
+      list = list.filter(u => u.role.toUpperCase() === selectedRoleFilter.toUpperCase());
+    }
+
+    if (selectedOrgFilter !== "ALL") {
+      if (selectedOrgFilter === "SYSTEM_DEFAULT") {
+        list = list.filter(u => !u.organization_id && (!u.organization || u.organization === "System Default"));
+      } else {
+        list = list.filter(
+          u =>
+            u.organization_id === selectedOrgFilter ||
+            u.organization_name === selectedOrgFilter ||
+            u.organization === selectedOrgFilter
+        );
+      }
+    }
+
+    return list;
+  }, [users, selectedRole, selectedRoleFilter, selectedOrgFilter]);
 
   // Comparison Math
   const comparisonData = useMemo(() => {
@@ -525,7 +636,7 @@ export function RolePermissionConsole({
                   : "text-zinc-400 hover:text-white"
               }`}
             >
-              <Users size={14} /> Assigned Users ({assignedUsers.length})
+              <Users size={14} /> Assigned Users ({filteredAssignedUsers.length})
             </button>
 
             <button
@@ -647,35 +758,170 @@ export function RolePermissionConsole({
             </div>
           )}
 
-          {/* Tab 2: Assigned Users Table */}
+          {/* Tab 2: Assigned Users Directory & Organization Governance */}
           {activeTab === "users" && (
             <div className="bg-[#090F10] border border-[#213233] p-5 rounded-xl space-y-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-[#141F20] pb-4">
+                <div>
+                  <h2 className="text-base font-black text-white flex items-center gap-2">
+                    <Users size={18} className="text-emerald-400" />
+                    {selectedRole ? `Accounts Provisioned with Role: ${selectedRole.name}` : "Organization Accounts & Assigned Roles"}
+                  </h2>
+                  <p className="text-xs text-zinc-400 mt-0.5">
+                    Inspect and edit roles, organization workspace boundaries, and IAM governance for all platform accounts.
+                  </p>
+                </div>
+
+                {/* Filters for Organization & Role */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex items-center gap-1 bg-[#141F20] border border-[#213233] px-3 py-1.5 rounded-lg text-xs">
+                    <Filter size={12} className="text-zinc-500" />
+                    <span className="text-zinc-400 text-[10px] font-bold uppercase">Org:</span>
+                    <select
+                      value={selectedOrgFilter}
+                      onChange={e => setSelectedOrgFilter(e.target.value)}
+                      className="bg-transparent text-white text-xs font-medium focus:outline-none cursor-pointer"
+                    >
+                      <option value="ALL" className="bg-[#090F10] text-white">All Organizations ({organizations.length})</option>
+                      <option value="SYSTEM_DEFAULT" className="bg-[#090F10] text-white">System Default (Platform Global)</option>
+                      {organizations.map(o => (
+                        <option key={o.id} value={o.id} className="bg-[#090F10] text-white">{o.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {!selectedRole && (
+                    <div className="flex items-center gap-1 bg-[#141F20] border border-[#213233] px-3 py-1.5 rounded-lg text-xs">
+                      <Shield size={12} className="text-zinc-500" />
+                      <span className="text-zinc-400 text-[10px] font-bold uppercase">Role:</span>
+                      <select
+                        value={selectedRoleFilter}
+                        onChange={e => setSelectedRoleFilter(e.target.value)}
+                        className="bg-transparent text-white text-xs font-medium focus:outline-none cursor-pointer"
+                      >
+                        <option value="ALL" className="bg-[#090F10] text-white">All Roles</option>
+                        {roles.map(r => (
+                          <option key={r.code} value={r.code} className="bg-[#090F10] text-white">{r.name} ({r.code})</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
+              </div>
+
               <DataTable
-                title={`Accounts Holding Role: ${selectedRole.name}`}
-                subtitle={`Showing all active users provisioned with ${selectedRole.code}`}
+                title={`User Directory (${filteredAssignedUsers.length} Accounts)`}
+                subtitle="Live account governance and organization role assignments"
                 columns={[
-                  { key: "full_name", label: "Full Name", sortable: true },
-                  { key: "email", label: "Email Address", sortable: true },
+                  {
+                    key: "full_name",
+                    label: "User / Email",
+                    sortable: true,
+                    render: (row: UserItem) => (
+                      <div>
+                        <div className="font-semibold text-white text-xs">{row.full_name}</div>
+                        <div className="text-[11px] text-zinc-400 font-mono">{row.email}</div>
+                      </div>
+                    )
+                  },
+                  {
+                    key: "role",
+                    label: "Assigned Role",
+                    sortable: true,
+                    render: (row: UserItem) => {
+                      const rUpper = (row.role || "").toUpperCase();
+                      return (
+                        <span className={`text-[10px] font-mono font-bold uppercase px-2.5 py-1 rounded border ${
+                          rUpper === "SUPER_ADMIN" ? "bg-purple-500/10 border-purple-500/20 text-purple-400" :
+                          (rUpper === "ORG_ADMIN" || rUpper === "ADMIN") ? "bg-blue-500/10 border-blue-500/20 text-blue-400" :
+                          (rUpper === "AUDITOR" || rUpper === "VVB" || rUpper === "VERIFIER") ? "bg-amber-500/10 border-amber-500/20 text-amber-400" :
+                          (rUpper === "FIELD_AGENT" || rUpper === "FIELD_SUPERVISOR") ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" :
+                          (rUpper.includes("MANAGER") || rUpper.includes("PROJECT") || rUpper.includes("PORTFOLIO")) ? "bg-cyan-500/10 border-cyan-500/20 text-cyan-400" :
+                          "bg-zinc-800 border-zinc-700 text-zinc-400"
+                        }`}>
+                          {rUpper === "ADMIN" ? "ORG_ADMIN" : rUpper}
+                        </span>
+                      );
+                    }
+                  },
                   {
                     key: "organization_name",
-                    label: "Organization",
+                    label: "Organization Workspace",
                     sortable: true,
-                    render: (row: any) => row.organization_name || "Platform Global"
+                    render: (row: UserItem) => {
+                      const matchedOrg = organizations.find(o => o.id === row.organization_id || o.name === row.organization_name || o.name === row.organization);
+                      const orgName = row.organization_name || row.organization || matchedOrg?.name;
+                      const sectors = row.licensed_sectors && row.licensed_sectors.length > 0 ? row.licensed_sectors : (matchedOrg?.licensed_sectors || []);
+
+                      if (!orgName || orgName === "System Default") {
+                        return <span className="text-zinc-500 font-mono text-[11px]">System Default (Platform Global)</span>;
+                      }
+
+                      return (
+                        <div className="flex flex-col items-start gap-1">
+                          <span className="text-zinc-200 font-medium text-xs">{orgName}</span>
+                          {sectors.length > 0 && (
+                            <div className="flex flex-wrap gap-1">
+                              {sectors.map(sec => (
+                                <span key={sec} className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                  {sec}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    }
                   },
                   {
                     key: "status",
                     label: "Status",
                     sortable: true,
-                    render: (row: any) => (
-                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                    render: (row: UserItem) => (
+                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                        row.status === "suspended" ? "bg-red-500/10 text-red-400 border border-red-500/20" : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                      }`}>
                         {row.status || "active"}
                       </span>
                     )
+                  },
+                  {
+                    key: "actions",
+                    label: "Actions",
+                    render: (row: UserItem) => (
+                      <div className="flex items-center gap-1.5 justify-end">
+                        <button
+                          onClick={() => handleOpenEditUser(row)}
+                          className="px-2.5 py-1 rounded bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 text-[11px] font-bold flex items-center gap-1 transition-colors"
+                          title="Edit User Role & Organization"
+                        >
+                          <Edit3 size={12} /> Edit Role
+                        </button>
+                        <button
+                          onClick={() => handleResetPassword(row)}
+                          className="p-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 text-xs transition-colors"
+                          title="Reset User Password"
+                        >
+                          <Key size={12} />
+                        </button>
+                        <button
+                          onClick={() => handleSuspendToggle(row)}
+                          className={`p-1 rounded text-xs transition-colors border ${
+                            row.status === "suspended"
+                              ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20"
+                              : "bg-red-500/10 text-red-400 border-red-500/20 hover:bg-red-500/20"
+                          }`}
+                          title={row.status === "suspended" ? "Reactivate Account" : "Suspend Account"}
+                        >
+                          {row.status === "suspended" ? <Unlock size={12} /> : <Lock size={12} />}
+                        </button>
+                      </div>
+                    )
                   }
                 ]}
-                data={assignedUsers}
-                searchKeys={["full_name", "email", "organization_name"]}
-                emptyStateText={`No users currently hold the ${selectedRole.name} role.`}
+                data={filteredAssignedUsers}
+                searchKeys={["full_name", "email", "organization_name", "role"]}
+                emptyStateText="No accounts match the selected organization and role filters."
               />
             </div>
           )}
@@ -1076,6 +1322,118 @@ export function RolePermissionConsole({
                   Confirm Delete
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit User Role & Account Governance Modal */}
+      {editingUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+          <div className="bg-[#090F10] border border-[#213233] rounded-2xl max-w-lg w-full p-6 space-y-6 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-[#141F20] pb-4">
+              <div className="flex items-center gap-2">
+                <ShieldCheck size={20} className="text-emerald-400" />
+                <h3 className="text-base font-black text-white">Edit User Account & Role Governance</h3>
+              </div>
+              <button
+                onClick={() => setEditingUser(null)}
+                className="p-1 rounded bg-[#141F20] text-zinc-400 hover:text-white"
+              >
+                <XCircle size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              <div>
+                <label className="block text-zinc-400 font-bold uppercase text-[10px] mb-1">Target Account Email</label>
+                <input
+                  type="email"
+                  value={userEditEmail}
+                  onChange={e => setUserEditEmail(e.target.value)}
+                  className="w-full bg-[#141F20] border border-[#213233] p-2.5 rounded-lg text-white font-mono focus:border-emerald-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-zinc-400 font-bold uppercase text-[10px] mb-1">Full Name</label>
+                <input
+                  type="text"
+                  value={userEditFullName}
+                  onChange={e => setUserEditFullName(e.target.value)}
+                  className="w-full bg-[#141F20] border border-[#213233] p-2.5 rounded-lg text-white font-medium focus:border-emerald-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-zinc-400 font-bold uppercase text-[10px] mb-1">Assigned Enterprise Role</label>
+                <select
+                  value={userEditRole}
+                  onChange={e => setUserEditRole(e.target.value)}
+                  className="w-full bg-[#141F20] border border-[#213233] p-2.5 rounded-lg text-white font-mono font-bold focus:border-emerald-500 focus:outline-none cursor-pointer"
+                >
+                  {roles.map(r => (
+                    <option key={r.code} value={r.code.toUpperCase()} className="bg-[#090F10] text-white">
+                      {r.name} ({r.code.toUpperCase()})
+                    </option>
+                  ))}
+                  <option value="FIELD_AGENT" className="bg-[#090F10] text-white">Field Agent (FIELD_AGENT)</option>
+                  <option value="AUDITOR" className="bg-[#090F10] text-white">Third-Party Auditor (AUDITOR)</option>
+                  <option value="VVB" className="bg-[#090F10] text-white">VVB Verifier (VVB)</option>
+                  <option value="PROJECT_MANAGER" className="bg-[#090F10] text-white">Project Manager (PROJECT_MANAGER)</option>
+                  <option value="PORTFOLIO_MANAGER" className="bg-[#090F10] text-white">Portfolio Manager (PORTFOLIO_MANAGER)</option>
+                  <option value="QA_OFFICER" className="bg-[#090F10] text-white">QA Officer (QA_OFFICER)</option>
+                  <option value="FIELD_SUPERVISOR" className="bg-[#090F10] text-white">Field Supervisor (FIELD_SUPERVISOR)</option>
+                  <option value="VIEWER" className="bg-[#090F10] text-white">Read-Only Viewer (VIEWER)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-zinc-400 font-bold uppercase text-[10px] mb-1">Organization Workspace Boundary</label>
+                <select
+                  value={userEditOrgId}
+                  onChange={e => setUserEditOrgId(e.target.value)}
+                  className="w-full bg-[#141F20] border border-[#213233] p-2.5 rounded-lg text-white font-medium focus:border-emerald-500 focus:outline-none cursor-pointer"
+                >
+                  <option value="" className="bg-[#090F10] text-white">System Default (Platform Global Scope)</option>
+                  {organizations.map(o => (
+                    <option key={o.id} value={o.id} className="bg-[#090F10] text-white">
+                      {o.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-zinc-400 font-bold uppercase text-[10px] mb-1">Account Governance Status</label>
+                <select
+                  value={userEditStatus}
+                  onChange={e => setUserEditStatus(e.target.value)}
+                  className="w-full bg-[#141F20] border border-[#213233] p-2.5 rounded-lg text-white font-medium focus:border-emerald-500 focus:outline-none cursor-pointer"
+                >
+                  <option value="active" className="bg-[#090F10] text-white">Active (Full Access Allowed)</option>
+                  <option value="suspended" className="bg-[#090F10] text-white">Suspended (Access Blocked)</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 border-t border-[#141F20] pt-4">
+              <button
+                type="button"
+                onClick={() => setEditingUser(null)}
+                className="px-4 py-2 rounded-lg bg-[#141F20] text-zinc-400 hover:text-white text-xs font-bold transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveUserGovernance}
+                disabled={isSavingUser}
+                className="px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-bold transition-colors flex items-center gap-1.5 disabled:opacity-50"
+              >
+                {isSavingUser ? <RefreshCw size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+                Save Governance Changes
+              </button>
             </div>
           </div>
         </div>

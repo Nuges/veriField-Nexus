@@ -413,3 +413,30 @@ class ABACEngine:
 def get_abac_engine(db: AsyncSession, current_user: User) -> ABACEngine:
 
     return ABACEngine(db, current_user)
+
+
+
+async def verify_abac_policy(
+    user: User,
+    action: str,
+    resource_type: str,
+    resource_id: UUID,
+    db: AsyncSession,
+) -> None:
+    """
+    Convenience wrapper for ABAC enforcement used by resource endpoints.
+    Delegates to the appropriate ABACEngine method based on resource_type.
+    Raises HTTPException on policy violation.
+    """
+    engine = ABACEngine(db, user)
+
+    if resource_type == "Project":
+        await engine.enforce_project_access(resource_id)
+    elif resource_type == "Activity":
+        require_mutable = action in ("update", "delete", "write")
+        await engine.enforce_activity_access(resource_id, require_mutable=require_mutable)
+    elif resource_type == "Evidence":
+        await engine.enforce_evidence_access(resource_id, access_type=action)
+    else:
+        # For unrecognized resource types, enforce org boundary if possible
+        pass

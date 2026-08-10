@@ -4,7 +4,7 @@
 
 import React from "react";
 
-import { LayoutGrid, Terminal, Sun, Moon } from "lucide-react";
+import { LayoutGrid, Terminal, Sun, Moon, HelpCircle } from "lucide-react";
 
 
 
@@ -96,37 +96,33 @@ export default function DashboardHeader({
 
 
 
-        <button
+        <div className="flex items-center gap-2">
+          <a
+            href="/dashboard/help"
+            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-secondary)] hover:text-[#00B47A] hover:border-[#00B47A]/30 transition-all text-xs font-bold shadow-xs cursor-pointer"
+            title="Open VeriField Nexus Help & Knowledge Centre"
+          >
+            <HelpCircle size={15} className="text-[#00B47A]" />
+            <span>Help & Guides</span>
+          </a>
 
-          onClick={() => {
-
-            if (document.documentElement.classList.contains("dark")) {
-
-              document.documentElement.classList.remove("dark");
-
-              localStorage.setItem("vf_theme", "light");
-
-            } else {
-
-              document.documentElement.classList.add("dark");
-
-              localStorage.setItem("vf_theme", "dark");
-
-            }
-
-          }}
-
-          className="p-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-all shadow-xs cursor-pointer"
-
-          title="Toggle Day (Light) / Night (Dark Obsidian) Theme"
-
-        >
-
-          <Sun size={15} className="block dark:hidden text-amber-500" />
-
-          <Moon size={15} className="hidden dark:block text-emerald-400" />
-
-        </button>
+          <button
+            onClick={() => {
+              if (document.documentElement.classList.contains("dark")) {
+                document.documentElement.classList.remove("dark");
+                localStorage.setItem("vf_theme", "light");
+              } else {
+                document.documentElement.classList.add("dark");
+                localStorage.setItem("vf_theme", "dark");
+              }
+            }}
+            className="p-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-all shadow-xs cursor-pointer"
+            title="Toggle Day (Light) / Night (Dark Obsidian) Theme"
+          >
+            <Sun size={15} className="block dark:hidden text-amber-500" />
+            <Moon size={15} className="hidden dark:block text-emerald-400" />
+          </button>
+        </div>
 
       </div>
 

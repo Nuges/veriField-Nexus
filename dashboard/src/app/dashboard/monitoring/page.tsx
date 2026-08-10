@@ -19,43 +19,27 @@ import { Activity, ShieldCheck, ShieldAlert, FolderGit2, Loader2 } from "lucide-
 
 
 import TrustScoresPage from "../trust-scores/page";
-
 import AnomaliesPage from "../anomalies/page";
-
 import CommunityPage from "../community/page";
-
-
+import { TelemetryHistorianConsole } from "@/components/monitoring/TelemetryHistorianConsole";
+import { DataQualityEventConsole } from "@/components/monitoring/DataQualityEventConsole";
 
 function MonitoringWorkspaceContent() {
-
   const searchParams = useSearchParams();
-
   const router = useRouter();
-
   const initialTab = searchParams.get("tab") || "trust";
-
   const [activeTab, setActiveTab] = useState<string>(initialTab);
 
-
-
   const handleTabChange = (tabId: string) => {
-
     setActiveTab(tabId);
-
     router.replace(`/dashboard/monitoring?tab=${tabId}`, { scroll: false });
-
   };
 
-
-
   const tabs = [
-
     { id: "trust", label: "AI Trust Engine", icon: ShieldCheck },
-
+    { id: "historian", label: "Historical Telemetry (Historian)", icon: Activity },
     { id: "anomalies", label: "Anomaly Centre", icon: ShieldAlert },
-
     { id: "pipeline", label: "Sync Pipeline & Validations", icon: FolderGit2 },
-
   ];
 
 
@@ -137,15 +121,16 @@ function MonitoringWorkspaceContent() {
 
 
       {/* Tab Workspace Panels */}
-
-      <div className="pt-2">
-
+      <div className="pt-2 space-y-6">
         {activeTab === "trust" && <TrustScoresPage />}
-
+        {activeTab === "historian" && (
+          <div className="space-y-6">
+            <TelemetryHistorianConsole />
+            <DataQualityEventConsole />
+          </div>
+        )}
         {activeTab === "anomalies" && <AnomaliesPage />}
-
         {activeTab === "pipeline" && <CommunityPage />}
-
       </div>
 
     </div>

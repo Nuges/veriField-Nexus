@@ -33,6 +33,7 @@ from pydantic import BaseModel, EmailStr
 from sqlalchemy import func, or_, select, text
 
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 
 
@@ -75,17 +76,11 @@ router = APIRouter(prefix="/admin", tags=["Super Admin Governance"])
 
 
 def _verify_super_admin(user: User):
-
     """Enforce platform-wide Super Admin authority."""
-
     if user.role != "SUPER_ADMIN":
-
         raise HTTPException(
-
             status_code=status.HTTP_403_FORBIDDEN,
-
             detail="Platform-wide Super Admin authority required."
-
         )
 
 
@@ -101,8 +96,15 @@ class PasswordResetPayload(BaseModel):
 
 
 class SuspendUserPayload(BaseModel):
-
     reason: Optional[str] = "Suspended by Super Admin governance policy"
+
+
+class UserGovernanceUpdatePayload(BaseModel):
+    role: Optional[str] = None
+    organization_id: Optional[str] = None
+    full_name: Optional[str] = None
+    email: Optional[str] = None
+    status: Optional[str] = None
 
 
 
@@ -1223,8 +1225,56 @@ async def get_user_detail_governance(
         },
 
         "audit_history": audit_history,
-
     }
+
+
+@router.put("/users/{user_id}", response_model=UserResponse)
+async def update_user_account_governance(
+    user_id: str,
+    payload: UserGovernanceUpdatePayload,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Super Admin endpoint to update user account details including role, organization assignment, full name, email, and status.
+    """
+    _verify_super_admin(current_user)
+    try:
+        uuid_obj = uuid.UUID(user_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid user UUID format")
+
+    res = await db.execute(select(User).options(selectinload(User.organization_rel)).where(User.id == uuid_obj))
+    target_user = res.scalar_one_or_none()
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User account not found.")
+
+    if payload.role is not None and payload.role.strip():
+        target_user.role = payload.role.strip().upper()
+    if payload.organization_id is not None:
+        if payload.organization_id == "" or payload.organization_id.lower() == "none":
+            target_user.organization_id = None
+        else:
+            try:
+                target_user.organization_id = uuid.UUID(payload.organization_id)
+            except ValueError:
+                raise HTTPException(status_code=400, detail="Invalid organization UUID format")
+    if payload.full_name is not None and payload.full_name.strip():
+        target_user.full_name = payload.full_name.strip()
+    if payload.email is not None and payload.email.strip():
+        target_user.email = payload.email.strip()
+    if payload.status is not None and payload.status.strip():
+        target_user.status = payload.status.strip()
+
+    target_user.updated_at = datetime.now(timezone.utc)
+    await db.commit()
+
+    res2 = await db.execute(select(User).options(selectinload(User.organization_rel)).where(User.id == uuid_obj))
+    updated_user = res2.scalar_one()
+    return UserResponse.model_validate(updated_user)
+
+
+# ---------------------------------------------------------------------------
 
 
 

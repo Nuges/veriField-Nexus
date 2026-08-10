@@ -50,7 +50,7 @@ import {
 
 } from "lucide-react";
 
-import { fetchProperties, createProject, fetchMethodologies } from "@/lib/api";
+import { fetchProperties, createProject, fetchProjects, fetchMethodologies } from "@/lib/api";
 
 import type { Property } from "@/lib/types";
 
@@ -61,71 +61,50 @@ import { useWorkspace } from "@/context/WorkspaceContext";
 
 
 export default function PropertiesPage() {
-
   const toast = useToast();
-
   const { filterProperties, activeSector, activeMethodology, moduleRegistry } = useWorkspace();
-
   const [properties, setProperties] = useState<Property[]>([]);
-
+  const [realProjects, setRealProjects] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-
   const [searchQuery, setSearchQuery] = useState("");
 
-
-
   // Modal State
-
   const [showModal, setShowModal] = useState(false);
-
   const [isSubmitting, setIsSubmitting] = useState(false);
-
   const [formData, setFormData] = useState({
-
     name: "",
-
     country: "Nigeria",
-
     baseline_source: "diesel_generator",
-
     diesel_emission_factor: 2.68,
-
     grid_emission_factor: 0.7,
-
     crediting_start: "",
-
     crediting_end: ""
-
   });
 
-
-
   const loadProps = async () => {
-
+    setIsLoading(true);
     try {
+      const [resProps, resProjects] = await Promise.allSettled([
+        fetchProperties(),
+        fetchProjects()
+      ]);
 
-      const res = await fetchProperties();
-
-      setProperties(res.properties);
-
+      if (resProps.status === "fulfilled") {
+        setProperties(resProps.value?.properties || []);
+      }
+      if (resProjects.status === "fulfilled") {
+        const items = resProjects.value?.items || (Array.isArray(resProjects.value) ? resProjects.value : []);
+        setRealProjects(items);
+      }
     } catch (err) {
-
       console.error(err);
-
     } finally {
-
       setIsLoading(false);
-
     }
-
   };
 
-
-
   useEffect(() => {
-
     loadProps();
-
   }, []);
 
 
@@ -315,29 +294,9 @@ export default function PropertiesPage() {
           </h1>
 
           <p className="text-[var(--color-text-secondary)] text-xs mt-0.5">
-
             Audit energy efficiency scores, inspect geographical placements, and onboard new climate projects.
-
           </p>
-
         </div>
-
-
-
-        <button
-
-          onClick={() => setShowModal(true)}
-
-          className="flex items-center gap-2 px-4 py-2 bg-[#00B47A] hover:bg-[#009b68] text-slate-950 font-extrabold text-xs rounded-xl shadow-md transition-all active:scale-[0.98] cursor-pointer shrink-0"
-
-        >
-
-          <Plus size={16} />
-
-          <span>Create New Project</span>
-
-        </button>
-
       </div>
 
 
@@ -349,29 +308,24 @@ export default function PropertiesPage() {
 
 
         {/* Total Assets Summary */}
-
         <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-4 flex items-center justify-between shadow-sm relative overflow-hidden group hover:border-[#00B47A]/30 transition-all">
-
           <div className="space-y-1">
-
-            <p className="text-[9px] font-extrabold text-[var(--color-text-muted)] uppercase tracking-wider">Monitored Assets</p>
-
-            <p className="text-2xl font-black text-[var(--color-text-primary)] tracking-tight">
-
-              {isLoading ? "..." : totalAssetsCount}
-
+            <p className="text-[9px] font-extrabold text-[var(--color-text-muted)] uppercase tracking-wider">
+              {activeSector === "ev_mobility" ? "Registered EV Fleets & Stations" :
+               activeSector === "hybrid_energy" ? "Registered Solar Mini-grids" :
+               activeSector === "biochar" ? "Registered Biochar Pyrolyzers" :
+               activeSector === "cookstoves" ? "Monitored Stove Devices" : "Monitored Carbon Assets"}
             </p>
-
-            <p className="text-[9px] text-[var(--color-text-muted)] font-medium">Registered stoves & cookers</p>
-
+            <p className="text-2xl font-black text-[var(--color-text-primary)] tracking-tight">
+              {isLoading ? "..." : totalAssetsCount}
+            </p>
+            <p className="text-[9px] text-[var(--color-text-muted)] font-medium">
+              {realProjects.length} Active Project{realProjects.length === 1 ? "" : "s"} Onboarded
+            </p>
           </div>
-
           <div className="p-3 bg-[#00B47A]/5 border border-[#00B47A]/10 rounded-xl text-[#00B47A] shrink-0 group-hover:bg-[#00B47A] group-hover:text-white transition-all duration-300">
-
             <Layers size={18} />
-
           </div>
-
         </div>
 
 
@@ -436,38 +390,106 @@ export default function PropertiesPage() {
 
 
 
-      {/* 🧭 SNAPPY REAL-TIME TOOLBAR */}
-
-      <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
-
-        <div className="relative w-full max-w-md group">
-
-          <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] group-focus-within:text-[#00B47A] transition-colors" />
-
-          <input
-
-            type="text"
-
-            value={searchQuery}
-
-            onChange={(e) => setSearchQuery(e.target.value)}
-
-            placeholder="Search assets by name, type, or region..."
-
-            className="w-full pl-11 pr-4 py-2.5 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl text-xs text-[var(--color-text-primary)] placeholder:text-slate-500 focus:border-[#00B47A]/40 focus:ring-1 focus:ring-[#00B47A]/30 focus:outline-none transition-all shadow-inner font-semibold"
-
-          />
-
+      {/* 📁 REGISTERED CLIMATE PROJECTS ROSTER */}
+      <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-5 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[var(--color-border)] pb-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-[#00B47A]/10 text-[#00B47A] border border-[#00B47A]/20">
+              <Building2 size={20} />
+            </div>
+            <div>
+              <h2 className="text-sm font-extrabold uppercase tracking-wider text-[var(--color-text-primary)]">
+                Registered Climate Projects ({realProjects.length})
+              </h2>
+              <p className="text-xs text-[var(--color-text-secondary)]">
+                All onboarded climate projects, methodologies, and spatial boundaries for your organization.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => setShowModal(true)}
+            className="px-3.5 py-1.5 rounded-xl bg-[#00B47A] hover:bg-[#009b68] text-slate-950 font-extrabold text-xs transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
+          >
+            <Plus size={14} />
+            <span>+ Create New Project</span>
+          </button>
         </div>
 
+        {realProjects.length === 0 ? (
+          <div className="p-8 text-center bg-[var(--color-background)] rounded-xl border border-[var(--color-border)] space-y-2">
+            <p className="text-xs font-bold text-[var(--color-text-primary)]">No Projects Registered Yet</p>
+            <p className="text-[11px] text-zinc-500">Click "+ Create New Project" to onboard your first project.</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead>
+                <tr className="border-b border-[var(--color-border)] text-[10px] font-extrabold uppercase tracking-wider text-[var(--color-text-secondary)] bg-[var(--color-background)]/50">
+                  <th className="py-2.5 px-3">Project Name</th>
+                  <th className="py-2.5 px-3">Project Code</th>
+                  <th className="py-2.5 px-3">Country</th>
+                  <th className="py-2.5 px-3">Methodology</th>
+                  <th className="py-2.5 px-3">Crediting Period</th>
+                  <th className="py-2.5 px-3">Date Registered</th>
+                  <th className="py-2.5 px-3 text-right">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[var(--color-border)]">
+                {realProjects.map((proj) => (
+                  <tr key={proj.id} className="hover:bg-[var(--color-background)]/60 transition-colors group">
+                    <td className="py-3 px-3 font-bold text-[var(--color-text-primary)] group-hover:text-[#00B47A]">
+                      {proj.name}
+                    </td>
+                    <td className="py-3 px-3 font-mono text-[11px] text-zinc-400">
+                      {proj.project_code || "VF-GP-001"}
+                    </td>
+                    <td className="py-3 px-3 text-zinc-300">
+                      {proj.country || "Nigeria"}
+                    </td>
+                    <td className="py-3 px-3 font-mono text-[11px] text-[#00B47A]">
+                      {proj.methodology_id ? "AMS-III.C / Verified" : "AMS-II.G"}
+                    </td>
+                    <td className="py-3 px-3 text-[11px] text-zinc-400 font-mono">
+                      {proj.crediting_start ? `${proj.crediting_start} to ${proj.crediting_end}` : "2026-2031"}
+                    </td>
+                    <td className="py-3 px-3 text-[11px] text-zinc-500 font-mono">
+                      {proj.created_at ? new Date(proj.created_at).toLocaleDateString() : "Today"}
+                    </td>
+                    <td className="py-3 px-3 text-right">
+                      <span className="px-2 py-0.5 rounded text-[9px] font-extrabold uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                        ACTIVE
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
 
-
-        <span className="text-[10px] text-[var(--color-text-muted)] font-extrabold uppercase tracking-widest shrink-0 self-end sm:self-center">
-
-          Active ledger: {filteredProperties.length} results
-
-        </span>
-
+      {/* 🧭 MONITORED CARBON ASSETS & DEVICES DIRECTORY TOOLBAR */}
+      <div className="pt-4 border-t border-[var(--color-border)] space-y-4">
+        <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
+          <div>
+            <h3 className="text-sm font-extrabold uppercase tracking-wider text-[var(--color-text-primary)]">
+              Monitored Assets & Device Telemetry
+            </h3>
+            <p className="text-xs text-[var(--color-text-secondary)]">
+              Physical hardware devices, chargers, and sensors bound to onboarded projects.
+            </p>
+          </div>
+          <div className="relative w-full max-w-xs group">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] group-focus-within:text-[#00B47A] transition-colors" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search assets by name or region..."
+              className="w-full pl-9 pr-4 py-2 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl text-xs text-[var(--color-text-primary)] placeholder:text-slate-500 focus:border-[#00B47A]/40 focus:outline-none transition-all shadow-inner font-semibold"
+            />
+          </div>
+        </div>
       </div>
 
 

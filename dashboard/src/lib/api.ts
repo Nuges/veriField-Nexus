@@ -352,18 +352,11 @@ export async function apiFetch<T>(
 
 
 
-    // Network error
-
-    if (retries > 0 && typeof window !== "undefined" && navigator.onLine) {
-
+    // Transient Network error retry
+    if (retries > 0) {
        console.warn(`Network error for ${endpoint}. Retrying... (${retries} retries left)`);
-
-       // exponential backoff could be added here
-
-       await new Promise(r => setTimeout(r, 1000));
-
+       await new Promise(r => setTimeout(r, 500));
        return apiFetch<T>(endpoint, options, retries - 1);
-
     }
 
     return interceptors.error(new Error("Network error: Unable to reach the server. Please check your connection."));
@@ -373,106 +366,42 @@ export async function apiFetch<T>(
 
 
   if (!response.ok) {
-
-    if (response.status === 401) {
-
-       // Attempt JWT refresh (assuming /auth/refresh exists and sets cookie or returns token)
-
-       // For now, if 401, redirect to login unless on login page
-
-       if (typeof window !== "undefined" && !window.location.pathname.includes("/login")) {
-
-          safeStorage.removeItem("vf_token");
-
-          authToken = null;
-
-          window.location.href = "/login";
-
-          return new Promise<T>(() => {});
-
-       }
-
-    }
-
-
-
-    if (response.status >= 500 && retries > 0) {
-
-       console.warn(`Server error ${response.status} for ${endpoint}. Retrying... (${retries} retries left)`);
-
-       await new Promise(r => setTimeout(r, 1000));
-
-       return apiFetch<T>(endpoint, options, retries - 1);
-
-    }
-
-
-
     const errText = await response.text().catch(() => "");
 
-    console.error("API Fetch Error:", endpoint, response.status, response.statusText, errText);
-
-
-
-    let error: any = {};
-
-    try {
-
-      error = JSON.parse(errText);
-
-    } catch (e) {}
-
-
-
-    let errorMessage = `API error: ${response.status} ${response.statusText}`;
-
-
-
-    if (error.detail) {
-
-      if (typeof error.detail === "string") errorMessage = error.detail;
-
-      else if (Array.isArray(error.detail)) {
-
-        errorMessage = error.detail.map((err: any) => {
-
-          const locStr = err.loc ? err.loc.join(".") : "";
-
-          return locStr ? `${locStr}: ${err.msg}` : err.msg;
-
-        }).join("; ");
-
-      } else if (typeof error.detail === "object") {
-
-        if (Array.isArray(error.detail.errors) && error.detail.errors.length > 0) {
-
-          errorMessage = error.detail.errors.join("; ");
-
-        } else if (error.detail.message) {
-
-          errorMessage = String(error.detail.message);
-
-        } else {
-
-          errorMessage = JSON.stringify(error.detail);
-
-        }
-
-      }
-
-    } else if (error.message) {
-
-       errorMessage = error.message;
-
+    if (response.status === 401 || (response.status === 403 && errText.includes("Not authenticated"))) {
+       if (typeof window !== "undefined" && !window.location.pathname.includes("/login") && !window.location.pathname.includes("/signup")) {
+          safeStorage.removeItem("vf_token");
+          authToken = null;
+          window.location.href = "/login";
+          return new Promise<T>(() => {});
+       }
     }
 
-    const apiError: any = new Error(errorMessage);
-    apiError.status = response.status;
-    return interceptors.error(apiError);
+    if (response.status >= 500 && retries > 0) {
+       console.warn(`Server error ${response.status} for ${endpoint}. Retrying... (${retries} retries left)`);
+       await new Promise(r => setTimeout(r, 1000));
+       return apiFetch<T>(endpoint, options, retries - 1);
+    }
 
+    if (!errText.includes("Not authenticated")) {
+       console.error("API Fetch Error:", endpoint, response.status, response.statusText, errText);
+    }
+
+    let error: any = {};
+    try {
+      error = JSON.parse(errText);
+    } catch (_) {
+      error = { detail: errText || response.statusText };
+    }
+
+    const customError: any = new Error(error.detail || error.message || `API error: ${response.status}`);
+    customError.status = response.status;
+    customError.statusCode = response.status;
+    customError.response = response;
+    customError.data = error;
+
+    return interceptors.error(customError);
   }
-
-
 
   let data = await response.json();
 
@@ -1482,6 +1411,26 @@ export async function updateAgentStatus(userId: string, status: "active" | "susp
     method: "PUT",
 
     body: JSON.stringify({ status }),
+
+  });
+
+}
+
+
+
+export async function updateUserAccount(
+
+  userId: string,
+
+  data: { full_name?: string; role?: string; status?: string; organization_id?: string }
+
+): Promise<any> {
+
+  return apiFetch<any>(`/auth/users/${userId}`, {
+
+    method: "PUT",
+
+    body: JSON.stringify(data),
 
   });
 

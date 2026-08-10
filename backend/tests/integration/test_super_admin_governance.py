@@ -44,6 +44,7 @@ async def main():
             sys.exit(1)
         sa_token = sa_login.json()["access_token"]
         sa_headers = {"Authorization": f"Bearer {sa_token}"}
+        client.cookies.clear()
         print("  ✓ Super Admin logged in successfully.")
 
         # Create Admin
@@ -115,15 +116,17 @@ async def main():
         print("[3] Testing RBAC Authority Enforcement Across Non-Super Admin Roles...")
 
         # Admin attempting governance endpoint
+        client.cookies.clear()
         admin_gov_res = await client.get("/api/v1/admin/users", headers=admin_headers)
         if admin_gov_res.status_code == 403:
             print("  ✓ ADMIN GET /api/v1/admin/users -> HTTP 403 Forbidden (Blocked as expected)")
             results["rbac_admin_blocked"] = "PASS"
         else:
-            print(f"  ✗ ADMIN GET /api/v1/admin/users FAILED -> Allowed with status {admin_gov_res.status_code}")
+            print(f"  ✗ ADMIN GET /api/v1/admin/users FAILED -> Status {admin_gov_res.status_code}")
             results["rbac_admin_blocked"] = "FAIL"
 
         # Auditor attempting account suspension
+        client.cookies.clear()
         auditor_susp_res = await client.post(f"/api/v1/admin/users/{agent_id}/suspend", headers=auditor_headers)
         if auditor_susp_res.status_code == 403:
             print("  ✓ AUDITOR POST /api/v1/admin/users/{id}/suspend -> HTTP 403 Forbidden (Blocked as expected)")
@@ -133,6 +136,7 @@ async def main():
             results["rbac_auditor_blocked"] = "FAIL"
 
         # Field Agent attempting account deletion
+        client.cookies.clear()
         agent_del_res = await client.delete(f"/api/v1/admin/users/{agent_id}", headers=agent_headers)
         if agent_del_res.status_code == 403:
             print("  ✓ FIELD_AGENT DELETE /api/v1/admin/users/{id} -> HTTP 403 Forbidden (Blocked as expected)")
@@ -252,7 +256,7 @@ async def main():
         from sqlalchemy import text
         await _init_fallback_db()
         async for db in get_db():
-            await db.execute(text("DELETE FROM users WHERE email != 'admin@verifield.io' AND email != 'admin@verifield.local'"))
+            await db.execute(text("DELETE FROM users WHERE email NOT IN ('admin@verifield.io', 'admin@verifield.local', 'ruth@gmail.com', 'dan@gmail.com')"))
             await db.commit()
             print("  ✓ Temporary test accounts purged cleanly from database.")
             break

@@ -1830,26 +1830,49 @@ function SuperAdminDashboard() {
                           <td className="py-4 text-zinc-400">{u.email}</td>
 
                           <td className="py-4">
-
                             <span className={`text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded border ${
-
                               u.role === "SUPER_ADMIN" ? "bg-purple-500/10 border-purple-500/20 text-purple-400" :
-
-                              u.role === "ORG_ADMIN" ? "bg-blue-500/10 border-blue-500/20 text-blue-400" :
-
-                              u.role === "admin" ? "bg-blue-500/10 border-blue-500/20 text-blue-400" :
-
+                              (u.role === "ORG_ADMIN" || u.role === "ADMIN" || u.role === "admin") ? "bg-blue-500/10 border-blue-500/20 text-blue-400" :
+                              (u.role === "AUDITOR" || u.role === "VVB" || u.role === "VERIFIER") ? "bg-amber-500/10 border-amber-500/20 text-amber-400" :
+                              (u.role === "FIELD_AGENT" || u.role === "FIELD_SUPERVISOR") ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" :
+                              (u.role?.includes("MANAGER") || u.role?.includes("PROJECT") || u.role?.includes("PORTFOLIO")) ? "bg-cyan-500/10 border-cyan-500/20 text-cyan-400" :
                               "bg-zinc-800 border-zinc-700 text-zinc-400"
-
                             }`}>
-
                               {u.role === "admin" ? "ORG_ADMIN" : u.role}
-
                             </span>
-
                           </td>
 
-                          <td className="py-4 text-zinc-400 font-semibold">{u.organization || "System Default"}</td>
+                          <td className="py-4 font-semibold text-xs">
+                            {(() => {
+                              const userOrg = orgs.find(o => o.id === u.organization_id || o.name === u.organization);
+                              const orgName = u.organization || userOrg?.name;
+                              const sectors = (u.licensed_sectors && u.licensed_sectors.length > 0)
+                                ? u.licensed_sectors
+                                : (userOrg?.licensed_sectors || []);
+
+                              if (u.role === "SUPER_ADMIN" && !orgName) {
+                                return <span className="text-zinc-500 font-mono text-[11px]">System Default (Platform Global)</span>;
+                              }
+
+                              return (
+                                <div className="flex flex-col items-start gap-1">
+                                  <span className="text-zinc-200">{orgName || "System Default"}</span>
+                                  {sectors.length > 0 && (
+                                    <div className="flex flex-wrap gap-1">
+                                      {sectors.map((sec: string) => (
+                                        <span
+                                          key={sec}
+                                          className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                                        >
+                                          {sec}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })()}
+                          </td>
 
                           <td className="py-4">
 
@@ -2237,10 +2260,13 @@ function SuperAdminDashboard() {
                 roles={rolesList}
                 permissionsList={permissionsList}
                 users={users}
+                organizations={orgs}
                 onRefresh={async () => {
                   try {
                     const r = await fetchAdminRoles();
                     setRolesList(r);
+                    const u = await fetchAdminUsers();
+                    setUsers(u);
                   } catch (e) {}
                 }}
               />

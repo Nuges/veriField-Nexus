@@ -121,8 +121,10 @@ class UserRepository:
             (User.role == 'AUDITOR', 7),
             else_=8
         )
+        from sqlalchemy.orm import selectinload
         stmt = (
             select(User)
+            .options(selectinload(User.organization_rel))
             .where(User.organization_id == organization_id, User.is_deleted == False)
             .order_by(role_order, asc(User.full_name), desc(User.created_at))
             .limit(limit)
@@ -135,6 +137,7 @@ class UserRepository:
         self, limit: int = 100, offset: int = 0
     ) -> List[User]:
         from sqlalchemy import case, asc, desc
+        from sqlalchemy.orm import selectinload
         role_order = case(
             (User.role == 'SUPER_ADMIN', 1),
             (User.role == 'ADMIN', 2),
@@ -147,16 +150,13 @@ class UserRepository:
         )
         stmt = (
             select(User)
+            .options(selectinload(User.organization_rel))
             .where(User.is_deleted == False)
             .order_by(role_order, asc(User.full_name), desc(User.created_at))
             .limit(limit)
             .offset(offset)
         )
         res = await self.db.execute(stmt)
-        return list(res.scalars().all())
-
-        res = await self.db.execute(stmt)
-
         return list(res.scalars().all())
 
 

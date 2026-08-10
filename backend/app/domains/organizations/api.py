@@ -95,24 +95,21 @@ async def create_organization(
 
 
 @router.get("", response_model=List[OrganizationResponse])
-
 async def list_organizations(
-
     current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
-
 ):
-
-    if current_user.role != "SUPER_ADMIN":
-
+    role_upper = (current_user.role or "").upper().replace(" ", "_")
+    if role_upper not in ("SUPER_ADMIN", "ADMIN", "ORG_ADMIN"):
         raise HTTPException(status_code=403, detail="Access denied.")
 
-
-
     repo = OrganizationRepository(db)
-
     service = OrganizationService(repo)
 
-    orgs = await service.list_orgs()
+    if role_upper in ("SUPER_ADMIN", "ADMIN") or not current_user.organization_id:
+        orgs = await service.list_orgs()
+    else:
+        org = await repo.get_by_id(current_user.organization_id)
+        orgs = [org] if org else []
 
     return [OrganizationResponse.model_validate(o) for o in orgs]
 

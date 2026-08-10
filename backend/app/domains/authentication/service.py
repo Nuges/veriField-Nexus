@@ -110,28 +110,18 @@ class AuthenticationService:
 
         expires_delta = timedelta(hours=24)
 
-        expire = datetime.now(timezone.utc) + expires_delta
-
-
-
+        now = datetime.now(timezone.utc)
         payload = {
-
             "sub": str(user.id),
-
             "email": user.email,
-
             "role": user.role,
-
             "organization_id": (
-
                 str(user.organization_id) if user.organization_id else None
-
             ),
-
-            "exp": expire,
-
+            "iat": now,
+            "exp": now + expires_delta,
+            "jti": str(uuid.uuid4()),
         }
-
         return pyjwt.encode(payload, secret, algorithm="HS256")
 
 

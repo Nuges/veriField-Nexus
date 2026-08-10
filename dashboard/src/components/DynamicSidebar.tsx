@@ -49,7 +49,9 @@ import {
 
   Bot,
 
-  FileText
+  FileText,
+
+  HelpCircle
 
 } from "lucide-react";
 
@@ -87,7 +89,9 @@ const ICON_MAP: Record<string, any> = {
 
   Bot,
 
-  FileText
+  FileText,
+
+  HelpCircle
 
 };
 
@@ -200,195 +204,105 @@ export default function DynamicSidebar() {
   const getRoleNavigation = (): WorkspaceNavItem[] => {
 
     const defaultNav: WorkspaceNavItem[] = [
-
       { label: "Mission Control", icon: "LayoutDashboard", href: "/dashboard" },
-
       { label: "Projects", icon: "Briefcase", href: "/dashboard/projects" },
-
       { label: "Methodology", icon: "Layers", href: "/dashboard/methodologies" },
-
       {
-
         label: "Field Operations",
-
         icon: "Radio",
-
         href: "/dashboard/operations",
-
         badge: flaggedCount !== null && flaggedCount > 0 ? `${flaggedCount} Review` : undefined
-
       },
-
       { label: "Monitoring", icon: "Activity", href: "/dashboard/monitoring" },
-
       {
-
         label: "Verification",
-
         icon: "ShieldCheck",
-
         href: "/dashboard/verifications",
-
         badge: pendingCount !== null && pendingCount > 0 ? `${pendingCount} Audit` : undefined
-
       },
-
       { label: "Carbon Credits", icon: "Sliders", href: "/dashboard/carbon" },
-
       { label: "Compliance", icon: "Globe", href: "/dashboard/command-center" },
-
       { label: "AI Assistant", icon: "Bot", href: "/dashboard/ai", badge: "Proactive" },
-
       { label: "Reports", icon: "FileText", href: "/dashboard/analytics" },
-
       { label: "People & Agents", icon: "Users", href: "/dashboard/agents" },
-
       { label: "Settings", icon: "Settings", href: "/dashboard/settings" },
-
+      { label: "Help & Guides", icon: "HelpCircle", href: "/dashboard/help" },
     ];
 
-
-
     if (userRole === "AUDITOR" || userRole === "VVB" || userRole === "VERIFIER") {
-
       return [
-
         { label: "Mission Control", icon: "LayoutDashboard", href: "/dashboard" },
-
         {
-
           label: "Verification",
-
           icon: "ShieldCheck",
-
           href: "/dashboard/verifications",
-
           badge: pendingCount !== null && pendingCount > 0 ? `${pendingCount} Audit` : undefined
-
         },
-
         { label: "Monitoring", icon: "Activity", href: "/dashboard/monitoring" },
-
         { label: "Compliance", icon: "Globe", href: "/dashboard/command-center" },
-
         { label: "Carbon Credits", icon: "Sliders", href: "/dashboard/carbon" },
-
         { label: "Reports", icon: "FileText", href: "/dashboard/analytics" },
-
         { label: "AI Assistant", icon: "Bot", href: "/dashboard/ai", badge: "Proactive" },
-
         { label: "Settings", icon: "Settings", href: "/dashboard/settings" },
-
+        { label: "Help & Guides", icon: "HelpCircle", href: "/dashboard/help" },
       ];
-
     }
-
-
 
     if (userRole === "FIELD_AGENT") {
-
       return [
-
         { label: "Mission Control", icon: "LayoutDashboard", href: "/dashboard" },
-
         {
-
           label: "Field Operations",
-
           icon: "Radio",
-
           href: "/dashboard/operations",
-
           badge: flaggedCount !== null && flaggedCount > 0 ? `${flaggedCount} Review` : undefined
-
         },
-
         { label: "Monitoring", icon: "Activity", href: "/dashboard/monitoring" },
-
         { label: "AI Assistant", icon: "Bot", href: "/dashboard/ai" },
-
         { label: "Settings", icon: "Settings", href: "/dashboard/settings" },
-
+        { label: "Help & Guides", icon: "HelpCircle", href: "/dashboard/help" },
       ];
-
     }
-
-
 
     if (userRole === "QA_OFFICER") {
-
       return [
-
         { label: "Mission Control", icon: "LayoutDashboard", href: "/dashboard" },
-
         {
-
           label: "Field Operations",
-
           icon: "Radio",
-
           href: "/dashboard/operations",
-
           badge: flaggedCount !== null && flaggedCount > 0 ? `${flaggedCount} Review` : undefined
-
         },
-
         { label: "Monitoring", icon: "Activity", href: "/dashboard/monitoring" },
-
         {
-
           label: "Verification",
-
           icon: "ShieldCheck",
-
           href: "/dashboard/verifications",
-
           badge: pendingCount !== null && pendingCount > 0 ? `${pendingCount} Audit` : undefined
-
         },
-
         { label: "Reports", icon: "FileText", href: "/dashboard/analytics" },
-
         { label: "AI Assistant", icon: "Bot", href: "/dashboard/ai" },
-
         { label: "Settings", icon: "Settings", href: "/dashboard/settings" },
-
+        { label: "Help & Guides", icon: "HelpCircle", href: "/dashboard/help" },
       ];
-
     }
 
-
-
     if (userRole === "REGISTRY_MANAGER" || userRole === "REGISTRY") {
-
       return [
-
         { label: "Mission Control", icon: "LayoutDashboard", href: "/dashboard" },
-
         { label: "Carbon Credits", icon: "Sliders", href: "/dashboard/carbon" },
-
         {
-
           label: "Verification",
-
           icon: "ShieldCheck",
-
           href: "/dashboard/verifications",
-
           badge: pendingCount !== null && pendingCount > 0 ? `${pendingCount} Audit` : undefined
-
         },
-
         { label: "Compliance", icon: "Globe", href: "/dashboard/command-center" },
-
         { label: "Reports", icon: "FileText", href: "/dashboard/analytics" },
-
         { label: "AI Assistant", icon: "Bot", href: "/dashboard/ai" },
-
         { label: "Settings", icon: "Settings", href: "/dashboard/settings" },
-
+        { label: "Help & Guides", icon: "HelpCircle", href: "/dashboard/help" },
       ];
-
     }
 
     // Admin-level roles get full navigation
@@ -404,6 +318,7 @@ export default function DynamicSidebar() {
       { label: "Reports", icon: "FileText", href: "/dashboard/analytics" },
       { label: "AI Assistant", icon: "Bot", href: "/dashboard/ai" },
       { label: "Settings", icon: "Settings", href: "/dashboard/settings" },
+      { label: "Help & Guides", icon: "HelpCircle", href: "/dashboard/help" },
     ];
 
   };

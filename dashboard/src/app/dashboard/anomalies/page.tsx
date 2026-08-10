@@ -41,6 +41,7 @@ import { fetchAnomalies, resolveAnomaly } from "@/lib/api";
 import { useToast } from "@/components/Toast";
 
 import VerificationPipelineStages, { PipelineStage } from "@/components/VerificationPipelineStages";
+import { DataQualityEventConsole } from "@/components/monitoring/DataQualityEventConsole";
 
 
 
@@ -53,6 +54,13 @@ export default function AnomaliesPage() {
   const [anomalies, setAnomalies] = useState<any[]>([]);
 
   const [isLoading, setIsLoading] = useState(true);
+
+  const formatDateSafe = (dateStr?: string, options?: Intl.DateTimeFormatOptions) => {
+    if (!dateStr) return "—";
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return "—";
+    return options ? d.toLocaleTimeString([], options) : d.toLocaleDateString();
+  };
 
 
 
@@ -430,13 +438,13 @@ export default function AnomaliesPage() {
 
                       <div className="text-xs font-bold text-[var(--color-text-primary)]">
 
-                        {new Date(flag.created_at).toLocaleDateString()}
+                        {formatDateSafe(flag.created_at)}
 
                       </div>
 
                       <div className="text-[10px] text-[var(--color-text-muted)] mt-1 font-mono">
 
-                        {new Date(flag.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        {formatDateSafe(flag.created_at, { hour: '2-digit', minute: '2-digit' })}
 
                       </div>
 
@@ -468,7 +476,7 @@ export default function AnomaliesPage() {
 
                         <span className="text-xs font-bold text-[var(--color-text-primary)] font-mono uppercase tracking-tight">
 
-                          {flag.flag_type.replace(/_/g, ' ')}
+                          {(flag.flag_type || "ANOMALY_TRIGGER").replace(/_/g, ' ')}
 
                         </span>
 
@@ -484,7 +492,7 @@ export default function AnomaliesPage() {
 
                       <p className="text-xs text-[var(--color-text-secondary)] max-w-xs md:max-w-md font-medium leading-relaxed">
 
-                        {flag.description}
+                        {flag.description || "Data anomaly event flagged for audit review."}
 
                       </p>
 
@@ -506,13 +514,13 @@ export default function AnomaliesPage() {
 
                       }`}>
 
-                        {flag.activity_status}
+                        {flag.activity_status || "PENDING"}
 
                       </span>
 
                       <div className="text-[9px] text-[var(--color-text-muted)] mt-1 font-mono">
 
-                        ID: {flag.activity_id.substring(0,8)}...
+                        ID: {flag.activity_id ? flag.activity_id.substring(0,8) : "—"}...
 
                       </div>
 
@@ -604,7 +612,8 @@ export default function AnomaliesPage() {
 
       </div>
 
-
+      {/* 🛡️ REAL-TIME DATA QUALITY EVENT STREAM & AUDIT TRAIL CONSOLE */}
+      <DataQualityEventConsole />
 
     </div>
 
