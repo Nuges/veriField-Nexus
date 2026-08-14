@@ -98,17 +98,20 @@ export interface AuditTask {
 
 
 
-// Base URL for the FastAPI backend
+export function getApiV1(): string {
+  let rawApiBase = process.env.NEXT_PUBLIC_API_URL || "";
+  if (typeof window !== "undefined") {
+    const host = window.location.hostname;
+    const isLocal = host === "localhost" || host === "127.0.0.1" || host.startsWith("192.168.") || host.endsWith(".local");
+    if (!isLocal && (rawApiBase.includes("localhost") || rawApiBase.includes("127.0.0.1"))) {
+      rawApiBase = "";
+    }
+  }
+  const API_BASE = rawApiBase.replace(/\/+$/, "");
+  return `${API_BASE}/api/v1`;
+}
 
-// Always use relative paths so requests go through the Next.js rewrite proxy.
-
-// Only use an explicit URL if NEXT_PUBLIC_API_URL is set and non-empty.
-
-const rawApiBase = process.env.NEXT_PUBLIC_API_URL || "";
-
-const API_BASE = rawApiBase.replace(/\/+$/, "");
-
-export const API_V1 = `${API_BASE}/api/v1`;
+export const API_V1 = getApiV1();
 
 
 
@@ -314,7 +317,7 @@ export async function apiFetch<T>(
 
   try {
 
-    response = await fetch(`${API_V1}${endpoint}`, {
+    response = await fetch(`${getApiV1()}${endpoint}`, {
 
       ...fetchOptions,
 
@@ -453,7 +456,7 @@ export async function loginAdmin(email: string, password: string) {
 
   try {
 
-    response = await fetch(`${API_V1}/auth/login`, {
+    response = await fetch(`${getApiV1()}/auth/login`, {
 
       method: "POST",
 
@@ -1494,7 +1497,7 @@ export async function exportVerraCSV(minTrustScore = 80): Promise<void> {
 
   const response = await fetch(
 
-    `${API_V1}/registry/export/verra?min_trust_score=${minTrustScore}`,
+    `${getApiV1()}/registry/export/verra?min_trust_score=${minTrustScore}`,
 
     {
 
@@ -1538,7 +1541,7 @@ export async function exportGoldStandardJSON(minTrustScore = 80): Promise<void> 
 
   const response = await fetch(
 
-    `${API_V1}/registry/export/goldstandard?min_trust_score=${minTrustScore}`,
+    `${getApiV1()}/registry/export/goldstandard?min_trust_score=${minTrustScore}`,
 
     {
 
