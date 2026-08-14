@@ -1,8 +1,8 @@
 import logging
 import time
 
-from fastapi import Request
-from fastapi.responses import Response
+from fastapi import Request, HTTPException
+from fastapi.responses import Response, JSONResponse
 from prometheus_client import (CONTENT_TYPE_LATEST, Counter, Histogram,
                                generate_latest)
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -35,7 +35,6 @@ class PrometheusMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next):
         method = request.method
-        # Only track base path to avoid cardinality explosion with path params (e.g. /projects/123)
         endpoint = request.url.path.split("/")[0:4]
         endpoint_str = "/".join(endpoint)
 
@@ -43,20 +42,40 @@ class PrometheusMiddleware(BaseHTTPMiddleware):
 
         try:
             response = await call_next(request)
-            status_code = response.status_code
-        except Exception as e:
-            status_code = 500
-            raise e
-        finally:
             duration = time.time() - start_time
             REQUEST_COUNT.labels(
-                method=method, endpoint=endpoint_str, http_status=status_code
+                method=method, endpoint=endpoint_str, http_status=response.status_code
             ).inc()
             REQUEST_LATENCY.labels(method=method, endpoint=endpoint_str).observe(
                 duration
             )
-
-        return response
+            return response
+        except HTTPException as exc:
+            duration = time.time() - start_time
+            REQUEST_COUNT.labels(
+                method=method, endpoint=endpoint_str, http_status=exc.status_code
+            ).inc()
+            REQUEST_LATENCY.labels(method=method, endpoint=endpoint_str).observe(
+                duration
+            )
+            return JSONResponse(
+                status_code=exc.status_code,
+                content={"detail": exc.detail},
+                headers=getattr(exc, "headers", None),
+            )
+        except Exception as e:
+            duration = time.time() - start_time
+            REQUEST_COUNT.labels(
+                method=method, endpoint=endpoint_str, http_status=500
+            ).inc()
+            REQUEST_LATENCY.labels(method=method, endpoint=endpoint_str).observe(
+                duration
+            )
+            logger.error(f"Unhandled exception in request pipeline: {type(e).__name__}: {e}")
+            return JSONResponse(
+                status_code=500,
+                content={"detail": f"Internal server error: {type(e).__name__}: {str(e)}"},
+            )
 
 
 def metrics_endpoint():
