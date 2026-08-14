@@ -1462,63 +1462,62 @@ async def lifespan(app: FastAPI):
 
                 await session.execute(text("SET lock_timeout = '3000ms'"))
 
-                result = await session.execute(
-
-                    text("SELECT 1 FROM users WHERE email = 'superadmin@verifield.io'")
-
+                # Seed Default SUPER_ADMIN accounts if not exists
+                result_admin = await session.execute(
+                    text("SELECT 1 FROM users WHERE email = 'admin@verifield.io'")
                 )
-
-                if not result.scalar():
-
+                if not result_admin.scalar():
                     from app.core.security import get_password_hash
-
-
-
-                    pw_hash = get_password_hash("CHANGE_THIS_ON_FIRST_LOGIN")
-
+                    pw_hash = get_password_hash("Lovelyday1")
                     await session.execute(
-
                         text("""
-
                         INSERT INTO users (id, email, full_name, role, status, is_active, password_hash, requires_password_change, created_at, updated_at)
-
                         VALUES (
-
-                            '00000000-0000-5000-a000-000000000000',
-
-                            'superadmin@verifield.io',
-
-                            'Super Admin',
-
+                            '00000000-0000-0000-0000-000000000003',
+                            'admin@verifield.io',
+                            'VeriField Admin',
                             'SUPER_ADMIN',
-
                             'active',
-
                             true,
-
                             :pw_hash,
-
-                            true,
-
+                            false,
                             now(),
-
                             now()
-
                         )
-
+                        ON CONFLICT (id) DO UPDATE SET password_hash = EXCLUDED.password_hash, is_active = true, status = 'active'
                     """),
-
                         {"pw_hash": pw_hash},
-
                     )
-
                     await session.commit()
+                    logger.info("Super Admin 'admin@verifield.io' seeded successfully!")
 
-                    logger.info(
-
-                        "Super Admin 'superadmin@verifield.io' seeded successfully!"
-
+                result_sa = await session.execute(
+                    text("SELECT 1 FROM users WHERE email = 'superadmin@verifield.io'")
+                )
+                if not result_sa.scalar():
+                    from app.core.security import get_password_hash
+                    pw_hash = get_password_hash("Lovelyday1")
+                    await session.execute(
+                        text("""
+                        INSERT INTO users (id, email, full_name, role, status, is_active, password_hash, requires_password_change, created_at, updated_at)
+                        VALUES (
+                            '00000000-0000-5000-a000-000000000000',
+                            'superadmin@verifield.io',
+                            'Super Admin',
+                            'SUPER_ADMIN',
+                            'active',
+                            true,
+                            :pw_hash,
+                            false,
+                            now(),
+                            now()
+                        )
+                        ON CONFLICT (id) DO UPDATE SET password_hash = EXCLUDED.password_hash, is_active = true, status = 'active'
+                    """),
+                        {"pw_hash": pw_hash},
                     )
+                    await session.commit()
+                    logger.info("Super Admin 'superadmin@verifield.io' seeded successfully!")
 
 
 
