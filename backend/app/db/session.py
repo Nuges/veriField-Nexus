@@ -19,8 +19,8 @@ PostgreSQL. Provides the `get_db` dependency for FastAPI routes.
 import os
 
 import uuid
-
 from typing import AsyncGenerator
+from fastapi import HTTPException
 
 
 

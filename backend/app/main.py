@@ -1432,62 +1432,53 @@ async def lifespan(app: FastAPI):
 
                 await session.execute(text("SET lock_timeout = '3000ms'"))
 
-                # Seed Default SUPER_ADMIN accounts if not exists
-                result_admin = await session.execute(
-                    text("SELECT 1 FROM users WHERE email = 'admin@verifield.io'")
-                )
-                if not result_admin.scalar():
-                    from app.core.security import get_password_hash
-                    pw_hash = get_password_hash("Lovelyday1")
-                    await session.execute(
-                        text("""
-                        INSERT INTO users (id, email, full_name, role, status, is_active, password_hash, requires_password_change, created_at, updated_at)
-                        VALUES (
-                            '00000000-0000-0000-0000-000000000003',
-                            'admin@verifield.io',
-                            'VeriField Admin',
-                            'SUPER_ADMIN',
-                            'active',
-                            true,
-                            :pw_hash,
-                            false,
-                            now(),
-                            now()
-                        )
-                        ON CONFLICT (id) DO UPDATE SET password_hash = EXCLUDED.password_hash, is_active = true, status = 'active'
-                    """),
-                        {"pw_hash": pw_hash},
-                    )
-                    await session.commit()
-                    logger.info("Super Admin 'admin@verifield.io' seeded successfully!")
+                # Seed Default SUPER_ADMIN accounts
+                from app.core.security import get_password_hash
+                pw_hash = get_password_hash("Lovelyday1")
 
-                result_sa = await session.execute(
-                    text("SELECT 1 FROM users WHERE email = 'superadmin@verifield.io'")
-                )
-                if not result_sa.scalar():
-                    from app.core.security import get_password_hash
-                    pw_hash = get_password_hash("Lovelyday1")
-                    await session.execute(
-                        text("""
-                        INSERT INTO users (id, email, full_name, role, status, is_active, password_hash, requires_password_change, created_at, updated_at)
-                        VALUES (
-                            '00000000-0000-5000-a000-000000000000',
-                            'superadmin@verifield.io',
-                            'Super Admin',
-                            'SUPER_ADMIN',
-                            'active',
-                            true,
-                            :pw_hash,
-                            false,
-                            now(),
-                            now()
-                        )
-                        ON CONFLICT (id) DO UPDATE SET password_hash = EXCLUDED.password_hash, is_active = true, status = 'active'
-                    """),
-                        {"pw_hash": pw_hash},
+                await session.execute(
+                    text("""
+                    INSERT INTO users (id, email, full_name, role, status, is_active, password_hash, requires_password_change, created_at, updated_at)
+                    VALUES (
+                        '00000000-0000-0000-0000-000000000003',
+                        'admin@verifield.io',
+                        'VeriField Admin',
+                        'SUPER_ADMIN',
+                        'active',
+                        true,
+                        :pw_hash,
+                        false,
+                        now(),
+                        now()
                     )
-                    await session.commit()
-                    logger.info("Super Admin 'superadmin@verifield.io' seeded successfully!")
+                    ON CONFLICT (email) DO UPDATE SET password_hash = EXCLUDED.password_hash, is_active = true, status = 'active', role = 'SUPER_ADMIN'
+                """),
+                    {"pw_hash": pw_hash},
+                )
+                await session.commit()
+                logger.info("Super Admin 'admin@verifield.io' seeded/updated successfully!")
+
+                await session.execute(
+                    text("""
+                    INSERT INTO users (id, email, full_name, role, status, is_active, password_hash, requires_password_change, created_at, updated_at)
+                    VALUES (
+                        '00000000-0000-5000-a000-000000000000',
+                        'superadmin@verifield.io',
+                        'Super Admin',
+                        'SUPER_ADMIN',
+                        'active',
+                        true,
+                        :pw_hash,
+                        false,
+                        now(),
+                        now()
+                    )
+                    ON CONFLICT (email) DO UPDATE SET password_hash = EXCLUDED.password_hash, is_active = true, status = 'active', role = 'SUPER_ADMIN'
+                """),
+                    {"pw_hash": pw_hash},
+                )
+                await session.commit()
+                logger.info("Super Admin 'superadmin@verifield.io' seeded/updated successfully!")
 
 
 
@@ -1589,71 +1580,43 @@ setup_observability(app)
 
 # ---------------------------------------------------------------------------
 
-from fastapi import Request
-
+from fastapi import Request, HTTPException
 from fastapi.responses import JSONResponse
 
 
-
-
-
 @app.exception_handler(Exception)
-
 async def global_exception_handler(request: Request, exc: Exception):
-
     """Catch unhandled exceptions and return clean error responses."""
-
-    import logging
-
-
-
-    logger = logging.getLogger("verifield.app")
-
-
-
-    error_name = type(exc).__name__
-
-
-
-    # Database connection errors → 503
-
-    db_error_types = (
-
-        "ConnectionRefusedError",
-
-        "gaierror",
-
-        "TimeoutError",
-
-        "OperationalError",
-
-        "InterfaceError",
-
-        "PoolTimeout",
-
-    )
-
-    if (
-
-        any(t in error_name for t in db_error_types)
-
-        or "Connection refused" in str(exc)
-
-        or "nodename nor servname" in str(exc)
-
-    ):
-
-        logger.warning(f"DB connection error on {request.url.path}: {error_name}")
-
+    if isinstance(exc, HTTPException):
         return JSONResponse(
-
-            status_code=503,
-
-            content={"detail": "Database temporarily unavailable. Please retry."},
-
+            status_code=exc.status_code,
+            content={"detail": exc.detail},
+            headers=getattr(exc, "headers", None),
         )
 
+    import logging
+    logger = logging.getLogger("verifield.app")
+    error_name = type(exc).__name__
 
+    # Database connection errors → 503
+    db_error_types = (
+        "ConnectionRefusedError",
+        "gaierror",
+        "TimeoutError",
+        "OperationalError",
+        "InterfaceError",
+        "PoolTimeout",
+    )
+    if (
+        any(t in error_name for t in db_error_types)
+        or "Connection refused" in str(exc)
+        or "nodename nor servname" in str(exc)
+    ):
+        logger.warning(f"DB connection error on {request.url.path}: {error_name}")
+        return JSONResponse(
+            status_code=503,
+            content={"detail": "Database temporarily unavailable. Please retry."},
+        )
 
     # Log unexpected errors
     logger.error(f"Unhandled error on {request.url.path}: {error_name}: {exc}")
@@ -1698,15 +1661,7 @@ app.add_middleware(
 async def add_security_headers(request: Request, call_next):
     if request.method == "OPTIONS":
         return await call_next(request)
-    try:
-        response = await call_next(request)
-    except Exception as exc:
-        logger.error(f"HTTP middleware error on {request.url.path}: {exc}")
-        return JSONResponse(
-            status_code=500,
-            content={"detail": f"Server Error on {request.url.path}: {str(exc)}"}
-        )
-
+    response = await call_next(request)
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["X-XSS-Protection"] = "1; mode=block"
