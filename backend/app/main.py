@@ -1496,7 +1496,7 @@ async def lifespan(app: FastAPI):
 
 
 
-        asyncio.create_task(_sync_schemas())
+        await _sync_schemas()
 
 
 
