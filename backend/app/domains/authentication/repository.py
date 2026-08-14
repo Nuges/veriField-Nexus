@@ -31,79 +31,27 @@ class UserRepository:
     async def get_by_id(
         self, user_id: UUID, organization_id: Optional[UUID] = None
     ) -> Optional[User]:
-        from sqlalchemy.orm import selectinload
-        try:
-            stmt = select(User).options(selectinload(User.organization_rel)).where(User.id == user_id, User.is_deleted == False)
-            if organization_id:
-                stmt = stmt.where(User.organization_id == organization_id)
-            res = await self.db.execute(stmt)
-            return res.scalar_one_or_none()
-        except Exception:
-            stmt = select(User).where(User.id == user_id, User.is_deleted == False)
-            if organization_id:
-                stmt = stmt.where(User.organization_id == organization_id)
-            res = await self.db.execute(stmt)
-            return res.scalar_one_or_none()
-
-
+        stmt = select(User).where(User.id == user_id, User.is_deleted == False)
+        if organization_id:
+            stmt = stmt.where(User.organization_id == organization_id)
+        res = await self.db.execute(stmt)
+        return res.scalar_one_or_none()
 
     async def get_by_email(self, email: str) -> Optional[User]:
-
-        from sqlalchemy.orm import selectinload
-
         clean_email = (email or "").lower().strip()
-
-        try:
-
-            stmt = select(User).options(selectinload(User.organization_rel)).where(
-
-                (User.email == clean_email) | (User.email == email), User.is_deleted == False
-
-            )
-
-            res = await self.db.execute(stmt)
-
-            return res.scalar_one_or_none()
-
-        except Exception:
-
-            stmt = select(User).where(
-
-                (User.email == clean_email) | (User.email == email), User.is_deleted == False
-
-            )
-
-            res = await self.db.execute(stmt)
-
-            return res.scalar_one_or_none()
-
-
+        stmt = select(User).where(
+            (User.email == clean_email) | (User.email == email), User.is_deleted == False
+        )
+        res = await self.db.execute(stmt)
+        return res.scalar_one_or_none()
 
     async def get_by_phone(self, phone: str) -> Optional[User]:
-
-        from sqlalchemy.orm import selectinload
-
         clean_phone = (phone or "").strip()
-
-        try:
-
-            stmt = select(User).options(selectinload(User.organization_rel)).where(
-
-                User.phone == clean_phone, User.is_deleted == False
-
-            )
-
-            res = await self.db.execute(stmt)
-
-            return res.scalar_one_or_none()
-
-        except Exception:
-
-            stmt = select(User).where(User.phone == clean_phone, User.is_deleted == False)
-
-            res = await self.db.execute(stmt)
-
-            return res.scalar_one_or_none()
+        stmt = select(User).where(
+            User.phone == clean_phone, User.is_deleted == False
+        )
+        res = await self.db.execute(stmt)
+        return res.scalar_one_or_none()
 
 
 

@@ -60,18 +60,10 @@ class AuthenticationService:
 
 
 
-        print(f"[AUTH DEBUG] Email: {credentials.email}, User found: {user.email if user else None}, Pass Hash: {user.password_hash if user else None}")
-
         if not user or not verify_password(credentials.password, user.password_hash):
-
-            print(f"[AUTH DEBUG] Password check failed! verify_password={verify_password(credentials.password, user.password_hash) if user else False}")
-
             raise HTTPException(
-
                 status_code=status.HTTP_401_UNAUTHORIZED,
-
                 detail="Invalid credentials. Please verify and try again.",
-
             )
 
 
