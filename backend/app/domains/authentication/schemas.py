@@ -115,10 +115,13 @@ class UserResponse(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def populate_organization_name(cls, data: Any) -> Any:
-        if hasattr(data, "organization_rel") and data.organization_rel:
-            org_name = getattr(data.organization_rel, "name", None)
-            if org_name and not getattr(data, "organization", None):
-                setattr(data, "organization", org_name)
+        try:
+            if hasattr(data, "organization_rel") and data.organization_rel:
+                org_name = getattr(data.organization_rel, "name", None)
+                if org_name and not getattr(data, "organization", None):
+                    setattr(data, "organization", org_name)
+        except Exception:
+            pass
         return data
 
 
