@@ -103,8 +103,8 @@ export function getApiV1(): string {
   if (typeof window !== "undefined") {
     const host = window.location.hostname;
     const isLocal = host === "localhost" || host === "127.0.0.1" || host.startsWith("192.168.") || host.endsWith(".local");
-    if (!isLocal && (rawApiBase.includes("localhost") || rawApiBase.includes("127.0.0.1"))) {
-      rawApiBase = "";
+    if (!isLocal && (!rawApiBase || rawApiBase.includes("localhost") || rawApiBase.includes("127.0.0.1"))) {
+      rawApiBase = "https://verifield-nexus.onrender.com";
     }
   }
   const API_BASE = rawApiBase.replace(/\/+$/, "");
