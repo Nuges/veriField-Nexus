@@ -864,48 +864,18 @@ async def lifespan(app: FastAPI):
 
 
 
-                # Update users table structure for SaaS capability
-
-                await session.execute(
-
-                    text(
-
-                        "ALTER TABLE users ADD COLUMN IF NOT EXISTS organization_id UUID NULL REFERENCES organizations(id) ON DELETE SET NULL"
-
-                    )
-
-                )
-
-                await session.execute(
-
-                    text(
-
-                        "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true"
-
-                    )
-
-                )
-
-                await session.execute(
-
-                    text(
-
-                        "ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255) NULL"
-
-                    )
-
-                )
-
-                await session.execute(
-
-                    text(
-
-                        "ALTER TABLE users ADD COLUMN IF NOT EXISTS requires_password_change BOOLEAN DEFAULT false"
-
-                    )
-
-                )
-
+                # Update users table structure for SaaS capability and Enterprise G-09 compliance
+                await session.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS organization_id UUID NULL REFERENCES organizations(id) ON DELETE SET NULL"))
+                await session.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true"))
+                await session.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255) NULL"))
+                await session.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS requires_password_change BOOLEAN DEFAULT false"))
+                await session.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'active'"))
+                await session.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS country VARCHAR(100) NULL"))
+                await session.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url VARCHAR(500) NULL"))
+                await session.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS version INTEGER DEFAULT 1"))
+                await session.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT false"))
+                await session.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP WITH TIME ZONE NULL"))
+                await session.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS meta_data JSONB DEFAULT '{}'::jsonb"))
                 await session.commit()
 
 
