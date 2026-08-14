@@ -1725,23 +1725,22 @@ app.add_middleware(
 # ---------------------------------------------------------------------------
 
 @app.middleware("http")
-
 async def add_security_headers(request: Request, call_next):
-
     if request.method == "OPTIONS":
-
         return await call_next(request)
-
-    response = await call_next(request)
+    try:
+        response = await call_next(request)
+    except Exception as exc:
+        logger.error(f"HTTP middleware error on {request.url.path}: {exc}")
+        return JSONResponse(
+            status_code=500,
+            content={"detail": f"Server Error on {request.url.path}: {str(exc)}"}
+        )
 
     response.headers["X-Content-Type-Options"] = "nosniff"
-
     response.headers["X-Frame-Options"] = "DENY"
-
     response.headers["X-XSS-Protection"] = "1; mode=block"
-
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-
     return response
 
 
