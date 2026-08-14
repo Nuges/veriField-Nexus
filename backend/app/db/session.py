@@ -428,37 +428,34 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
             await session.execute(text("SELECT 1"))
 
             try:
-
                 yield session
-
-            except Exception:
-
+            except HTTPException:
                 await session.rollback()
-
                 raise
-
+            except Exception as err:
+                await session.rollback()
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Database session error: {type(err).__name__}: {str(err)}"
+                )
             finally:
-
                 await session.close()
-
             return
-
     except Exception as err:
         # Fallback to local SQLite when remote DB has network/DNS issues
         await _init_fallback_db()
         factory = _get_fallback_session_factory()
         async with factory() as session:
-
             try:
-
                 yield session
-
-            except Exception:
-
+            except HTTPException:
                 await session.rollback()
-
                 raise
-
+            except Exception as inner_err:
+                await session.rollback()
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Fallback database error: {type(inner_err).__name__}: {str(inner_err)}"
+                )
             finally:
-
                 await session.close()
