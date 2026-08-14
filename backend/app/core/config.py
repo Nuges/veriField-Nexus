@@ -227,7 +227,6 @@ class Settings(BaseSettings):
 
 
     @property
-
     def effective_jwt_secret(self) -> str:
 
         """
