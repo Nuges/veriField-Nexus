@@ -41,54 +41,38 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
 @router.post("/login")
-
 async def login(credentials: UserLogin, db: AsyncSession = Depends(get_db)):
+    try:
+        repo = UserRepository(db)
+        service = AuthenticationService(repo)
+        user = await service.authenticate(credentials)
 
-    repo = UserRepository(db)
+        # Check MFA status
+        mfa_data = (user.meta_data or {}).get("mfa", {})
+        if mfa_data.get("enabled"):
+            from app.domains.authentication.routers.mfa import _generate_mfa_token
+            mfa_token = _generate_mfa_token(str(user.id))
+            return {
+                "mfa_required": True,
+                "mfa_token": mfa_token,
+                "user": {"id": str(user.id), "email": user.email, "full_name": user.full_name},
+            }
 
-    service = AuthenticationService(repo)
+        # No MFA — issue full token as before
+        token = service.generate_token(user)
 
-    user = await service.authenticate(credentials)
-
-
-
-    # Check MFA status
-
-    mfa_data = (user.meta_data or {}).get("mfa", {})
-
-    if mfa_data.get("enabled"):
-
-        # MFA is enabled — issue a short-lived MFA token instead of full access
-
-        from app.domains.authentication.routers.mfa import _generate_mfa_token
-
-
-
-        mfa_token = _generate_mfa_token(str(user.id))
-
-        return {
-
-            "mfa_required": True,
-
-            "mfa_token": mfa_token,
-
-            "user": {"id": str(user.id), "email": user.email, "full_name": user.full_name},
-
-        }
-
-
-
-    # No MFA — issue full token as before
-
-    token = service.generate_token(user)
-
-
-
-    return AuthResponse(
-
-        user=UserResponse.model_validate(user), access_token=token, expires_in=86400
-
-    )
+        return AuthResponse(
+            user=UserResponse.model_validate(user), access_token=token, expires_in=86400
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Login internal error: {str(e)}"
+        )
 
 
 
