@@ -58,12 +58,16 @@ async def login(credentials: UserLogin, db: AsyncSession = Depends(get_db)):
                 "user": {"id": str(user.id), "email": user.email, "full_name": user.full_name},
             }
 
-        # No MFA — issue full token as before
+        # No MFA — issue full token
         token = service.generate_token(user)
+        user_dto = UserResponse.model_validate(user).model_dump(mode="json")
 
-        return AuthResponse(
-            user=UserResponse.model_validate(user), access_token=token, expires_in=86400
-        )
+        return {
+            "user": user_dto,
+            "access_token": token,
+            "token_type": "bearer",
+            "expires_in": 86400,
+        }
     except HTTPException:
         raise
     except Exception as e:
