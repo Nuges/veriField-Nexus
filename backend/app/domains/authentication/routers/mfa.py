@@ -196,7 +196,7 @@ def _generate_mfa_token(user_id: str) -> str:
 
     """Generate a short-lived JWT for MFA verification step."""
 
-    jwt_secret = settings.jwt_secret or "verifield-dev-secret-key"
+    jwt_secret = settings.effective_jwt_secret
 
     payload = {
 
@@ -218,7 +218,7 @@ def _decode_mfa_token(token: str) -> str:
 
     """Decode and validate an MFA verification token. Returns user_id."""
 
-    jwt_secret = settings.jwt_secret or "verifield-dev-secret-key"
+    jwt_secret = settings.effective_jwt_secret
 
     try:
 

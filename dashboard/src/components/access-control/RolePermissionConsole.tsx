@@ -29,12 +29,17 @@ import {
   RefreshCw,
   GitCompare,
   History,
-  Info
+  Info,
+  Building2,
+  Globe,
+  FolderKanban,
+  UserPlus
 } from "lucide-react";
 import { DataTable } from "@/components/common/DataTable";
 import { useToast } from "@/components/Toast";
 import { ROLE_ORDER, getRolePriority } from "@/lib/roles";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, fetchGovernanceAuditLogs, adminResetUserPassword, fetchOrganizationProjects } from "@/lib/api";
+import { useWorkspace } from "@/context/WorkspaceContext";
 
 // Scope Hierarchy Metadata
 const SCOPE_HIERARCHY = ["PLATFORM", "ORGANIZATION", "PORTFOLIO", "PROJECT", "ACTIVITY", "ASSET"];
@@ -289,6 +294,8 @@ export interface UserItem {
 export interface OrganizationItem {
   id: string;
   name: string;
+  org_type?: string;
+  status?: string;
   licensed_sectors?: string[];
 }
 
@@ -297,6 +304,7 @@ export interface RolePermissionConsoleProps {
   permissionsList: { code: string; category: string }[];
   users: UserItem[];
   organizations?: OrganizationItem[];
+  initialSelectedOrgId?: string | null;
   onRefresh?: () => void;
 }
 
@@ -305,9 +313,113 @@ export function RolePermissionConsole({
   permissionsList = [],
   users = [],
   organizations = [],
+  initialSelectedOrgId = null,
   onRefresh
 }: RolePermissionConsoleProps) {
   const toast = useToast();
+  const workspace = useWorkspace();
+  const currentUser = workspace?.user;
+  const isSuperAdmin = currentUser?.role === "SUPER_ADMIN" || Boolean((currentUser as any)?.is_super_admin);
+
+  // Selected Organization Governance State
+  const [selectedOrgId, setSelectedOrgId] = useState<string | null>(initialSelectedOrgId);
+  const [orgSubTab, setOrgSubTab] = useState<"overview" | "roles" | "users" | "projects" | "audit">("roles");
+
+  // Lock non-Super Admins (e.g. ORG_ADMIN) to their assigned organization context
+  useEffect(() => {
+    if (!isSuperAdmin && currentUser?.organization_id) {
+      setSelectedOrgId(currentUser.organization_id);
+    }
+  }, [isSuperAdmin, currentUser]);
+
+  const selectedOrg = useMemo(() => {
+    if (!selectedOrgId) return null;
+    return organizations.find(o => o.id === selectedOrgId) || {
+      id: selectedOrgId,
+      name: "Selected Organization",
+      org_type: "DEVELOPER",
+      status: "ACTIVE",
+      licensed_sectors: []
+    };
+  }, [organizations, selectedOrgId]);
+
+  const platformRoles = useMemo(() => {
+    return roles.filter(r => r.scope === "PLATFORM" || r.code.toUpperCase() === "SUPER_ADMIN");
+  }, [roles]);
+
+  const organizationRoles = useMemo(() => {
+    return roles.filter(r => r.scope !== "PLATFORM" && r.code.toUpperCase() !== "SUPER_ADMIN");
+  }, [roles]);
+
+  // User Inspection & Password Reset Modals
+  const [inspectingUser, setInspectingUser] = useState<UserItem | null>(null);
+  const [customResetUser, setCustomResetUser] = useState<UserItem | null>(null);
+  const [customNewPassword, setCustomNewPassword] = useState<string>("");
+
+  // Audit Logs & Projects State
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const [orgProjects, setOrgProjects] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetchGovernanceAuditLogs()
+      .then(logs => setAuditLogs(Array.isArray(logs) ? logs : []))
+      .catch(() => setAuditLogs([]));
+  }, []);
+
+  useEffect(() => {
+    if (selectedOrgId) {
+      fetchOrganizationProjects(selectedOrgId)
+        .then(projs => setOrgProjects(Array.isArray(projs) ? projs : []))
+        .catch(() => setOrgProjects([]));
+    } else {
+      setOrgProjects([]);
+    }
+  }, [selectedOrgId]);
+
+  const activeOrgSectors = useMemo(() => {
+    if (!selectedOrg) return [];
+    const sectorsSet = new Set<string>();
+
+    if (selectedOrg.licensed_sectors && Array.isArray(selectedOrg.licensed_sectors)) {
+      selectedOrg.licensed_sectors.forEach(s => sectorsSet.add(String(s).toUpperCase().trim()));
+    }
+
+    orgProjects.forEach(p => {
+      if (p.sector) sectorsSet.add(String(p.sector).toUpperCase());
+    });
+
+    const sectorNamesMap: Record<string, string> = {
+      COOKSTOVES: "Clean Cookstoves (AMS-II.G)",
+      HYBRID_ENERGY: "Hybrid Energy & Mini-grids (AMS-I.F)",
+      BIOCHAR: "Biochar Carbon Removal (VCS-V004)",
+      EV_MOBILITY: "EV Mobility & Transport (AMS-III.C)"
+    };
+
+    return Array.from(sectorsSet).map(code => ({
+      code,
+      name: sectorNamesMap[code] || code,
+      projectCount: orgProjects.filter(p => String(p.sector).toUpperCase() === code).length
+    }));
+  }, [selectedOrg, orgProjects]);
+
+  const handleSuperAdminResetPassword = async (userItem: UserItem, newPass: string) => {
+    if (!newPass || newPass.length < 8) {
+      toast.error("Invalid Password", "Password must be at least 8 characters long.");
+      return;
+    }
+    try {
+      await adminResetUserPassword(userItem.id, newPass);
+      toast.success(
+        "Password Reset Successful",
+        `Password for ${userItem.email} has been updated. The user will be required to change password on next login.`
+      );
+      setCustomResetUser(null);
+      setCustomNewPassword("");
+      if (onRefresh) onRefresh();
+    } catch (e: any) {
+      toast.error("Reset Failed", e?.message || "Could not reset account password.");
+    }
+  };
 
   const [selectedRole, setSelectedRole] = useState<RoleDetail | null>(null);
   const [activeTab, setActiveTab] = useState<"explorer" | "users" | "scopes" | "audit">("explorer");
@@ -1103,15 +1215,410 @@ export function RolePermissionConsole({
             </div>
           )}
         </div>
+      ) : selectedOrgId && selectedOrg ? (
+        /* ORGANISATION-SCOPED GOVERNANCE VIEW */
+        <div className="space-y-6 animate-fade-in">
+          {/* Header Banner */}
+          <div className="bg-[#090F10] border border-[#213233] p-5 rounded-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div>
+              <div className="flex flex-wrap items-center gap-3">
+                {isSuperAdmin && (
+                  <button
+                    onClick={() => setSelectedOrgId(null)}
+                    className="p-2 rounded-lg bg-[#141F20] text-zinc-300 hover:text-white hover:bg-[#1E2E30] transition-colors flex items-center gap-1.5 text-xs font-semibold"
+                    title="Return to Platform Governance"
+                  >
+                    <ArrowLeft size={16} /> Platform Governance
+                  </button>
+                )}
+                <div className="flex items-center gap-2">
+                  <Building2 size={20} className="text-[#00B47A]" />
+                  <h1 className="text-xl font-black text-white">{selectedOrg.name}</h1>
+                  <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                    {selectedOrg.status || "ACTIVE"}
+                  </span>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                    {selectedOrg.org_type || "DEVELOPER"}
+                  </span>
+                </div>
+              </div>
+              <p className="text-xs text-zinc-400 mt-1">
+                Organisation-scoped role & account governance context for {selectedOrg.name}.
+              </p>
+            </div>
+
+            {/* Quick Metrics */}
+            <div className="flex items-center gap-3">
+              <div className="bg-[#141F20] border border-[#213233] px-3.5 py-2 rounded-lg text-center">
+                <span className="text-[10px] font-mono text-zinc-400 block uppercase">Accounts</span>
+                <span className="text-sm font-black text-white">
+                  {users.filter(u => u.organization_id === selectedOrg.id || u.organization === selectedOrg.name || u.organization_name === selectedOrg.name).length}
+                </span>
+              </div>
+              <div className="bg-[#141F20] border border-[#213233] px-3.5 py-2 rounded-lg text-center">
+                <span className="text-[10px] font-mono text-zinc-400 block uppercase">Org Roles</span>
+                <span className="text-sm font-black text-emerald-400">{organizationRoles.length}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Sub-Navigation Tabs */}
+          <div className="flex items-center gap-2 border-b border-[#213233] pb-2 text-xs font-bold overflow-x-auto">
+            <button
+              onClick={() => setOrgSubTab("overview")}
+              className={`px-4 py-2 rounded-lg flex items-center gap-2 transition-colors ${
+                orgSubTab === "overview"
+                  ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                  : "text-zinc-400 hover:text-white hover:bg-[#141F20]"
+              }`}
+            >
+              <Info size={14} /> Overview
+            </button>
+            <button
+              onClick={() => setOrgSubTab("roles")}
+              className={`px-4 py-2 rounded-lg flex items-center gap-2 transition-colors ${
+                orgSubTab === "roles"
+                  ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                  : "text-zinc-400 hover:text-white hover:bg-[#141F20]"
+              }`}
+            >
+              <Shield size={14} /> Roles & Permissions ({organizationRoles.length})
+            </button>
+            <button
+              onClick={() => setOrgSubTab("users")}
+              className={`px-4 py-2 rounded-lg flex items-center gap-2 transition-colors ${
+                orgSubTab === "users"
+                  ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                  : "text-zinc-400 hover:text-white hover:bg-[#141F20]"
+              }`}
+            >
+              <Users size={14} /> Users & Accounts (
+              {users.filter(u => u.organization_id === selectedOrg.id || u.organization === selectedOrg.name || u.organization_name === selectedOrg.name).length}
+              )
+            </button>
+            <button
+              onClick={() => setOrgSubTab("projects")}
+              className={`px-4 py-2 rounded-lg flex items-center gap-2 transition-colors ${
+                orgSubTab === "projects"
+                  ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                  : "text-zinc-400 hover:text-white hover:bg-[#141F20]"
+              }`}
+            >
+              <FolderKanban size={14} /> Projects ({orgProjects.length})
+            </button>
+            <button
+              onClick={() => setOrgSubTab("audit")}
+              className={`px-4 py-2 rounded-lg flex items-center gap-2 transition-colors ${
+                orgSubTab === "audit"
+                  ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                  : "text-zinc-400 hover:text-white hover:bg-[#141F20]"
+              }`}
+            >
+              <History size={14} /> Security Audit Trail
+            </button>
+          </div>
+
+          {/* Sub-Tab 0: Organisation Overview */}
+          {orgSubTab === "overview" && (
+            <div className="space-y-6">
+              {/* Summary Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="bg-[#090F10] border border-[#213233] p-4 rounded-xl">
+                  <p className="text-xs text-zinc-400 font-medium">Organisation Administrator</p>
+                  <p className="text-sm font-black text-white mt-1">
+                    {users.find(u => (u.organization_id === selectedOrg.id || u.organization === selectedOrg.name) && (u.role === "ORG_ADMIN" || u.role === "admin" || u.role === "ORG_OWNER"))?.full_name || "Unassigned"}
+                  </p>
+                  <p className="text-[11px] text-zinc-500 font-mono">
+                    {users.find(u => (u.organization_id === selectedOrg.id || u.organization === selectedOrg.name) && (u.role === "ORG_ADMIN" || u.role === "admin" || u.role === "ORG_OWNER"))?.email || "N/A"}
+                  </p>
+                </div>
+                <div className="bg-[#090F10] border border-[#213233] p-4 rounded-xl">
+                  <p className="text-xs text-zinc-400 font-medium">Active Accounts</p>
+                  <p className="text-xl font-black text-emerald-400 mt-1">
+                    {users.filter(u => u.organization_id === selectedOrg.id || u.organization === selectedOrg.name || u.organization_name === selectedOrg.name).length} Users
+                  </p>
+                </div>
+                <div className="bg-[#090F10] border border-[#213233] p-4 rounded-xl">
+                  <p className="text-xs text-zinc-400 font-medium">Registered Projects</p>
+                  <p className="text-xl font-black text-blue-400 mt-1">{orgProjects.length} Projects</p>
+                </div>
+                <div className="bg-[#090F10] border border-[#213233] p-4 rounded-xl">
+                  <p className="text-xs text-zinc-400 font-medium">Active Sectors</p>
+                  <p className="text-xl font-black text-purple-400 mt-1">{activeOrgSectors.length} Sectors</p>
+                </div>
+              </div>
+
+              {/* Dynamic Active Sectors Breakdown */}
+              <div className="bg-[#090F10] border border-[#213233] p-5 rounded-xl space-y-4">
+                <div className="flex items-center justify-between border-b border-[#141F20] pb-3">
+                  <div>
+                    <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                      <Globe size={16} className="text-emerald-400" /> Active Sectors & Climate Portfolios
+                    </h3>
+                    <p className="text-xs text-zinc-400">
+                      Sectors dynamically derived from {selectedOrg.name}'s project licensing and operational assets.
+                    </p>
+                  </div>
+                </div>
+
+                {activeOrgSectors.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {activeOrgSectors.map(sec => (
+                      <div key={sec.code} className="bg-[#141F20]/50 border border-[#213233] p-4 rounded-xl space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-white text-xs">{sec.name}</span>
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold">
+                            {sec.projectCount} Project(s)
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-zinc-400">
+                          Operates active MRV and quantification protocols under sector code <code className="text-emerald-400">{sec.code}</code>.
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="py-8 text-center text-zinc-500 text-xs bg-[#141F20]/20 rounded-lg">
+                    No active sectors currently configured for this organisation.
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Sub-Tab 1: Roles & Permissions for this Organization */}
+          {orgSubTab === "roles" && (
+            <div className="space-y-4">
+              <div className="bg-[#090F10] border border-[#213233] p-4 rounded-xl flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-bold text-white uppercase tracking-wider">
+                    {selectedOrg.name} — Organisation Roles
+                  </h3>
+                  <p className="text-xs text-zinc-400">
+                    Roles available for assignment to accounts belonging to {selectedOrg.name}.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {organizationRoles.map(r => {
+                  const countInOrg = users.filter(
+                    u =>
+                      (u.organization_id === selectedOrg.id || u.organization === selectedOrg.name || u.organization_name === selectedOrg.name) &&
+                      u.role.toUpperCase() === r.code.toUpperCase()
+                  ).length;
+
+                  return (
+                    <div
+                      key={r.code}
+                      onClick={() => setSelectedRole(r)}
+                      className="bg-[#090F10] border border-[#213233] hover:border-emerald-500/50 rounded-xl p-5 space-y-4 cursor-pointer transition-all duration-200 hover:shadow-lg group"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Shield className="size-4 text-emerald-400 group-hover:scale-110 transition-transform" />
+                          <span className="text-xs font-black text-white uppercase tracking-wider group-hover:text-emerald-400 transition-colors">
+                            {r.name}
+                          </span>
+                        </div>
+                        <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded bg-blue-500/10 border border-blue-500/30 text-blue-400 uppercase">
+                          {r.scope}
+                        </span>
+                      </div>
+
+                      <p className="text-[11px] text-zinc-400 leading-relaxed line-clamp-2">{r.description}</p>
+
+                      <div className="flex items-center justify-between border-t border-[#141F20] pt-3 text-[10px] font-mono text-zinc-400">
+                        <span className="flex items-center gap-1">
+                          <Key size={12} className="text-purple-400" />
+                          Permissions: <strong className="text-white">{r.permissions?.length || 0}</strong>
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Users size={12} className="text-emerald-400" />
+                          In {selectedOrg.name}: <strong className="text-emerald-400">{countInOrg} Account(s)</strong>
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Sub-Tab 2: Users & Accounts for this Organization */}
+          {orgSubTab === "users" && (
+            <div className="bg-[#090F10] border border-[#213233] p-5 rounded-xl space-y-4">
+              <div className="flex items-center justify-between border-b border-[#141F20] pb-4">
+                <div>
+                  <h2 className="text-base font-black text-white flex items-center gap-2">
+                    <Users size={18} className="text-emerald-400" />
+                    {selectedOrg.name} — Accounts Directory
+                  </h2>
+                  <p className="text-xs text-zinc-400 mt-0.5">
+                    Accounts linked to {selectedOrg.name}. Roles and status permissions are isolated to this tenant.
+                  </p>
+                </div>
+              </div>
+
+              <DataTable
+                title={`Accounts (${users.filter(u => u.organization_id === selectedOrg.id || u.organization === selectedOrg.name || u.organization_name === selectedOrg.name).length})`}
+                subtitle={`Accounts belonging to ${selectedOrg.name}`}
+                columns={[
+                  {
+                    key: "full_name",
+                    label: "User / Email",
+                    sortable: true,
+                    render: (row: UserItem) => (
+                      <div>
+                        <div className="font-semibold text-white text-xs">{row.full_name}</div>
+                        <div className="text-[11px] text-zinc-400 font-mono">{row.email}</div>
+                      </div>
+                    )
+                  },
+                  {
+                    key: "role",
+                    label: "Assigned Role",
+                    sortable: true,
+                    render: (row: UserItem) => {
+                      const rUpper = (row.role || "").toUpperCase();
+                      return (
+                        <span className="text-[10px] font-mono font-bold uppercase px-2.5 py-1 rounded border bg-blue-500/10 border-blue-500/20 text-blue-400">
+                          {rUpper === "ADMIN" ? "ORG_ADMIN" : rUpper}
+                        </span>
+                      );
+                    }
+                  },
+                  {
+                    key: "status",
+                    label: "Status",
+                    sortable: true,
+                    render: (row: UserItem) => (
+                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                        row.status === "suspended" ? "bg-red-500/10 text-red-400 border border-red-500/20" : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                      }`}>
+                        {row.status || "active"}
+                      </span>
+                    )
+                  },
+                  {
+                    key: "actions",
+                    label: "Actions",
+                    render: (row: UserItem) => (
+                      <div className="flex items-center gap-1.5 justify-end">
+                        <button
+                          onClick={() => setInspectingUser(row)}
+                          className="px-2.5 py-1 rounded bg-[#141F20] hover:bg-[#1E2E30] text-zinc-200 border border-[#213233] text-[11px] font-bold flex items-center gap-1 transition-colors"
+                          title="Inspect Account Hierarchy & Traceability"
+                        >
+                          <Info size={12} className="text-emerald-400" /> Inspect
+                        </button>
+                        <button
+                          onClick={() => handleOpenEditUser(row)}
+                          className="px-2.5 py-1 rounded bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 text-[11px] font-bold flex items-center gap-1 transition-colors"
+                        >
+                          <Edit3 size={12} /> Edit Role
+                        </button>
+                        {isSuperAdmin && (
+                          <button
+                            onClick={() => {
+                              setCustomResetUser(row);
+                              setCustomNewPassword("");
+                            }}
+                            className="px-2.5 py-1 rounded bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/20 text-[11px] font-bold flex items-center gap-1 transition-colors"
+                            title="Super Admin Secure Password Reset"
+                          >
+                            <Key size={12} /> Reset Password
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleSuspendToggle(row)}
+                          className={`px-2.5 py-1 rounded text-[11px] font-bold border transition-colors ${
+                            row.status === "suspended"
+                              ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20"
+                              : "bg-amber-500/10 text-amber-400 border-amber-500/20 hover:bg-amber-500/20"
+                          }`}
+                        >
+                          {row.status === "suspended" ? "Reactivate" : "Suspend"}
+                        </button>
+                      </div>
+                    )
+                  }
+                ]}
+                data={users.filter(u => u.organization_id === selectedOrg.id || u.organization === selectedOrg.name || u.organization_name === selectedOrg.name)}
+                searchKeys={["email", "full_name"]}
+                searchPlaceholder="Filter account email or name..."
+              />
+            </div>
+          )}
+
+          {/* Sub-Tab 3: Projects & Access */}
+          {orgSubTab === "projects" && (
+            <div className="bg-[#090F10] border border-[#213233] p-5 rounded-xl space-y-4">
+              <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                <FolderKanban size={16} className="text-blue-400" />
+                Projects Registered under {selectedOrg.name}
+              </h3>
+              {orgProjects.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {orgProjects.map(p => (
+                    <div key={p.id} className="p-4 rounded-lg bg-[#141F20]/40 border border-[#213233] space-y-1">
+                      <p className="font-bold text-white text-xs">{p.name}</p>
+                      <p className="text-[11px] text-zinc-400 font-mono">Sector: {p.sector || "GENERAL"}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="py-8 text-center text-zinc-500 text-xs bg-[#141F20]/20 rounded-lg">
+                  No projects currently registered under this organisation.
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Sub-Tab 4: Security Audit Trail */}
+          {orgSubTab === "audit" && (
+            <div className="bg-[#090F10] border border-[#213233] p-5 rounded-xl space-y-3">
+              <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                <History size={16} className="text-purple-400" />
+                Security Audit Trail for {selectedOrg.name}
+              </h3>
+              <p className="text-xs text-zinc-400">Actual audit log events recorded for this organisation's accounts and roles.</p>
+
+              {auditLogs.filter(l => l.organization_id === selectedOrg.id || !l.organization_id).length > 0 ? (
+                <div className="divide-y divide-[#141F20] text-xs font-mono">
+                  {auditLogs
+                    .filter(l => l.organization_id === selectedOrg.id || !l.organization_id)
+                    .map((log, idx) => (
+                      <div key={log.id || idx} className="py-3 flex items-center justify-between">
+                        <div>
+                          <span className="text-white font-bold">[{log.action}]</span> {log.result || "SUCCESS"}
+                          <p className="text-[10px] text-zinc-500 mt-0.5">
+                            Actor: {log.actor_user_id || "System"} • {log.created_at || "Recent"}
+                          </p>
+                        </div>
+                        <span className="px-2 py-0.5 rounded text-[9px] bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                          {log.action}
+                        </span>
+                      </div>
+                    ))}
+                </div>
+              ) : (
+                <div className="py-8 text-center text-zinc-500 text-xs bg-[#141F20]/20 rounded-lg">
+                  No audit activity recorded for this organisation.
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       ) : (
-        /* Primary Roles Catalogue Grid View */
+        /* Primary Platform Governance & Organisations Hierarchy View */
         <div className="space-y-6">
           {/* Header & Controls Toolbar */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-              <h2 className="text-lg font-bold text-white">Platform Roles & Permission Catalogue</h2>
+              <h2 className="text-lg font-bold text-white">Platform Governance & Organisations Hierarchy</h2>
               <p className="text-xs text-zinc-400">
-                Metadata-driven identity & access management console. Click any role card for deep inspection.
+                Hierarchical governance separating Platform-level roles from Organisation-scoped roles and user accounts.
               </p>
             </div>
 
@@ -1132,9 +1639,95 @@ export function RolePermissionConsole({
             </div>
           </div>
 
-          {/* Search, Filter, Sort Toolbar */}
+          {/* Platform Core Roles Section */}
+          <div className="bg-[#090F10] border border-purple-500/30 rounded-xl p-5 space-y-3">
+            <div className="flex items-center justify-between border-b border-[#141F20] pb-2">
+              <div className="flex items-center gap-2">
+                <ShieldCheck size={18} className="text-purple-400" />
+                <h3 className="text-xs font-bold text-white uppercase tracking-wider">Platform-Level Core Roles</h3>
+              </div>
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-purple-500/10 text-purple-400 border border-purple-500/20 uppercase font-bold">
+                Scope: PLATFORM
+              </span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {platformRoles.map(pr => (
+                <div
+                  key={pr.code}
+                  onClick={() => setSelectedRole(pr)}
+                  className="bg-[#141F20]/50 border border-[#213233] hover:border-purple-500/50 rounded-lg p-3.5 flex items-center justify-between cursor-pointer transition-colors"
+                >
+                  <div>
+                    <span className="font-bold text-white text-xs">{pr.name}</span>
+                    <p className="text-[11px] text-zinc-400 mt-0.5">{pr.description}</p>
+                  </div>
+                  <span className="text-[10px] font-mono text-purple-400 font-bold bg-purple-500/10 px-2 py-1 rounded border border-purple-500/20">
+                    {pr.user_count} Global Users
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Organisations Hierarchy Section */}
+          {organizations.length > 0 && (
+            <div className="bg-[#090F10] border border-[#213233] rounded-xl p-5 space-y-4">
+              <div className="flex items-center justify-between border-b border-[#141F20] pb-2">
+                <div>
+                  <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                    <Building2 size={16} className="text-emerald-400" />
+                    Organisations & Tenant Governance Hierarchy ({organizations.length})
+                  </h3>
+                  <p className="text-[11px] text-zinc-400">
+                    Select an organisation to enter its isolated roles, accounts, and access governance context.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {organizations.map(org => {
+                  const orgUserCount = users.filter(
+                    u => u.organization_id === org.id || u.organization === org.name || u.organization_name === org.name
+                  ).length;
+
+                  return (
+                    <div
+                      key={org.id}
+                      onClick={() => {
+                        setSelectedOrgId(org.id);
+                        setOrgSubTab("roles");
+                      }}
+                      className="bg-[#141F20]/40 border border-[#213233] hover:border-emerald-500/50 rounded-xl p-4 space-y-3 cursor-pointer transition-all hover:shadow-lg group"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Building2 size={16} className="text-emerald-400 group-hover:scale-110 transition-transform" />
+                          <span className="font-bold text-white text-xs uppercase tracking-wider group-hover:text-emerald-400 transition-colors">
+                            {org.name}
+                          </span>
+                        </div>
+                        <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                          {org.status || "ACTIVE"}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between text-[10px] font-mono text-zinc-400 border-t border-[#141F20] pt-2">
+                        <span>Accounts: <strong className="text-white">{orgUserCount}</strong></span>
+                        <span>Org Roles: <strong className="text-emerald-400">{organizationRoles.length}</strong></span>
+                      </div>
+
+                      <div className="text-[10px] font-bold text-emerald-400 group-hover:underline flex items-center justify-end gap-1 pt-1">
+                        Enter Governance Context →
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Search, Filter, Sort Toolbar for Global Matrix */}
           <div className="bg-[#090F10] border border-[#213233] p-3.5 rounded-xl flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 shadow-xs">
-            {/* Realtime Search Input */}
             <div className="relative flex-1 min-w-[260px]">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
               <input
@@ -1146,7 +1739,6 @@ export function RolePermissionConsole({
               />
             </div>
 
-            {/* Scope Filter */}
             <select
               value={scopeFilter}
               onChange={e => setScopeFilter(e.target.value)}
@@ -1158,7 +1750,6 @@ export function RolePermissionConsole({
               <option value="PROJECT">PROJECT</option>
             </select>
 
-            {/* Sort Order */}
             <select
               value={sortOption}
               onChange={e => setSortOption(e.target.value as any)}
@@ -1433,6 +2024,148 @@ export function RolePermissionConsole({
               >
                 {isSavingUser ? <RefreshCw size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
                 Save Governance Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Account Inspection Modal */}
+      {inspectingUser && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#090F10] border border-[#213233] rounded-2xl max-w-2xl w-full p-6 space-y-5 animate-scale-up max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-[#141F20] pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                  <Shield size={20} />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-white">{inspectingUser.full_name}</h3>
+                  <p className="text-xs text-zinc-400 font-mono">{inspectingUser.email}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setInspectingUser(null)}
+                className="p-1.5 rounded-lg bg-[#141F20] text-zinc-400 hover:text-white transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Account Details & Status Grid */}
+            <div className="grid grid-cols-2 gap-3 text-xs font-mono">
+              <div className="p-3 rounded-lg bg-[#141F20]/50 border border-[#213233]">
+                <span className="text-[10px] text-zinc-500 block uppercase font-bold">Organisation</span>
+                <span className="text-white font-bold">{inspectingUser.organization_name || inspectingUser.organization || "Platform Global"}</span>
+              </div>
+              <div className="p-3 rounded-lg bg-[#141F20]/50 border border-[#213233]">
+                <span className="text-[10px] text-zinc-500 block uppercase font-bold">Assigned Role</span>
+                <span className="text-blue-400 font-bold uppercase">{inspectingUser.role}</span>
+              </div>
+              <div className="p-3 rounded-lg bg-[#141F20]/50 border border-[#213233]">
+                <span className="text-[10px] text-zinc-500 block uppercase font-bold">Account Status</span>
+                <span className={`font-bold uppercase ${inspectingUser.status === "suspended" ? "text-red-400" : "text-emerald-400"}`}>
+                  {inspectingUser.status || "active"}
+                </span>
+              </div>
+              <div className="p-3 rounded-lg bg-[#141F20]/50 border border-[#213233]">
+                <span className="text-[10px] text-zinc-500 block uppercase font-bold">Account Creation / Activity</span>
+                <span className="text-zinc-300 font-bold">{inspectingUser.created_at || "Not tracked"}</span>
+              </div>
+            </div>
+
+            {/* Account -> Role -> Project -> Sector Traceability Chain */}
+            <div className="p-4 rounded-xl bg-[#141F20]/30 border border-[#213233] space-y-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-purple-400 block">
+                Account → Role → Project → Sector Traceability Chain
+              </span>
+              <div className="flex flex-wrap items-center gap-2 text-[11px] font-mono">
+                <span className="px-2.5 py-1 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20 font-bold">
+                  Org: {inspectingUser.organization_name || inspectingUser.organization || "Global"}
+                </span>
+                <span className="text-zinc-500">→</span>
+                <span className="px-2.5 py-1 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold">
+                  User: {inspectingUser.full_name}
+                </span>
+                <span className="text-zinc-500">→</span>
+                <span className="px-2.5 py-1 rounded bg-purple-500/10 text-purple-400 border border-purple-500/20 font-bold">
+                  Role: {inspectingUser.role}
+                </span>
+                <span className="text-zinc-500">→</span>
+                <span className="px-2.5 py-1 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 font-bold">
+                  Sector Access: {inspectingUser.licensed_sectors?.join(", ") || "All Licensed"}
+                </span>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center justify-between border-t border-[#141F20] pt-4">
+              {isSuperAdmin && (
+                <button
+                  onClick={() => {
+                    setCustomResetUser(inspectingUser);
+                    setCustomNewPassword("");
+                    setInspectingUser(null);
+                  }}
+                  className="px-3.5 py-2 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/20 text-xs font-bold flex items-center gap-1.5 transition-colors"
+                >
+                  <Key size={14} /> Initiate Password Reset
+                </button>
+              )}
+              <button
+                onClick={() => setInspectingUser(null)}
+                className="px-4 py-2 rounded-lg bg-[#141F20] text-zinc-300 hover:text-white text-xs font-bold transition-colors ml-auto"
+              >
+                Close Inspection
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Super Admin Secure Password Reset Modal */}
+      {customResetUser && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#090F10] border border-[#213233] rounded-2xl max-w-md w-full p-6 space-y-4 animate-scale-up">
+            <div className="flex items-center gap-3 border-b border-[#141F20] pb-3">
+              <div className="p-2 rounded-lg bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                <Key size={20} />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-white uppercase tracking-wider">Super Admin Password Reset</h3>
+                <p className="text-xs text-zinc-400 font-mono">{customResetUser.email}</p>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <p className="text-xs text-zinc-400 leading-relaxed">
+                Set a new password for account <strong className="text-white">{customResetUser.full_name}</strong>. Password will be hashed using bcrypt, requiring password change on next login. Plaintext passwords or hashes are never returned or logged.
+              </p>
+
+              <div>
+                <label className="text-[10px] font-bold text-zinc-400 uppercase block mb-1">New Temporary Password:</label>
+                <input
+                  type="password"
+                  value={customNewPassword}
+                  onChange={e => setCustomNewPassword(e.target.value)}
+                  placeholder="Enter strong temporary password (min 8 chars)..."
+                  className="w-full p-3 rounded-lg bg-[#141F20] border border-[#213233] text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:border-emerald-500 font-mono"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 border-t border-[#141F20] pt-4">
+              <button
+                onClick={() => setCustomResetUser(null)}
+                className="px-4 py-2 rounded-lg bg-[#141F20] text-zinc-400 hover:text-white text-xs font-bold transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleSuperAdminResetPassword(customResetUser, customNewPassword)}
+                className="px-4 py-2 rounded-lg bg-purple-500 hover:bg-purple-400 text-white text-xs font-bold transition-colors"
+              >
+                Confirm Secure Reset
               </button>
             </div>
           </div>

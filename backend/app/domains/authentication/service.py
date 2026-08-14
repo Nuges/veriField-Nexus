@@ -106,7 +106,7 @@ class AuthenticationService:
 
         """Generates a local JWT access token (static — usable without repository)."""
 
-        secret = settings.jwt_secret or "verifield-dev-secret-key"
+        secret = settings.effective_jwt_secret
 
         expires_delta = timedelta(hours=24)
 

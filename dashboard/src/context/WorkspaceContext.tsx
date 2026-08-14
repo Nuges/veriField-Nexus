@@ -256,20 +256,9 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
 
     if (isSuperAdmin) {
-
-      const allWorkspaces = Object.keys(registry).filter(k => {
-
-        const config = registry[k];
-
-        return config && config.kpis && config.kpis.length > 0;
-
-      });
-
-
-
-      let activeWorkspace = allWorkspaces[0] || "cookstoves";
-
-      const allowedWorkspaces = allWorkspaces.length > 0 ? allWorkspaces : ["cookstoves"];
+      const SECTOR_FAMILIES = ["cookstoves", "hybrid_energy", "biochar", "ev_mobility"];
+      const allowedWorkspaces = SECTOR_FAMILIES;
+      let activeWorkspace = SECTOR_FAMILIES[0];
 
 
 

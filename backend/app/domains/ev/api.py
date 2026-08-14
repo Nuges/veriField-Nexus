@@ -12,9 +12,27 @@ from uuid import UUID
 
 from app.db.session import get_db
 
+from app.core.security import get_current_user
+
+from app.domains.authentication.models import User
+
+from app.core.abac import ABACEngine
+
+from app.domains.projects.models import Project
+
 from app.domains.ev.models import EVChargingStation, EVChargingSession
 
-from app.domains.ev.schemas import EVChargingStationCreate, EVChargingSessionCreate, EVChargingSessionResponse, EVSummaryResponse
+from app.domains.ev.schemas import (
+
+    EVChargingStationCreate,
+
+    EVChargingSessionCreate,
+
+    EVChargingSessionResponse,
+
+    EVSummaryResponse,
+
+)
 
 from app.domains.ev.service import EVQuantificationEngine
 
@@ -30,9 +48,17 @@ async def create_charging_station(
 
     data: EVChargingStationCreate,
 
-    db: AsyncSession = Depends(get_db)
+    current_user: User = Depends(get_current_user),
+
+    db: AsyncSession = Depends(get_db),
 
 ):
+
+    abac = ABACEngine(db, current_user)
+
+    await abac.enforce_project_access(data.project_id)
+
+
 
     station = EVChargingStation(**data.model_dump())
 
@@ -52,7 +78,9 @@ async def list_charging_stations(
 
     project_id: Optional[UUID] = None,
 
-    db: AsyncSession = Depends(get_db)
+    current_user: User = Depends(get_current_user),
+
+    db: AsyncSession = Depends(get_db),
 
 ):
 
@@ -60,7 +88,23 @@ async def list_charging_stations(
 
     if project_id:
 
+        abac = ABACEngine(db, current_user)
+
+        await abac.enforce_project_access(project_id)
+
         stmt = stmt.where(EVChargingStation.project_id == project_id)
+
+    elif current_user.role != "SUPER_ADMIN":
+
+        if not current_user.organization_id:
+
+            return []
+
+        org_projects = select(Project.id).where(Project.organization_id == current_user.organization_id)
+
+        stmt = stmt.where(EVChargingStation.project_id.in_(org_projects))
+
+
 
     res = await db.execute(stmt)
 
@@ -74,7 +118,9 @@ async def record_charging_session(
 
     data: EVChargingSessionCreate,
 
-    db: AsyncSession = Depends(get_db)
+    current_user: User = Depends(get_current_user),
+
+    db: AsyncSession = Depends(get_db),
 
 ):
 
@@ -83,6 +129,12 @@ async def record_charging_session(
     if not station:
 
         raise HTTPException(status_code=404, detail="EV Charging Station not found")
+
+
+
+    abac = ABACEngine(db, current_user)
+
+    await abac.enforce_project_access(station.project_id)
 
 
 
@@ -114,7 +166,7 @@ async def record_charging_session(
 
         has_anomaly=has_anomaly,
 
-        anomaly_reason=anomaly_reason
+        anomaly_reason=anomaly_reason,
 
     )
 
@@ -138,7 +190,9 @@ async def list_charging_sessions(
 
     offset: int = 0,
 
-    db: AsyncSession = Depends(get_db)
+    current_user: User = Depends(get_current_user),
+
+    db: AsyncSession = Depends(get_db),
 
 ):
 
@@ -146,7 +200,29 @@ async def list_charging_sessions(
 
     if station_id:
 
+        station = await db.get(EVChargingStation, station_id)
+
+        if not station:
+
+            raise HTTPException(status_code=404, detail="EV Charging Station not found")
+
+        abac = ABACEngine(db, current_user)
+
+        await abac.enforce_project_access(station.project_id)
+
         stmt = stmt.where(EVChargingSession.station_id == station_id)
+
+    elif current_user.role != "SUPER_ADMIN":
+
+        if not current_user.organization_id:
+
+            return []
+
+        org_projects = select(Project.id).where(Project.organization_id == current_user.organization_id)
+
+        stmt = stmt.join(EVChargingStation).where(EVChargingStation.project_id.in_(org_projects))
+
+
 
     stmt = stmt.order_by(EVChargingSession.start_time.desc()).limit(limit).offset(offset)
 
@@ -162,19 +238,13 @@ async def get_ev_summary(
 
     project_id: Optional[UUID] = None,
 
-    db: AsyncSession = Depends(get_db)
+    current_user: User = Depends(get_current_user),
+
+    db: AsyncSession = Depends(get_db),
 
 ):
 
     stations_stmt = select(func.count(EVChargingStation.id))
-
-    if project_id:
-
-        stations_stmt = stations_stmt.where(EVChargingStation.project_id == project_id)
-
-    total_st = (await db.execute(stations_stmt)).scalar() or 0
-
-
 
     sessions_stmt = select(
 
@@ -188,15 +258,53 @@ async def get_ev_summary(
 
         func.coalesce(func.avg(EVChargingSession.battery_state_of_health_pct), 100.0).label("avg_soh"),
 
-        func.count(EVChargingSession.id).filter(EVChargingSession.has_anomaly == True).label("anomaly_count")
+        func.count(EVChargingSession.id).filter(EVChargingSession.has_anomaly == True).label("anomaly_count"),
 
     )
 
+
+
     if project_id:
+
+        abac = ABACEngine(db, current_user)
+
+        await abac.enforce_project_access(project_id)
+
+        stations_stmt = stations_stmt.where(EVChargingStation.project_id == project_id)
 
         sessions_stmt = sessions_stmt.join(EVChargingStation).where(EVChargingStation.project_id == project_id)
 
+    elif current_user.role != "SUPER_ADMIN":
 
+        if not current_user.organization_id:
+
+            return {
+
+                "total_stations": 0,
+
+                "total_charging_sessions": 0,
+
+                "total_energy_kwh": 0.0,
+
+                "total_distance_displaced_km": 0.0,
+
+                "total_co2e_avoided_tonnes": 0.0,
+
+                "avg_fleet_battery_health": 100.0,
+
+                "anomalies_count": 0,
+
+            }
+
+        org_projects = select(Project.id).where(Project.organization_id == current_user.organization_id)
+
+        stations_stmt = stations_stmt.where(EVChargingStation.project_id.in_(org_projects))
+
+        sessions_stmt = sessions_stmt.join(EVChargingStation).where(EVChargingStation.project_id.in_(org_projects))
+
+
+
+    total_st = (await db.execute(stations_stmt)).scalar() or 0
 
     res = await db.execute(sessions_stmt)
 
@@ -218,6 +326,6 @@ async def get_ev_summary(
 
         "avg_fleet_battery_health": round(float(row.avg_soh), 1),
 
-        "anomalies_count": row.anomaly_count or 0
+        "anomalies_count": row.anomaly_count or 0,
 
     }

@@ -12,6 +12,14 @@ from uuid import UUID
 
 from app.db.session import get_db
 
+from app.core.security import get_current_user
+
+from app.domains.authentication.models import User
+
+from app.core.abac import ABACEngine
+
+from app.domains.projects.models import Project
+
 from app.domains.biochar.models import BiocharBatch, BiocharInventory
 
 from app.domains.biochar.schemas import BiocharBatchCreate, BiocharBatchResponse, BiocharSummaryResponse
@@ -30,17 +38,29 @@ async def create_biochar_batch(
 
     data: BiocharBatchCreate,
 
-    db: AsyncSession = Depends(get_db)
+    current_user: User = Depends(get_current_user),
+
+    db: AsyncSession = Depends(get_db),
 
 ):
+
+    abac = ABACEngine(db, current_user)
+
+    await abac.enforce_project_access(data.project_id)
+
+
 
     net_co2e, perm_factor, grade, has_anomaly, anomaly_reason = BiocharQuantificationEngine.calculate_removal_and_grade(data)
 
 
 
+    from datetime import datetime, timezone
+
     batch = BiocharBatch(
 
         project_id=data.project_id,
+
+        created_at=datetime.now(timezone.utc),
 
         batch_number=data.batch_number,
 
@@ -82,7 +102,7 @@ async def create_biochar_batch(
 
         anomaly_reason=anomaly_reason,
 
-        status="PRODUCED"
+        status="PRODUCED",
 
     )
 
@@ -106,7 +126,9 @@ async def list_biochar_batches(
 
     offset: int = 0,
 
-    db: AsyncSession = Depends(get_db)
+    current_user: User = Depends(get_current_user),
+
+    db: AsyncSession = Depends(get_db),
 
 ):
 
@@ -114,7 +136,23 @@ async def list_biochar_batches(
 
     if project_id:
 
+        abac = ABACEngine(db, current_user)
+
+        await abac.enforce_project_access(project_id)
+
         stmt = stmt.where(BiocharBatch.project_id == project_id)
+
+    elif current_user.role != "SUPER_ADMIN":
+
+        if not current_user.organization_id:
+
+            return []
+
+        org_projects = select(Project.id).where(Project.organization_id == current_user.organization_id)
+
+        stmt = stmt.where(BiocharBatch.project_id.in_(org_projects))
+
+
 
     stmt = stmt.order_by(BiocharBatch.created_at.desc()).limit(limit).offset(offset)
 
@@ -130,7 +168,9 @@ async def get_biochar_summary(
 
     project_id: Optional[UUID] = None,
 
-    db: AsyncSession = Depends(get_db)
+    current_user: User = Depends(get_current_user),
+
+    db: AsyncSession = Depends(get_db),
 
 ):
 
@@ -146,13 +186,43 @@ async def get_biochar_summary(
 
         func.count(BiocharBatch.id).filter(BiocharBatch.quality_grade == "GRADE_A").label("grade_a_count"),
 
-        func.count(BiocharBatch.id).filter(BiocharBatch.has_anomaly == True).label("anomaly_count")
+        func.count(BiocharBatch.id).filter(BiocharBatch.has_anomaly == True).label("anomaly_count"),
 
     )
 
+
+
     if project_id:
 
+        abac = ABACEngine(db, current_user)
+
+        await abac.enforce_project_access(project_id)
+
         stmt = stmt.where(BiocharBatch.project_id == project_id)
+
+    elif current_user.role != "SUPER_ADMIN":
+
+        if not current_user.organization_id:
+
+            return {
+
+                "total_batches": 0,
+
+                "total_feedstock_tonnes": 0.0,
+
+                "total_biochar_produced_tonnes": 0.0,
+
+                "total_net_co2e_removed_tonnes": 0.0,
+
+                "grade_a_percentage": 0.0,
+
+                "detected_anomalies_count": 0,
+
+            }
+
+        org_projects = select(Project.id).where(Project.organization_id == current_user.organization_id)
+
+        stmt = stmt.where(BiocharBatch.project_id.in_(org_projects))
 
 
 
@@ -180,6 +250,6 @@ async def get_biochar_summary(
 
         "grade_a_percentage": round(grade_a_pct, 1),
 
-        "detected_anomalies_count": row.anomaly_count or 0
+        "detected_anomalies_count": row.anomaly_count or 0,
 
     }

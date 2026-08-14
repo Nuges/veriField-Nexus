@@ -12,9 +12,29 @@ from uuid import UUID
 
 from app.db.session import get_db
 
+from app.core.security import get_current_user
+
+from app.domains.authentication.models import User
+
+from app.core.abac import ABACEngine
+
+from app.domains.projects.models import Project
+
 from app.domains.cookstoves.models import HouseholdBeneficiary, CookstoveDevice, UsageSurvey
 
-from app.domains.cookstoves.schemas import HouseholdCreate, CookstoveDeviceCreate, UsageSurveyCreate, UsageSurveyResponse, CookstoveSummaryResponse
+from app.domains.cookstoves.schemas import (
+
+    HouseholdCreate,
+
+    CookstoveDeviceCreate,
+
+    UsageSurveyCreate,
+
+    UsageSurveyResponse,
+
+    CookstoveSummaryResponse,
+
+)
 
 from app.domains.cookstoves.service import CookstoveQuantificationEngine
 
@@ -30,9 +50,17 @@ async def register_household(
 
     data: HouseholdCreate,
 
-    db: AsyncSession = Depends(get_db)
+    current_user: User = Depends(get_current_user),
+
+    db: AsyncSession = Depends(get_db),
 
 ):
+
+    abac = ABACEngine(db, current_user)
+
+    await abac.enforce_project_access(data.project_id)
+
+
 
     hh = HouseholdBeneficiary(**data.model_dump())
 
@@ -52,7 +80,9 @@ async def list_households(
 
     project_id: Optional[UUID] = None,
 
-    db: AsyncSession = Depends(get_db)
+    current_user: User = Depends(get_current_user),
+
+    db: AsyncSession = Depends(get_db),
 
 ):
 
@@ -60,7 +90,23 @@ async def list_households(
 
     if project_id:
 
+        abac = ABACEngine(db, current_user)
+
+        await abac.enforce_project_access(project_id)
+
         stmt = stmt.where(HouseholdBeneficiary.project_id == project_id)
+
+    elif current_user.role != "SUPER_ADMIN":
+
+        if not current_user.organization_id:
+
+            return []
+
+        org_projects = select(Project.id).where(Project.organization_id == current_user.organization_id)
+
+        stmt = stmt.where(HouseholdBeneficiary.project_id.in_(org_projects))
+
+
 
     res = await db.execute(stmt)
 
@@ -74,9 +120,25 @@ async def register_cookstove_device(
 
     data: CookstoveDeviceCreate,
 
-    db: AsyncSession = Depends(get_db)
+    current_user: User = Depends(get_current_user),
+
+    db: AsyncSession = Depends(get_db),
 
 ):
+
+    hh = await db.get(HouseholdBeneficiary, data.household_id)
+
+    if not hh:
+
+        raise HTTPException(status_code=404, detail="Household Beneficiary not found")
+
+
+
+    abac = ABACEngine(db, current_user)
+
+    await abac.enforce_project_access(hh.project_id)
+
+
 
     stove = CookstoveDevice(**data.model_dump())
 
@@ -96,7 +158,9 @@ async def list_cookstove_devices(
 
     household_id: Optional[UUID] = None,
 
-    db: AsyncSession = Depends(get_db)
+    current_user: User = Depends(get_current_user),
+
+    db: AsyncSession = Depends(get_db),
 
 ):
 
@@ -104,7 +168,29 @@ async def list_cookstove_devices(
 
     if household_id:
 
+        hh = await db.get(HouseholdBeneficiary, household_id)
+
+        if not hh:
+
+            raise HTTPException(status_code=404, detail="Household Beneficiary not found")
+
+        abac = ABACEngine(db, current_user)
+
+        await abac.enforce_project_access(hh.project_id)
+
         stmt = stmt.where(CookstoveDevice.household_id == household_id)
+
+    elif current_user.role != "SUPER_ADMIN":
+
+        if not current_user.organization_id:
+
+            return []
+
+        org_projects = select(Project.id).where(Project.organization_id == current_user.organization_id)
+
+        stmt = stmt.join(HouseholdBeneficiary).where(HouseholdBeneficiary.project_id.in_(org_projects))
+
+
 
     res = await db.execute(stmt)
 
@@ -118,7 +204,9 @@ async def record_usage_survey(
 
     data: UsageSurveyCreate,
 
-    db: AsyncSession = Depends(get_db)
+    current_user: User = Depends(get_current_user),
+
+    db: AsyncSession = Depends(get_db),
 
 ):
 
@@ -138,6 +226,12 @@ async def record_usage_survey(
 
 
 
+    abac = ABACEngine(db, current_user)
+
+    await abac.enforce_project_access(hh.project_id)
+
+
+
     reduction_tco2e, has_fraud, fraud_reason = CookstoveQuantificationEngine.calculate_emissions_reduction(data, hh, stove)
 
 
@@ -146,7 +240,7 @@ async def record_usage_survey(
 
         stove_id=data.stove_id,
 
-        surveyor_user_id=data.surveyor_user_id,
+        surveyor_user_id=current_user.id if current_user.role != "SUPER_ADMIN" else (data.surveyor_user_id or current_user.id),
 
         survey_date=data.survey_date,
 
@@ -164,7 +258,7 @@ async def record_usage_survey(
 
         has_fraud_flag=has_fraud,
 
-        fraud_reason=fraud_reason
+        fraud_reason=fraud_reason,
 
     )
 
@@ -184,29 +278,15 @@ async def get_cookstoves_summary(
 
     project_id: Optional[UUID] = None,
 
-    db: AsyncSession = Depends(get_db)
+    current_user: User = Depends(get_current_user),
+
+    db: AsyncSession = Depends(get_db),
 
 ):
 
     hh_stmt = select(func.count(HouseholdBeneficiary.id))
 
-    if project_id:
-
-        hh_stmt = hh_stmt.where(HouseholdBeneficiary.project_id == project_id)
-
-    total_hh = (await db.execute(hh_stmt)).scalar() or 0
-
-
-
     st_stmt = select(func.count(CookstoveDevice.id))
-
-    if project_id:
-
-        st_stmt = st_stmt.join(HouseholdBeneficiary).where(HouseholdBeneficiary.project_id == project_id)
-
-    total_st = (await db.execute(st_stmt)).scalar() or 0
-
-
 
     surv_stmt = select(
 
@@ -216,15 +296,55 @@ async def get_cookstoves_summary(
 
         func.coalesce(func.sum(UsageSurvey.calculated_co2e_reduction_tonnes), 0.0).label("total_co2e"),
 
-        func.count(UsageSurvey.id).filter(UsageSurvey.has_fraud_flag == True).label("fraud_count")
+        func.count(UsageSurvey.id).filter(UsageSurvey.has_fraud_flag == True).label("fraud_count"),
 
     )
 
+
+
     if project_id:
+
+        abac = ABACEngine(db, current_user)
+
+        await abac.enforce_project_access(project_id)
+
+        hh_stmt = hh_stmt.where(HouseholdBeneficiary.project_id == project_id)
+
+        st_stmt = st_stmt.join(HouseholdBeneficiary).where(HouseholdBeneficiary.project_id == project_id)
 
         surv_stmt = surv_stmt.join(CookstoveDevice).join(HouseholdBeneficiary).where(HouseholdBeneficiary.project_id == project_id)
 
+    elif current_user.role != "SUPER_ADMIN":
 
+        if not current_user.organization_id:
+
+            return {
+
+                "total_households": 0,
+
+                "total_stoves_deployed": 0,
+
+                "active_usage_rate_pct": 100.0,
+
+                "total_co2e_reduced_tonnes": 0.0,
+
+                "fraud_alerts_count": 0,
+
+            }
+
+        org_projects = select(Project.id).where(Project.organization_id == current_user.organization_id)
+
+        hh_stmt = hh_stmt.where(HouseholdBeneficiary.project_id.in_(org_projects))
+
+        st_stmt = st_stmt.join(HouseholdBeneficiary).where(HouseholdBeneficiary.project_id.in_(org_projects))
+
+        surv_stmt = surv_stmt.join(CookstoveDevice).join(HouseholdBeneficiary).where(HouseholdBeneficiary.project_id.in_(org_projects))
+
+
+
+    total_hh = (await db.execute(hh_stmt)).scalar() or 0
+
+    total_st = (await db.execute(st_stmt)).scalar() or 0
 
     res = await db.execute(surv_stmt)
 
@@ -248,6 +368,6 @@ async def get_cookstoves_summary(
 
         "total_co2e_reduced_tonnes": float(row.total_co2e),
 
-        "fraud_alerts_count": row.fraud_count or 0
+        "fraud_alerts_count": row.fraud_count or 0,
 
     }

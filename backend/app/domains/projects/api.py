@@ -54,11 +54,37 @@ async def create_project(
 
 
 
-    org_id = payload.organization_id or current_user.organization_id or current_user.id
+    if current_user.role == "SUPER_ADMIN":
+
+        target_org_id = payload.organization_id or current_user.organization_id or current_user.id
+
+    else:
+
+        if not current_user.organization_id:
+
+            raise HTTPException(
+
+                status_code=status.HTTP_403_FORBIDDEN,
+
+                detail="User must belong to an organization to create projects."
+
+            )
+
+        if payload.organization_id and str(payload.organization_id).lower() != str(current_user.organization_id).lower():
+
+            raise HTTPException(
+
+                status_code=status.HTTP_403_FORBIDDEN,
+
+                detail="Forbidden: Cannot create projects for another organization."
+
+            )
+
+        target_org_id = current_user.organization_id
 
 
 
-    project = await service.create_project(payload, org_id)
+    project = await service.create_project(payload, target_org_id)
 
     return ProjectResponse.model_validate(project)
 

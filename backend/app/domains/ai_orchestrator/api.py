@@ -6,6 +6,8 @@ from typing import Optional, Dict, Any, List
 
 from pydantic import BaseModel
 
+from uuid import UUID
+
 
 
 from app.db.session import get_db
@@ -13,6 +15,8 @@ from app.db.session import get_db
 from app.core.security import get_current_user
 
 from app.domains.authentication.models import User
+
+from app.core.abac import ABACEngine
 
 from app.domains.ai_orchestrator.service import AIOrchestratorService
 
@@ -72,15 +76,31 @@ async def run_ai_orchestrator(
 
     project_id: Optional[str] = None,
 
-    user_role: Optional[str] = None,
+    current_user: User = Depends(get_current_user),
 
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 
 ):
 
+    if project_id:
+
+        try:
+
+            p_uuid = UUID(project_id)
+
+            abac = ABACEngine(db, current_user)
+
+            await abac.enforce_project_access(p_uuid)
+
+        except (ValueError, AttributeError):
+
+            raise HTTPException(status_code=400, detail="Invalid project_id format")
+
+
+
     service = AIOrchestratorService(db)
 
-    return await service.orchestrate_analysis(event_type, project_id, user_role)
+    return await service.orchestrate_analysis(event_type, project_id, current_user.role)
 
 
 
@@ -130,9 +150,39 @@ async def index_document_content(
 
     data: DocumentIndexRequest,
 
-    db: AsyncSession = Depends(get_db)
+    current_user: User = Depends(get_current_user),
+
+    db: AsyncSession = Depends(get_db),
 
 ):
+
+    if current_user.role not in ["SUPER_ADMIN", "ADMIN", "ORG_ADMIN", "PROJECT_MANAGER", "admin"]:
+
+        raise HTTPException(
+
+            status_code=status.HTTP_403_FORBIDDEN,
+
+            detail="Forbidden: Insufficient privileges to index documents."
+
+        )
+
+
+
+    if data.project_id:
+
+        try:
+
+            p_uuid = UUID(data.project_id)
+
+            abac = ABACEngine(db, current_user)
+
+            await abac.enforce_project_access(p_uuid)
+
+        except (ValueError, AttributeError):
+
+            raise HTTPException(status_code=400, detail="Invalid project_id format")
+
+
 
     indexer = DocumentIndexerService(db)
 
@@ -146,7 +196,7 @@ async def index_document_content(
 
         content_text=data.content_text,
 
-        project_id=data.project_id
+        project_id=data.project_id,
 
     )
 
@@ -164,9 +214,27 @@ async def search_document_knowledge(
 
     limit: int = 5,
 
-    db: AsyncSession = Depends(get_db)
+    current_user: User = Depends(get_current_user),
+
+    db: AsyncSession = Depends(get_db),
 
 ):
+
+    if project_id:
+
+        try:
+
+            p_uuid = UUID(project_id)
+
+            abac = ABACEngine(db, current_user)
+
+            await abac.enforce_project_access(p_uuid)
+
+        except (ValueError, AttributeError):
+
+            raise HTTPException(status_code=400, detail="Invalid project_id format")
+
+
 
     indexer = DocumentIndexerService(db)
 
@@ -180,15 +248,31 @@ async def record_decision_memory(
 
     data: MemoryDecisionRequest,
 
-    db: AsyncSession = Depends(get_db)
+    current_user: User = Depends(get_current_user),
+
+    db: AsyncSession = Depends(get_db),
 
 ):
+
+    try:
+
+        p_uuid = UUID(data.project_id)
+
+        abac = ABACEngine(db, current_user)
+
+        await abac.enforce_project_access(p_uuid)
+
+    except (ValueError, AttributeError):
+
+        raise HTTPException(status_code=400, detail="Invalid project_id format")
+
+
 
     memory = EnterpriseMemoryService(db)
 
     return await memory.record_decision(
 
-        user_id=data.user_id,
+        user_id=str(current_user.id),
 
         project_id=data.project_id,
 
@@ -198,7 +282,7 @@ async def record_decision_memory(
 
         user_action=data.user_action,
 
-        impact_metrics=data.impact_metrics
+        impact_metrics=data.impact_metrics,
 
     )
 
@@ -212,9 +296,27 @@ async def get_role_intelligence(
 
     project_id: Optional[str] = None,
 
-    db: AsyncSession = Depends(get_db)
+    current_user: User = Depends(get_current_user),
+
+    db: AsyncSession = Depends(get_db),
 
 ):
+
+    if project_id:
+
+        try:
+
+            p_uuid = UUID(project_id)
+
+            abac = ABACEngine(db, current_user)
+
+            await abac.enforce_project_access(p_uuid)
+
+        except (ValueError, AttributeError):
+
+            raise HTTPException(status_code=400, detail="Invalid project_id format")
+
+
 
     service = AIOrchestratorService(db)
 
@@ -228,6 +330,6 @@ async def get_role_intelligence(
 
         "recommendations": res["recommendations"],
 
-        "actions": res["role_actions"]
+        "actions": res["role_actions"],
 
     }

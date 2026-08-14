@@ -150,7 +150,7 @@ async def decode_jwt_token(token: str) -> dict:
 
     try:
 
-        jwt_secret = settings.jwt_secret or "verifield-dev-secret-key"
+        jwt_secret = settings.effective_jwt_secret
 
         decoded = pyjwt.decode(token, jwt_secret, algorithms=["HS256"])
 
@@ -434,6 +434,13 @@ async def get_current_user(
 
                     new_user_id = _uuid.uuid4()
 
+                # Security Invariant: JWT claims must NEVER grant SUPER_ADMIN or administrative privileges on auto-provisioning.
+                raw_role = (payload.get("role") or "").strip()
+                if raw_role in ["SUPER_ADMIN", "super_admin", "ADMIN", "admin", "ORG_ADMIN", "org_admin"]:
+                    safe_role = "field_agent"
+                else:
+                    safe_role = raw_role if raw_role else "field_agent"
+
                 user = User(
 
                     id=new_user_id,
@@ -458,7 +465,7 @@ async def get_current_user(
 
                     ),
 
-                    role=payload.get("role", "field_agent"),
+                    role=safe_role,
 
                     status="active",
 
@@ -544,6 +551,12 @@ async def get_current_user(
 
             now = datetime.now(timezone.utc)
 
+            v_role = (payload.get("role") or "").strip()
+            if v_role in ["SUPER_ADMIN", "super_admin", "ADMIN", "admin", "ORG_ADMIN", "org_admin"]:
+                v_role = "field_agent"
+            else:
+                v_role = v_role if v_role else "field_agent"
+
             virtual_user = User(
 
                 id=user_uuid,
@@ -558,7 +571,7 @@ async def get_current_user(
 
                 .title(),
 
-                role=payload.get("role", "admin"),
+                role=v_role,
 
                 status="active",
 

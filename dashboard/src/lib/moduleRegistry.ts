@@ -506,6 +506,8 @@ export function canonicalSectorCode(sec: string): string {
  * 3. First available workspace in registry
  * 4. "generic" (no workspace)
  */
+const SECTOR_FAMILY_CODES = ["cookstoves", "hybrid_energy", "biochar", "ev_mobility"];
+
 export function resolveUserWorkspace(
   licensedSectors: string[],
   licensedMethodologies: string[],
@@ -517,11 +519,8 @@ export function resolveUserWorkspace(
   // Priority 1: Direct sector licenses (these ARE family codes)
   for (const sec of licensedSectors) {
     const code = canonicalSectorCode(sec);
-    if (registry[code]) {
+    if (SECTOR_FAMILY_CODES.includes(code)) {
       resolved.add(code);
-    } else {
-      const match = Object.keys(registry).find(k => k === code || k.includes(code) || code.includes(k));
-      if (match) resolved.add(match);
     }
   }
 
@@ -529,22 +528,15 @@ export function resolveUserWorkspace(
   for (const meth of licensedMethodologies) {
     const methCode = meth.toLowerCase().trim();
     const familyCode = canonicalSectorCode(methToFamily[methCode] || methCode);
-    if (familyCode && registry[familyCode]) {
+    if (SECTOR_FAMILY_CODES.includes(familyCode)) {
       resolved.add(familyCode);
-    } else {
-      const match = Object.keys(registry).find(k => k === familyCode || k.includes(familyCode) || familyCode.includes(k));
-      if (match) resolved.add(match);
     }
   }
 
   const allowed = Array.from(resolved);
 
   if (allowed.length === 0) {
-    const regKeys = Object.keys(registry);
-    if (regKeys.length > 0) {
-      return { activeWorkspace: regKeys[0], allowedWorkspaces: regKeys };
-    }
-    return { activeWorkspace: "generic", allowedWorkspaces: ["generic"] };
+    return { activeWorkspace: "cookstoves", allowedWorkspaces: SECTOR_FAMILY_CODES };
   }
 
   return { activeWorkspace: allowed[0], allowedWorkspaces: allowed };

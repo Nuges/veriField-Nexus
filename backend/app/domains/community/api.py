@@ -2,6 +2,8 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from app.db.session import get_db
+from app.core.security import get_current_user
+from app.domains.authentication.models import User
 
 router = APIRouter()
 
@@ -60,7 +62,11 @@ async def get_community_feed(page: int = 1, per_page: int = 20, db: AsyncSession
     }
 
 @router.post("/{post_id}/upvote")
-async def upvote_community_post(post_id: str, db: AsyncSession = Depends(get_db)):
+async def upvote_community_post(
+    post_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     query = text("UPDATE community_validations SET upvotes = upvotes + 1 WHERE id = :id RETURNING upvotes")
     res = await db.execute(query, {"id": post_id})
     await db.commit()
@@ -68,12 +74,12 @@ async def upvote_community_post(post_id: str, db: AsyncSession = Depends(get_db)
     return {"id": post_id, "upvotes": upvotes}
 
 @router.post("/{post_id}/comments")
-async def add_community_comment(post_id: str, payload: dict, db: AsyncSession = Depends(get_db)):
-    # Assuming user_id is superadmin for now since no auth is attached, or we require auth
-    # For simplicity, getting first user
-    user = await db.execute(text("SELECT id FROM users LIMIT 1"))
-    u_id = user.scalar()
-    
+async def add_community_comment(
+    post_id: str,
+    payload: dict,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     import uuid
     from datetime import datetime, timezone
     new_id = str(uuid.uuid4())
@@ -84,7 +90,7 @@ async def add_community_comment(post_id: str, payload: dict, db: AsyncSession = 
     await db.execute(query, {
         "id": new_id,
         "vid": post_id,
-        "uid": u_id,
+        "uid": current_user.id,
         "cmt": payload.get("comment", ""),
         "ts": datetime.now(timezone.utc)
     })

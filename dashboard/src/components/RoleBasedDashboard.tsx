@@ -76,38 +76,31 @@ export default function RoleBasedDashboard({ dashboardData, sectorCode }: RoleBa
 
 
 
-  // 1. SUPER ADMIN / ADMINISTRATOR VIEW
-
-  if (role === "SUPER_ADMIN" || role === "ADMIN" || role === "ORG_ADMIN") {
-
+  // 1. PLATFORM SUPER ADMIN VIEW
+  if (role === "SUPER_ADMIN") {
     const totalSubmissions = dashboardData?.kpis?.find((k: any) => k.id === "installations" || k.label?.includes("Submissions") || k.label?.includes("Assets") || k.label?.includes("Installations"))?.value ?? 0;
-
     const activeTenants = dashboardData?.activeOrgs ?? dashboardData?.active_orgs_count ?? 1;
 
-
-
     return (
-
       <div className="space-y-6 animate-fade-in">
-
-        {/* Administrator Telemetry Surface */}
+        {/* Platform Telemetry Surface */}
         <div className="p-4 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-xs space-y-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex flex-wrap items-center gap-2 min-w-0">
               <span className="font-bold text-[var(--color-text-primary)] uppercase text-xs tracking-wider">
-                Platform Health & Infrastructure Status
+                Platform Governance & Global Infrastructure Status
               </span>
             </div>
           </div>
           <p className="text-xs text-[var(--color-text-secondary)] font-medium leading-relaxed">
             {totalSubmissions === 0
               ? "Database connection pool optimal. Workspace active with 0 field submissions."
-              : `Database connection pool optimal. ${activeTenants} active organization tenant emitting telemetry across ${totalSubmissions} field submissions.`
+              : `Database connection pool optimal. ${activeTenants} active organization tenant(s) emitting telemetry across ${totalSubmissions} field submissions.`
             }
           </p>
         </div>
 
-        {/* Administrator KPIs */}
+        {/* Super Admin KPIs */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="p-4 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-xs space-y-1">
             <div className="flex items-center justify-between text-xs text-[var(--color-text-secondary)] font-bold">
@@ -145,11 +138,73 @@ export default function RoleBasedDashboard({ dashboardData, sectorCode }: RoleBa
             <p className="text-[10px] text-[var(--color-text-secondary)] font-mono">PostgreSQL / Supabase</p>
           </div>
         </div>
-
       </div>
-
     );
+  }
 
+  // 2. ORGANISATION ADMIN VIEW
+  if (role === "ORG_ADMIN" || role === "ADMIN" || role === "ORGANIZATION_ADMINISTRATOR") {
+    const totalSubmissions = dashboardData?.kpis?.find((k: any) => k.id === "installations" || k.label?.includes("Submissions") || k.label?.includes("Assets") || k.label?.includes("Installations"))?.value ?? 0;
+    const orgName = (user as any)?.organization_name || user?.organization || "Organisation";
+    const activeSectorsCount = Array.isArray(user?.licensed_sectors) && user.licensed_sectors.length > 0 ? user.licensed_sectors.length : 1;
+
+    return (
+      <div className="space-y-6 animate-fade-in">
+        {/* Organisation Admin Mission Control Surface */}
+        <div className="p-4 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-xs space-y-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-2 min-w-0">
+              <Building size={16} className="text-[#00B47A]" />
+              <span className="font-bold text-[var(--color-text-primary)] uppercase text-xs tracking-wider">
+                {orgName} — Organisation Mission Control
+              </span>
+            </div>
+          </div>
+          <p className="text-xs text-[var(--color-text-secondary)] font-medium leading-relaxed">
+            Organisation-scoped telemetry, active climate project workflows, and evidence verification status for {orgName}.
+          </p>
+        </div>
+
+        {/* Organisation KPIs */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="p-4 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-xs space-y-1">
+            <div className="flex items-center justify-between text-xs text-[var(--color-text-secondary)] font-bold">
+              <span>Organisation Status</span>
+              <ShieldCheck size={16} className="text-[#00B47A]" />
+            </div>
+            <p className="text-xl font-bold text-[var(--color-text-primary)]">Active</p>
+            <p className="text-[10px] text-[var(--color-text-secondary)] font-mono">KYC Verified Tenant</p>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-xs space-y-1">
+            <div className="flex items-center justify-between text-xs text-[var(--color-text-secondary)] font-bold">
+              <span>Active Sectors</span>
+              <Globe size={16} className="text-emerald-500" />
+            </div>
+            <p className="text-xl font-bold text-[var(--color-text-primary)]">{activeSectorsCount} Sector{activeSectorsCount === 1 ? '' : 's'}</p>
+            <p className="text-[10px] text-[var(--color-text-secondary)] font-mono">Licensed Portfolios</p>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-xs space-y-1">
+            <div className="flex items-center justify-between text-xs text-[var(--color-text-secondary)] font-bold">
+              <span>Telemetry Telemetry</span>
+              <Activity size={16} className="text-[#00B47A]" />
+            </div>
+            <p className="text-xl font-bold text-[var(--color-text-primary)]">{totalSubmissions}</p>
+            <p className="text-[10px] text-[var(--color-text-secondary)] font-mono">Field Records</p>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-xs space-y-1">
+            <div className="flex items-center justify-between text-xs text-[var(--color-text-secondary)] font-bold">
+              <span>Verification Queue</span>
+              <TrendingUp size={16} className="text-blue-400" />
+            </div>
+            <p className="text-xl font-bold text-[var(--color-text-primary)]">Synced</p>
+            <p className="text-[10px] text-[var(--color-text-secondary)] font-mono">Ledger Verified</p>
+          </div>
+        </div>
+      </div>
+    );
   }
 
 

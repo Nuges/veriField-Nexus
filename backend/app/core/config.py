@@ -206,13 +206,55 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
 
-    def clean_supabase_url(self) -> "Settings":
+    def validate_security_settings(self) -> "Settings":
 
         if self.supabase_url:
 
             self.supabase_url = self.supabase_url.rstrip("/")
 
+        # Safeguard: Prevent DEV_MODE when DEBUG=False in production
+
+        if self.dev_mode and not self.debug:
+
+            raise ValueError(
+
+                "CRITICAL SECURITY CONFIGURATION ERROR: DEV_MODE cannot be enabled when DEBUG=False."
+
+            )
+
         return self
+
+
+
+    @property
+
+    def effective_jwt_secret(self) -> str:
+
+        """
+
+        Return the secret used for signing/verifying local JWT tokens securely.
+
+        In production mode (dev_mode=False and debug=False), an explicit non-default secret is mandatory.
+
+        In development mode, falls back to 'verifield-dev-secret-key' for local test environments.
+
+        """
+
+        if self.jwt_secret and self.jwt_secret != "verifield-dev-secret-key":
+
+            return self.jwt_secret
+
+        if self.dev_mode or self.debug:
+
+            return self.jwt_secret or "verifield-dev-secret-key"
+
+        raise RuntimeError(
+
+            "CRITICAL SECURITY CONFIGURATION ERROR: JWT_SECRET environment variable is missing or using default key in production mode (dev_mode=False)."
+
+        )
+
+
 
 
 
