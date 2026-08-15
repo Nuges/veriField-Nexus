@@ -1,4 +1,5 @@
 import logging
+import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List
 
@@ -19,14 +20,20 @@ class TwinIntelligenceEngine:
     def __init__(self, db: AsyncSession):
         self.db = db
 
+    def _to_uuid(self, val: Any) -> uuid.UUID:
+        if isinstance(val, str):
+            return uuid.UUID(val)
+        return val
+
     async def run_simulation(
-        self, twin_id: str, forward_steps: int, step_size_minutes: int
+        self, twin_id: str | uuid.UUID, forward_steps: int, step_size_minutes: int
     ) -> List[Dict[str, Any]]:
         """
         Runs a forward projection simulation of the Digital Twin state
         using its historical telemetry and metadata.
         """
-        twin = await self.db.get(DigitalTwin, twin_id)
+        twin_uid = self._to_uuid(twin_id)
+        twin = await self.db.get(DigitalTwin, twin_uid)
         if not twin:
             raise ValueError(f"Digital Twin {twin_id} not found")
 
@@ -35,8 +42,8 @@ class TwinIntelligenceEngine:
         simulated_states = []
         current_time = datetime.now(timezone.utc)
 
-        current_health = twin.attributes.get("health_score", 100.0)
-        degradation_rate = twin.attributes.get("degradation_rate_per_hour", 0.05)
+        current_health = twin.state_vector.get("health_score", 100.0) if twin.state_vector else 100.0
+        degradation_rate = twin.state_vector.get("degradation_rate_per_hour", 0.05) if twin.state_vector else 0.05
 
         for step in range(forward_steps):
             future_time = current_time + timedelta(
@@ -59,27 +66,29 @@ class TwinIntelligenceEngine:
         return simulated_states
 
     async def playback_history(
-        self, twin_id: str, start_time: datetime, end_time: datetime
+        self, twin_id: str | uuid.UUID, start_time: datetime, end_time: datetime
     ) -> List[DigitalTwinState]:
         """
         Replays the historical state of a Digital Twin over a specific time window.
         """
+        twin_uid = self._to_uuid(twin_id)
         result = await self.db.execute(
             select(DigitalTwinState)
-            .where(DigitalTwinState.twin_id == twin_id)
+            .where(DigitalTwinState.digital_twin_id == twin_uid)
             .where(DigitalTwinState.timestamp >= start_time)
             .where(DigitalTwinState.timestamp <= end_time)
             .order_by(DigitalTwinState.timestamp.asc())
         )
-        return result.scalars().all()
+        return list(result.scalars().all())
 
-    async def evaluate_failure_prediction(self, twin_id: str) -> Dict[str, Any]:
+    async def evaluate_failure_prediction(self, twin_id: str | uuid.UUID) -> Dict[str, Any]:
         """
         Analyzes recent TwinState logs and triggers failure prediction hooks.
         """
+        twin_uid = self._to_uuid(twin_id)
         result = await self.db.execute(
             select(DigitalTwinState)
-            .where(DigitalTwinState.twin_id == twin_id)
+            .where(DigitalTwinState.digital_twin_id == twin_uid)
             .order_by(DigitalTwinState.timestamp.desc())
             .limit(10)
         )

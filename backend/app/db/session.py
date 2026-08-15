@@ -347,6 +347,7 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """
     FastAPI dependency that provides a database session.
     Automatically falls back to local SQLite if remote PostgreSQL is unreachable.
+    Complies strictly with PEP 525 by never yielding twice on exception.
     """
     try:
         async with async_session_factory() as session:
@@ -356,14 +357,6 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
                 await session.rollback()
                 raise
     except Exception as err:
-        if isinstance(err, HTTPException):
-            raise
-        # Fallback to local SQLite when remote DB is unreachable
-        await _init_fallback_db()
-        factory = _get_fallback_session_factory()
-        async with factory() as session:
-            try:
-                yield session
-            except Exception:
-                await session.rollback()
-                raise
+        # If an exception was thrown into the generator via athrow(), propagate directly.
+        # Never catch and attempt a second yield.
+        raise

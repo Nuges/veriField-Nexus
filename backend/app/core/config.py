@@ -228,22 +228,25 @@ class Settings(BaseSettings):
 
     @property
     def effective_jwt_secret(self) -> str:
-
         """
-
         Return the secret used for signing/verifying local JWT tokens securely.
-
         In production mode (dev_mode=False and debug=False), an explicit non-default secret is mandatory.
-
         In development mode, falls back to 'verifield-dev-secret-key' for local test environments.
-
         """
-
-        if self.jwt_secret and self.jwt_secret != "verifield-dev-secret-key":
+        # Try explicit JWT_SECRET first
+        if self.jwt_secret and self.jwt_secret not in ("", "verifield-dev-secret-key"):
             return self.jwt_secret
-        if hasattr(self, "secret_key") and self.secret_key and self.secret_key != "verifield-dev-secret-key":
+        # Try SECRET_KEY as fallback
+        if hasattr(self, "secret_key") and self.secret_key and self.secret_key not in ("", "verifield-dev-secret-key"):
             return self.secret_key
-        return self.jwt_secret or "verifield-production-jwt-secret-key-2026"
+        # In production mode, refuse to operate with a default secret
+        if not self.dev_mode and not self.debug:
+            raise RuntimeError(
+                "CRITICAL: JWT_SECRET environment variable is not set. "
+                "VeriField Nexus refuses to start in production without an explicit JWT secret."
+            )
+        # Dev mode only — safe default for local development
+        return "verifield-dev-secret-key"
 
 
 

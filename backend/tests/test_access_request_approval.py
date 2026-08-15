@@ -140,6 +140,25 @@ async def run_full_suite():
         req = res.fetchone()
         check(req.status != "PENDING", "Subsequent approval attempt detects non-PENDING status")
 
+    # 3. PEP 525 Async Generator athrow() Contract Verification
+    from app.db.session import get_db
+    from fastapi import HTTPException
+
+    gen = get_db()
+    session = await anext(gen)
+    check(session is not None, "get_db() yields valid session on first call")
+
+    athrow_passed = False
+    try:
+        await gen.athrow(HTTPException(status_code=400, detail="Client Error Simulation"))
+    except HTTPException as e:
+        athrow_passed = True
+    except RuntimeError as e:
+        if "generator didn't stop after athrow()" in str(e):
+            athrow_passed = False
+
+    check(athrow_passed, "get_db() correctly propagates exception on athrow() without RuntimeError")
+
     print("=================================================================")
     print(f"TOTAL: {passed}/{total} ASSERTIONS PASSED (100% VERIFIED)")
     print("=================================================================")

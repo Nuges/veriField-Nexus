@@ -32,6 +32,14 @@ async def create_listing(
     if current_user.role not in ["SUPER_ADMIN", "ORG_ADMIN"]:
         raise HTTPException(status_code=403, detail="Not authorized to create listings")
 
+    # Tenant isolation: non-Super Admin must own the listing org_id
+    if current_user.role != "SUPER_ADMIN":
+        if not current_user.organization_id or str(data.org_id).lower() != str(current_user.organization_id).lower():
+            raise HTTPException(
+                status_code=403,
+                detail="Forbidden: Cannot create listings for another organization."
+            )
+
     return await service.create_listing(data, actor_id=current_user.id, db=db)
 
 

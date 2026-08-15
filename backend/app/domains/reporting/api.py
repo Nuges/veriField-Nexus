@@ -56,7 +56,13 @@ async def list_org_reports(
 
 ):
 
-    # In a full impl, check if current_user belongs to org_id
+    # Tenant isolation: non-Super Admin can only access their own org reports
+    if current_user.role != "SUPER_ADMIN":
+        if not current_user.organization_id or str(org_id).lower() != str(current_user.organization_id).lower():
+            raise HTTPException(
+                status_code=403,
+                detail="Forbidden: Cannot access another organization's reports."
+            )
 
     return await service.list_reports(org_id, skip=skip, limit=limit)
 
@@ -75,6 +81,14 @@ async def create_report(
     service: ReportingService = Depends(get_reporting_service),
 
 ):
+
+    # Tenant isolation: non-Super Admin can only create reports for their own org
+    if current_user.role != "SUPER_ADMIN":
+        if not current_user.organization_id or str(data.org_id).lower() != str(current_user.organization_id).lower():
+            raise HTTPException(
+                status_code=403,
+                detail="Forbidden: Cannot create reports for another organization."
+            )
 
     return await service.generate_report(data, creator_id=current_user.id)
 
