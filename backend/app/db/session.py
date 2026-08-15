@@ -167,67 +167,53 @@ def _get_fallback_session_factory():
 
 
 _fallback_initialized = False
-
-
+_fallback_init_lock = None
 
 from sqlalchemy.dialects.postgresql import JSONB, UUID
-
 from sqlalchemy.ext.compiler import compiles
 
-
-
 @compiles(JSONB, "sqlite")
-
 def compile_jsonb_sqlite(type_, compiler, **kw):
-
     return "JSON"
 
-
-
 @compiles(UUID, "sqlite")
-
 def compile_uuid_sqlite(type_, compiler, **kw):
-
     return "TEXT"
 
-
-
 async def _init_fallback_db():
-    global _fallback_initialized
+    global _fallback_initialized, _fallback_init_lock
     if _fallback_initialized:
         return
 
-    _get_fallback_session_factory()
+    import asyncio
+    if _fallback_init_lock is None:
+        _fallback_init_lock = asyncio.Lock()
 
-    from app.db.base import Base
-    from app.core.security import get_password_hash
-    from sqlalchemy import text
+    async with _fallback_init_lock:
+        if _fallback_initialized:
+            return
 
+        _get_fallback_session_factory()
+        from app.db.base import Base
+        from app.core.security import get_password_hash
+        from sqlalchemy import text
 
+        # Clean PostgreSQL server_default syntax for SQLite compatibility
+        for table in Base.metadata.tables.values():
+            for col in table.columns:
+                if col.server_default is not None:
+                    sd_str = str(col.server_default.arg) if hasattr(col.server_default, 'arg') else ""
+                    if any(kw in sd_str.lower() for kw in ["gen_random_uuid", "jsonb", "now()", "true", "false"]):
+                        col.server_default = None
 
-    # Clean PostgreSQL server_default syntax for SQLite compatibility
+        async with fallback_engine.begin() as conn:
+            try:
+                await conn.run_sync(lambda sync_conn: Base.metadata.create_all(sync_conn, checkfirst=True))
+            except Exception:
+                pass
 
-    for table in Base.metadata.tables.values():
-
-        for col in table.columns:
-
-            if col.server_default is not None:
-
-                sd_str = str(col.server_default.arg) if hasattr(col.server_default, 'arg') else ""
-
-                if any(kw in sd_str.lower() for kw in ["gen_random_uuid", "jsonb", "now()", "true", "false"]):
-
-                    col.server_default = None
-
-
-
-    async with fallback_engine.begin() as conn:
-
-        await conn.run_sync(Base.metadata.create_all)
-
-        await conn.execute(text("""
-
-            CREATE TABLE IF NOT EXISTS access_requests (
+            await conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS access_requests (
 
                 id TEXT PRIMARY KEY,
 
