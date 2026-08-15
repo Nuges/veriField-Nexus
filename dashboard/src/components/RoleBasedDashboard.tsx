@@ -187,7 +187,7 @@ export default function RoleBasedDashboard({ dashboardData, sectorCode }: RoleBa
 
           <div className="p-4 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-xs space-y-1">
             <div className="flex items-center justify-between text-xs text-[var(--color-text-secondary)] font-bold">
-              <span>Telemetry Telemetry</span>
+              <span>Sector Telemetry</span>
               <Activity size={16} className="text-[#00B47A]" />
             </div>
             <p className="text-xl font-bold text-[var(--color-text-primary)]">{totalSubmissions}</p>
@@ -207,92 +207,56 @@ export default function RoleBasedDashboard({ dashboardData, sectorCode }: RoleBa
     );
   }
 
-
-
   // 2. FIELD AGENT VIEW
-
   if (role === "FIELD_AGENT") {
+    const scannerLabel = sectorCode === "hybrid_energy"
+      ? "Solar Telemetry Scanner Active"
+      : sectorCode === "ev_mobility"
+      ? "EV Charging Scanner Active"
+      : sectorCode === "biochar"
+      ? "Biochar Pyrolyzer Scanner Active"
+      : "Cookstove Scanner Active";
 
     return (
-
       <div className="space-y-6 animate-fade-in">
-
         <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-
           <div className="flex items-center gap-3">
-
             <Radio size={20} className="text-[#00B47A] animate-pulse shrink-0" />
-
             <div>
-
               <h3 className="font-extrabold text-sm text-[var(--color-text-primary)]">Today's Field Evidence Queue</h3>
-
-              <p className="text-xs text-[var(--color-text-secondary)]">3 Inspection Visits Scheduled in Kano Sector</p>
-
+              <p className="text-xs text-[var(--color-text-secondary)]">3 Inspection Visits Scheduled in Operational Sector</p>
             </div>
-
           </div>
-
           <Link
-
             href="/capture"
-
             className="px-4 py-2 rounded-xl bg-[#00B47A] text-white font-bold text-xs hover:bg-[#009b68] shadow-md flex items-center gap-1.5 shrink-0"
-
           >
-
             <span>Open PWA Capture</span>
-
             <ArrowRight size={14} />
-
           </Link>
-
         </div>
-
-
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-
           <div className="p-4 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-xs">
-
             <span className="text-xs font-bold text-[var(--color-text-secondary)]">GPS Accuracy Radius</span>
-
             <p className="text-2xl font-black text-emerald-400 mt-1">4.2 Meters</p>
-
             <p className="text-[10px] text-emerald-500/80 font-mono mt-0.5">✓ Sub-30m Threshold Passed</p>
-
           </div>
 
-
-
           <div className="p-4 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-xs">
-
             <span className="text-xs font-bold text-[var(--color-text-secondary)]">Offline Sync Status</span>
-
             <p className="text-2xl font-black text-[var(--color-text-primary)] mt-1">0 Pending Syncs</p>
-
             <p className="text-[10px] text-emerald-400 font-mono mt-0.5">All Payloads Ingested</p>
-
           </div>
-
-
 
           <div className="p-4 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-xs">
-
             <span className="text-xs font-bold text-[var(--color-text-secondary)]">Device BLE Sensor</span>
-
             <p className="text-2xl font-black text-emerald-400 mt-1">Connected</p>
-
-            <p className="text-[10px] text-emerald-500/80 font-mono mt-0.5">Cookstove Scanner Active</p>
-
+            <p className="text-[10px] text-emerald-500/80 font-mono mt-0.5">{scannerLabel}</p>
           </div>
-
         </div>
-
       </div>
-
     );
-
   }
 
 
