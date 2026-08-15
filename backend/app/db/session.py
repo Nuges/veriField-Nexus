@@ -214,114 +214,62 @@ async def _init_fallback_db():
 
             await conn.execute(text("""
                 CREATE TABLE IF NOT EXISTS access_requests (
+                    id TEXT PRIMARY KEY,
+                    full_name TEXT NOT NULL,
+                    email TEXT NOT NULL,
+                    phone TEXT,
+                    organization_name TEXT NOT NULL,
+                    country TEXT,
+                    use_case TEXT,
+                    sector_id TEXT,
+                    methodology_id TEXT,
+                    project_name TEXT,
+                    status TEXT NOT NULL DEFAULT 'PENDING',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    reviewed_by TEXT,
+                    reviewed_at TIMESTAMP
+                )
+            """))
 
-                id TEXT PRIMARY KEY,
+            await conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS system_settings (
+                    id TEXT PRIMARY KEY,
+                    organization_id TEXT,
+                    gps_max_distance_km FLOAT DEFAULT 5.0,
+                    max_submissions_per_hour INTEGER DEFAULT 10,
+                    image_hash_threshold INTEGER DEFAULT 12,
+                    suspicious_hours_start INTEGER DEFAULT 2,
+                    suspicious_hours_end INTEGER DEFAULT 5,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """))
 
-                full_name TEXT NOT NULL,
+        async with fallback_session_factory() as session:
+            await session.execute(text("""
+                INSERT OR IGNORE INTO system_settings (id, gps_max_distance_km, max_submissions_per_hour, image_hash_threshold, suspicious_hours_start, suspicious_hours_end)
+                VALUES ('00000000-0000-0000-0000-000000000001', 5.0, 10, 12, 2, 5)
+            """))
 
-                email TEXT NOT NULL,
-
-                phone TEXT,
-
-                organization_name TEXT NOT NULL,
-
-                country TEXT,
-
-                use_case TEXT,
-
-                sector_id TEXT,
-
-                methodology_id TEXT,
-
-                project_name TEXT,
-
-                status TEXT NOT NULL DEFAULT 'PENDING',
-
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-
-                reviewed_by TEXT,
-
-                reviewed_at TIMESTAMP
-
-            )
-
-        """))
-
-        await conn.execute(text("""
-
-            CREATE TABLE IF NOT EXISTS system_settings (
-
-                id TEXT PRIMARY KEY,
-
-                organization_id TEXT,
-
-                gps_max_distance_km FLOAT DEFAULT 5.0,
-
-                max_submissions_per_hour INTEGER DEFAULT 10,
-
-                image_hash_threshold INTEGER DEFAULT 12,
-
-                suspicious_hours_start INTEGER DEFAULT 2,
-
-                suspicious_hours_end INTEGER DEFAULT 5,
-
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-
-            )
-
-        """))
-
-
-
-    async with fallback_session_factory() as session:
-
-        await session.execute(text("""
-
-            INSERT OR IGNORE INTO system_settings (id, gps_max_distance_km, max_submissions_per_hour, image_hash_threshold, suspicious_hours_start, suspicious_hours_end)
-
-            VALUES ('00000000-0000-0000-0000-000000000001', 5.0, 10, 12, 2, 5)
-
-        """))
-
-        pw_hash = get_password_hash("Lovelyday1")
-
-        # Seed ONLY admin@verifield.io (Platform Admin)
-
-        await session.execute(text("""
-
-            INSERT OR REPLACE INTO users (id, email, full_name, role, status, is_active, password_hash, requires_password_change, version, is_deleted, created_at, updated_at)
-
-            VALUES (
-
-                '00000000-0000-0000-0000-000000000003',
-
-                'admin@verifield.io',
-
-                'VeriField Admin',
-
-                'SUPER_ADMIN',
-
-                'active',
-
-                1,
-
-                :pw_hash,
-
-                0,
-
-                1,
-
-                0,
-
-                CURRENT_TIMESTAMP,
-
-                CURRENT_TIMESTAMP
-
-            )
-
-        """), {"pw_hash": pw_hash})
+            pw_hash = get_password_hash("Lovelyday1")
+            # Seed ONLY admin@verifield.io (Platform Admin)
+            await session.execute(text("""
+                INSERT OR REPLACE INTO users (id, email, full_name, role, status, is_active, password_hash, requires_password_change, version, is_deleted, created_at, updated_at)
+                VALUES (
+                    '00000000-0000-0000-0000-000000000003',
+                    'admin@verifield.io',
+                    'VeriField Admin',
+                    'SUPER_ADMIN',
+                    'active',
+                    1,
+                    :pw_hash,
+                    0,
+                    1,
+                    0,
+                    CURRENT_TIMESTAMP,
+                    CURRENT_TIMESTAMP
+                )
+            """), {"pw_hash": pw_hash})
 
 
 

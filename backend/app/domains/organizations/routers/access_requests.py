@@ -505,357 +505,202 @@ async def approve_access_request(
 
 
     try:
-
-        # 3. Provision Organization using OrganizationService
-
-        org_repo = OrganizationRepository(db)
-
-        org_service = OrganizationService(org_repo)
-
-
-
-        new_org = await org_repo.get_by_name(req.organization_name)
-
+        # 3. Provision Organization atomically
+        res_org = await db.execute(
+            select(Organization).where(Organization.name == req.organization_name, Organization.is_deleted == False)
+        )
+        new_org = res_org.scalar_one_or_none()
         if not new_org:
-
-            org_payload = OrganizationCreate(
-
+            new_org = Organization(
                 name=req.organization_name,
-
                 org_type="DEVELOPER",
-
                 metadata_context={"country": req.country, "use_case": use_case, "source_request": str(request_id)},
-
                 plan="PROFESSIONAL",
-
-                licensed_methodologies=licensed_methodologies
-
+                licensed_methodologies=licensed_methodologies,
+                licensed_sectors=licensed_sectors,
+                created_by=current_user.id,
+                status="ACTIVE",
+                max_installations=1000,
+                max_agents=20
             )
-
-            new_org = await org_service.create_org(org_payload, creator_id=current_user.id, db=db)
-
-
-
-            # Explicitly set licensed_sectors (JSONB)
-
-            new_org.licensed_sectors = licensed_sectors
-
+            db.add(new_org)
             await db.flush()
-
         else:
-
             existing_methodologies = set(new_org.licensed_methodologies or [])
-
             existing_methodologies.update(licensed_methodologies)
-
             new_org.licensed_methodologies = list(existing_methodologies)
 
-
-
             existing_sectors = set(new_org.licensed_sectors or [])
-
             existing_sectors.update(licensed_sectors)
-
             new_org.licensed_sectors = list(existing_sectors)
-
             await db.flush()
 
-
-
-        # 3.5 Auto-provision a default Project for the assigned sector & methodology
-
+        # 3.5 Provision default Project if not exists
         from app.domains.projects.models import Project
 
-
-
         target_sec_id = None
-
         if sec_row:
-
             try:
-
                 target_sec_id = uuid.UUID(str(sec_row.id))
-
             except Exception:
-
                 target_sec_id = sec_row.id
-
         elif sector_id_str:
-
             try:
-
-                target_sec_id = uuid.UUID(sector_id_str)
-
+                target_sec_id = uuid.UUID(str(sector_id_str))
             except Exception:
-
                 pass
-
-
 
         target_meth_id = None
-
         if meth_row:
-
             try:
-
                 target_meth_id = uuid.UUID(str(meth_row.id))
-
             except Exception:
-
                 target_meth_id = meth_row.id
-
         elif methodology_id_str:
-
             try:
-
-                target_meth_id = uuid.UUID(methodology_id_str)
-
+                target_meth_id = uuid.UUID(str(methodology_id_str))
             except Exception:
-
                 pass
 
-
-
         if target_sec_id or target_meth_id:
-
             proj_exists = await db.execute(
-
-                text("SELECT id FROM projects WHERE organization_id = :org_id AND sector_id = :sec_id"),
-
-                {"org_id": str(new_org.id), "sec_id": str(target_sec_id) if target_sec_id else None}
-
+                text("SELECT id FROM projects WHERE organization_id = :org_id"),
+                {"org_id": str(new_org.id)}
             )
-
             if not proj_exists.fetchone():
-
-                sec_label = sec_row.code if sec_row else "Default"
-
+                sec_label = sec_row.code if sec_row else (licensed_sectors[0] if licensed_sectors else "Default")
                 default_proj = Project(
-
                     name=project_name if project_name else f"{req.organization_name} - {sec_label} Project",
-
                     organization_id=new_org.id,
-
                     sector_id=target_sec_id,
-
                     methodology_id=target_meth_id,
-
                     country=req.country
-
                 )
-
                 db.add(default_proj)
-
                 await db.flush()
 
-
-
-        # 4. Provision User using AuthenticationService
-
-        auth_repo = UserRepository(db)
-
-        auth_service = AuthenticationService(auth_repo)
-
-
-
+        # 4. Provision User atomically
+        from app.core.security import get_password_hash
         alphabet = string.ascii_letters + string.digits + "!@#$%^&*"
-
         temp_password = ''.join(secrets.choice(alphabet) for _ in range(12))
 
-
-
-        new_user = await auth_repo.get_by_email(req.email)
-
-        if not new_user:
-
-            user_payload = UserCreate(
-
-                email=req.email,
-
-                phone=req.phone,
-
-                full_name=req.full_name,
-
-                password=temp_password,
-
-                role="ORG_ADMIN",
-
-                organization=new_org.name,
-
-                organization_id=new_org.id,
-
-                country=req.country,
-
-                meta_data={"provisioned_from": str(request_id)}
-
+        user_phone = req.phone
+        if user_phone:
+            existing_phone = await db.execute(
+                select(User.id).where(User.phone == user_phone, User.email != req.email, User.is_deleted == False)
             )
+            if existing_phone.scalar_one_or_none():
+                user_phone = None
 
-            new_user = await auth_service.create_user(user_payload, actor_id=str(current_user.id))
-
-        else:
-
-            from app.core.security import get_password_hash
-
-            await auth_service.update_user(
-
-                new_user.id,
-
-                {"password_hash": get_password_hash(temp_password), "requires_password_change": True},
-
-                actor_id=str(current_user.id)
-
-            )
-
-
-
-        # 4.5 Auto-provision a default Workspace (Property)
-
-        from app.domains.workspaces.models import Property
-
-        prop_exists = await db.execute(
-
-            text("SELECT id FROM properties WHERE organization_id = :org_id"),
-
-            {"org_id": str(new_org.id)}
-
+        res_usr = await db.execute(
+            select(User).where(User.email == req.email, User.is_deleted == False)
         )
-
-        if not prop_exists.fetchone():
-
-            default_workspace = Property(
-
-                name=f"{req.organization_name} Main Workspace",
-
-                owner_id=new_user.id,
-
+        new_user = res_usr.scalar_one_or_none()
+        if not new_user:
+            new_user = User(
+                email=req.email,
+                phone=user_phone,
+                full_name=req.full_name,
+                password_hash=get_password_hash(temp_password),
+                role="ORG_ADMIN",
+                organization=new_org.name,
                 organization_id=new_org.id,
-
-                property_type="corporate",
-
-                address=req.country
-
+                country=req.country,
+                requires_password_change=True,
+                is_active=True,
+                status="active",
+                meta_data={"provisioned_from": str(request_id)}
             )
-
-            db.add(default_workspace)
-
+            db.add(new_user)
+            await db.flush()
+        else:
+            new_user.organization = new_org.name
+            new_user.organization_id = new_org.id
+            new_user.role = "ORG_ADMIN"
+            if user_phone:
+                new_user.phone = user_phone
+            new_user.password_hash = get_password_hash(temp_password)
+            new_user.requires_password_change = True
             await db.flush()
 
-
-
-        # 5. Audit
-
-        await EventBus.publish(
-
-            stream_name="access_events",
-
-            event_type="AccessRequestApproved",
-
-            payload={
-
-                "request_id": str(request_id),
-
-                "organization_id": str(new_org.id),
-
-                "user_id": str(new_user.id),
-
-                "licensed_methodologies": licensed_methodologies
-
-            },
-
-            actor_id=str(current_user.id)
-
+        # 4.5 Auto-provision default Workspace Property
+        from app.domains.workspaces.models import Property
+        prop_exists = await db.execute(
+            text("SELECT id FROM properties WHERE organization_id = :org_id"),
+            {"org_id": str(new_org.id)}
         )
+        if not prop_exists.fetchone():
+            default_workspace = Property(
+                name=f"{req.organization_name} Main Workspace",
+                owner_id=new_user.id,
+                organization_id=new_org.id,
+                property_type="corporate",
+                address=req.country
+            )
+            db.add(default_workspace)
+            await db.flush()
 
-
-
-        # 6. Notification (Soft fail if table doesn't exist)
-
+        # 5. Create Notification
         try:
-
-            notif_repo = NotificationRepository(db)
-
-            notif_service = NotificationService(notif_repo)
-
-            await notif_service.create_notification(NotificationCreate(
-
+            from app.domains.notifications.models import Notification
+            notif = Notification(
                 user_id=new_user.id,
-
                 title="Welcome to VeriField Nexus",
-
                 message=f"Your organization {new_org.name} has been provisioned. Please log in and change your password.",
-
                 type="SYSTEM_ALERT",
-
                 metadata_json={"request_id": str(request_id)}
+            )
+            db.add(notif)
+            await db.flush()
+        except Exception:
+            pass
 
-            ))
-
-        except Exception as notif_err:
-
-            import logging
-
-            logging.error(f"Failed to create notification: {notif_err}")
-
-
-
-        # 7. Update Request Status
-
+        # 6. Update Request Status
         await db.execute(
-
             text("""
-
                 UPDATE access_requests
-
                 SET status = 'APPROVED',
-
                     reviewed_by = :reviewed_by,
-
                     reviewed_at = CURRENT_TIMESTAMP
-
                 WHERE id = :id
-
             """),
-
             {"id": str(request_id), "reviewed_by": str(current_user.id)}
-
         )
 
-
-
+        # Single atomic commit for the entire approval operation
         await db.commit()
 
-
-
-        # 8. Return strictly required response
+        # 7. Publish audit event asynchronously
+        try:
+            await EventBus.publish(
+                stream_name="access_events",
+                event_type="AccessRequestApproved",
+                payload={
+                    "request_id": str(request_id),
+                    "organization_id": str(new_org.id),
+                    "user_id": str(new_user.id),
+                    "licensed_methodologies": licensed_methodologies,
+                    "licensed_sectors": licensed_sectors,
+                },
+                actor_id=str(current_user.id)
+            )
+        except Exception:
+            pass
 
         return {
-
             "message": "Access request approved and workspace provisioned.",
-
             "status": "APPROVED",
-
             "organization_id": str(new_org.id),
-
             "organization_name": new_org.name,
-
             "user_id": str(new_user.id),
-
             "org_admin_email": new_user.email,
-
             "temporary_password": temp_password,
-
             "licensed_methodologies": licensed_methodologies,
-
             "requires_password_change": True,
-
             "workspace": "provisioned"
-
         }
-
     except Exception as e:
-
         await db.rollback()
-
         raise HTTPException(status_code=500, detail=str(e))
 
 
