@@ -417,72 +417,39 @@ async def approve_access_request(
 
 
     use_case_data = req.use_case
-
     if use_case_data:
-
         if isinstance(use_case_data, dict):
-
             meta = use_case_data
-
         else:
-
             try:
-
                 meta = json.loads(use_case_data)
-
-            except:
-
-                meta = {}
-
-
+                if not isinstance(meta, dict):
+                    meta = {"use_case": str(use_case_data)}
+            except Exception:
+                meta = {"use_case": str(use_case_data)}
 
         if isinstance(meta, dict):
-
-            sector_id_str = meta.get("sector_id")
-
-            methodology_id_str = meta.get("methodology_id")
-
+            sector_id_str = meta.get("sector_id") or meta.get("sector")
+            methodology_id_str = meta.get("methodology_id") or meta.get("methodology")
             use_case = meta.get("use_case")
-
             project_name = meta.get("project_name")
 
-
-
-    # Resolve methodologies to populate licensed_methodologies
-
     # Resolve methodologies to populate licensed_methodologies and licensed_sectors
-
     licensed_methodologies = []
-
     licensed_sectors = []
-
     sec_row = None
-
     meth_row = None
 
-
-
     if methodology_id_str:
-
         res_meth = await db.execute(
-
             text("SELECT id, code, family_id FROM methodologies WHERE id = :val OR UPPER(code) = UPPER(:val)"),
-
-            {"val": methodology_id_str}
-
+            {"val": str(methodology_id_str)}
         )
-
         meth_row = res_meth.fetchone()
-
         if meth_row:
-
             licensed_methodologies.append(meth_row.code)
-
             if not sector_id_str and meth_row.family_id:
-
                 sector_id_str = str(meth_row.family_id)
-
-
 
     if sector_id_str:
         clean_sec = str(sector_id_str).strip().lower()
@@ -503,7 +470,7 @@ async def approve_access_request(
                 SELECT id, code FROM methodology_families 
                 WHERE id = :val OR UPPER(code) = UPPER(:val) OR UPPER(code) = UPPER(:alias)
             """),
-            {"val": sector_id_str, "alias": alias_code or sector_id_str}
+            {"val": str(sector_id_str), "alias": alias_code or str(sector_id_str)}
         )
         sec_row = res_sec.fetchone()
         if sec_row:
@@ -512,16 +479,28 @@ async def approve_access_request(
         elif alias_code:
             licensed_sectors.append(alias_code)
 
-    if not licensed_sectors and use_case:
-        uc_clean = str(use_case).lower()
-        if "hybrid" in uc_clean or "energy" in uc_clean or "solar" in uc_clean:
-            licensed_sectors.append("HYBRID_ENERGY")
-        elif "ev" in uc_clean or "mobility" in uc_clean or "electric" in uc_clean:
+    if not licensed_sectors:
+        combined_text = f"{use_case or ''} {req.organization_name or ''} {str(use_case_data or '')}".lower()
+        if "ev" in combined_text or "mobility" in combined_text or "electric" in combined_text:
             licensed_sectors.append("EV_MOBILITY")
-        elif "biochar" in uc_clean:
+        elif "hybrid" in combined_text or "energy" in combined_text or "solar" in combined_text:
+            licensed_sectors.append("HYBRID_ENERGY")
+        elif "biochar" in combined_text or "pyrolysis" in combined_text:
             licensed_sectors.append("BIOCHAR")
-        elif "cook" in uc_clean or "stove" in uc_clean:
+        elif "cook" in combined_text or "stove" in combined_text:
             licensed_sectors.append("COOKSTOVES")
+
+    if not licensed_methodologies and licensed_sectors:
+        for sec in licensed_sectors:
+            sec_upper = str(sec).upper()
+            if "EV" in sec_upper or "MOBILITY" in sec_upper:
+                licensed_methodologies.append("AMS-III.C")
+            elif "HYBRID" in sec_upper or "ENERGY" in sec_upper or "SOLAR" in sec_upper:
+                licensed_methodologies.append("ACM0002")
+            elif "BIOCHAR" in sec_upper:
+                licensed_methodologies.append("VM0042")
+            elif "COOK" in sec_upper:
+                licensed_methodologies.append("AMS-II.G")
 
 
 

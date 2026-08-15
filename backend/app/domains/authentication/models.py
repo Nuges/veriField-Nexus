@@ -160,7 +160,7 @@ class User(Base):
 
         if self.role == "SUPER_ADMIN":
 
-            return []  # Super Admin has access to all
+            return []
 
         try:
 
@@ -176,37 +176,162 @@ class User(Base):
 
             pass
 
+
+
         if self.meta_data and isinstance(self.meta_data, dict):
-            return self.meta_data.get("licensed_methodologies", [])
+
+            user_meta_meth = self.meta_data.get("licensed_methodologies", [])
+
+            if user_meta_meth:
+
+                return user_meta_meth
+
+
+
+        sectors = self.licensed_sectors
+
+        if sectors:
+
+            meths = []
+
+            for s in sectors:
+
+                su = str(s).upper()
+
+                if "EV" in su or "MOBILITY" in su:
+
+                    meths.append("AMS-III.C")
+
+                elif "HYBRID" in su or "ENERGY" in su or "SOLAR" in su:
+
+                    meths.append("ACM0002")
+
+                elif "BIOCHAR" in su:
+
+                    meths.append("VM0042")
+
+                elif "COOK" in su:
+
+                    meths.append("AMS-II.G")
+
+            if meths:
+
+                return meths
+
         return []
 
+
+
     @property
+
     def licensed_sectors(self) -> list:
+
         if self.role == "SUPER_ADMIN":
+
             return []
+
         try:
+
             if self.organization_rel:
+
                 ls = getattr(self.organization_rel, "licensed_sectors", [])
+
                 if ls:
+
                     res = []
+
                     for item in ls:
+
                         clean_item = str(item).upper().strip()
-                        if "7F12BFE9" in clean_item or "HYBRID" in clean_item or "ENERGY" in clean_item:
+
+                        if "7F12BFE9" in clean_item or "HYBRID" in clean_item or "ENERGY" in clean_item or "SOLAR" in clean_item:
+
                             res.append("HYBRID_ENERGY")
-                        elif "867F684F" in clean_item or "EV" in clean_item or "MOBILITY" in clean_item:
+
+                        elif "867F684F" in clean_item or "EV" in clean_item or "MOBILITY" in clean_item or "ELECTRIC" in clean_item:
+
                             res.append("EV_MOBILITY")
+
                         elif "E6DB7FBE" in clean_item or "4F12BFE9" in clean_item or "BIOCHAR" in clean_item:
+
                             res.append("BIOCHAR")
+
                         elif "DFF43D66" in clean_item or "6F12BFE9" in clean_item or "COOK" in clean_item:
+
                             res.append("COOKSTOVES")
+
                         else:
+
                             res.append(item)
-                    return res
+
+                    if res:
+
+                        return res
+
+
+
+                # Infer from organization name or metadata if licensing array is empty
+
+                org_name = getattr(self.organization_rel, "name", "") or ""
+
+                org_meta = getattr(self.organization_rel, "metadata_context", {}) or {}
+
+                use_case_hint = f"{org_meta.get('use_case', '')} {org_name}".upper()
+
+                if "EV" in use_case_hint or "MOBILITY" in use_case_hint or "ELECTRIC" in use_case_hint:
+
+                    return ["EV_MOBILITY"]
+
+                elif "SOLAR" in use_case_hint or "HYBRID" in use_case_hint or "ENERGY" in use_case_hint:
+
+                    return ["HYBRID_ENERGY"]
+
+                elif "BIOCHAR" in use_case_hint or "PYROLYSIS" in use_case_hint:
+
+                    return ["BIOCHAR"]
+
+                elif "COOK" in use_case_hint or "STOVE" in use_case_hint:
+
+                    return ["COOKSTOVES"]
+
         except Exception:
+
             pass
 
+
+
         if self.meta_data and isinstance(self.meta_data, dict):
-            return self.meta_data.get("licensed_sectors", [])
+
+            sec = self.meta_data.get("licensed_sectors", [])
+
+            if sec:
+
+                return sec
+
+
+
+        # Fallback to direct organization name field on user
+
+        direct_org = str(self.organization or "").upper()
+
+        if "EV" in direct_org or "MOBILITY" in direct_org or "ELECTRIC" in direct_org:
+
+            return ["EV_MOBILITY"]
+
+        elif "SOLAR" in direct_org or "HYBRID" in direct_org or "ENERGY" in direct_org:
+
+            return ["HYBRID_ENERGY"]
+
+        elif "BIOCHAR" in direct_org:
+
+            return ["BIOCHAR"]
+
+        elif "COOK" in direct_org:
+
+            return ["COOKSTOVES"]
+
+
+
         return []
 
 

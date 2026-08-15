@@ -512,7 +512,8 @@ export function resolveUserWorkspace(
   licensedSectors: string[],
   licensedMethodologies: string[],
   methToFamily: Record<string, string>,
-  registry: Record<string, WorkspaceConfig>
+  registry: Record<string, WorkspaceConfig>,
+  orgName?: string
 ): { activeWorkspace: string; allowedWorkspaces: string[] } {
   const resolved = new Set<string>();
 
@@ -530,6 +531,14 @@ export function resolveUserWorkspace(
     const familyCode = canonicalSectorCode(methToFamily[methCode] || methCode);
     if (SECTOR_FAMILY_CODES.includes(familyCode)) {
       resolved.add(familyCode);
+    }
+  }
+
+  // Priority 3: Organization name semantic fallback
+  if (resolved.size === 0 && orgName) {
+    const orgCode = canonicalSectorCode(orgName);
+    if (SECTOR_FAMILY_CODES.includes(orgCode)) {
+      resolved.add(orgCode);
     }
   }
 

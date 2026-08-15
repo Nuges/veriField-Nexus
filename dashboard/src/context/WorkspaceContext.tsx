@@ -179,6 +179,14 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           if (firstSec && firstSec !== "generic") return firstSec;
         }
 
+        const orgName = (u as any)?.organization_name || u?.organization || "";
+        if (orgName) {
+          const orgSec = canonicalSectorCode(orgName);
+          if (orgSec && orgSec !== "generic" && ["hybrid_energy", "ev_mobility", "biochar", "cookstoves"].includes(orgSec)) {
+            return orgSec;
+          }
+        }
+
         const cachedWs = safeStorage.getItem(workspaceStorageKey(u.id));
         if (cachedWs && cachedWs !== "generic") return canonicalSectorCode(cachedWs);
       }
@@ -293,26 +301,17 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
 
     // Non-super-admin: deterministic resolution from metadata
-
     const licensedSectors = Array.isArray(u.licensed_sectors) ? u.licensed_sectors : [];
-
     const licensedMethodologies = Array.isArray(u.licensed_methodologies) ? u.licensed_methodologies : [];
-
-
+    const orgName = (u as any)?.organization_name || u?.organization || "";
 
     const { activeWorkspace, allowedWorkspaces } = resolveUserWorkspace(
-
       licensedSectors,
-
       licensedMethodologies,
-
       methMap,
-
-      registry
-
+      registry,
+      orgName
     );
-
-
 
     let finalWorkspace = activeWorkspace;
 
@@ -712,27 +711,18 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
 
     const licensedSectors = Array.isArray(user.licensed_sectors) ? user.licensed_sectors : [];
-
     const licensedMethodologies = Array.isArray(user.licensed_methodologies) ? user.licensed_methodologies : [];
-
-
+    const orgName = (user as any)?.organization_name || user?.organization || "";
 
     const { allowedWorkspaces } = resolveUserWorkspace(
-
       licensedSectors,
-
       licensedMethodologies,
-
       methToFamily,
-
-      moduleRegistry
-
+      moduleRegistry,
+      orgName
     );
 
-
-
     const validAllowed = allowedWorkspaces.filter(w => w !== "generic");
-
     return validAllowed.length > 0 ? validAllowed : [activeSector];
 
   }, [user, moduleRegistry, methToFamily, activeSector]);
