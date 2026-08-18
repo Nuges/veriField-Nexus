@@ -520,12 +520,12 @@ async def approve_access_request(
             clean_meth = str(uuid.UUID(str(methodology_id_str).strip()))
             hex_meth = clean_meth.replace("-", "")
             res_meth = await db.execute(
-                text("SELECT id, code, family_id, is_active FROM methodologies WHERE (id = :val_uuid OR id = :hex_uuid) AND (is_active = TRUE OR is_active = 1)"),
+                text("SELECT id, code, family_id, is_active FROM methodologies WHERE (id = :val_uuid OR id = :hex_uuid) AND is_active = TRUE"),
                 {"val_uuid": clean_meth, "hex_uuid": hex_meth}
             )
         else:
             res_meth = await db.execute(
-                text("SELECT id, code, family_id, is_active FROM methodologies WHERE UPPER(code) = UPPER(:val_code) AND (is_active = TRUE OR is_active = 1)"),
+                text("SELECT id, code, family_id, is_active FROM methodologies WHERE UPPER(code) = UPPER(:val_code) AND is_active = TRUE"),
                 {"val_code": str(methodology_id_str).strip()}
             )
         meth_row = res_meth.fetchone()
