@@ -111,18 +111,19 @@ class Settings(BaseSettings):
 
 
     @property
-
     def cors_origins_list(self) -> List[str]:
-
-        """Parse CORS origins from JSON string to list."""
-
-        try:
-
-            return json.loads(self.cors_origins)
-
-        except (json.JSONDecodeError, TypeError):
-
-            return ["http://localhost:3000"]
+        """Parse CORS origins from JSON string, comma-separated string, or wildcard."""
+        if not self.cors_origins:
+            return ["http://localhost:3000", "http://localhost:3001"]
+        raw = self.cors_origins.strip()
+        if raw == "*":
+            return ["*"]
+        if raw.startswith("["):
+            try:
+                return json.loads(raw)
+            except (json.JSONDecodeError, TypeError):
+                pass
+        return [o.strip() for o in raw.split(",") if o.strip()]
 
 
 
