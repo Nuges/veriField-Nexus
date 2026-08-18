@@ -54,3 +54,4 @@ from app.domains.notifications.models import *
 from app.domains.methodologies.models.base_registry import *
 from app.domains.hardware.models import *
 from app.domains.digital_twins.models import *
+from app.domains.documents.models import *

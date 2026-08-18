@@ -14,7 +14,11 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from app.db.session import get_db, _init_fallback_db
 from app.domains.workspaces.services.dashboard_resolver import DashboardResolverService
 
+import pytest
+
+@pytest.mark.asyncio
 async def test_mismatch_resolution():
+
     print("=============================================================================")
     print("Executing Methodology Family Alignment & Cross-Sector Mismatch Test Suite")
     print("=============================================================================\n")

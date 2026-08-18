@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
 
 import Link from "next/link";
 
-import { ShieldCheck, Mail, User, Building, Loader2, Sparkles, MapPin, Activity } from "lucide-react";
+import { ShieldCheck, Mail, User, Building, Loader2, Sparkles, MapPin, Activity, ChevronDown } from "lucide-react";
 
 import { createAccessRequest, fetchMethodologyFamilies } from "@/lib/api";
 import { ThemeLogo } from "@/components/common/ThemeLogo";
@@ -328,109 +328,59 @@ export default function SignupPage() {
 
 
                 <div>
-
                   <label className="text-sm font-bold text-[var(--color-text-secondary)] mb-1.5 block">Primary Operating Sector</label>
-
                   <div className="relative">
-
-                    <Activity size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
-
+                    <Activity size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] pointer-events-none" />
                     <select
-
                       value={sectorId}
-
                       onChange={(e) => {
-
                         const newSectorId = e.target.value;
-
                         setSectorId(newSectorId);
-
                         setMethodologyId("");
 
-
-
                         const matched = allMethodologies.filter((m: any) =>
-
                           (m.family && (m.family.id === newSectorId || m.family.code === newSectorId)) ||
-
                           m.family_id === newSectorId ||
-
                           m.family_code === newSectorId
-
                         );
 
-
-
                         // If matched list is not empty use it, otherwise show all active as fallback
-
                         setMethodologies(matched.length > 0 ? matched : allMethodologies);
-
                       }}
-
                       required
-
-                      className="w-full pl-10 pr-4 py-3 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text-primary)] text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 appearance-none"
-
+                      className="w-full pl-10 pr-10 py-3 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text-primary)] text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 appearance-none cursor-pointer"
                     >
-
                       <option value="" disabled>Select a sector...</option>
-
                       {families.map((fam) => (
-
                         <option key={fam.id} value={fam.id}>
-
                           {fam.name}
-
                         </option>
-
                       ))}
-
                     </select>
-
+                    <ChevronDown size={16} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] pointer-events-none" />
                   </div>
-
                 </div>
 
-
-
                 {sectorId && (
-
                   <div>
-
                     <label className="text-sm font-bold text-[var(--color-text-secondary)] mb-1.5 block">Methodology</label>
-
                     <div className="relative">
-
                       <select
-
                         value={methodologyId}
-
                         onChange={(e) => setMethodologyId(e.target.value)}
-
                         required
-
-                        className="w-full px-4 py-3 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text-primary)] text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 appearance-none"
-
+                        className="w-full pl-4 pr-10 py-3 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text-primary)] text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 appearance-none cursor-pointer"
                       >
-
                         <option value="" disabled>Select a methodology...</option>
-
                         {methodologies.map((meth) => (
-
                           <option key={meth.id} value={meth.id}>
-
                             {meth.name} ({meth.code})
-
                           </option>
-
                         ))}
-
                       </select>
-
+                      <ChevronDown size={16} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] pointer-events-none" />
                     </div>
-
                   </div>
-
                 )}
 
 

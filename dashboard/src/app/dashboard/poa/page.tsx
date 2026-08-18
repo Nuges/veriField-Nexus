@@ -49,15 +49,11 @@ import {
 import {
 
   fetchCarbonLedger,
-
   fetchMe,
-
   exportVerraCSV,
-
   exportGoldStandardJSON,
-
+  generateAndDownloadReport,
   setAuthToken
-
 } from "@/lib/api";
 
 import type { User } from "@/lib/types";
@@ -1007,19 +1003,45 @@ export default function POAPortfolioPage() {
                 </div>
 
                 {isExporting.gold ? (
-
                   <div className="ml-auto w-3.5 h-3.5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-
                 ) : (
-
                   <Download size={10} className="ml-auto text-[var(--color-text-muted)] group-hover:text-emerald-400 transition" />
-
                 )}
-
               </button>
 
+              <button
+                onClick={async () => {
+                  if (!user?.organization_id) {
+                    setExportMessage("Organization ID required for report generation.");
+                    return;
+                  }
+                  setIsExporting(prev => ({ ...prev, pdf: true }));
+                  try {
+                    await generateAndDownloadReport(user.organization_id, undefined, "VeriField Nexus POA Aggregated MRV Ledger");
+                    setExportMessage("POA MRV PDF report successfully generated & downloaded.");
+                  } catch (err: any) {
+                    setExportMessage(`PDF generation failed: ${err.message || "Error"}`);
+                  } finally {
+                    setIsExporting(prev => ({ ...prev, pdf: false }));
+                  }
+                }}
+                disabled={(isExporting as any).pdf}
+                className="w-full flex items-center gap-2.5 p-2.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] hover:border-blue-500 hover:bg-blue-500/5 transition text-left group disabled:opacity-60 cursor-pointer"
+              >
+                <div className="w-8 h-8 rounded bg-blue-500/10 flex items-center justify-center text-blue-400 group-hover:scale-105 transition shrink-0">
+                  <ShieldCheck size={14} />
+                </div>
+                <div>
+                  <p className="text-[10px] font-extrabold text-blue-400">Generate Official MRV PDF</p>
+                  <p className="text-[8px] text-[var(--color-text-muted)]">Signed publication-grade certificate</p>
+                </div>
+                {(isExporting as any).pdf ? (
+                  <div className="ml-auto w-3.5 h-3.5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Download size={10} className="ml-auto text-[var(--color-text-muted)] group-hover:text-blue-400 transition" />
+                )}
+              </button>
             </div>
-
           </div>
 
 

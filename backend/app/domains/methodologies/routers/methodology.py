@@ -1,10 +1,7 @@
-from typing import Any, Dict, List
-
+from typing import Any, Dict, List, Optional
 from uuid import UUID
 
-
-
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -35,12 +32,15 @@ router = APIRouter()
 
 
 @router.get("", response_model=List[MethodologySchema])
-
-async def list_methodologies(db: AsyncSession = Depends(get_db)):
-
+async def list_methodologies(
+    family_id: Optional[UUID] = Query(None),
+    sector_id: Optional[UUID] = Query(None),
+    is_active: Optional[bool] = Query(True),
+    db: AsyncSession = Depends(get_db)
+):
     service = MethodologyService(db)
-
-    return await service.list_methodologies()
+    target_family = family_id or sector_id
+    return await service.list_methodologies(family_id=target_family, is_active=is_active)
 
 
 

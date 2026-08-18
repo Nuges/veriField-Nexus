@@ -114,8 +114,20 @@ backend.log
 
 dashboard.log
 
-worker.log
-
-pytest_cov.log
-
 coverage.xml
+
+# Static test uploads and generated runtime artifacts
+.pytest_cache/
+backend/.pytest_cache/
+.coverage
+backend/.coverage
+backups/
+logs/
+backend/static/avatars/*
+!backend/static/avatars/.gitkeep
+backend/static/documents/*
+!backend/static/documents/.gitkeep
+backend/static/reports/*
+!backend/static/reports/.gitkeep
+backend/static/proofs/*
+!backend/static/proofs/.gitkeep

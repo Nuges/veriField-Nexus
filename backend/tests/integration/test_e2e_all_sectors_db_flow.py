@@ -67,6 +67,9 @@ SECTOR_CONFIGS = [
     }
 ]
 
+import pytest
+
+@pytest.mark.asyncio
 async def test_all_sectors_db_pipeline():
     print("=============================================================================")
     print("Executing All-Sector Database Persistence & Resolver Pipeline Integration Test")
@@ -75,18 +78,21 @@ async def test_all_sectors_db_pipeline():
     await _init_fallback_db()
     async for db in get_db():
         # Get Super Admin user
-        admin_res = await db.execute(select(User).where(User.email == 'admin@verifield.io'))
+        admin_res = await db.execute(select(User).where(User.role == 'SUPER_ADMIN'))
         sa_user = admin_res.scalars().first()
         if not sa_user:
-            # Create a mock super admin in test DB if missing
             sa_user = User(
                 id=uuid.uuid4(),
-                email='admin@verifield.io',
-                full_name='Super Admin',
-                role='SUPER_ADMIN'
+                email='segunoluwole22@gmail.com',
+                full_name='Segun Oluwole',
+                role='SUPER_ADMIN',
+                status='active',
+                is_active=True
             )
             db.add(sa_user)
             await db.commit()
+            await db.refresh(sa_user)
+
 
         resolver = DashboardResolverService(db)
 
@@ -105,14 +111,18 @@ async def test_all_sectors_db_pipeline():
                 {"c": sec_code}
             )
             sec_row = sec_res.fetchone()
-            sec_id = str(sec_row[0]) if sec_row else str(uuid.uuid4())
+            assert sec_row is not None, f"Sector family {sec_code} not found in DB"
+            sec_id = str(sec_row[0])
 
             meth_res = await db.execute(
-                text("SELECT id, code FROM methodologies WHERE UPPER(code) = UPPER(:c)"),
-                {"c": meth_code}
+                text("SELECT id, code FROM methodologies WHERE UPPER(code) = UPPER(:c) OR family_id = :fid ORDER BY created_at ASC LIMIT 1"),
+                {"c": meth_code, "fid": sec_id}
             )
             meth_row = meth_res.fetchone()
-            meth_id = str(meth_row[0]) if meth_row else str(uuid.uuid4())
+            assert meth_row is not None, f"No methodology found for sector family {sec_code}"
+            meth_id = str(meth_row[0])
+            meth_code_actual = str(meth_row[1])
+
 
             # 2. Insert Access Request into DB
             ar_id = str(uuid.uuid4())
@@ -153,8 +163,9 @@ async def test_all_sectors_db_pipeline():
             dash = await resolver.resolve_dashboard(
                 organization_id=org_db.id,
                 workspace_id=sec_code.lower(),
-                methodology_id=meth_code
+                methodology_id=meth_code_actual
             )
+
 
             resolved_ws_code = dash["workspace"]["code"]
             resolved_ws_name = dash["workspace"]["name"]

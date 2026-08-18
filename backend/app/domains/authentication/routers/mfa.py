@@ -37,20 +37,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 
 from app.core.config import settings
-
 from app.core.mfa import MFAService
-
+from app.core.rate_limit import rate_limit
 from app.core.security import get_current_user
-
 from app.db.session import get_db
-
 from app.domains.authentication.models import User
 
-
-
 logger = logging.getLogger("verifield.mfa.api")
-
-
 
 router = APIRouter(prefix="/auth/mfa", tags=["Multi-Factor Authentication"])
 
@@ -394,80 +387,58 @@ async def mfa_verify_setup(
 
 
 
-@router.post("/verify")
-
+@router.post(
+    "/verify",
+    dependencies=[Depends(rate_limit(limit=10, window_seconds=60, key_prefix="mfa_verify"))]
+)
 async def mfa_verify_login(
-
     body: MFALoginVerifyRequest,
-
     db: AsyncSession = Depends(get_db),
-
 ):
-
     """
-
     Verify TOTP code during login. Called after password auth when MFA is enabled.
-
     Requires the short-lived mfa_token returned by the login endpoint.
-
     """
-
     user_id = _decode_mfa_token(body.mfa_token)
 
-
-
     result = await db.execute(select(User).where(User.id == user_id))
-
     user = result.scalar_one_or_none()
-
     if not user:
-
         raise HTTPException(status_code=404, detail="User not found")
 
-
-
     mfa_data = _get_user_mfa_data(user)
-
     if not mfa_data.get("enabled"):
-
         raise HTTPException(status_code=400, detail="MFA is not enabled for this user")
 
-
-
     secret = mfa_data.get("totp_secret", "")
-
     if not MFAService.verify_totp(secret, body.code):
-
         raise HTTPException(status_code=401, detail="Invalid MFA code")
 
-
-
     # MFA verified — issue full access token
-
     from app.domains.authentication.service import AuthenticationService
+    repo = None
+    from app.domains.authentication.repository import UserRepository
+    repo = UserRepository(db)
+    service = AuthenticationService(repo)
+    token = service.generate_token(user)
 
-
-
-    token = AuthenticationService.generate_token_static(user)
-
-
-
+    from app.domains.authentication.schemas import UserResponse
+    user_dto = UserResponse.model_validate(user).model_dump(mode="json")
     return {
-
+        "user": user_dto,
         "access_token": token,
-
+        "token_type": "bearer",
         "expires_in": 86400,
-
-        "mfa_verified": True,
-
     }
 
 
 
 
 
-@router.post("/recovery")
-
+@router.post(
+    "/recovery",
+    dependencies=[Depends(rate_limit(limit=5, window_seconds=60, key_prefix="mfa_recover"))]
+)
 async def mfa_recovery(
 
     body: MFARecoveryRequest,

@@ -20,7 +20,7 @@
     "verification"
   ],
   "author": "VeriField Nexus Contributors",
-  "license": "MIT",
+  "license": "UNLICENSED",
   "workspaces": [
     "dashboard",
     "sdk"

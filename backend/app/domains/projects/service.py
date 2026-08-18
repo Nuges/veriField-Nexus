@@ -87,91 +87,119 @@ class ProjectService:
 
 
         meth = None
-
         sector = None
 
         if payload.methodology_id:
-
             try:
-
                 meth = await self.repository.db.get(Methodology, payload.methodology_id)
-
             except Exception:
-
                 pass
-
             if not meth:
+                m_res = await self.repository.db.execute(
+                    select(Methodology).where(func.lower(Methodology.code) == str(payload.methodology_id).lower())
+                )
+                meth = m_res.scalar_one_or_none()
+            if not meth:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Methodology does not exist."
+                )
+            if not meth.is_active:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Methodology is inactive."
+                )
+        elif payload.sector_id or payload.sector:
+            # Resolve primary active methodology for the given sector
+            sec_target = None
+            if payload.sector_id:
+                try:
+                    sec_target = await self.repository.db.get(MethodologyFamily, payload.sector_id)
+                except Exception:
+                    pass
+            if not sec_target and payload.sector:
+                s_res = await self.repository.db.execute(
+                    select(MethodologyFamily).where(func.upper(MethodologyFamily.code) == str(payload.sector).upper())
+                )
+                sec_target = s_res.scalar_one_or_none()
 
-                m_res = await self.repository.db.execute(select(Methodology).where(func.lower(Methodology.code) == str(payload.methodology_id).lower()))
-
+            if sec_target:
+                m_res = await self.repository.db.execute(
+                    select(Methodology).where(Methodology.family_id == sec_target.id, Methodology.is_active == True).order_by(Methodology.created_at.asc()).limit(1)
+                )
                 meth = m_res.scalar_one_or_none()
 
-            if meth:
-
-                sector = await self.repository.db.get(MethodologyFamily, meth.family_id)
-
-
-
-        stmt = select(func.count(Project.id))
-
-        res = await self.repository.db.execute(stmt)
-
-        count = res.scalar() or 0
-
-        project_code = payload.project_code or f"VF-{prefix}-{count + 1:03d}"
-
-
-
-        org = await self.repository.db.get(Organization, organization_id)
-
-        if org and sector and sector.code not in (org.licensed_sectors or []):
-
+            if not meth:
+                raise HTTPException(
+                    status_code=400,
+                    detail="No active methodology available for the selected sector."
+                )
+        else:
             raise HTTPException(
-
-                status_code=403,
-
-                detail=f"Organization is not licensed for sector {sector.code}."
-
+                status_code=400,
+                detail="Methodology is required to create a project."
             )
 
+        sector = await self.repository.db.get(MethodologyFamily, meth.family_id)
+        if not sector:
+            raise HTTPException(
+                status_code=400,
+                detail="Methodology has no valid sector family."
+            )
 
+        # Enforce Sector-Methodology invariant (project.sector_id == methodology.family_id)
+        if payload.sector_id:
+            if str(payload.sector_id).lower() != str(sector.id).lower() and str(payload.sector_id).lower() != str(meth.family_id).lower():
+                raise HTTPException(
+                    status_code=400,
+                    detail="Selected methodology does not belong to the selected sector."
+                )
+        if payload.sector:
+            clean_sec = str(payload.sector).strip().upper()
+            sec_code = str(sector.code).strip().upper()
+            if clean_sec != sec_code and clean_sec not in sec_code and sec_code not in clean_sec:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Selected methodology does not belong to the selected sector."
+                )
+
+        org = await self.repository.db.get(Organization, organization_id)
+        if not org:
+            raise HTTPException(
+                status_code=404,
+                detail="Organization not found."
+            )
+
+        org_licenses = [s.upper() for s in (org.licensed_sectors or [])]
+        if sector.code.upper() not in org_licenses:
+            raise HTTPException(
+                status_code=403,
+                detail=f"Organization is not licensed for sector {sector.code}."
+            )
+
+        stmt = select(func.count(Project.id))
+        res = await self.repository.db.execute(stmt)
+        count = res.scalar() or 0
+        project_code = payload.project_code or f"VF-{prefix}-{count + 1:03d}"
 
         project = Project(
-
             project_code=project_code,
-
             name=payload.name,
-
             country=payload.country,
-
             organization_id=organization_id,
-
             jurisdiction_id=jurisdiction_id,
-
-            sector_id=sector.id if sector else None,
-
+            sector_id=sector.id,
             programme_id=payload.programme_id,
-
-            methodology_id=payload.methodology_id,
-
+            methodology_id=meth.id,
             methodology_version_id=payload.methodology_version_id,
-
             registry_id=payload.registry_id,
-
             baseline_source=payload.baseline_source,
-
             diesel_emission_factor=payload.diesel_emission_factor,
-
             grid_emission_factor=payload.grid_emission_factor,
-
             crediting_start=payload.crediting_start,
-
             crediting_end=payload.crediting_end,
-
             baseline_parameters=payload.baseline_parameters or {},
-
             created_at=datetime.now(timezone.utc),
-
         )
 
 

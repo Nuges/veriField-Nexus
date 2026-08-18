@@ -1,10 +1,11 @@
+import os
 import asyncio
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from app.models.carbon_calculation import CarbonCalculation
 from sqlalchemy import select
 
 async def main():
-    engine = create_async_engine("postgresql+asyncpg://postgres.rxlfxrbyhagyofzfwzoa:TaMpn243vupkPUWL@aws-0-eu-west-1.pooler.supabase.com:6543/postgres")
+    engine = create_async_engine(os.environ.get("DATABASE_URL", "sqlite+aiosqlite:///dev.db"))
     SessionLocal = async_sessionmaker(engine, expire_on_commit=False)
     async with SessionLocal() as db:
         res = await db.execute(select(CarbonCalculation))

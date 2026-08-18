@@ -376,14 +376,10 @@ async def sso_callback(
 
 
 
-    if user.status != "active":
-
+    if not user.status or str(user.status).lower() != "active":
         raise HTTPException(
-
             status_code=403,
-
             detail=f"Account is {user.status}. Contact your administrator.",
-
         )
 
 

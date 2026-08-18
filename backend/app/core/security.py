@@ -107,87 +107,38 @@ _token_cache = TTLCache(maxsize=1000, ttl=300)
 
 
 async def decode_jwt_token(token: str) -> dict:
+    """Validate a JWT token (local HS256 or Supabase auth endpoint)."""
+    import logging
+    logger = logging.getLogger("verifield.security")
 
-    """
-
-    Validate a JWT token. Supports both Supabase tokens and dev mode local tokens.
-
-
-
-    In dev mode (DEV_MODE=true), first attempts local HS256 verification.
-
-    Otherwise delegates to Supabase's get_user endpoint (cached locally).
-
-
-
-    Returns:
-
-        dict: Decoded token payload containing user ID ('sub')
-
-
-
-    Raises:
-
-        HTTPException: If token is invalid or expired
-
-    """
-
-    print(f"DECODING TOKEN: {token[:15]}... length: {len(token)}")
 
     # Check cache first
-
     if token in _token_cache:
-
         return _token_cache[token]
 
-
-
     # =========================================================================
-
     # Local Auth: Try local JWT decode first (for Super Admin and database users)
-
     # =========================================================================
-
     try:
-
         jwt_secret = settings.effective_jwt_secret
-
         decoded = pyjwt.decode(token, jwt_secret, algorithms=["HS256"])
-
         if decoded.get("sub"):
-
             payload = {
-
                 "sub": decoded["sub"],
-
                 "email": decoded.get("email", ""),
-
                 "role": decoded.get("role", ""),
-
             }
-
             _token_cache[token] = payload
-
             return payload
-
     except pyjwt.ExpiredSignatureError:
-
-        print("TOKEN EXPIRED")
-
+        logger.debug("JWT validation failed: signature expired")
         raise HTTPException(
-
             status_code=status.HTTP_401_UNAUTHORIZED,
-
             detail="Session expired. Please login again.",
-
             headers={"WWW-Authenticate": "Bearer"},
-
         )
-
     except Exception as e:
-
-        print(f"LOCAL JWT DECODE FAILED: {e}")
-
+        logger.debug("Local JWT decode not applicable: %s", type(e).__name__)
         pass  # Not a valid local token, fall through to Supabase validation
 
 
@@ -297,30 +248,13 @@ async def decode_jwt_token(token: str) -> dict:
 
 
 async def get_current_user(
-
     credentials: HTTPAuthorizationCredentials = Depends(security),
-
     db: AsyncSession = Depends(get_db),
-
 ) -> User:
-
-    """
-
-    FastAPI dependency that extracts and validates the current user
-
-    from the Authorization header's Bearer token.
-
-
-
-    In dev mode, gracefully handles unreachable database by creating
-
-    a virtual User object from the JWT claims.
-
-    """
-
+    """Extracts and validates current user from Bearer token."""
     # Decode the JWT token
-
     payload = await decode_jwt_token(credentials.credentials)
+
 
 
 
@@ -367,33 +301,11 @@ async def get_current_user(
     try:
 
         if is_uuid_sub:
-
-            from sqlalchemy.orm import selectinload
             uuid_obj = _uuid.UUID(user_id) if isinstance(user_id, str) else user_id
-            try:
-                result = await asyncio.wait_for(
-                    db.execute(select(User).options(selectinload(User.organization_rel)).where(User.id == uuid_obj)),
-                    timeout=20.0,
-                )
-            except Exception:
-                result = await asyncio.wait_for(
-                    db.execute(select(User).where(User.id == uuid_obj)),
-                    timeout=20.0,
-                )
+            result = await db.execute(select(User).where(User.id == uuid_obj))
         else:
-            from sqlalchemy.orm import selectinload
-            # 'sub' is an email — look up by email directly (case-insensitive)
             clean_sub = user_id.lower().strip()
-            try:
-                result = await asyncio.wait_for(
-                    db.execute(select(User).options(selectinload(User.organization_rel)).where((User.email == clean_sub) | (User.email == user_id))),
-                    timeout=20.0,
-                )
-            except Exception:
-                result = await asyncio.wait_for(
-                    db.execute(select(User).where((User.email == clean_sub) | (User.email == user_id))),
-                    timeout=20.0,
-                )
+            result = await db.execute(select(User).where((User.email == clean_sub) | (User.email == user_id)))
         user = result.scalar_one_or_none()
 
 
@@ -425,13 +337,16 @@ async def get_current_user(
 
 
             if user is None:
+                if not settings.dev_mode:
+                    raise HTTPException(
+                        status_code=status.HTTP_401_UNAUTHORIZED,
+                        detail="User account not provisioned or registered.",
+                        headers={"WWW-Authenticate": "Bearer"},
+                    )
 
                 if is_uuid_sub:
-
                     new_user_id = _uuid.UUID(user_id)
-
                 else:
-
                     new_user_id = _uuid.uuid4()
 
                 # Security Invariant: JWT claims must NEVER grant SUPER_ADMIN or administrative privileges on auto-provisioning.
@@ -442,51 +357,31 @@ async def get_current_user(
                     safe_role = raw_role if raw_role else "field_agent"
 
                 user = User(
-
                     id=new_user_id,
-
                     email=user_email,
-
                     full_name=(
-
                         user_email.split("@")[0]
-
                         .replace(".", " ")
-
                         .replace("_", " ")
-
                         .replace("-", " ")
-
                         .title()
-
                         if user_email
-
                         else "Field Agent"
-
                     ),
-
                     role=safe_role,
-
                     status="active",
-
                 )
-
                 db.add(user)
-
                 await asyncio.wait_for(db.commit(), timeout=20.0)
-
                 await db.refresh(user)
 
 
 
-        if user.status != "active":
 
+        if not user.status or str(user.status).lower() != "active":
             raise HTTPException(
-
                 status_code=status.HTTP_403_FORBIDDEN,
-
                 detail=f"Account is {user.status}. Please contact the administrator.",
-
             )
 
 
@@ -598,22 +493,12 @@ optional_security = HTTPBearer(auto_error=False)
 
 
 async def get_optional_user(
-
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(optional_security),
-
     db: AsyncSession = Depends(get_db),
-
 ) -> Optional[User]:
-
-    """
-
-    Like get_current_user but returns None instead of raising 401.
-
-    Use for endpoints that should work for both authenticated and unauthenticated users.
-
-    """
-
+    """Returns User if valid Bearer token provided, otherwise None."""
     if credentials is None:
+
 
         return None
 
@@ -670,55 +555,24 @@ async def get_optional_user(
 
 
 async def require_admin(
-
     user: User = Depends(get_current_user),
-
 ) -> User:
-
-    """
-
-    FastAPI dependency that ensures the current user has admin role
-
-    (either legacy 'admin', new 'ORG_ADMIN', or global 'SUPER_ADMIN').
-
-    """
-
+    """Ensures current user has admin role (admin, ORG_ADMIN, or SUPER_ADMIN)."""
     if user.role not in ("admin", "ORG_ADMIN", "SUPER_ADMIN"):
-
         raise HTTPException(
-
             status_code=status.HTTP_403_FORBIDDEN,
-
             detail="Insufficient permissions. Admin role required.",
-
         )
-
     return user
 
 
-
-
-
 async def require_super_admin(
-
     user: User = Depends(get_current_user),
-
 ) -> User:
-
-    """
-
-    FastAPI dependency that ensures the current user has SUPER_ADMIN role.
-
-    """
-
+    """Ensures current user has SUPER_ADMIN role."""
     if user.role != "SUPER_ADMIN":
-
         raise HTTPException(
-
             status_code=status.HTTP_403_FORBIDDEN,
-
             detail="Insufficient permissions. Super Admin role required.",
-
         )
-
     return user

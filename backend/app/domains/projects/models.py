@@ -1,7 +1,7 @@
 import uuid
 from datetime import date, datetime, timezone
 
-from sqlalchemy import Date, DateTime, Float, ForeignKey, String, text
+from sqlalchemy import Date, DateTime, Float, ForeignKey, String, UniqueConstraint, text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -130,6 +130,9 @@ class CarbonCalculation(Base):
     """
 
     __tablename__ = "carbon_calculations"
+    __table_args__ = (
+        UniqueConstraint("project_id", "activity_id", name="uq_carbon_calc_project_activity"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),

@@ -63,54 +63,39 @@ from sqlalchemy import pool
 
 
 is_testing = "pytest" in sys.modules or os.environ.get("TESTING") == "1"
+is_pooler = "pooler.supabase.com" in (db_url or "") or ":6543" in (db_url or "")
+is_sqlite = (db_url or "").startswith("sqlite")
 
-
+connect_args = {
+    "command_timeout": 30.0,
+    "statement_cache_size": 0,
+    "prepared_statement_cache_size": 0,
+}
+if not is_sqlite:
+    import ssl
+    ssl_ctx = ssl.create_default_context()
+    ssl_ctx.check_hostname = False
+    ssl_ctx.verify_mode = ssl.CERT_NONE
+    connect_args["ssl"] = ssl_ctx
+    connect_args["prepared_statement_name_func"] = lambda: f"__asyncpg_{uuid.uuid4().hex}__"
+else:
+    connect_args = {}
 
 engine_kwargs = {
-
     "echo": settings.debug,
-
-    "poolclass": pool.NullPool if is_testing else None,
-
-    "pool_pre_ping": True if not is_testing else False,
-
-    "connect_args": {
-
-        "ssl": "require",
-
-        "server_settings": {"jit": "off", "application_name": "verifield"},
-
-        "command_timeout": 60.0,
-
-        "statement_cache_size": 0,
-
-        "prepared_statement_cache_size": 0,
-
-        "prepared_statement_name_func": lambda: f"__asyncpg_{uuid.uuid4()}__",
-
-    },
-
+    "poolclass": pool.NullPool if (is_testing or is_pooler or is_sqlite) else None,
+    "pool_pre_ping": True if not (is_testing or is_pooler or is_sqlite) else False,
+    "connect_args": connect_args,
 }
 
-
-
-if not is_testing:
-
+if not (is_testing or is_pooler or is_sqlite):
     engine_kwargs["pool_size"] = 15
-
     engine_kwargs["max_overflow"] = 30
-
     engine_kwargs["pool_timeout"] = 60
-
     engine_kwargs["pool_recycle"] = 1800
 
-else:
-
-    engine_kwargs["connect_args"].pop("ssl", None)
-
-
-
 engine = create_async_engine(db_url, **engine_kwargs)
+
 
 
 
@@ -245,20 +230,41 @@ async def _init_fallback_db():
                 )
             """))
 
+            await conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS document_chunks (
+                    id TEXT PRIMARY KEY,
+                    document_id TEXT,
+                    organization_id TEXT,
+                    project_id TEXT,
+                    sector_id TEXT,
+                    methodology_id TEXT,
+                    title TEXT,
+                    document_type TEXT,
+                    page_number INTEGER,
+                    section TEXT,
+                    chunk_index INTEGER,
+                    content TEXT,
+                    chunk_hash TEXT UNIQUE,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """))
+
+
         async with fallback_session_factory() as session:
             await session.execute(text("""
                 INSERT OR IGNORE INTO system_settings (id, gps_max_distance_km, max_submissions_per_hour, image_hash_threshold, suspicious_hours_start, suspicious_hours_end)
                 VALUES ('00000000-0000-0000-0000-000000000001', 5.0, 10, 12, 2, 5)
             """))
 
-            pw_hash = get_password_hash("Lovelyday1")
-            # Seed ONLY admin@verifield.io (Platform Admin)
+            seed_password = os.environ.get("SUPER_ADMIN_PASSWORD", os.environ.get("SEED_ADMIN_PASSWORD", "VeriField_Dev_2026!"))
+            pw_hash = get_password_hash(seed_password)
+            # Seed the SINGLE authorized platform Super Admin: segunoluwole22@gmail.com
             await session.execute(text("""
                 INSERT OR REPLACE INTO users (id, email, full_name, role, status, is_active, password_hash, requires_password_change, version, is_deleted, created_at, updated_at)
                 VALUES (
-                    '00000000-0000-0000-0000-000000000003',
-                    'admin@verifield.io',
-                    'VeriField Admin',
+                    '00000000-0000-0000-0000-000000000001',
+                    'segunoluwole22@gmail.com',
+                    'Segun Oluwole',
                     'SUPER_ADMIN',
                     'active',
                     1,
@@ -270,6 +276,26 @@ async def _init_fallback_db():
                     CURRENT_TIMESTAMP
                 )
             """), {"pw_hash": pw_hash})
+
+            # Ensure legacy test super admins are decommissioned
+            await session.execute(text("""
+                INSERT OR REPLACE INTO users (id, email, full_name, role, status, is_active, password_hash, requires_password_change, version, is_deleted, created_at, updated_at)
+                VALUES (
+                    '00000000-0000-0000-0000-000000000003',
+                    'admin@verifield.io',
+                    'Legacy Admin (Decommissioned)',
+                    'VIEWER',
+                    'decommissioned',
+                    0,
+                    :pw_hash,
+                    0,
+                    1,
+                    1,
+                    CURRENT_TIMESTAMP,
+                    CURRENT_TIMESTAMP
+                )
+            """), {"pw_hash": pw_hash})
+
 
 
 

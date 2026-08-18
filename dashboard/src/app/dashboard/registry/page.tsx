@@ -66,18 +66,16 @@ export default function RegistryExportPage() {
     try {
       const result = await issueVerraCredits();
       if (result.detail) {
-        toast.warning("Verification Alert", result.detail);
+        toast.info("Direct Sync Pending", result.detail);
       } else {
         setLastResult(result);
         toast.success("Verra Credits Issued", `Successfully locked and issued ${result.issued_credits} Verra carbon credits.`);
       }
-      setVerraIssueStatus("success");
-      setTimeout(() => setVerraIssueStatus("idle"), 5000);
+      setVerraIssueStatus("idle");
     } catch (err) {
       console.error(err);
-      setVerraIssueStatus("error");
-      toast.error("Issuance Failed", "An error occurred while issuing Verra carbon credits.");
-      setTimeout(() => setVerraIssueStatus("idle"), 3000);
+      setVerraIssueStatus("idle");
+      toast.info("Direct Sync Pending", "Verra VCS direct API integration is pending credential configuration. Please download the certified CSV export for manual portal upload.");
     }
   }
 
@@ -86,18 +84,16 @@ export default function RegistryExportPage() {
     try {
       const result = await issueGoldStandardCredits();
       if (result.detail) {
-        toast.warning("Verification Alert", result.detail);
+        toast.info("Direct Sync Pending", result.detail);
       } else {
         setLastResult(result);
         toast.success("Gold Standard Credits Issued", `Successfully locked and issued ${result.issued_credits} Gold Standard carbon credits.`);
       }
-      setGsIssueStatus("success");
-      setTimeout(() => setGsIssueStatus("idle"), 5000);
+      setGsIssueStatus("idle");
     } catch (err) {
       console.error(err);
-      setGsIssueStatus("error");
-      toast.error("Issuance Failed", "An error occurred while issuing Gold Standard carbon credits.");
-      setTimeout(() => setGsIssueStatus("idle"), 3000);
+      setGsIssueStatus("idle");
+      toast.info("Direct Sync Pending", "Gold Standard direct API integration is pending credential configuration. Please download the certified JSON export for manual portal upload.");
     }
   }
 
@@ -204,7 +200,7 @@ export default function RegistryExportPage() {
               className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-blue-600/10 hover:bg-blue-600 text-blue-400 hover:text-white text-[10px] font-extrabold uppercase tracking-wider border border-blue-500/25 transition-all disabled:opacity-50 active:scale-95"
             >
               {statusIcon(verraIssueStatus) || <Leaf size={13} />}
-              {verraIssueStatus === "loading" ? "Issuing..." : "Commit Credits"}
+              {verraIssueStatus === "loading" ? "Checking..." : "Direct Sync (Pending)"}
             </button>
           </div>
         </div>
@@ -249,7 +245,7 @@ export default function RegistryExportPage() {
               className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-blue-600/10 hover:bg-blue-600 text-blue-400 hover:text-white text-[10px] font-extrabold uppercase tracking-wider border border-blue-500/25 transition-all disabled:opacity-50 active:scale-95"
             >
               {statusIcon(gsIssueStatus) || <Leaf size={13} />}
-              {gsIssueStatus === "loading" ? "Issuing..." : "Commit Credits"}
+              {gsIssueStatus === "loading" ? "Checking..." : "Direct Sync (Pending)"}
             </button>
           </div>
         </div>

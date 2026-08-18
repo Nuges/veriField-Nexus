@@ -1,16 +1,9 @@
 import uuid
-
-from datetime import date, datetime
-
-
+from datetime import date, datetime, timezone
 
 from sqlalchemy import Boolean, Date, ForeignKey, String, text
-
 from sqlalchemy.dialects.postgresql import JSONB, UUID
-
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-
-
 
 from app.db.base import Base
 
@@ -173,9 +166,7 @@ class Methodology(Base):
 
 
     created_at: Mapped[datetime] = mapped_column(
-
-        default=lambda: datetime.utcnow(), server_default=text("now()")
-
+        default=lambda: datetime.now(timezone.utc), server_default=text("now()")
     )
 
 

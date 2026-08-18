@@ -116,10 +116,11 @@ class UserResponse(BaseModel):
     @classmethod
     def populate_organization_name(cls, data: Any) -> Any:
         try:
-            if hasattr(data, "organization_rel") and data.organization_rel:
-                org_name = getattr(data.organization_rel, "name", None)
-                if org_name and not getattr(data, "organization", None):
-                    setattr(data, "organization", org_name)
+            if hasattr(data, "__dict__"):
+                if "organization_rel" in data.__dict__ and data.__dict__["organization_rel"]:
+                    org_name = getattr(data.__dict__["organization_rel"], "name", None)
+                    if org_name and not getattr(data, "organization", None):
+                        setattr(data, "organization", org_name)
         except Exception:
             pass
         return data

@@ -148,12 +148,11 @@ export interface Property {
 
   verification_status?: string;
 
+  project_id?: string | null;
+  organization_id?: string | null;
   sector?: string | null;
-
   created_at: string;
-
   updated_at: string;
-
 }
 
 

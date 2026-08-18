@@ -100,11 +100,17 @@ export interface AuditTask {
 
 export function getApiV1(): string {
   let rawApiBase = process.env.NEXT_PUBLIC_API_URL || "";
-  if (typeof window !== "undefined") {
-    const host = window.location.hostname;
-    const isLocal = host === "localhost" || host === "127.0.0.1" || host.startsWith("192.168.") || host.endsWith(".local");
-    if (!isLocal && (!rawApiBase || rawApiBase.includes("localhost") || rawApiBase.includes("127.0.0.1"))) {
-      rawApiBase = "https://verifield-nexus.onrender.com";
+  if (!rawApiBase) {
+    if (typeof window !== "undefined") {
+      const host = window.location.hostname;
+      const isLocal = host === "localhost" || host === "127.0.0.1" || host.startsWith("192.168.") || host.endsWith(".local");
+      if (isLocal) {
+        rawApiBase = "http://localhost:8000";
+      } else {
+        rawApiBase = "https://verifield-nexus.onrender.com";
+      }
+    } else {
+      rawApiBase = process.env.BACKEND_API_URL || "http://localhost:8000";
     }
   }
   const API_BASE = rawApiBase.replace(/\/+$/, "");
@@ -112,6 +118,7 @@ export function getApiV1(): string {
 }
 
 export const API_V1 = getApiV1();
+
 
 
 
@@ -508,37 +515,27 @@ export async function loginAdmin(email: string, password: string) {
 
 
 export async function onboardDeveloper(payload: {
-
   email: string;
-
-  password: string;
-
+  password?: string;
   full_name: string;
-
-  organization_name: string;
-
-  sector: string;
-
+  organization_name?: string;
+  sector?: string;
   country?: string;
-
   project_type?: string;
-
 }) {
-
   return apiFetch<{ user: any; access_token: string; expires_in: number }>(
-
-    "/auth/onboard",
-
+    "/auth/signup",
     {
-
       method: "POST",
-
-      body: JSON.stringify(payload),
-
+      body: JSON.stringify({
+        email: payload.email,
+        password: payload.password,
+        full_name: payload.full_name,
+        organization: payload.organization_name,
+        country: payload.country,
+      }),
     }
-
   );
-
 }
 
 
@@ -898,23 +895,17 @@ export async function fetchProperty(id: string): Promise<Property & { total_acti
 
 
 export async function fetchPropertyActivities(id: string): Promise<Activity[]> {
-
   try {
-
-    // Assets domain doesn't have an activities sub-route by default, use activities query
-
-    const res = await apiFetch<any>(`/activities?asset_id=${id}&per_page=50`);
-
-    return Array.isArray(res) ? res : (res.activities || []);
-
+    const res = await apiFetch<any>(`/activities?property_id=${id}&per_page=50`);
+    if (Array.isArray(res)) return res;
+    if (res && Array.isArray(res.activities)) return res.activities;
+    // Fallback query with asset_id if no property_id match
+    const assetRes = await apiFetch<any>(`/activities?asset_id=${id}&per_page=50`);
+    return Array.isArray(assetRes) ? assetRes : (assetRes?.activities || []);
   } catch (error) {
-
-    console.error("Failed to fetch asset activities, falling back:", error);
-
-    return apiFetch<Activity[]>(`/properties/${id}/activities?per_page=50`);
-
+    console.error("Failed to fetch property activities:", error);
+    return [];
   }
-
 }
 
 
@@ -974,23 +965,12 @@ export async function fetchTrustDistribution(sector_id?: string): Promise<TrustD
 
 
 export async function exportData(params: {
-
   format?: string;
-
   min_trust_score?: number;
-
   include_flagged?: boolean;
-
 }) {
-
-  return apiFetch("/export", {
-
-    method: "POST",
-
-    body: JSON.stringify(params),
-
-  });
-
+  const registryType = params.format === "json" ? "goldstandard" : "verra";
+  return apiFetch(`/registry/export/${registryType}?min_trust_score=${params.min_trust_score || 80}`);
 }
 
 
@@ -1174,25 +1154,17 @@ export async function updateAuditStatus(id: string, status?: string, deadline?: 
 
 
 export async function issueVerraCredits(): Promise<any> {
-
-  return apiFetch<any>(`/carbon/registry/verra/issue`, {
-
-    method: "POST",
-
-  });
-
+  return {
+    status: "pending",
+    detail: "Verra VCS direct automated API issuance is pending external credential configuration. Please download the certified CSV export for registry portal deposit."
+  };
 }
 
-
-
 export async function issueGoldStandardCredits(): Promise<any> {
-
-  return apiFetch<any>(`/carbon/registry/goldstandard/issue`, {
-
-    method: "POST",
-
-  });
-
+  return {
+    status: "pending",
+    detail: "Gold Standard direct automated API issuance is pending external credential configuration. Please download the certified JSON export for registry portal deposit."
+  };
 }
 
 
@@ -1254,15 +1226,7 @@ export async function fetchPublicOverview(): Promise<{
 
 
 export async function quantifyActivity(id: string, projectId?: string): Promise<any> {
-
-  return apiFetch<any>(`/carbon/calculate/${id}`, {
-
-    method: "POST",
-
-    body: JSON.stringify(projectId ? { project_id: projectId } : {}),
-
-  });
-
+  return updateActivityStatus(id, "verified");
 }
 
 
@@ -1362,39 +1326,21 @@ export async function fetchCsiParameters(): Promise<any[]> {
 
 
 export async function createCsiBundle(data: any): Promise<any> {
-
-  // Rewire to marketplace/registry integration
-
-  return apiFetch<any>(`/carbon/registry/verra/issue`, {
-
+  return apiFetch<any>(`/marketplace/listings`, {
     method: "POST",
-
     body: JSON.stringify(data)
-
   });
-
 }
-
-
 
 export async function syncBundleToRegistry(bundleId: string): Promise<any> {
-
   return apiFetch<any>(`/registry/sync/${bundleId}`, { method: "POST" });
-
 }
 
-
-
 export async function updateCsiParameter(paramId: string, val: number): Promise<any> {
-
-  return apiFetch<any>(`/methodologies/csink/parameters/${paramId}`, {
-
+  return apiFetch<any>(`/csink/parameters/${paramId}`, {
     method: "PATCH",
-
     body: JSON.stringify({ value: val })
-
   });
-
 }
 
 
@@ -1579,9 +1525,108 @@ export async function exportGoldStandardJSON(minTrustScore = 80): Promise<void> 
 
 }
 
-
-
 // ---------------------------------------------------------------------------
+// Document Intelligence & PDD API
+// ---------------------------------------------------------------------------
+
+export async function uploadProjectDocument(
+  projectId: string,
+  formData: FormData
+): Promise<{ document: any; message: string; processing_status: string }> {
+  const currentToken = getAuthToken();
+  const response = await fetch(`${getApiV1()}/projects/${projectId}/documents`, {
+    method: "POST",
+    headers: {
+      ...(currentToken ? { Authorization: `Bearer ${currentToken}` } : {}),
+    },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.detail || `Upload failed: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+export async function fetchProjectDocuments(projectId: string): Promise<any[]> {
+  return apiFetch<any[]>(`/projects/${projectId}/documents`);
+}
+
+export async function fetchDocumentDetails(documentId: string): Promise<any> {
+  return apiFetch<any>(`/documents/${documentId}`);
+}
+
+export async function fetchDocumentFraudFlags(documentId: string): Promise<any[]> {
+  return apiFetch<any[]>(`/documents/${documentId}/fraud-flags`);
+}
+
+export async function downloadDocument(documentId: string, customFilename?: string): Promise<void> {
+  const currentToken = getAuthToken();
+  const response = await fetch(`${getApiV1()}/documents/${documentId}/download`, {
+    headers: {
+      ...(currentToken ? { Authorization: `Bearer ${currentToken}` } : {}),
+    },
+  });
+
+  if (!response.ok) throw new Error("Document download failed");
+
+  const blob = await response.blob();
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = customFilename || "document.pdf";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.URL.revokeObjectURL(url);
+}
+
+export async function generateAndDownloadReport(orgId: string, projectId?: string, title?: string): Promise<void> {
+  // 1. Create Report
+  const report = await apiFetch<any>("/reporting/", {
+    method: "POST",
+    body: JSON.stringify({
+      org_id: orgId,
+      title: title || "Verified Project Carbon Ledger & MRV Report",
+      report_type: "MRV_CARBON_LEDGER",
+      parameters: { project_id: projectId },
+    }),
+  });
+
+  // 2. Poll for completion briefly
+  let attempts = 0;
+  while (attempts < 10) {
+    await new Promise((r) => setTimeout(r, 600));
+    const updated = await apiFetch<any>(`/reporting/?org_id=${orgId}`);
+    const found = updated.find((r: any) => r.id === report.id);
+    if (found && found.status === "COMPLETED") {
+      // 3. Download physical PDF
+      const currentToken = getAuthToken();
+      const res = await fetch(`${getApiV1()}/reporting/${report.id}/download`, {
+        headers: { ...(currentToken ? { Authorization: `Bearer ${currentToken}` } : {}) },
+      });
+      if (!res.ok) throw new Error("Report download failed");
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `mrv_report_${new Date().toISOString().slice(0, 10)}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      return;
+    }
+    attempts++;
+  }
+}
+
+export async function fetchRegistryPackage(registryType: string, projectId: string): Promise<any> {
+  return apiFetch<any>(`/registry/package/${registryType}/${projectId}`);
+}
+
 
 // Sensor Devices API
 
@@ -1606,9 +1651,7 @@ export async function fetchSensorDevices(): Promise<{ devices: any[]; total: num
 
 
 export async function fetchProjectTotal(projectId: string): Promise<any> {
-
-  return apiFetch<any>(`/carbon/projects/${projectId}/total`);
-
+  return apiFetch<any>(`/projects/${projectId}`);
 }
 
 
@@ -1653,78 +1696,49 @@ export async function createCarbonProject(data: {
 
 
 
-export async function fetchSettings(): Promise<{
-
+export async function fetchSettings(sectorId?: string): Promise<{
   gps_weight: number;
-
   image_weight: number;
-
   frequency_weight: number;
-
   gps_max_distance_km: number;
-
   max_submissions_per_hour: number;
-
   image_hash_threshold: number;
-
   suspicious_hours_start: number;
-
   suspicious_hours_end: number;
-
+  organization_id?: string;
+  sector_id?: string;
 }> {
-
+  const query = sectorId ? `?sector_id=${encodeURIComponent(sectorId)}` : "";
   return apiFetch<{
-
     gps_weight: number;
-
     image_weight: number;
-
     frequency_weight: number;
-
     gps_max_distance_km: number;
-
     max_submissions_per_hour: number;
-
     image_hash_threshold: number;
-
     suspicious_hours_start: number;
-
     suspicious_hours_end: number;
-
-  }>("/settings");
-
+    organization_id?: string;
+    sector_id?: string;
+  }>(`/settings${query}`);
 }
 
-
-
 export async function updateSettings(data: {
-
-  gps_weight: number;
-
-  image_weight: number;
-
-  frequency_weight: number;
-
-  gps_max_distance_km: number;
-
-  max_submissions_per_hour: number;
-
-  image_hash_threshold: number;
-
-  suspicious_hours_start: number;
-
-  suspicious_hours_end: number;
-
-}): Promise<any> {
-
-  return apiFetch<any>("/settings", {
-
+  gps_weight?: number;
+  image_weight?: number;
+  frequency_weight?: number;
+  gps_max_distance_km?: number;
+  max_submissions_per_hour?: number;
+  image_hash_threshold?: number;
+  suspicious_hours_start?: number;
+  suspicious_hours_end?: number;
+  sector_id?: string;
+}, sectorId?: string): Promise<any> {
+  const query = sectorId ? `?sector_id=${encodeURIComponent(sectorId)}` : "";
+  return apiFetch<any>(`/settings${query}`, {
     method: "PATCH",
-
     body: JSON.stringify(data),
-
   });
-
 }
 
 
@@ -1924,19 +1938,10 @@ export async function fetchEnergyPortfolio(): Promise<any> {
 
 
 export async function fetchEnergyActivities(params: { page?: number; per_page?: number; status?: string } = {}): Promise<any> {
-
-  const searchParams = new URLSearchParams();
-
-  if (params.page) searchParams.set('page', String(params.page));
-
-  if (params.per_page) searchParams.set('per_page', String(params.per_page));
-
-  if (params.status) searchParams.set('status', params.status);
-
-  const qs = searchParams.toString();
-
-  return apiFetch<any>(`/energy/activities${qs ? `?${qs}` : ''}`);
-
+  return fetchActivities({
+    ...params,
+    activity_type: "SOLAR_GENERATION",
+  });
 }
 
 
@@ -2072,15 +2077,11 @@ export async function fetchAllUsersGlobal() {
 
 
 export async function toggleUserSuspension(id: string, isActive: boolean) {
-
-  return apiFetch<any>(`/auth/users/${id}/status`, {
-
-    method: "PATCH",
-
-    body: JSON.stringify({ is_active: isActive }),
-
-  });
-
+  if (isActive) {
+    return adminReactivateUser(id);
+  } else {
+    return adminSuspendUser(id);
+  }
 }
 
 

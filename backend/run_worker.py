@@ -1,17 +1,20 @@
 import asyncio
-import sys
-from app.db.session import async_session_factory
-from app.services.jobs.verification_worker import process_pending_activities
+import logging
+from app.domains.jobs.engine import job_engine
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("verifield.worker")
 
 async def run():
-    print("Running process_pending_activities...")
+    logger.info("Starting VeriField Nexus background worker...")
+    job_engine.start()
     try:
-        stats = await process_pending_activities(batch_size=20)
-        print("Success stats:", stats)
-    except Exception as e:
-        print("Worker failed with exception:", e)
-        import traceback
-        traceback.print_exc()
+        # Keep running
+        while True:
+            await asyncio.sleep(3600)
+    except (KeyboardInterrupt, SystemExit):
+        logger.info("Stopping VeriField Nexus worker...")
+        job_engine.stop()
 
 if __name__ == "__main__":
     asyncio.run(run())

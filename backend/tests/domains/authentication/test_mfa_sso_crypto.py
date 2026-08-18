@@ -79,6 +79,7 @@ async def test_sso_provider_factory():
         client_secret="test-secret",
         discovery_url="https://accounts.google.com/.well-known/openid-configuration",
     )
+    provider._discovery_cache = {"authorization_endpoint": "https://accounts.google.com/o/oauth2/v2/auth"}
     url = await provider.get_authorization_url(redirect_uri="http://localhost:3000/login", state="xyz123")
     assert "accounts.google.com" in url or "google" in url.lower()
     assert "client_id=test-client-id" in url
@@ -89,8 +90,10 @@ async def test_sso_provider_factory():
         client_secret="entra-secret",
         discovery_url="https://login.microsoftonline.com/common/v2.0/.well-known/openid-configuration",
     )
+    provider_entra._discovery_cache = {"authorization_endpoint": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize"}
     url_entra = await provider_entra.get_authorization_url(redirect_uri="http://localhost:3000/login", state="abc")
     assert "login.microsoftonline.com" in url_entra or "microsoft" in url_entra.lower()
+
 
 
 def test_abac_security_enforcement():

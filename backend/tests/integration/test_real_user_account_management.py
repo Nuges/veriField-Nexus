@@ -7,6 +7,9 @@ from app.domains.authentication.service import AuthenticationService
 from app.domains.authentication.repository import UserRepository
 from app.domains.authentication.schemas import UserCreate
 
+import pytest
+
+@pytest.mark.asyncio
 async def test_real_user_account_management():
     await _init_fallback_db()
     async for db in get_db():
@@ -14,8 +17,20 @@ async def test_real_user_account_management():
         auth_svc = AuthenticationService(auth_repo)
 
         # 1. Fetch Super Admin User
-        sa_res = await db.execute(select(User).where(User.email == "admin@verifield.io"))
-        sa_user = sa_res.scalar_one()
+        sa_res = await db.execute(select(User).where(User.role == "SUPER_ADMIN"))
+        sa_user = sa_res.scalars().first()
+        if not sa_user:
+            sa_user = User(
+                id=uuid.uuid4(),
+                email="segunoluwole22@gmail.com",
+                full_name="Segun Oluwole",
+                role="SUPER_ADMIN",
+                status="active",
+                is_active=True
+            )
+            db.add(sa_user)
+            await db.commit()
+            await db.refresh(sa_user)
         print(f"\n[1] Super Admin Authenticated: {sa_user.email} (Role: {sa_user.role})")
 
         # 2. Create Real User Account
@@ -64,10 +79,4 @@ async def test_real_user_account_management():
         await db.execute(text("DELETE FROM users WHERE email = :email"), {"email": test_email})
         await db.commit()
         print("✓ Cleanup Completed -> Test account purged, baseline restored.")
-
-        print("\n=========================================================")
-        print("EMPIRICAL PROOF: REAL USER ACCOUNT MANAGEMENT VERIFIED 100%")
-        print("=========================================================\n")
         break
-
-asyncio.run(test_real_user_account_management())

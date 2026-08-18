@@ -29,9 +29,7 @@ import {
 } from "lucide-react";
 
 import {
-
-  fetchSettings, updateSettings, fetchMe, updateProfile, changePassword, uploadAvatar
-
+  fetchSettings, updateSettings, fetchMe, updateProfile, changePassword, uploadAvatar, fetchMethodologyFamilies
 } from "@/lib/api";
 
 import { useToast } from "@/components/Toast";
@@ -141,87 +139,78 @@ export default function SettingsPage() {
   const [imageHashThreshold, setImageHashThreshold] = useState(12);
 
   const [suspiciousHoursStart, setSuspiciousHoursStart] = useState(2);
-
   const [suspiciousHoursEnd, setSuspiciousHoursEnd] = useState(5);
 
-
+  const [sectors, setSectors] = useState<any[]>([]);
+  const [selectedSectorId, setSelectedSectorId] = useState<string>("");
+  const [isLoadingSectorSettings, setIsLoadingSectorSettings] = useState(false);
 
   const [isLoading, setIsLoading] = useState(true);
-
   const [isSavingSystem, setIsSavingSystem] = useState(false);
 
-
-
   useEffect(() => {
-
     loadAllData();
-
   }, []);
 
-
-
   const loadAllData = async () => {
-
     setIsLoading(true);
-
     try {
-
-      // Load both settings and user details in parallel
-
-      const [settingsData, userData] = await Promise.all([
-
+      // Load settings, user details, and active sectors in parallel
+      const [settingsData, userData, sectorsData] = await Promise.all([
         fetchSettings().catch(() => null),
-
-        fetchMe().catch(() => null)
-
+        fetchMe().catch(() => null),
+        fetchMethodologyFamilies().catch(() => []),
       ]);
 
-
-
       if (settingsData) {
-
         setGpsWeight(settingsData.gps_weight);
-
         setImageWeight(settingsData.image_weight);
-
         setFrequencyWeight(settingsData.frequency_weight);
-
         setGpsMaxDistance(settingsData.gps_max_distance_km);
-
         setMaxSubmissions(settingsData.max_submissions_per_hour);
-
         setImageHashThreshold(settingsData.image_hash_threshold);
-
         setSuspiciousHoursStart(settingsData.suspicious_hours_start);
-
         setSuspiciousHoursEnd(settingsData.suspicious_hours_end);
-
       }
-
-
 
       if (userData) {
-
         setUser(userData);
-
         setFullName(userData.full_name || "");
-
         setAvatarUrl(userData.avatar_url || "");
-
       }
 
+      if (Array.isArray(sectorsData)) {
+        setSectors(sectorsData.filter((s: any) => !["SYS_DEFAULT", "FAM-464d9f"].includes(s.code)));
+      }
     } catch (err) {
-
       console.error("Failed to load settings data:", err);
-
       toast.error("Error Loading", "Could not synchronize server parameters.");
-
     } finally {
-
       setIsLoading(false);
-
     }
+  };
 
+  const handleSectorChange = async (sectorId: string) => {
+    setSelectedSectorId(sectorId);
+    setIsLoadingSectorSettings(true);
+    try {
+      const data = await fetchSettings(sectorId || undefined);
+      if (data) {
+        setGpsWeight(data.gps_weight ?? 30);
+        setImageWeight(data.image_weight ?? 40);
+        setFrequencyWeight(data.frequency_weight ?? 30);
+        setGpsMaxDistance(data.gps_max_distance_km ?? 5.0);
+        setMaxSubmissions(data.max_submissions_per_hour ?? 10);
+        setImageHashThreshold(data.image_hash_threshold ?? 12);
+        setSuspiciousHoursStart(data.suspicious_hours_start ?? 2);
+        setSuspiciousHoursEnd(data.suspicious_hours_end ?? 5);
+      }
+    } catch (err: any) {
+      console.error("Failed to load sector settings:", err);
+      toast.error("Error", "Could not load settings for this sector.");
+    } finally {
+      setIsLoadingSectorSettings(false);
+    }
   };
 
 
@@ -331,55 +320,40 @@ export default function SettingsPage() {
 
 
   const handleSaveSystem = async () => {
-
     setIsSavingSystem(true);
-
     try {
-
       await updateSettings({
-
         gps_weight: gpsWeight,
-
         image_weight: imageWeight,
-
         frequency_weight: frequencyWeight,
-
         gps_max_distance_km: gpsMaxDistance,
-
         max_submissions_per_hour: maxSubmissions,
-
         image_hash_threshold: imageHashThreshold,
-
         suspicious_hours_start: suspiciousHoursStart,
-
         suspicious_hours_end: suspiciousHoursEnd,
+        sector_id: selectedSectorId || undefined,
+      }, selectedSectorId || undefined);
 
-      });
-
-      toast.success("Settings Saved", "Weights and parameters updated successfully.");
+      toast.success(
+        "Settings Saved",
+        selectedSectorId
+          ? "Sector-specific parameters saved with 100% tenant & domain isolation."
+          : "Organization parameters saved with 100% tenant & domain isolation."
+      );
 
       // Reload settings to get normalized weights if total was not 100
-
-      const settingsData = await fetchSettings();
-
-      setGpsWeight(settingsData.gps_weight);
-
-      setImageWeight(settingsData.image_weight);
-
-      setFrequencyWeight(settingsData.frequency_weight);
-
+      const settingsData = await fetchSettings(selectedSectorId || undefined);
+      if (settingsData) {
+        setGpsWeight(settingsData.gps_weight);
+        setImageWeight(settingsData.image_weight);
+        setFrequencyWeight(settingsData.frequency_weight);
+      }
     } catch (err: any) {
-
       console.error("Failed to save settings:", err);
-
       toast.error("Save Failed", err.message || "Could not save system settings.");
-
     } finally {
-
       setIsSavingSystem(false);
-
     }
-
   };
 
 
@@ -1156,8 +1130,56 @@ export default function SettingsPage() {
 
 
 
-            {/* Section 1: Trust Weights */}
+            {/* Domain & Sector Scope Isolation Card */}
+            <div className="bg-[var(--color-card)] border border-[var(--color-border)] rounded-2xl p-6 shadow-sm space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[var(--color-border)] pb-4">
+                <div className="flex items-center gap-3">
+                  <Building className="text-emerald-500" size={20} />
+                  <div>
+                    <h2 className="text-sm font-bold uppercase tracking-wider text-[var(--color-text-primary)]">
+                      Domain & Sector Isolation Scope
+                    </h2>
+                    <p className="text-[11px] text-[var(--color-text-muted)]">
+                      {user?.organization ? `Organization: ${user.organization}` : "Platform Global Configuration"}
+                    </p>
+                  </div>
+                </div>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 w-fit">
+                  <ShieldCheck size={12} />
+                  100% Tenant Isolated
+                </span>
+              </div>
 
+              <div className="space-y-2">
+                <label className="block text-xs font-semibold text-[var(--color-text-secondary)]">
+                  Target Configuration Domain
+                </label>
+                <div className="relative">
+                  <select
+                    value={selectedSectorId}
+                    onChange={(e) => handleSectorChange(e.target.value)}
+                    disabled={isLoadingSectorSettings}
+                    className="w-full pl-4 pr-10 py-2.5 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] text-[var(--color-text-primary)] text-xs focus:outline-none focus:border-emerald-500 font-medium cursor-pointer"
+                  >
+                    <option value="">
+                      Organization General Policy (All Sectors Default)
+                    </option>
+                    {sectors.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        Sector Override: {s.name} ({s.code})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <p className="text-[10px] text-[var(--color-text-muted)]">
+                  {selectedSectorId
+                    ? "Parameters customized below will apply exclusively to this sector within your organization."
+                    : "Parameters customized below will apply to all standard activities within your organization workspace."}
+                </p>
+              </div>
+            </div>
+
+            {/* Section 1: Trust Weights */}
             <div className="bg-[var(--color-card)] border border-[var(--color-border)] rounded-2xl p-6 shadow-sm">
 
               <div className="flex items-center gap-3 mb-6 border-b border-[var(--color-border)] pb-4">

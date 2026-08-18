@@ -19,9 +19,10 @@ async def test_create_user(async_client: AsyncClient, admin_token_headers: dict)
 
     assert response.status_code == 201
     data = response.json()
-    assert data["role"] == "field_agent"
+    assert data["role"].lower() == "field_agent"
     assert "version" in data
     assert "is_deleted" in data
+
 
 
 @pytest.mark.asyncio

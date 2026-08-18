@@ -134,6 +134,17 @@ class AuthenticationService:
 
 
 
+        # Security Invariant: Sanitize role on user creation to prevent privilege escalation.
+        # When actor is "system" (self-registration via /auth/signup), administrative roles are forbidden.
+        PROHIBITED_SELF_REGISTRATION_ROLES = {
+            "SUPER_ADMIN", "ORG_ADMIN", "ADMIN", "COMPLIANCE_ADMIN",
+            "PLATFORM_SUPPORT", "JURISDICTION_ADMIN", "REGISTRY_ADMIN", "ORG_OWNER",
+        }
+        safe_role = data.role
+        normalized_role = (data.role or "").strip().upper()
+        if actor_id == "system" and normalized_role in PROHIBITED_SELF_REGISTRATION_ROLES:
+            safe_role = "field_agent"
+
         user = User(
 
             email=data.email,
@@ -142,7 +153,7 @@ class AuthenticationService:
 
             full_name=data.full_name,
 
-            role=data.role,
+            role=safe_role,
 
             organization_id=data.organization_id,
 

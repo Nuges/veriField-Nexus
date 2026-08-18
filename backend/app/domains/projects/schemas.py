@@ -24,22 +24,16 @@ class ProjectCreate(BaseModel):
 
     programme_id: Optional[UUID] = None
 
+    sector_id: Optional[UUID] = None
+    sector: Optional[str] = None
     methodology_id: Optional[UUID] = None
-
     methodology_version_id: Optional[UUID] = None
-
     registry_id: Optional[str] = None
-
     baseline_source: Optional[str] = "diesel_generator"
-
     diesel_emission_factor: Optional[float] = 2.68
-
     grid_emission_factor: Optional[float] = 0.7
-
     crediting_start: Optional[date] = None
-
     crediting_end: Optional[date] = None
-
     baseline_parameters: Optional[Dict[str, Any]] = None
 
 

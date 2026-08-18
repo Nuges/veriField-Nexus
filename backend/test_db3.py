@@ -1,8 +1,9 @@
+import os
 import asyncio
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy import text
 
-DATABASE_URL = "postgresql+asyncpg://postgres.rxlfxrbyhagyofzfwzoa:TaMpn243vupkPUWL@aws-0-eu-west-1.pooler.supabase.com:6543/postgres?prepared_statement_cache_size=0"
+DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite+aiosqlite:///dev.db")
 
 async def main():
     engine = create_async_engine(DATABASE_URL)

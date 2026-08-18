@@ -1,3 +1,4 @@
+import os
 import asyncio
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
@@ -8,7 +9,7 @@ import uuid
 import sys
 
 async def main():
-    engine = create_async_engine("postgresql+asyncpg://postgres.rxlfxrbyhagyofzfwzoa:TaMpn243vupkPUWL@aws-0-eu-west-1.pooler.supabase.com:6543/postgres")
+    engine = create_async_engine(os.environ.get("DATABASE_URL", "sqlite+aiosqlite:///dev.db"))
     Session = sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
     
     async with Session() as db:

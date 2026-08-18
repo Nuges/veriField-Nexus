@@ -341,29 +341,25 @@ export default function LoginPage() {
     setIsResetting(true);
 
     try {
-
       setAuthToken(tempToken);
-
-      await changePassword({ old_password: password, new_password: newPassword });
-
-
+      await changePassword({ new_password: newPassword });
 
       // Save token and route securely
-
       safeStorage.setItem("vf_token", tempToken);
-
+      const userStr = safeStorage.getItem("vf_user");
+      if (userStr) {
+        try {
+          const userObj = JSON.parse(userStr);
+          userObj.requires_password_change = false;
+          safeStorage.setItem("vf_user", JSON.stringify(userObj));
+        } catch (_) {}
+      }
       setRequiresReset(false);
-
-      window.location.href = tempUserRedirect;
-
+      window.location.href = tempUserRedirect || "/dashboard";
     } catch (err: any) {
-
       setResetError(err.message || "Failed to update password. Please try again.");
-
     } finally {
-
       setIsResetting(false);
-
     }
 
   };

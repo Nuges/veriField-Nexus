@@ -171,22 +171,23 @@ async def provision_user_account(
     role_upper = role.strip().upper()
 
     valid_roles = {
-
         "SUPER_ADMIN", "ORG_ADMIN", "AUDITOR", "THIRD_PARTY_AUDITOR",
-
         "COMPLIANCE_OFFICER", "PROJECT_MANAGER", "FIELD_AGENT", "REGULATOR", "ADMIN"
-
     }
 
     if role_upper not in valid_roles:
-
         raise HTTPException(
-
             status_code=status.HTTP_400_BAD_REQUEST,
-
             detail=f"Invalid role '{role}'. Must be one of {sorted(list(valid_roles))}"
-
         )
+
+    # Invariant: Only segunoluwole22@gmail.com may hold the SUPER_ADMIN role
+    if role_upper == "SUPER_ADMIN" and normalized_email != "segunoluwole22@gmail.com":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Forbidden: Cannot provision unauthorized SUPER_ADMIN account."
+        )
+
 
 
 
@@ -1250,7 +1251,14 @@ async def update_user_account_governance(
         raise HTTPException(status_code=404, detail="User account not found.")
 
     if payload.role is not None and payload.role.strip():
-        target_user.role = payload.role.strip().upper()
+        new_role = payload.role.strip().upper()
+        if new_role == "SUPER_ADMIN" and target_user.email.lower() != "segunoluwole22@gmail.com":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Forbidden: Cannot elevate non-designated user to SUPER_ADMIN."
+            )
+        target_user.role = new_role
+
     if payload.organization_id is not None:
         if payload.organization_id == "" or payload.organization_id.lower() == "none":
             target_user.organization_id = None
@@ -1883,62 +1891,80 @@ class ProjectMemberAssignPayload(BaseModel):
 # ---------------------------------------------------------------------------
 
 @router.get("/roles")
-
 async def list_role_catalogue(
-
     db: AsyncSession = Depends(get_db),
-
     current_user: User = Depends(get_current_user),
-
 ):
-
     _verify_super_admin(current_user)
-
     from app.domains.authentication.models import Role
-
     from app.core.rbac import ROLE_PERMISSIONS
 
+    # 1. Fetch user counts per role in a single group-by aggregate query
+    user_counts: dict[str, int] = {}
+    try:
+        u_res = await db.execute(
+            select(User.role, func.count(User.id))
+            .where(User.is_deleted == False)
+            .group_by(User.role)
+        )
+        for role_name, cnt in u_res.all():
+            if role_name:
+                user_counts[str(role_name)] = cnt
+    except Exception:
+        pass
 
+    # 2. Fetch roles catalogue
+    try:
+        res = await db.execute(select(Role).order_by(Role.scope, Role.name))
+        roles = res.scalars().all()
+    except Exception:
+        roles = []
 
-    res = await db.execute(select(Role).order_by(Role.scope, Role.name))
+    if not roles:
+        fallback_catalogue = [
+            {"code": "SUPER_ADMIN", "name": "Platform Super Admin", "description": "Global platform governance and administrative authority", "scope": "PLATFORM", "is_system": True},
+            {"code": "COMPLIANCE_ADMIN", "name": "Compliance Administrator", "description": "Accreditation and compliance rule management", "scope": "PLATFORM", "is_system": True},
+            {"code": "PLATFORM_SUPPORT", "name": "Platform Support", "description": "Technical operations and platform support", "scope": "PLATFORM", "is_system": True},
+            {"code": "JURISDICTION_ADMIN", "name": "Jurisdiction Authority", "description": "National and sub-national carbon registry oversight", "scope": "PLATFORM", "is_system": True},
+            {"code": "REGISTRY_ADMIN", "name": "Registry Administrator", "description": "External registry sync and credit issuance oversight", "scope": "PLATFORM", "is_system": True},
+            {"code": "ORG_ADMIN", "name": "Organization Administrator", "description": "Tenant administration and user management within assigned organization", "scope": "ORGANIZATION", "is_system": True},
+            {"code": "ORG_OWNER", "name": "Organization Owner", "description": "Full operational and billing control of organization workspace", "scope": "ORGANIZATION", "is_system": True},
+            {"code": "PROJECT_MANAGER", "name": "Project Manager", "description": "Operational project configuration and team management", "scope": "PROJECT", "is_system": True},
+            {"code": "FIELD_SUPERVISOR", "name": "Field Supervisor", "description": "Field team supervision and activity review", "scope": "PROJECT", "is_system": True},
+            {"code": "FIELD_AGENT", "name": "Field Agent", "description": "Field evidence collection and mobile data capture", "scope": "PROJECT", "is_system": True},
+            {"code": "QA_OFFICER", "name": "QA Officer", "description": "Quality assurance and anomaly validation", "scope": "PROJECT", "is_system": True},
+            {"code": "VERIFIER", "name": "Independent Verifier", "description": "Third-party MRV claim and mitigation validation", "scope": "PROJECT", "is_system": True},
+            {"code": "AUDITOR", "name": "VVB Independent Auditor", "description": "Read-only inspection and independent audit sign-off", "scope": "PROJECT", "is_system": True},
+            {"code": "INVESTOR", "name": "Investor", "description": "Capital allocation review and read-only impact analytics", "scope": "ORGANIZATION", "is_system": True},
+            {"code": "VIEWER", "name": "Viewer", "description": "Read-only dashboard visibility", "scope": "ORGANIZATION", "is_system": True}
+        ]
+        return [
+            {
+                "id": str(uuid.uuid4()),
+                "code": r["code"],
+                "name": r["name"],
+                "description": r["description"],
+                "scope": r["scope"],
+                "is_system": r["is_system"],
+                "permissions": list(ROLE_PERMISSIONS.get(r["code"], [])),
+                "user_count": user_counts.get(r["code"], 0),
+            }
+            for r in fallback_catalogue
+        ]
 
-    roles = res.scalars().all()
-
-
-
-    role_list = []
-
-    for r in roles:
-
-        u_res = await db.execute(select(func.count(User.id)).where(User.role == r.code, User.is_deleted == False))
-
-        u_cnt = u_res.scalar_one_or_none() or 0
-
-        perms = list(ROLE_PERMISSIONS.get(r.code, []))
-
-
-
-        role_list.append({
-
+    return [
+        {
             "id": str(r.id),
-
             "code": r.code,
-
             "name": r.name,
-
             "description": r.description,
-
             "scope": r.scope,
-
             "is_system": r.is_system,
-
-            "permissions": perms,
-
-            "user_count": u_cnt,
-
-        })
-
-    return role_list
+            "permissions": list(ROLE_PERMISSIONS.get(r.code, [])),
+            "user_count": user_counts.get(r.code, 0),
+        }
+        for r in roles
+    ]
 
 
 

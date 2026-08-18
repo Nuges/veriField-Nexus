@@ -109,8 +109,9 @@ from app.domains.cookstoves.api import router as cookstoves_router
 from app.domains.ai_orchestrator.api import router as ai_orchestrator_router
 
 from app.domains.authentication.routers.mfa import router as mfa_router
-
 from app.domains.authentication.routers.sso import router as sso_router
+from app.domains.documents.api import router as documents_router
+
 
 
 
@@ -231,11 +232,13 @@ async def lifespan(app: FastAPI):
 
 
         async def _sync_schemas():
+            from app.db.session import engine, async_session_factory
+            if engine.dialect.name != "postgresql":
+                logger.info("Non-PostgreSQL dialect detected; skipping PostgreSQL-specific raw DDL migrations.")
+                return
 
             session = async_session_factory()
-
             try:
-
                 await session.execute(text("SET lock_timeout = '3000ms'"))
 
                 await session.execute(text("ALTER TABLE methodology_families ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true"))
@@ -369,13 +372,9 @@ async def lifespan(app: FastAPI):
                 await session.execute(text("SET lock_timeout = '3000ms'"))
 
                 await session.execute(
-
                     text(
-
-                        "ALTER TABLE projects ADD COLUMN IF NOT EXISTS project_code VARCHAR(20) UNIQUE"
-
+                        "ALTER TABLE projects ADD COLUMN IF NOT EXISTS project_code VARCHAR(20)"
                     )
-
                 )
 
                 await session.execute(
@@ -473,6 +472,8 @@ async def lifespan(app: FastAPI):
                     )
 
                 )
+
+                await session.commit()
 
 
 
@@ -676,6 +677,47 @@ async def lifespan(app: FastAPI):
                         chunk_hash VARCHAR(64) UNIQUE NOT NULL,
                         created_at TIMESTAMPTZ DEFAULT now()
                     );
+                    """,
+                    """
+                    CREATE TABLE IF NOT EXISTS roles (
+                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                        code VARCHAR(50) UNIQUE NOT NULL,
+                        name VARCHAR(100) NOT NULL,
+                        description VARCHAR(500),
+                        scope VARCHAR(30) NOT NULL DEFAULT 'ORGANIZATION',
+                        is_system BOOLEAN NOT NULL DEFAULT true,
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+                    );
+                    """,
+                    """
+                    CREATE TABLE IF NOT EXISTS permissions (
+                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                        code VARCHAR(100) UNIQUE NOT NULL,
+                        name VARCHAR(150) NOT NULL,
+                        description VARCHAR(500),
+                        category VARCHAR(50) NOT NULL DEFAULT 'general',
+                        scope VARCHAR(30) NOT NULL DEFAULT 'ORGANIZATION',
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+                    );
+                    """,
+                    """
+                    CREATE TABLE IF NOT EXISTS role_permissions (
+                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                        role_code VARCHAR(50) NOT NULL REFERENCES roles(code) ON DELETE CASCADE,
+                        permission_code VARCHAR(100) NOT NULL REFERENCES permissions(code) ON DELETE CASCADE,
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+                    );
+                    """,
+                    """
+                    CREATE TABLE IF NOT EXISTS project_memberships (
+                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                        project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+                        role_code VARCHAR(50) NOT NULL DEFAULT 'FIELD_AGENT',
+                        status VARCHAR(20) NOT NULL DEFAULT 'active',
+                        assigned_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                        assigned_by UUID REFERENCES users(id) ON DELETE SET NULL
+                    );
                     """
                 ]
 
@@ -687,7 +729,42 @@ async def lifespan(app: FastAPI):
                         logger.warning(f"Table creation notice: {tbl_err}")
                         await session.rollback()
 
-                logger.info("Sector Engines and AI Memory schemas synchronized successfully!")
+                # Seed Metadata-Driven Role Catalogue
+                roles_to_seed = [
+                    ('SUPER_ADMIN', 'Platform Super Admin', 'Global platform governance and administrative authority', 'PLATFORM', True),
+                    ('COMPLIANCE_ADMIN', 'Compliance Administrator', 'Accreditation and compliance rule management', 'PLATFORM', True),
+                    ('PLATFORM_SUPPORT', 'Platform Support', 'Technical operations and platform support', 'PLATFORM', True),
+                    ('JURISDICTION_ADMIN', 'Jurisdiction Authority', 'National and sub-national carbon registry oversight', 'PLATFORM', True),
+                    ('REGISTRY_ADMIN', 'Registry Administrator', 'External registry sync and credit issuance oversight', 'PLATFORM', True),
+                    ('ORG_ADMIN', 'Organization Administrator', 'Tenant administration and user management within assigned organization', 'ORGANIZATION', True),
+                    ('ORG_OWNER', 'Organization Owner', 'Full operational and billing control of organization workspace', 'ORGANIZATION', True),
+                    ('PROJECT_MANAGER', 'Project Manager', 'Operational project configuration and team management', 'PROJECT', True),
+                    ('FIELD_SUPERVISOR', 'Field Supervisor', 'Field team supervision and activity review', 'PROJECT', True),
+                    ('FIELD_AGENT', 'Field Agent', 'Field evidence collection and mobile data capture', 'PROJECT', True),
+                    ('QA_OFFICER', 'QA Officer', 'Quality assurance and anomaly validation', 'PROJECT', True),
+                    ('VERIFIER', 'Independent Verifier', 'Third-party MRV claim and mitigation validation', 'PROJECT', True),
+                    ('AUDITOR', 'VVB Independent Auditor', 'Read-only inspection and independent audit sign-off', 'PROJECT', True),
+                    ('INVESTOR', 'Investor', 'Capital allocation review and read-only impact analytics', 'ORGANIZATION', True),
+                    ('VIEWER', 'Viewer', 'Read-only dashboard visibility', 'ORGANIZATION', True)
+                ]
+                for r_code, r_name, r_desc, r_scope, r_sys in roles_to_seed:
+                    try:
+                        await session.execute(text('''
+                            INSERT INTO roles (code, name, description, scope, is_system)
+                            VALUES (:code, :name, :desc, :scope, :is_sys)
+                            ON CONFLICT (code) DO NOTHING
+                        '''), {
+                            'code': r_code,
+                            'name': r_name,
+                            'desc': r_desc,
+                            'scope': r_scope,
+                            'is_sys': r_sys
+                        })
+                        await session.commit()
+                    except Exception:
+                        await session.rollback()
+
+                logger.info("Sector Engines, Governance Tables, and AI Memory schemas synchronized successfully!")
 
 
 
@@ -1426,59 +1503,8 @@ async def lifespan(app: FastAPI):
 
 
 
-                # Seed Default SUPER_ADMIN if not exists
-
-                # Re-apply lock timeout for the new transaction block
-
-                await session.execute(text("SET lock_timeout = '3000ms'"))
-
-                # Seed Default SUPER_ADMIN accounts
-                from app.core.security import get_password_hash
-                pw_hash = get_password_hash("Lovelyday1")
-
-                await session.execute(
-                    text("""
-                    INSERT INTO users (id, email, full_name, role, status, is_active, password_hash, requires_password_change, created_at, updated_at)
-                    VALUES (
-                        '00000000-0000-0000-0000-000000000003',
-                        'admin@verifield.io',
-                        'VeriField Admin',
-                        'SUPER_ADMIN',
-                        'active',
-                        true,
-                        :pw_hash,
-                        false,
-                        now(),
-                        now()
-                    )
-                    ON CONFLICT (email) DO UPDATE SET password_hash = EXCLUDED.password_hash, is_active = true, status = 'active', role = 'SUPER_ADMIN'
-                """),
-                    {"pw_hash": pw_hash},
-                )
+                # Schema synchronization completed
                 await session.commit()
-                logger.info("Super Admin 'admin@verifield.io' seeded/updated successfully!")
-
-                await session.execute(
-                    text("""
-                    INSERT INTO users (id, email, full_name, role, status, is_active, password_hash, requires_password_change, created_at, updated_at)
-                    VALUES (
-                        '00000000-0000-5000-a000-000000000000',
-                        'superadmin@verifield.io',
-                        'Super Admin',
-                        'SUPER_ADMIN',
-                        'active',
-                        true,
-                        :pw_hash,
-                        false,
-                        now(),
-                        now()
-                    )
-                    ON CONFLICT (email) DO UPDATE SET password_hash = EXCLUDED.password_hash, is_active = true, status = 'active', role = 'SUPER_ADMIN'
-                """),
-                    {"pw_hash": pw_hash},
-                )
-                await session.commit()
-                logger.info("Super Admin 'superadmin@verifield.io' seeded/updated successfully!")
 
 
 
@@ -1496,7 +1522,8 @@ async def lifespan(app: FastAPI):
 
 
 
-        await _sync_schemas()
+        # Run schema sync in background task so server binds and serves requests immediately
+        asyncio.create_task(_sync_schemas())
 
 
 
@@ -1636,18 +1663,13 @@ async def global_exception_handler(request: Request, exc: Exception):
 # ---------------------------------------------------------------------------
 
 app.add_middleware(
-
     CORSMiddleware,
-
-    allow_origins=["*"],
-
-    allow_credentials=False,
-
-    allow_methods=["*"],
-
-    allow_headers=["*"],
-
+    allow_origins=settings.cors_origins_list,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"],
+    allow_headers=["Authorization", "Content-Type", "Accept", "Origin", "X-Requested-With", "apikey"],
 )
+
 
 
 
@@ -2251,8 +2273,9 @@ app.include_router(cookstoves_router, prefix="/api/v1/cookstoves", tags=["Clean 
 app.include_router(ai_orchestrator_router, prefix="/api/v1/ai", tags=["AI Orchestrator & Memory"])
 
 app.include_router(mfa_router, prefix="/api/v1", tags=["Multi-Factor Authentication"])
-
 app.include_router(sso_router, prefix="/api/v1", tags=["Enterprise SSO"])
+app.include_router(documents_router, prefix="/api/v1", tags=["Document Intelligence"])
+
 
 
 

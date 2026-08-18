@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from pydantic import BaseModel
 
-from sqlalchemy import text
+from sqlalchemy import text, select
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -39,6 +39,8 @@ from app.domains.notifications.repository import NotificationRepository
 from app.domains.notifications.schemas import NotificationCreate
 
 from app.domains.notifications.service import NotificationService
+
+from app.domains.organizations.models import Organization
 
 from app.domains.organizations.repository import OrganizationRepository
 
@@ -212,12 +214,12 @@ async def get_access_requests(
 
 
 
-        query += """ ORDER BY 
-            CASE status 
-                WHEN 'PENDING' THEN 1 
-                WHEN 'APPROVED' THEN 2 
-                WHEN 'REJECTED' THEN 3 
-                ELSE 4 
+        query += """ ORDER BY
+            CASE status
+                WHEN 'PENDING' THEN 1
+                WHEN 'APPROVED' THEN 2
+                WHEN 'REJECTED' THEN 3
+                ELSE 4
             END, created_at DESC"""
 
 
@@ -439,18 +441,10 @@ async def approve_access_request(
     licensed_sectors = []
     sec_row = None
     meth_row = None
+    target_sec_id = None
+    target_meth_id = None
 
-    if methodology_id_str:
-        res_meth = await db.execute(
-            text("SELECT id, code, family_id FROM methodologies WHERE id = :val OR UPPER(code) = UPPER(:val)"),
-            {"val": str(methodology_id_str)}
-        )
-        meth_row = res_meth.fetchone()
-        if meth_row:
-            licensed_methodologies.append(meth_row.code)
-            if not sector_id_str and meth_row.family_id:
-                sector_id_str = str(meth_row.family_id)
-
+    # Step 1: Resolve Sector from request metadata or use case text
     if sector_id_str:
         clean_sec = str(sector_id_str).strip().lower()
         alias_code = None
@@ -465,43 +459,130 @@ async def approve_access_request(
         else:
             alias_code = clean_sec.upper()
 
-        res_sec = await db.execute(
-            text("""
-                SELECT id, code FROM methodology_families 
-                WHERE id = :val OR UPPER(code) = UPPER(:val) OR UPPER(code) = UPPER(:alias)
-            """),
-            {"val": str(sector_id_str), "alias": alias_code or str(sector_id_str)}
-        )
+        sec_is_uuid = False
+        try:
+            uuid.UUID(str(sector_id_str).strip())
+            sec_is_uuid = True
+        except (ValueError, TypeError, AttributeError):
+            sec_is_uuid = False
+
+        if sec_is_uuid:
+            clean_sec = str(uuid.UUID(str(sector_id_str).strip()))
+            hex_sec = clean_sec.replace("-", "")
+            res_sec = await db.execute(
+                text("SELECT id, code FROM methodology_families WHERE id = :val_uuid OR id = :hex_uuid"),
+                {"val_uuid": clean_sec, "hex_uuid": hex_sec}
+            )
+        else:
+            res_sec = await db.execute(
+                text("""
+                    SELECT id, code FROM methodology_families
+                    WHERE UPPER(code) = UPPER(:val_code) OR UPPER(code) = UPPER(:alias)
+                """),
+                {"val_code": str(sector_id_str).strip(), "alias": alias_code or str(sector_id_str).strip()}
+            )
         sec_row = res_sec.fetchone()
-        if sec_row:
-            code_val = str(sec_row[1]) if len(sec_row) > 1 else str(sec_row.code)
-            licensed_sectors.append(code_val)
-        elif alias_code:
-            licensed_sectors.append(alias_code)
 
-    if not licensed_sectors:
+    if not sec_row:
         combined_text = f"{use_case or ''} {req.organization_name or ''} {str(use_case_data or '')}".lower()
+        alias_code = None
         if "ev" in combined_text or "mobility" in combined_text or "electric" in combined_text:
-            licensed_sectors.append("EV_MOBILITY")
+            alias_code = "EV_MOBILITY"
         elif "hybrid" in combined_text or "energy" in combined_text or "solar" in combined_text:
-            licensed_sectors.append("HYBRID_ENERGY")
+            alias_code = "HYBRID_ENERGY"
         elif "biochar" in combined_text or "pyrolysis" in combined_text:
-            licensed_sectors.append("BIOCHAR")
+            alias_code = "BIOCHAR"
         elif "cook" in combined_text or "stove" in combined_text:
-            licensed_sectors.append("COOKSTOVES")
+            alias_code = "COOKSTOVES"
 
-    if not licensed_methodologies and licensed_sectors:
-        for sec in licensed_sectors:
-            sec_upper = str(sec).upper()
-            if "EV" in sec_upper or "MOBILITY" in sec_upper:
-                licensed_methodologies.append("AMS-III.C")
-            elif "HYBRID" in sec_upper or "ENERGY" in sec_upper or "SOLAR" in sec_upper:
-                licensed_methodologies.append("ACM0002")
-            elif "BIOCHAR" in sec_upper:
-                licensed_methodologies.append("VM0042")
-            elif "COOK" in sec_upper:
-                licensed_methodologies.append("AMS-II.G")
+        if alias_code:
+            res_sec = await db.execute(
+                text("SELECT id, code FROM methodology_families WHERE UPPER(code) = UPPER(:alias)"),
+                {"alias": alias_code}
+            )
+            sec_row = res_sec.fetchone()
 
+    if sec_row:
+        target_sec_id = uuid.UUID(str(sec_row.id if hasattr(sec_row, "id") else sec_row[0]))
+        sec_code_val = str(sec_row.code if hasattr(sec_row, "code") else sec_row[1])
+        licensed_sectors.append(sec_code_val)
+
+    # Step 2: Resolve Methodology & Enforce Sector-Methodology Invariant
+    if methodology_id_str:
+        meth_is_uuid = False
+        try:
+            uuid.UUID(str(methodology_id_str).strip())
+            meth_is_uuid = True
+        except (ValueError, TypeError, AttributeError):
+            meth_is_uuid = False
+
+        if meth_is_uuid:
+            clean_meth = str(uuid.UUID(str(methodology_id_str).strip()))
+            hex_meth = clean_meth.replace("-", "")
+            res_meth = await db.execute(
+                text("SELECT id, code, family_id, is_active FROM methodologies WHERE (id = :val_uuid OR id = :hex_uuid) AND (is_active = TRUE OR is_active = 1)"),
+                {"val_uuid": clean_meth, "hex_uuid": hex_meth}
+            )
+        else:
+            res_meth = await db.execute(
+                text("SELECT id, code, family_id, is_active FROM methodologies WHERE UPPER(code) = UPPER(:val_code) AND (is_active = TRUE OR is_active = 1)"),
+                {"val_code": str(methodology_id_str).strip()}
+            )
+        meth_row = res_meth.fetchone()
+        if not meth_row:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Methodology '{methodology_id_str}' does not exist or is inactive."
+            )
+
+        meth_family_id = uuid.UUID(str(meth_row.family_id if hasattr(meth_row, "family_id") else meth_row[2]))
+        if target_sec_id:
+            if meth_family_id != target_sec_id:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Selected methodology does not belong to the selected sector."
+                )
+        else:
+            target_sec_id = meth_family_id
+            clean_sec_target = str(target_sec_id)
+            hex_sec_target = clean_sec_target.replace("-", "")
+            res_sec = await db.execute(
+                text("SELECT id, code FROM methodology_families WHERE id = :val_uuid OR id = :hex_uuid"),
+                {"val_uuid": clean_sec_target, "hex_uuid": hex_sec_target}
+            )
+            sec_row = res_sec.fetchone()
+            if sec_row:
+                sec_code_val = str(sec_row.code if hasattr(sec_row, "code") else sec_row[1])
+                if sec_code_val not in licensed_sectors:
+                    licensed_sectors.append(sec_code_val)
+
+        target_meth_id = uuid.UUID(str(meth_row.id if hasattr(meth_row, "id") else meth_row[0]))
+        meth_code_str = str(meth_row.code if hasattr(meth_row, "code") else meth_row[1])
+        if meth_code_str not in licensed_methodologies:
+            licensed_methodologies.append(meth_code_str)
+
+    elif target_sec_id:
+        # Resolve the primary active methodology belonging to that exact sector/methodology family
+        dash_fid = str(uuid.UUID(str(target_sec_id)))
+        clean_fid = dash_fid.replace("-", "")
+        res_primary_meth = await db.execute(
+            text("""
+                SELECT id, code, family_id
+                FROM methodologies
+                WHERE (family_id = :dash_id OR family_id = :clean_id) AND is_active = TRUE
+                ORDER BY created_at ASC
+                LIMIT 1
+            """),
+            {"dash_id": dash_fid, "clean_id": clean_fid}
+        )
+        meth_row = res_primary_meth.fetchone()
+        if meth_row:
+            target_meth_id = uuid.UUID(str(meth_row.id if hasattr(meth_row, "id") else meth_row[0]))
+            meth_code_str = str(meth_row.code if hasattr(meth_row, "code") else meth_row[1])
+            if meth_code_str not in licensed_methodologies:
+                licensed_methodologies.append(meth_code_str)
+        else:
+            target_meth_id = None
 
 
     try:
@@ -535,39 +616,14 @@ async def approve_access_request(
             new_org.licensed_sectors = list(existing_sectors)
             await db.flush()
 
-        # 3.5 Provision default Project if not exists
+        # 3.5 Provision default Project if both sector and active methodology exist
         from app.domains.projects.models import Project
 
-        target_sec_id = None
-        if sec_row:
-            try:
-                target_sec_id = uuid.UUID(str(sec_row.id))
-            except Exception:
-                target_sec_id = sec_row.id
-        elif sector_id_str:
-            try:
-                target_sec_id = uuid.UUID(str(sector_id_str))
-            except Exception:
-                pass
-
-        target_meth_id = None
-        if meth_row:
-            try:
-                target_meth_id = uuid.UUID(str(meth_row.id))
-            except Exception:
-                target_meth_id = meth_row.id
-        elif methodology_id_str:
-            try:
-                target_meth_id = uuid.UUID(str(methodology_id_str))
-            except Exception:
-                pass
-
-        if target_sec_id or target_meth_id:
+        if target_sec_id and target_meth_id:
             proj_exists = await db.execute(
-                text("SELECT id FROM projects WHERE organization_id = :org_id"),
-                {"org_id": str(new_org.id)}
+                select(Project.id).where(Project.organization_id == new_org.id)
             )
-            if not proj_exists.fetchone():
+            if not proj_exists.first():
                 sec_label = sec_row.code if sec_row else (licensed_sectors[0] if licensed_sectors else "Default")
                 default_proj = Project(
                     name=project_name if project_name else f"{req.organization_name} - {sec_label} Project",
@@ -626,10 +682,9 @@ async def approve_access_request(
         # 4.5 Auto-provision default Workspace Property
         from app.domains.workspaces.models import Property
         prop_exists = await db.execute(
-            text("SELECT id FROM properties WHERE organization_id = :org_id"),
-            {"org_id": str(new_org.id)}
+            select(Property.id).where(Property.organization_id == new_org.id)
         )
-        if not prop_exists.fetchone():
+        if not prop_exists.first():
             default_workspace = Property(
                 name=f"{req.organization_name} Main Workspace",
                 owner_id=new_user.id,

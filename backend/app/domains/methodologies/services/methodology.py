@@ -76,26 +76,24 @@ class MethodologyService:
 
 
 
-    async def list_methodologies(self) -> List[Methodology]:
-
-        result = await self.db.execute(
-
+    async def list_methodologies(
+        self, family_id: Optional[UUID] = None, is_active: Optional[bool] = True
+    ) -> List[Methodology]:
+        stmt = (
             select(Methodology)
-
             .options(
-
                 selectinload(Methodology.registry),
-
                 selectinload(Methodology.family),
-
                 selectinload(Methodology.versions),
-
             )
-
-            .order_by(Methodology.code)
-
         )
+        if family_id is not None:
+            stmt = stmt.where(Methodology.family_id == family_id)
+        if is_active is not None:
+            stmt = stmt.where(Methodology.is_active == is_active)
+        stmt = stmt.order_by(Methodology.code)
 
+        result = await self.db.execute(stmt)
         return list(result.scalars().all())
 
 

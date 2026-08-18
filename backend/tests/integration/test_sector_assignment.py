@@ -8,6 +8,9 @@ from app.domains.authentication.models import User
 from app.domains.organizations.models import Organization
 from app.domains.projects.models import Project
 
+import pytest
+
+@pytest.mark.asyncio
 async def test_sector_assignment():
     await _init_fallback_db()
     async for db in get_db():
@@ -19,18 +22,42 @@ async def test_sector_assignment():
         await db.commit()
 
         # Get Super Admin user
-        admin_res = await db.execute(select(User).where(User.email == 'admin@verifield.io'))
-        sa_user = admin_res.scalar_one()
+        admin_res = await db.execute(select(User).where(User.role == 'SUPER_ADMIN'))
+        sa_user = admin_res.scalars().first()
+        if not sa_user:
+            sa_user = User(
+                id=uuid.uuid4(),
+                email="segunoluwole22@gmail.com",
+                full_name="Segun Oluwole",
+                role="SUPER_ADMIN",
+                status="active",
+                is_active=True
+            )
+            db.add(sa_user)
+            await db.commit()
+            await db.refresh(sa_user)
 
         # Get EV_MOBILITY sector
         sec_res = await db.execute(text("SELECT id, code FROM methodology_families WHERE code = 'EV_MOBILITY'"))
         ev_sec = sec_res.fetchone()
-        ev_sec_id, ev_sec_code = str(ev_sec[0]), ev_sec[1]
+        if not ev_sec:
+            ev_sec_id = str(uuid.uuid4())
+            ev_sec_code = 'EV_MOBILITY'
+            await db.execute(text("INSERT INTO methodology_families (id, code, name) VALUES (:id, :code, 'Electric Mobility')"), {"id": ev_sec_id, "code": ev_sec_code})
+            await db.commit()
+        else:
+            ev_sec_id, ev_sec_code = str(ev_sec[0]), ev_sec[1]
 
         # Get EV methodology
         meth_res = await db.execute(text("SELECT id, code FROM methodologies WHERE family_id = :fid"), {"fid": ev_sec_id})
         ev_meth = meth_res.fetchone()
-        ev_meth_id, ev_meth_code = str(ev_meth[0]), ev_meth[1]
+        if not ev_meth:
+            ev_meth_id = str(uuid.uuid4())
+            ev_meth_code = 'AMS-III.C'
+            await db.execute(text("INSERT INTO methodologies (id, family_id, code, name) VALUES (:id, :fid, :code, 'Electric Fleet')"), {"id": ev_meth_id, "fid": ev_sec_id, "code": ev_meth_code})
+            await db.commit()
+        else:
+            ev_meth_id, ev_meth_code = str(ev_meth[0]), ev_meth[1]
 
         print(f"\n[1] Submitting Access Request for Sector: {ev_sec_code} (ID: {ev_sec_id}) & Methodology: {ev_meth_code} (ID: {ev_meth_id})...")
 
@@ -68,10 +95,6 @@ async def test_sector_assignment():
         assert uuid.UUID(str(proj_data.sector_id)) == uuid.UUID(ev_sec_id), f"Project Sector ID {proj_data.sector_id} != Requested Sector ID {ev_sec_id}"
         assert uuid.UUID(str(proj_data.methodology_id)) == uuid.UUID(ev_meth_id), f"Project Methodology ID {proj_data.methodology_id} != Requested Methodology ID {ev_meth_id}"
 
-        print("\n=========================================================")
-        print("EMPIRICAL PROOF: Provisioned Sector EXACTLY MATCHES!")
-        print("=========================================================\n")
-
         # Cleanup test records
         await db.execute(text("DELETE FROM projects WHERE organization_id = :oid"), {"oid": str(org_data.id)})
         await db.execute(text("DELETE FROM users WHERE organization_id = :oid"), {"oid": str(org_data.id)})
@@ -80,5 +103,3 @@ async def test_sector_assignment():
         await db.commit()
         print("✓ Clean baseline restored.")
         break
-
-asyncio.run(test_sector_assignment())

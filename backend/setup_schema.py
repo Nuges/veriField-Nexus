@@ -8,7 +8,7 @@ from app.core.config import settings
 from app.models import *
 
 async def create_tables():
-    db_url = "postgresql+asyncpg://postgres.rxlfxrbyhagyofzfwzoa:TaMpn243vupkPUWL@34.241.16.247:5432/postgres"
+    db_url = os.environ.get("DATABASE_URL", "sqlite+aiosqlite:///dev.db")
         
     engine = create_async_engine(
         db_url,

@@ -45,15 +45,10 @@ async def setup_activities_partitioning(session: AsyncSession):
         """)
 
         res = await session.execute(chk_stmt)
-
         row = res.scalar()
-
-        if row == "p":  # 'p' means partitioned table
-
+        if row in ("p", b"p") or str(row) == "p":  # 'p' means partitioned table
             logger.info("Table 'activities' is already partitioned.")
-
             await create_future_partitions(session)
-
             return
 
 

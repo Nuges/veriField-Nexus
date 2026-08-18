@@ -218,16 +218,25 @@ class CarbonCalculationRepository:
 
 
     async def create(self, calc_dict: dict) -> "app.domains.projects.models.CarbonCalculation":
-
         from app.domains.projects.models import CarbonCalculation
 
+        # Deduplication & Idempotency: Prevent duplicate calculations for the same activity
+        if calc_dict.get("activity_id"):
+            stmt = select(CarbonCalculation).where(CarbonCalculation.activity_id == calc_dict["activity_id"])
+            res = await self.db.execute(stmt)
+            existing = res.scalars().first()
+            if existing:
+                existing.tco2e_generated = calc_dict.get("tco2e_generated", existing.tco2e_generated)
+                existing.calculation_log = calc_dict.get("calculation_log", existing.calculation_log)
+                existing.status = calc_dict.get("status", existing.status)
+                await self.db.flush()
+                return existing
+
         calc = CarbonCalculation(**calc_dict)
-
         self.db.add(calc)
-
         await self.db.flush()
-
         return calc
+
 
 
 
@@ -247,7 +256,7 @@ class CarbonCalculationRepository:
 
         from app.domains.projects.models import CarbonCalculation
 
-        stmt = select(CarbonCalculation).where(CarbonCalculation.project_id == project_id).order_by(CarbonCalculation.executed_at.desc())
+        stmt = select(CarbonCalculation).where(CarbonCalculation.project_id == project_id).order_by(CarbonCalculation.created_at.desc())
 
         res = await self.db.execute(stmt)
 

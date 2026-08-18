@@ -24,8 +24,9 @@ async def test_evidence_lifecycle(async_client: AsyncClient, admin_token_headers
     }
 
     resp = await async_client.post(
-        "/api/v1/evidence/", json=payload, headers=admin_token_headers
+        "/api/v1/evidence", json=payload, headers=admin_token_headers
     )
+
     assert resp.status_code == 201, resp.text
     ev = resp.json()
     ev_id = ev["id"]

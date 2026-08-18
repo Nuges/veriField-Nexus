@@ -2,28 +2,33 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { 
-  ArrowLeft, 
-  Activity as ActivityIcon, 
-  MapPin, 
-  ShieldCheck, 
-  Leaf, 
+import {
+  ArrowLeft,
+  Activity as ActivityIcon,
+  MapPin,
+  ShieldCheck,
+  Leaf,
   Calendar,
   Sparkles,
   Layers,
   Lock,
-  Clock
+  Clock,
+  FileText
 } from "lucide-react";
 import { fetchProperty, fetchPropertyActivities } from "@/lib/api";
 import type { Property, Activity } from "@/lib/types";
 import TrustBadge from "@/components/TrustBadge";
+import { ProjectDocumentsModule } from "@/components/dashboard/ProjectDocumentsModule";
 
 export default function AssetDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const [asset, setAsset] = useState<Property & { total_activities?: number, avg_trust_score?: number, activity_breakdown?: any } | null>(null);
+  const [asset, setAsset] = useState<(Property & { total_activities?: number; avg_trust_score?: number; activity_breakdown?: any }) | null>(null);
   const [activities, setActivities] = useState<Activity[]>([]);
+  const [activeTab, setActiveTab] = useState<"activities" | "documents">("activities");
+
   const [isLoading, setIsLoading] = useState(true);
+
 
   useEffect(() => {
     async function loadData() {
@@ -83,9 +88,9 @@ export default function AssetDetailPage() {
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto pb-12 animate-fade-in-up text-[var(--color-text-primary)]">
-      
+
       {/* 🧭 NAVIGATION */}
-      <button 
+      <button
         onClick={() => router.back()}
         className="p-2.5 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:text-[#00B47A] hover:border-[#00B47A]/30 transition-all shadow-sm active:scale-95 flex items-center justify-center gap-2 text-xs font-extrabold uppercase tracking-wider"
       >
@@ -103,13 +108,13 @@ export default function AssetDetailPage() {
               <Clock size={11} className="text-[#00B47A]" /> Registered {new Date(asset.created_at || Date.now()).toLocaleDateString()}
             </span>
           </div>
-          
+
           <h1 className="text-xl font-bold tracking-tight text-[var(--color-text-primary)] capitalize">
             {asset.name}
           </h1>
-          
+
           <p className="text-[var(--color-text-secondary)] text-xs flex items-center gap-1.5 mt-2 font-semibold">
-            <MapPin size={14} className="text-[#00B47A]" /> 
+            <MapPin size={14} className="text-[#00B47A]" />
             <span>{asset.address || "No region/address was registered."}</span>
             {asset.latitude && (
               <span className="text-[9px] font-mono opacity-80 bg-[var(--color-surface)] border border-[var(--color-border)] px-1.5 py-0.5 rounded ml-1.5">
@@ -127,7 +132,7 @@ export default function AssetDetailPage() {
 
       {/* 📊 CORE METRICS CARDS */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        
+
         {/* Total Check-ins */}
         <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-4 flex items-center justify-between shadow-sm relative overflow-hidden group hover:border-[#00B47A]/30 transition-all">
           <div className="space-y-1">
@@ -141,7 +146,7 @@ export default function AssetDetailPage() {
             <ActivityIcon size={18} />
           </div>
         </div>
-        
+
         {/* Average Trust Score */}
         <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-4 flex items-center justify-between shadow-sm relative overflow-hidden group hover:border-purple-500/30 transition-all">
           <div className="space-y-1">
@@ -172,74 +177,111 @@ export default function AssetDetailPage() {
 
       </div>
 
-      {/* 🧭 ACTIVITY HISTORY TIMELINE */}
-      <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl overflow-hidden shadow-sm">
-        <div className="p-4 border-b border-[var(--color-border)] flex items-center justify-between bg-[var(--color-background)]/50">
-          <div className="flex items-center gap-2">
-            <Layers size={16} className="text-[#00B47A]" />
-            <h2 className="text-xs font-bold uppercase tracking-wider">Telemetry Verification Logs</h2>
-          </div>
-          <span className="text-[9px] text-[#00B47A] font-extrabold tracking-wider bg-[#00B47A]/5 border border-[#00B47A]/15 px-2 py-0.5 rounded uppercase">
-            Live issuance history
-          </span>
+      {/* 🧭 TABS: Operational Activities vs Document Intelligence */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-2 border-b border-[var(--color-border)] pb-2">
+          <button
+            onClick={() => setActiveTab("activities")}
+            className={`px-4 py-2 text-xs font-bold rounded-xl transition-all flex items-center gap-2 ${
+              activeTab === "activities"
+                ? "bg-[#00B47A]/10 text-[#00B47A] border border-[#00B47A]/30 shadow-sm"
+                : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-background)]"
+            }`}
+          >
+            <Layers size={15} />
+            Telemetry Verification Logs ({activities.length})
+          </button>
+          <button
+            onClick={() => setActiveTab("documents")}
+            className={`px-4 py-2 text-xs font-bold rounded-xl transition-all flex items-center gap-2 ${
+              activeTab === "documents"
+                ? "bg-[#00B47A]/10 text-[#00B47A] border border-[#00B47A]/30 shadow-sm"
+                : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-background)]"
+            }`}
+          >
+            <FileText size={15} />
+            Project Documentation & PDD
+          </button>
         </div>
-        
-        <div className="divide-y divide-[var(--color-border)]">
-          {activities.length === 0 ? (
-            <div className="p-12 text-center flex flex-col items-center justify-center gap-2">
-              <Lock size={28} className="text-[var(--color-text-muted)] animate-pulse" />
-              <span className="text-[var(--color-text-secondary)] text-xs font-semibold">No operational logs logged for this asset yet.</span>
-            </div>
-          ) : (
-            activities.map(activity => (
-              <div 
-                key={activity.id} 
-                onClick={() => router.push(`/dashboard/activities/${activity.id}`)}
-                className="p-4.5 flex flex-col sm:flex-row gap-4 items-start sm:items-center hover:bg-[var(--color-background)]/35 transition-colors duration-200 cursor-pointer border-l-2 border-l-transparent hover:border-l-[#00B47A]"
-              >
-                {activity.image_url ? (
-                  <img 
-                    src={cleanUrl(activity.image_url)} 
-                    alt="Proof" 
-                    className="w-14 h-14 rounded-xl object-cover border border-[var(--color-border)] shadow-sm shrink-0" 
-                  />
-                ) : (
-                  <div className="w-14 h-14 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] flex items-center justify-center text-[var(--color-text-muted)] shrink-0 shadow-inner">
-                    <ActivityIcon size={18} />
-                  </div>
-                )}
-                
-                <div className="flex-1 overflow-hidden">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="text-xs font-bold text-[var(--color-text-primary)] capitalize tracking-tight">
-                      {activity.activity_type.replace(/_/g, ' ')}
-                    </p>
-                    <span className={`px-2 py-0.5 rounded text-[8px] font-extrabold uppercase border tracking-wider shrink-0 ${
-                      activity.status === "verified"
-                        ? "bg-[#00B47A]/10 text-[#00B47A] border-[#00B47A]/20"
-                        : activity.status === "flagged"
-                        ? "bg-red-500/10 text-red-500 border-red-500/20"
-                        : "bg-amber-500/10 text-amber-500 border-amber-500/20"
-                    }`}>
-                      {activity.status === "verified" ? "Verified" : activity.status === "flagged" ? "Flagged" : "Review"}
-                    </span>
-                  </div>
-                  <p className="text-xs text-[var(--color-text-secondary)] mt-1 font-medium line-clamp-1 leading-relaxed">
-                    {activity.description || "System check-in parameters verified."}
-                  </p>
-                </div>
-                
-                <div className="flex sm:flex-col items-start sm:items-end justify-between sm:justify-center w-full sm:w-auto gap-2.5 pt-2 sm:pt-0 border-t border-[var(--color-border)]/5 sm:border-0 shrink-0">
-                  <div className="text-[10px] text-[var(--color-text-muted)] font-extrabold uppercase font-mono bg-[var(--color-background)] border border-[var(--color-border)] px-2.5 py-1 rounded-xl flex items-center gap-1.5 shadow-inner">
-                    <Calendar size={12} className="text-[#00B47A]" /> 
-                    <span>{new Date(activity.captured_at).toLocaleDateString()}</span>
-                  </div>
-                  <TrustBadge score={activity.trust_score} />
-                </div>
+
+        {activeTab === "documents" ? (
+          <ProjectDocumentsModule
+            projectId={asset.project_id || asset.id}
+            projectName={asset.name}
+            organizationId={asset.organization_id || undefined}
+            sectorName={asset.sector || "Clean Cookstoves"}
+            methodologyName={typeof asset.property_type === "string" ? asset.property_type.replace(/_/g, " ") : "Methodology"}
+          />
+        ) : (
+          <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl overflow-hidden shadow-sm">
+            <div className="p-4 border-b border-[var(--color-border)] flex items-center justify-between bg-[var(--color-background)]/50">
+              <div className="flex items-center gap-2">
+                <Layers size={16} className="text-[#00B47A]" />
+                <h2 className="text-xs font-bold uppercase tracking-wider">Telemetry Verification Logs</h2>
               </div>
-            ))
-          )}
-        </div>
+              <span className="text-[9px] text-[#00B47A] font-extrabold tracking-wider bg-[#00B47A]/5 border border-[#00B47A]/15 px-2 py-0.5 rounded uppercase">
+                Live issuance history
+              </span>
+            </div>
+
+            <div className="divide-y divide-[var(--color-border)]">
+              {activities.length === 0 ? (
+                <div className="p-12 text-center flex flex-col items-center justify-center gap-2">
+                  <Lock size={28} className="text-[var(--color-text-muted)] animate-pulse" />
+                  <span className="text-[var(--color-text-secondary)] text-xs font-semibold">No operational logs logged for this asset yet.</span>
+                </div>
+              ) : (
+                activities.map(activity => (
+                  <div
+                    key={activity.id}
+                    onClick={() => router.push(`/dashboard/activities/${activity.id}`)}
+                    className="p-4.5 flex flex-col sm:flex-row gap-4 items-start sm:items-center hover:bg-[var(--color-background)]/35 transition-colors duration-200 cursor-pointer border-l-2 border-l-transparent hover:border-l-[#00B47A]"
+                  >
+                    {activity.image_url ? (
+                      <img
+                        src={cleanUrl(activity.image_url)}
+                        alt="Proof"
+                        className="w-14 h-14 rounded-xl object-cover border border-[var(--color-border)] shadow-sm shrink-0"
+                      />
+                    ) : (
+                      <div className="w-14 h-14 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] flex items-center justify-center text-[var(--color-text-muted)] shrink-0 shadow-inner">
+                        <ActivityIcon size={18} />
+                      </div>
+                    )}
+
+                    <div className="flex-1 overflow-hidden">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-xs font-bold text-[var(--color-text-primary)] capitalize tracking-tight">
+                          {activity.activity_type.replace(/_/g, ' ')}
+                        </p>
+                        <span className={`px-2 py-0.5 rounded text-[8px] font-extrabold uppercase border tracking-wider shrink-0 ${
+                          activity.status === "verified"
+                            ? "bg-[#00B47A]/10 text-[#00B47A] border-[#00B47A]/20"
+                            : activity.status === "flagged"
+                            ? "bg-red-500/10 text-red-500 border-red-500/20"
+                            : "bg-amber-500/10 text-amber-500 border-amber-500/20"
+                        }`}>
+                          {activity.status === "verified" ? "Verified" : activity.status === "flagged" ? "Flagged" : "Review"}
+                        </span>
+                      </div>
+                      <p className="text-xs text-[var(--color-text-secondary)] mt-1 font-medium line-clamp-1 leading-relaxed">
+                        {activity.description || "System check-in parameters verified."}
+                      </p>
+                    </div>
+
+                    <div className="flex sm:flex-col items-start sm:items-end justify-between sm:justify-center w-full sm:w-auto gap-2.5 pt-2 sm:pt-0 border-t border-[var(--color-border)]/5 sm:border-0 shrink-0">
+                      <div className="text-[10px] text-[var(--color-text-muted)] font-extrabold uppercase font-mono bg-[var(--color-background)] border border-[var(--color-border)] px-2.5 py-1 rounded-xl flex items-center gap-1.5 shadow-inner">
+                        <Calendar size={12} className="text-[#00B47A]" />
+                        <span>{new Date(activity.captured_at).toLocaleDateString()}</span>
+                      </div>
+                      <TrustBadge score={activity.trust_score} />
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
     </div>

@@ -108,84 +108,49 @@ export default function AuditsPage() {
 
       ]);
 
-      const auditsWithProps = res.audits.map((a: AuditTask) => {
-
-        const property = propsRes.properties.find((p: Property) => p.id === a.asset_id);
-
-        const agent = agentsRes.agents?.find((ag: any) => ag.id === a.assigned_agent);
-
+      const propList = propsRes?.properties || [];
+      const agentList = agentsRes?.agents || [];
+      const auditsWithProps = (res?.audits || []).map((a: AuditTask) => {
+        const property = a.asset_id ? propList.find((p: Property) => p.id === a.asset_id) : undefined;
+        const agent = a.assigned_agent ? agentList.find((ag: any) => ag.id === a.assigned_agent) : undefined;
         return {
-
           ...a,
-
           property,
-
           property_address: property?.address,
-
           agent_name: agent?.full_name || "Unknown Agent"
-
         };
-
       });
-
       setAudits(auditsWithProps);
-
-      setProperties(propsRes.properties);
-
-      setAgents(agentsRes.agents || []);
-
+      setProperties(propList);
+      setAgents(agentList);
     } catch (err) {
-
       console.error(err);
-
     } finally {
-
       setIsLoading(false);
-
     }
-
   };
 
-
-
   useEffect(() => {
-
     let active = true;
-
     async function init() {
-
       try {
-
         const [res, propsRes, agentsRes] = await Promise.all([
-
           fetchAudits(),
-
           fetchProperties(),
-
           fetchAgentPerformance()
-
         ]);
-
         if (active) {
-
-          const auditsWithProps = res.audits.map((a: AuditTask) => {
-
-            const property = propsRes.properties.find((p: Property) => p.id === a.asset_id);
-
-            const agent = agentsRes.agents?.find((ag: any) => ag.id === a.assigned_agent);
-
+          const propList = propsRes?.properties || [];
+          const agentList = agentsRes?.agents || [];
+          const auditsWithProps = (res?.audits || []).map((a: AuditTask) => {
+            const property = a.asset_id ? propList.find((p: Property) => p.id === a.asset_id) : undefined;
+            const agent = a.assigned_agent ? agentList.find((ag: any) => ag.id === a.assigned_agent) : undefined;
             return {
-
               ...a,
-
               property,
-
               property_address: property?.address,
-
               agent_name: agent?.full_name || "Unknown Agent"
-
             };
-
           });
 
           setAudits(auditsWithProps);

@@ -6,41 +6,28 @@ from pydantic import BaseModel
 
 
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
+from fastapi import APIRouter, Depends, File, Header, HTTPException, Query, UploadFile, status
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
 
+from app.core.rate_limit import rate_limit
 from app.core.rbac import require_permission
-
 from app.core.security import get_current_user
-
 from app.db.session import get_db
-
 from app.domains.authentication.models import User
-
 from app.domains.authentication.repository import UserRepository
-
 from app.domains.authentication.schemas import (AuthResponse, UserCreate,
-
                                                 UserLogin, UserResponse,
-
                                                 UserUpdate)
-
 from app.domains.authentication.service import AuthenticationService
-
 from app.domains.authentication.validators import validate_password_strength
-
-
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
-
-
-
-@router.post("/login")
+@router.post("/login", dependencies=[Depends(rate_limit(limit=15, window_seconds=60, key_prefix="login"))])
 async def login(credentials: UserLogin, db: AsyncSession = Depends(get_db)):
     try:
         repo = UserRepository(db)
@@ -83,11 +70,11 @@ async def login(credentials: UserLogin, db: AsyncSession = Depends(get_db)):
 
 
 @router.post(
-
-    "/signup", response_model=AuthResponse, status_code=status.HTTP_201_CREATED
-
+    "/signup",
+    response_model=AuthResponse,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(rate_limit(limit=10, window_seconds=60, key_prefix="signup"))]
 )
-
 async def signup(payload: UserCreate, db: AsyncSession = Depends(get_db)):
 
     repo = UserRepository(db)
@@ -116,11 +103,75 @@ async def signup(payload: UserCreate, db: AsyncSession = Depends(get_db)):
 
 
 
+class ProfileUpdate(BaseModel):
+    full_name: Optional[str] = None
+    avatar_url: Optional[str] = None
+    phone: Optional[str] = None
+
+
 @router.get("/me", response_model=UserResponse)
-
 async def get_me(current_user: User = Depends(get_current_user)):
-
     return UserResponse.model_validate(current_user)
+
+
+@router.put("/me", response_model=UserResponse)
+@router.put("/profile", response_model=UserResponse)
+async def update_profile(
+    payload: ProfileUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    from sqlalchemy import select, update
+    values_to_update = {}
+    if payload.full_name is not None:
+        values_to_update["full_name"] = payload.full_name.strip()
+    if payload.avatar_url is not None:
+        values_to_update["avatar_url"] = payload.avatar_url.strip()
+    if payload.phone is not None:
+        values_to_update["phone"] = payload.phone.strip()
+
+    if values_to_update:
+        stmt = (
+            update(User)
+            .where((User.id == current_user.id) | (User.email == current_user.email))
+            .values(**values_to_update)
+        )
+        await db.execute(stmt)
+        await db.commit()
+
+    stmt_select = select(User).where((User.id == current_user.id) | (User.email == current_user.email))
+    res = await db.execute(stmt_select)
+    user = res.scalar_one_or_none()
+    if not user:
+        user = current_user
+        for k, v in values_to_update.items():
+            setattr(user, k, v)
+    return UserResponse.model_validate(user)
+
+
+@router.post("/upload-avatar")
+async def upload_avatar(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+):
+    import os
+    import uuid
+    file_ext = os.path.splitext(file.filename or "")[1].lower()
+    if file_ext not in (".jpg", ".jpeg", ".png", ".gif", ".webp"):
+        raise HTTPException(
+            status_code=400,
+            detail="Only JPG, JPEG, PNG, GIF, and WEBP images are supported.",
+        )
+    # Check max size 5MB
+    content = await file.read()
+    if len(content) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Avatar image file exceeds 5MB limit.")
+    os.makedirs(os.path.join("static", "avatars"), exist_ok=True)
+    unique_filename = f"avatar_{current_user.id}_{uuid.uuid4().hex[:8]}{file_ext}"
+    target_path = os.path.join("static", "avatars", unique_filename)
+    with open(target_path, "wb") as f:
+        f.write(content)
+    return {"avatar_url": f"/static/avatars/{unique_filename}"}
 
 
 
@@ -311,8 +362,10 @@ class ChangePasswordPayload(BaseModel):
 
 
 
-@router.post("/change-password")
-
+@router.post(
+    "/change-password",
+    dependencies=[Depends(rate_limit(limit=10, window_seconds=60, key_prefix="change_pwd"))]
+)
 async def change_password(
 
     payload: ChangePasswordPayload,
@@ -331,10 +384,12 @@ async def change_password(
 
 
 
-    if payload.old_password and current_user.password_hash:
-
+    # For established users, verify old password.
+    # When requires_password_change is True (new account / first login rotation), old_password check is waived.
+    if current_user.password_hash and not getattr(current_user, "requires_password_change", False):
+        if not payload.old_password:
+            raise HTTPException(status_code=400, detail="Old password is required.")
         if not verify_password(payload.old_password, current_user.password_hash):
-
             raise HTTPException(status_code=400, detail="Invalid old password.")
 
 

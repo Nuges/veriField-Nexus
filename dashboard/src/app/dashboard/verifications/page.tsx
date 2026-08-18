@@ -609,37 +609,21 @@ export default function VerificationsPage() {
                           <div>
 
                             <p className="text-xs font-black text-[var(--color-text-primary)]">{name}</p>
-
                             <p className="text-[10px] text-[var(--color-text-secondary)] font-mono mt-0.5">
-
-                              ID: {act.id.substring(0, 18)}...
-
+                              ID: {act.id ? String(act.id).substring(0, 18) : "—"}...
                             </p>
-
                           </div>
-
                           <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 font-extrabold border border-amber-500/30">
-
                             {act.trust_score ? `${act.trust_score} REVIEW` : "AUDIT"}
-
                           </span>
-
                         </div>
 
-
-
                         <div className="text-[10px] text-[var(--color-text-secondary)] space-y-1">
-
                           <p>Agent: <strong className="text-[var(--color-text-primary)]">{act.agent_name || "Field Agent"}</strong></p>
-
-                          <p>Captured: <span className="font-mono">{new Date(act.captured_at).toLocaleDateString()}</span></p>
-
+                          <p>Captured: <span className="font-mono">{act.captured_at ? new Date(act.captured_at).toLocaleDateString() : "—"}</span></p>
                           {act.latitude && (
-
                             <p className="font-mono text-blue-400">GPS: {act.latitude.toFixed(5)}, {act.longitude.toFixed(5)}</p>
-
                           )}
-
                         </div>
 
 
@@ -749,93 +733,49 @@ export default function VerificationsPage() {
             ) : (
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
                 {audits.map(audit => (
-
                   <Link
-
                     key={audit.id}
-
-                    href={`/dashboard/properties/${audit.asset_id}`}
-
+                    href={audit.asset_id ? `/dashboard/properties/${audit.asset_id}` : `/dashboard/audits`}
                     className="bg-[var(--color-surface)] border border-[var(--color-border)] p-4 rounded-2xl flex items-center justify-between shadow-sm hover:border-[#00B47A]/30 hover:shadow-md transition-all group cursor-pointer active:scale-[0.99] block"
-
                   >
-
                     <div className="flex items-center justify-between w-full">
-
                       <div className="space-y-1 max-w-[70%]">
-
                         <div className="flex items-center gap-2">
-
                           <span className="w-2 h-2 rounded-full bg-[#00B47A] shrink-0" />
-
                           <p className="text-xs font-bold text-[var(--color-text-primary)] truncate group-hover:text-[#00B47A] transition-colors" title={audit.property_name || `Unknown ${wsConfig?.label || "Asset"}`}>
-
-                            {audit.property_name || `${wsConfig?.label || "Asset"} ID: ${audit.asset_id.substring(0, 8)}`}
-
+                            {audit.property_name || (audit.asset_id ? `${wsConfig?.label || "Asset"} ID: ${String(audit.asset_id).substring(0, 8)}` : `${wsConfig?.label || "Asset"} Task ${audit.id ? String(audit.id).substring(0, 8) : ""}`.trim())}
                           </p>
-
                         </div>
 
-
-
                         <p className="text-[10px] text-[var(--color-text-secondary)] font-semibold truncate">
-
                           Agent: <span className="text-[var(--color-text-primary)] font-bold">{audit.agent_name || "Unallocated"}</span>
-
                         </p>
-
-
 
                         <p className="text-[9px] text-[var(--color-text-muted)] font-medium flex items-center gap-1">
-
                           <Calendar size={11} className="text-[#00B47A]" />
-
-                          <span>Allocated: {new Date(audit.created_at).toLocaleDateString()}</span>
-
+                          <span>Allocated: {audit.created_at ? new Date(audit.created_at).toLocaleDateString() : "—"}</span>
                         </p>
-
                       </div>
-
-
 
                       <div className="flex flex-col items-end gap-1.5 shrink-0">
-
                         <span className={`px-2 py-0.5 rounded text-[8px] font-extrabold uppercase border tracking-wider shrink-0 ${
-
                           audit.status === 'completed'
-
                             ? 'bg-[#00B47A]/10 text-[#00B47A] border-[#00B47A]/20'
-
                             : 'bg-amber-500/10 text-amber-500 border-amber-500/20'
-
                         }`}>
-
                           {audit.status}
-
                         </span>
 
-
-
                         {audit.deadline && (
-
                           <span className="text-[9px] text-[var(--color-text-muted)] font-mono font-bold">
-
                             Due: {new Date(audit.deadline).toLocaleDateString()}
-
                           </span>
-
                         )}
-
                       </div>
-
                     </div>
-
                   </Link>
-
                 ))}
-
               </div>
 
             )}

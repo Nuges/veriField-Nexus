@@ -187,58 +187,42 @@ async def index_document_content(
     indexer = DocumentIndexerService(db)
 
     return await indexer.index_document(
-
         document_id=data.document_id,
-
         title=data.title,
-
         document_type=data.document_type,
-
         content_text=data.content_text,
-
+        organization_id=current_user.organization_id,
         project_id=data.project_id,
-
     )
 
 
-
 @router.get("/documents/search")
-
 async def search_document_knowledge(
-
     q: str,
-
     document_type: Optional[str] = None,
-
     project_id: Optional[str] = None,
-
     limit: int = 5,
-
     current_user: User = Depends(get_current_user),
-
     db: AsyncSession = Depends(get_db),
-
 ):
-
     if project_id:
-
         try:
-
             p_uuid = UUID(project_id)
-
             abac = ABACEngine(db, current_user)
-
             await abac.enforce_project_access(p_uuid)
-
         except (ValueError, AttributeError):
-
             raise HTTPException(status_code=400, detail="Invalid project_id format")
 
-
-
     indexer = DocumentIndexerService(db)
-
-    return await indexer.search_knowledge(q, document_type, project_id, limit)
+    is_super_admin = (current_user.role == "SUPER_ADMIN")
+    return await indexer.search_knowledge(
+        query_text=q,
+        document_type=document_type,
+        project_id=project_id,
+        organization_id=current_user.organization_id,
+        is_super_admin=is_super_admin,
+        limit=limit,
+    )
 
 
 

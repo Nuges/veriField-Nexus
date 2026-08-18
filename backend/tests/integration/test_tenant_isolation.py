@@ -19,7 +19,11 @@ from app.domains.projects.models import Project
 from app.domains.assets.models import Asset
 from app.domains.workspaces.services.dashboard_resolver import DashboardResolverService
 
+import pytest
+
+@pytest.mark.asyncio
 async def test_tenant_isolation():
+
     print("=============================================================================")
     print("Executing Multi-Tenant Isolation Integration Test Suite")
     print("=============================================================================\n")
