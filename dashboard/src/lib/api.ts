@@ -404,7 +404,18 @@ export async function apiFetch<T>(
       error = { detail: errText || response.statusText };
     }
 
-    const customError: any = new Error(error.detail || error.message || `API error: ${response.status}`);
+    let errorDetailMsg = "";
+    if (typeof error.detail === "string") {
+      errorDetailMsg = error.detail;
+    } else if (Array.isArray(error.detail)) {
+      errorDetailMsg = error.detail.map((e: any) => e.msg || e.detail || (typeof e === "string" ? e : JSON.stringify(e))).join("; ");
+    } else if (error.detail && typeof error.detail === "object") {
+      errorDetailMsg = error.detail.message || error.detail.msg || JSON.stringify(error.detail);
+    } else if (typeof error.message === "string") {
+      errorDetailMsg = error.message;
+    }
+
+    const customError: any = new Error(errorDetailMsg || `API error: ${response.status}`);
     customError.status = response.status;
     customError.statusCode = response.status;
     customError.response = response;
@@ -1388,15 +1399,10 @@ export async function updateUserAccount(
 
 
 export async function resetAgentPassword(userId: string, newPassword: string): Promise<any> {
-
   return apiFetch<any>(`/auth/users/${userId}/reset-password`, {
-
     method: "POST",
-
-    body: JSON.stringify({ new_password: newPassword }),
-
+    body: JSON.stringify({ password: newPassword, new_password: newPassword }),
   });
-
 }
 
 

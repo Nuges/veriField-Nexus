@@ -415,45 +415,33 @@ async def change_password(
 
 
 class ResetPasswordPayload(BaseModel):
-
-    password: str
-
+    password: Optional[str] = None
+    new_password: Optional[str] = None
 
 
 @router.post("/users/{user_id}/reset-password")
-
 async def force_reset_password(
-
     user_id: UUID,
-
     payload: ResetPasswordPayload,
-
     current_user: User = Depends(require_permission("team:manage")),
-
     db: AsyncSession = Depends(get_db)
-
 ):
-
     from app.core.security import get_password_hash
-
     repo = UserRepository(db)
-
     service = AuthenticationService(repo)
-
     target = await service.get_user(user_id)
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found.")
 
     if current_user.role != "SUPER_ADMIN" and target.organization_id != current_user.organization_id:
-
         raise HTTPException(status_code=403, detail="Cannot modify user from different organization.")
 
+    raw_pw = payload.new_password or payload.password
+    if not raw_pw:
+        raise HTTPException(status_code=400, detail="Password is required.")
 
-
-    validate_password_strength(payload.password)
-
-    hashed_pw = get_password_hash(payload.password)
-
-
+    validate_password_strength(raw_pw)
+    hashed_pw = get_password_hash(raw_pw)
 
     updated = await service.update_user(user_id, {"password_hash": hashed_pw, "requires_password_change": True}, actor_id=str(current_user.id))
-
     return {"status": "success", "message": "Password reset successfully."}
