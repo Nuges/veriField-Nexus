@@ -444,7 +444,7 @@ export default function ActivitiesPage() {
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 animate-fade-in-up stagger-children">
 
-        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4 flex flex-col justify-between shadow-sm border-l-4 border-l-[#00B47A] hover:shadow-md transition-all">
+        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4 flex flex-col justify-between shadow-sm hover:shadow-md transition-all">
 
           <span className="text-[9px] uppercase font-extrabold tracking-wider text-[var(--color-text-muted)]">Submissions Ledger</span>
 
@@ -470,7 +470,7 @@ export default function ActivitiesPage() {
 
 
 
-        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4 flex flex-col justify-between shadow-sm border-l-4 border-l-emerald-500 hover:shadow-md transition-all">
+        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4 flex flex-col justify-between shadow-sm hover:shadow-md transition-all">
 
           <span className="text-[9px] uppercase font-extrabold tracking-wider text-[var(--color-text-muted)]">High Trust Rate</span>
 
@@ -492,7 +492,7 @@ export default function ActivitiesPage() {
 
 
 
-        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4 flex flex-col justify-between shadow-sm border-l-4 border-l-amber-500 hover:shadow-md transition-all">
+        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4 flex flex-col justify-between shadow-sm hover:shadow-md transition-all">
 
           <span className="text-[9px] uppercase font-extrabold tracking-wider text-[var(--color-text-muted)]">Pending Audit</span>
 
@@ -518,7 +518,7 @@ export default function ActivitiesPage() {
 
 
 
-        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4 flex flex-col justify-between shadow-sm border-l-4 border-l-red-500 hover:shadow-md transition-all">
+        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4 flex flex-col justify-between shadow-sm hover:shadow-md transition-all">
 
           <span className="text-[9px] uppercase font-extrabold tracking-wider text-[var(--color-text-muted)]">Flagged Risks</span>
 
