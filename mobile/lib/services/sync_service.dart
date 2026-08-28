@@ -124,7 +124,43 @@ class SyncService {
 
   /// Returns the public URL of the uploaded image.
 
+  ///
+
+  /// Primary path: uploads via the backend's /activities/upload-proof
+
+  /// endpoint (authenticated with the user's JWT). The backend handles
+
+  /// Supabase Storage upload server-side using the service role key.
+
+  /// Fallback: direct Supabase Storage upload (requires valid client session).
+
   static Future<String?> uploadImage(XFile imageFile, String fileName) async {
+
+    // --- Primary: Upload via authenticated backend endpoint ---
+
+    try {
+
+      final url = await ApiService.uploadProofImage(imageFile, fileName: fileName);
+
+      if (url != null && url.isNotEmpty) {
+
+        debugPrint('[SyncService] Image uploaded via backend: $url');
+
+        return url;
+
+      }
+
+      debugPrint('[SyncService] Backend upload returned null, falling back to direct Supabase');
+
+    } catch (e) {
+
+      debugPrint('[SyncService] Backend upload failed, falling back to direct Supabase: $e');
+
+    }
+
+
+
+    // --- Fallback: Direct Supabase Storage upload ---
 
     try {
 
@@ -153,6 +189,8 @@ class SyncService {
       return publicUrl;
 
     } catch (e) {
+
+      debugPrint('[SyncService] Direct Supabase upload also failed: $e');
 
       return null;
 

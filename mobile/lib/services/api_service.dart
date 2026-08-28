@@ -526,6 +526,86 @@ class ApiService {
 
 
 
+  /// Upload a proof/activity image via the backend's /activities/upload-proof
+  /// endpoint. Returns the image URL from Supabase Storage (live) or local
+  /// filesystem (dev). This routes through the authenticated backend so the
+  /// mobile app does not need direct Supabase Storage credentials.
+  static Future<String?> uploadProofImage(XFile file, {String? fileName}) async {
+
+    try {
+
+      final uri = Uri.parse('$baseUrl/activities/upload-proof');
+
+      final request = http.MultipartRequest('POST', uri);
+
+      if (_authToken != null) {
+
+        request.headers['Authorization'] = 'Bearer $_authToken';
+
+      }
+
+      final effectiveName = fileName ?? file.name;
+
+      if (kIsWeb) {
+
+        final bytes = await file.readAsBytes();
+
+        final multipartFile = http.MultipartFile.fromBytes(
+
+          'file',
+
+          bytes,
+
+          filename: effectiveName,
+
+        );
+
+        request.files.add(multipartFile);
+
+      } else {
+
+        final multipartFile = await http.MultipartFile.fromPath(
+
+          'file', file.path, filename: effectiveName,
+
+        );
+
+        request.files.add(multipartFile);
+
+      }
+
+      final streamedResponse = await request.send().timeout(const Duration(seconds: 60));
+
+      final response = await http.Response.fromStream(streamedResponse);
+
+      debugPrint('[ApiService] uploadProofImage status: ${response.statusCode}');
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+
+        return data['image_url'] as String?;
+
+      } else {
+
+        debugPrint('[ApiService] uploadProofImage failed: ${response.body}');
+
+        return null;
+
+      }
+
+    } catch (e) {
+
+      debugPrint('[ApiService] uploadProofImage exception: $e');
+
+      return null;
+
+    }
+
+  }
+
+
+
   // =========================================================================
 
   // Response Handler

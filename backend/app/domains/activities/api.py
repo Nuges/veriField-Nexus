@@ -512,9 +512,103 @@ async def upload_proof(
 
 
 
-    os.makedirs(os.path.join("static", "proofs"), exist_ok=True)
-
     unique_filename = f"{uuid.uuid4()}{file_ext}"
+
+    file_bytes = await file.read()
+
+
+
+    # --- Primary: Upload to Supabase Storage when configured ---
+
+    from app.core.config import settings
+
+    supabase_url = settings.supabase_url
+
+    admin_key = settings.supabase_admin_key
+
+    bucket = "activity-photos"
+
+
+
+    if supabase_url and admin_key:
+
+        import httpx
+
+        import logging
+
+        logger = logging.getLogger("verifield.upload")
+
+
+
+        # Determine content type
+
+        content_type_map = {
+
+            ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+
+            ".png": "image/png", ".gif": "image/gif", ".webp": "image/webp",
+
+        }
+
+        content_type = content_type_map.get(file_ext, "image/jpeg")
+
+
+
+        upload_url = f"{supabase_url}/storage/v1/object/{bucket}/{unique_filename}"
+
+        headers = {
+
+            "Authorization": f"Bearer {admin_key}",
+
+            "apikey": admin_key,
+
+            "Content-Type": content_type,
+
+            "x-upsert": "true",
+
+        }
+
+
+
+        try:
+
+            async with httpx.AsyncClient(timeout=30.0) as client:
+
+                resp = await client.post(upload_url, content=file_bytes, headers=headers)
+
+
+
+            if resp.status_code in (200, 201):
+
+                public_url = f"{supabase_url}/storage/v1/object/public/{bucket}/{unique_filename}"
+
+                logger.info("Uploaded proof image to Supabase Storage: %s", unique_filename)
+
+                return {"image_url": public_url}
+
+            else:
+
+                logger.error(
+
+                    "Supabase Storage upload failed (status %s): %s",
+
+                    resp.status_code, resp.text,
+
+                )
+
+                # Fall through to local filesystem fallback
+
+        except Exception as e:
+
+            logger.error("Supabase Storage upload exception: %s", e)
+
+            # Fall through to local filesystem fallback
+
+
+
+    # --- Fallback: Save to local filesystem (dev / no Supabase) ---
+
+    os.makedirs(os.path.join("static", "proofs"), exist_ok=True)
 
     target_path = os.path.join("static", "proofs", unique_filename)
 
@@ -524,7 +618,7 @@ async def upload_proof(
 
         with open(target_path, "wb") as buffer:
 
-            shutil.copyfileobj(file.file, buffer)
+            buffer.write(file_bytes)
 
     except Exception as e:
 
