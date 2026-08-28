@@ -150,6 +150,13 @@ def _get_fallback_session_factory():
     return fallback_session_factory
 
 
+def get_session_factory():
+    """Returns the active session factory (fallback in tests/offline, async_session_factory in prod)."""
+    if _fallback_initialized:
+        return _get_fallback_session_factory()
+    return async_session_factory
+
+
 
 _fallback_initialized = False
 _fallback_init_lock = None

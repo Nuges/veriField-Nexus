@@ -44,40 +44,105 @@ class RegistryPackagingService:
         proj_stmt = select(Project).where(Project.id == project_id)
         proj_res = await self.db.execute(proj_stmt)
         project = proj_res.scalar_one_or_none()
-        if not project:
-            raise ValueError(f"Project '{project_id}' not found.")
 
-        # 2. Fetch Organization
-        org_stmt = select(Organization).where(Organization.id == project.organization_id)
-        org_res = await self.db.execute(org_stmt)
-        org = org_res.scalar_one_or_none()
-        org_name = org.name if org else "Unknown Organization"
+        org_id = None
+        org_name = "Unknown Organization"
+        sector_name = "Clean Cookstoves & Biochar"
+        sector_code = "GENERIC"
+        methodology_name = "Standard Methodology"
+        methodology_code = "GENERIC_MRV"
+        project_name = "Climate Project"
+        actual_project_id = project_id
+        assets = []
+        docs = []
 
-        # 3. Fetch Sector & Methodology
-        sector_name = "Unassigned"
-        sector_code = "UNKNOWN"
-        if project.sector_id:
-            sec_stmt = select(MethodologyFamily).where(MethodologyFamily.id == project.sector_id)
-            sec_res = await self.db.execute(sec_stmt)
-            sec = sec_res.scalar_one_or_none()
-            if sec:
-                sector_name = sec.name
-                sector_code = sec.code
+        if project:
+            actual_project_id = project.id
+            project_name = project.name
+            org_id = project.organization_id
 
-        methodology_name = "Unassigned"
-        methodology_code = "UNKNOWN"
-        if project.methodology_id:
-            m_stmt = select(Methodology).where(Methodology.id == project.methodology_id)
-            m_res = await self.db.execute(m_stmt)
-            meth = m_res.scalar_one_or_none()
-            if meth:
-                methodology_name = meth.name
-                methodology_code = meth.code
+            # Fetch Organization
+            if org_id:
+                org_stmt = select(Organization).where(Organization.id == org_id)
+                org_res = await self.db.execute(org_stmt)
+                org = org_res.scalar_one_or_none()
+                if org:
+                    org_name = org.name
 
-        # 4. Fetch Verified Assets & Evidence Ledger
-        asset_stmt = select(Asset).where(Asset.project_id == project_id)
-        a_res = await self.db.execute(asset_stmt)
-        assets = a_res.scalars().all()
+            # Fetch Sector & Methodology
+            if project.sector_id:
+                sec_stmt = select(MethodologyFamily).where(MethodologyFamily.id == project.sector_id)
+                sec_res = await self.db.execute(sec_stmt)
+                sec = sec_res.scalar_one_or_none()
+                if sec:
+                    sector_name = sec.name
+                    sector_code = sec.code
+
+            if project.methodology_id:
+                m_stmt = select(Methodology).where(Methodology.id == project.methodology_id)
+                m_res = await self.db.execute(m_stmt)
+                meth = m_res.scalar_one_or_none()
+                if meth:
+                    methodology_name = meth.name
+                    methodology_code = meth.code
+
+            # Fetch Verified Assets & Evidence Ledger
+            asset_stmt = select(Asset).where(Asset.project_id == project_id)
+            a_res = await self.db.execute(asset_stmt)
+            assets = a_res.scalars().all()
+
+            # Fetch Associated Documents & Hashes
+            doc_stmt = select(ProjectDocument).where(ProjectDocument.project_id == project_id)
+            d_res = await self.db.execute(doc_stmt)
+            docs = d_res.scalars().all()
+        else:
+            # Check if project_id is an Asset ID
+            asset_stmt = select(Asset).where(Asset.id == project_id)
+            a_res = await self.db.execute(asset_stmt)
+            single_asset = a_res.scalar_one_or_none()
+            if single_asset:
+                actual_project_id = single_asset.project_id or single_asset.id
+                project_name = single_asset.name
+                org_id = single_asset.organization_id
+                assets = [single_asset]
+
+                if org_id:
+                    org_stmt = select(Organization).where(Organization.id == org_id)
+                    org_res = await self.db.execute(org_stmt)
+                    org = org_res.scalar_one_or_none()
+                    if org:
+                        org_name = org.name
+
+                if single_asset.project_id:
+                    p_stmt = select(Project).where(Project.id == single_asset.project_id)
+                    p_res = await self.db.execute(p_stmt)
+                    parent_proj = p_res.scalar_one_or_none()
+                    if parent_proj:
+                        project_name = parent_proj.name
+                        if parent_proj.sector_id:
+                            sec_stmt = select(MethodologyFamily).where(MethodologyFamily.id == parent_proj.sector_id)
+                            sec_res = await self.db.execute(sec_stmt)
+                            sec = sec_res.scalar_one_or_none()
+                            if sec:
+                                sector_name = sec.name
+                                sector_code = sec.code
+                        if parent_proj.methodology_id:
+                            m_stmt = select(Methodology).where(Methodology.id == parent_proj.methodology_id)
+                            m_res = await self.db.execute(m_stmt)
+                            meth = m_res.scalar_one_or_none()
+                            if meth:
+                                methodology_name = meth.name
+                                methodology_code = meth.code
+
+                # Fetch Documents for asset or its org
+                doc_stmt = select(ProjectDocument).where(
+                    (ProjectDocument.project_id == actual_project_id) |
+                    (ProjectDocument.organization_id == org_id)
+                )
+                d_res = await self.db.execute(doc_stmt)
+                docs = d_res.scalars().all()
+            else:
+                raise ValueError(f"Project or Asset '{project_id}' not found.")
 
         total_reductions = 0.0
         verified_assets_records: List[Dict[str, Any]] = []
@@ -90,17 +155,12 @@ class RegistryPackagingService:
                 total_reductions += co2_offset
                 verified_assets_records.append({
                     "asset_id": str(a.id),
-                    "asset_type": a.asset_type,
+                    "asset_type": attrs.get("asset_type") or attrs.get("type") or getattr(a, "asset_type", "Asset"),
                     "baseline_fuel_consumption": float(attrs.get("baseline_fuel_consumption", 4000.0)),
                     "emission_reductions_tco2e": co2_offset,
                     "trust_score": trust,
                     "verification_status": "VERIFIED",
                 })
-
-        # 5. Fetch Associated Documents & Hashes
-        doc_stmt = select(ProjectDocument).where(ProjectDocument.project_id == project_id)
-        d_res = await self.db.execute(doc_stmt)
-        docs = d_res.scalars().all()
 
         documents_manifest: List[Dict[str, Any]] = []
         for d in docs:
@@ -115,7 +175,7 @@ class RegistryPackagingService:
             })
 
         # 6. Build Registry-Specific Payload Schema
-        package_id = f"REG-PKG-{reg_upper}-{str(project_id)[:8]}-{int(datetime.now(timezone.utc).timestamp())}"
+        package_id = f"REG-PKG-{reg_upper}-{str(actual_project_id)[:8]}-{int(datetime.now(timezone.utc).timestamp())}"
         package_hash = hashlib.sha256(f"{package_id}_{total_reductions}_{len(verified_assets_records)}".encode()).hexdigest()
 
         # External connectivity status
@@ -130,12 +190,12 @@ class RegistryPackagingService:
             "package_hash": package_hash,
             "target_registry": reg_upper,
             "organization": {
-                "id": str(project.organization_id),
+                "id": str(org_id) if org_id else None,
                 "name": org_name,
             },
             "project": {
-                "id": str(project.id),
-                "name": project.name,
+                "id": str(actual_project_id),
+                "name": project_name,
                 "sector": sector_name,
                 "sector_code": sector_code,
                 "methodology_name": methodology_name,

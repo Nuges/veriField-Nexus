@@ -40,22 +40,15 @@ def get_reporting_service(db: AsyncSession = Depends(get_db)) -> ReportingServic
 
 
 
+@router.get("", response_model=List[ReportResponse])
 @router.get("/", response_model=List[ReportResponse])
-
 async def list_org_reports(
-
     org_id: UUID,
-
     skip: int = 0,
-
     limit: int = 100,
-
     current_user: User = Depends(get_current_user),
-
     service: ReportingService = Depends(get_reporting_service),
-
 ):
-
     # Tenant isolation: non-Super Admin can only access their own org reports
     if current_user.role != "SUPER_ADMIN":
         if not current_user.organization_id or str(org_id).lower() != str(current_user.organization_id).lower():
@@ -67,11 +60,8 @@ async def list_org_reports(
     return await service.list_reports(org_id, skip=skip, limit=limit)
 
 
-
-
-
+@router.post("", response_model=ReportResponse, status_code=status.HTTP_201_CREATED)
 @router.post("/", response_model=ReportResponse, status_code=status.HTTP_201_CREATED)
-
 async def create_report(
 
     data: ReportCreate,

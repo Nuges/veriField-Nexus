@@ -208,7 +208,7 @@ export default function AssetDetailPage() {
           <ProjectDocumentsModule
             projectId={asset.project_id || asset.id}
             projectName={asset.name}
-            organizationId={asset.organization_id || undefined}
+            organizationId={asset.organization_id || asset.owner_id || undefined}
             sectorName={asset.sector || "Clean Cookstoves"}
             methodologyName={typeof asset.property_type === "string" ? asset.property_type.replace(/_/g, " ") : "Methodology"}
           />

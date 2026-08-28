@@ -343,3 +343,68 @@ async def test_registry_packaging_service():
         )
         assert nat_pkg["target_registry"] == "NIGERIA"
         assert "ARTICLE6" in nat_pkg["readiness_matrix"]["external_submission"]
+
+
+@pytest.mark.asyncio
+async def test_registry_packaging_and_pdf_generation_via_asset_id():
+    factory = _get_fallback_session_factory()
+    async with factory() as db:
+        org_id = uuid.uuid4()
+        proj_id = uuid.uuid4()
+        asset_id = uuid.uuid4()
+
+        from app.domains.assets.models import Asset
+        db.add(Organization(id=org_id, name=f"Asset Packaging Org {uuid.uuid4().hex[:6]}", org_type="DEVELOPER"))
+        db.add(Project(id=proj_id, name="Clean Stoves Portfolio", organization_id=org_id))
+        asset = Asset(
+            id=asset_id,
+            project_id=proj_id,
+            name="Clean Cookstove Unit A1",
+            organization_id=org_id,
+            status="active",
+            attributes={
+                "asset_type": "Clean Cookstove",
+                "carbon_offset_kg": 4500,
+                "trust_score": 96.5,
+                "baseline_fuel_consumption": 4200.0,
+            }
+        )
+        db.add(asset)
+        await db.commit()
+
+        # 1. Test Registry Package generation using Asset ID directly
+        packaging_svc = RegistryPackagingService(db)
+        asset_pkg = await packaging_svc.generate_registry_package(
+            registry_type="GOLD_STANDARD",
+            project_id=asset_id,
+        )
+        assert asset_pkg["target_registry"] == "GOLD_STANDARD"
+        assert asset_pkg["project"]["name"] == "Clean Stoves Portfolio"
+        assert asset_pkg["mrv_quantification"]["total_verified_assets"] == 1
+        assert asset_pkg["mrv_quantification"]["total_reductions_tco2e"] == 4.5
+
+        # 2. Test Real PDF generation using ReportingService directly
+        repo = ReportRepository(db)
+        service = ReportingService(repo)
+
+        payload = ReportCreate(
+            org_id=org_id,
+            title="Asset-Level MRV Report",
+            report_type="MRV_CARBON_LEDGER",
+            parameters={"project_id": str(asset_id)},
+        )
+
+        created_report = await service.generate_report(payload)
+        # Wait for the async task _generate_real_pdf to finish
+        for _ in range(20):
+            await asyncio.sleep(0.1)
+            async with factory() as poll_db:
+                rep_stmt = select(Report).where(Report.id == created_report.id)
+                rep_res = await poll_db.execute(rep_stmt)
+                rep = rep_res.scalar_one()
+                if rep.status in ("COMPLETED", "FAILED"):
+                    break
+
+        assert rep.status == "COMPLETED"
+        assert rep.file_uri is not None
+        assert os.path.exists(rep.file_uri)

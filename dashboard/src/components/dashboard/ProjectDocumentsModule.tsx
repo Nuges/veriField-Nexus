@@ -26,6 +26,7 @@ import {
   generateAndDownloadReport,
   fetchRegistryPackage,
 } from "@/lib/api";
+import { useWorkspace } from "@/context/WorkspaceContext";
 
 interface ProjectDocumentsModuleProps {
   projectId: string;
@@ -42,6 +43,9 @@ export const ProjectDocumentsModule: React.FC<ProjectDocumentsModuleProps> = ({
   sectorName = "Clean Sector",
   methodologyName = "Standard Methodology",
 }) => {
+  const { user } = useWorkspace();
+  const effectiveOrgId = organizationId || user?.organization_id || undefined;
+
   const [documents, setDocuments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
@@ -119,21 +123,22 @@ export const ProjectDocumentsModule: React.FC<ProjectDocumentsModuleProps> = ({
   const handleDownload = async (doc: any) => {
     try {
       await downloadDocument(doc.id, doc.original_filename);
-    } catch (err) {
-      alert("Failed to download document.");
+    } catch (err: any) {
+      alert(err.message || "Failed to download document.");
     }
   };
 
   const handleGenerateReport = async () => {
-    if (!organizationId) {
-      alert("Organization context is required to generate report.");
+    const orgIdToUse = effectiveOrgId;
+    if (!orgIdToUse) {
+      alert("Organization context is required to generate report. Please ensure your user account is assigned to an active organization.");
       return;
     }
     setGeneratingReport(true);
     try {
-      await generateAndDownloadReport(organizationId, projectId, `${projectName} MRV Carbon Ledger Certificate`);
-    } catch (err) {
-      alert("Failed to generate and download MRV report.");
+      await generateAndDownloadReport(orgIdToUse, projectId, `${projectName} MRV Carbon Ledger Certificate`);
+    } catch (err: any) {
+      alert(err.message || "Failed to generate and download MRV report.");
     } finally {
       setGeneratingReport(false);
     }
@@ -142,11 +147,12 @@ export const ProjectDocumentsModule: React.FC<ProjectDocumentsModuleProps> = ({
   const handleInspectRegistryPackage = async (registry: string) => {
     setLoadingPackage(true);
     setRegistryPackageModalOpen(true);
+    setRegistryPackageData(null);
     try {
       const data = await fetchRegistryPackage(registry, projectId);
       setRegistryPackageData(data);
-    } catch (err) {
-      alert("Failed to build registry package.");
+    } catch (err: any) {
+      alert(err.message || "Failed to build registry package.");
       setRegistryPackageModalOpen(false);
     } finally {
       setLoadingPackage(false);
@@ -587,7 +593,25 @@ export const ProjectDocumentsModule: React.FC<ProjectDocumentsModuleProps> = ({
 
                 {/* Raw JSON Preview */}
                 <div>
-                  <p className="text-[11px] font-semibold text-gray-700 dark:text-gray-300 mb-1">Raw Registry Payload</p>
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-[11px] font-semibold text-gray-700 dark:text-gray-300">Raw Registry Payload</p>
+                    <button
+                      onClick={() => {
+                        const blob = new Blob([JSON.stringify(registryPackageData, null, 2)], { type: "application/json" });
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement("a");
+                        a.href = url;
+                        a.download = `${registryPackageData.package_id || "registry_package"}.json`;
+                        document.body.appendChild(a);
+                        a.click();
+                        a.remove();
+                        window.URL.revokeObjectURL(url);
+                      }}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-md transition"
+                    >
+                      <Download className="w-3 h-3" /> Download JSON Bundle
+                    </button>
+                  </div>
                   <pre className="p-3 bg-gray-950 text-emerald-400 rounded-xl text-[10px] overflow-x-auto max-h-60 font-mono">
                     {JSON.stringify(registryPackageData, null, 2)}
                   </pre>

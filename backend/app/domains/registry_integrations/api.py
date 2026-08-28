@@ -229,14 +229,20 @@ async def get_registry_submission_package(
     """
     from app.domains.registry_integrations.services.packaging import RegistryPackagingService
     service = RegistryPackagingService(db)
-    package = await service.generate_registry_package(
-        registry_type=registry_type,
-        project_id=project_id,
-        min_trust_score=min_trust_score,
-    )
+    try:
+        package = await service.generate_registry_package(
+            registry_type=registry_type,
+            project_id=project_id,
+            min_trust_score=min_trust_score,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
     # Enforce tenant check
     if current_user.role != "SUPER_ADMIN":
-        if package["organization"]["id"] != str(current_user.organization_id):
+        pkg_org = package.get("organization", {}).get("id")
+        user_org = str(current_user.organization_id) if current_user.organization_id else None
+        if pkg_org and user_org and pkg_org.lower() != user_org.lower():
             raise HTTPException(status_code=403, detail="Forbidden: Cannot generate registry packages for another organization.")
 
     return package

@@ -767,6 +767,10 @@ export async function fetchProperties(perPage = 100, sector_id?: string): Promis
 
         owner_id: asset.organization_id || asset.owner_id,
 
+        organization_id: asset.organization_id || null,
+
+        project_id: asset.project_id || null,
+
         name: asset.name,
 
         address: asset.attributes?.location_name || asset.address || (asset.latitude && asset.longitude ? `${asset.latitude.toFixed(4)}, ${asset.longitude.toFixed(4)}` : null),
@@ -844,6 +848,10 @@ export async function fetchProperty(id: string): Promise<Property & { total_acti
       id: asset.id,
 
       owner_id: asset.organization_id || asset.owner_id,
+
+      organization_id: asset.organization_id || null,
+
+      project_id: asset.project_id || null,
 
       name: asset.name,
 
@@ -1601,12 +1609,16 @@ export async function generateAndDownloadReport(orgId: string, projectId?: strin
     }),
   });
 
-  // 2. Poll for completion briefly
+  if (!report || !report.id) {
+    throw new Error("Failed to initialize report generation.");
+  }
+
+  // 2. Poll for completion
   let attempts = 0;
-  while (attempts < 10) {
+  while (attempts < 15) {
     await new Promise((r) => setTimeout(r, 600));
     const updated = await apiFetch<any>(`/reporting/?org_id=${orgId}`);
-    const found = updated.find((r: any) => r.id === report.id);
+    const found = Array.isArray(updated) ? updated.find((r: any) => r.id === report.id) : null;
     if (found && found.status === "COMPLETED") {
       // 3. Download physical PDF
       const currentToken = getAuthToken();
@@ -1618,15 +1630,20 @@ export async function generateAndDownloadReport(orgId: string, projectId?: strin
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `mrv_report_${new Date().toISOString().slice(0, 10)}.pdf`;
+      const cleanTitle = (title || "mrv_report").toLowerCase().replace(/[^a-z0-9]+/g, "_");
+      a.download = `${cleanTitle}_${new Date().toISOString().slice(0, 10)}.pdf`;
       document.body.appendChild(a);
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
       return;
     }
+    if (found && found.status === "FAILED") {
+      throw new Error("Report generation failed on backend.");
+    }
     attempts++;
   }
+  throw new Error("Report generation timed out. Please try again.");
 }
 
 export async function fetchRegistryPackage(registryType: string, projectId: string): Promise<any> {
