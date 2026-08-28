@@ -52,58 +52,43 @@ class ApiService {
 
 
 
-  static void setCustomServerUrl(String url) {
-
+  static Future<void> setCustomServerUrl(String url) async {
     var cleaned = url.trim().replaceAll(RegExp(r'/+$'), '');
-
     if (!cleaned.startsWith('http://') && !cleaned.startsWith('https://')) {
-
       cleaned = 'http://$cleaned';
-
     }
-
     _customBaseUrl = cleaned;
-
     debugPrint('[ApiService] Custom Server URL updated: $_customBaseUrl');
-
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('custom_server_url', cleaned);
+    } catch (e) {
+      debugPrint('[ApiService] Failed to persist custom_server_url: $e');
+    }
   }
-
-
 
   static String get baseUrl {
-
     debugPrint('[ApiService] API Base URL requested: $apiBaseUrl/api/v1');
-
     return '$apiBaseUrl/api/v1';
-
   }
-
-
 
   static String? _customToken;
 
-
-
   static String? get customToken => _customToken;
 
-
-
   static Future<void> init() async {
-
     try {
-
       final prefs = await SharedPreferences.getInstance();
-
       _customToken = prefs.getString('auth_token');
-
+      final savedUrl = prefs.getString('custom_server_url');
+      if (savedUrl != null && savedUrl.isNotEmpty) {
+        _customBaseUrl = savedUrl;
+        debugPrint('[ApiService] Loaded saved custom_server_url: $_customBaseUrl');
+      }
       debugPrint('[ApiService] Initialized: customToken loaded: ${_customToken != null ? "exists" : "null"}');
-
     } catch (e) {
-
       debugPrint('[ApiService] Failed to initialize persistent customToken: $e');
-
     }
-
   }
 
 
@@ -229,19 +214,13 @@ class ApiService {
   static Future<bool> checkServerConnection() async {
 
     final candidateHosts = [
-
       apiBaseUrl,
-
+      'https://verifield-nexus.onrender.com',
       if (apiBaseUrl.contains('127.0.0.1')) apiBaseUrl.replaceAll('127.0.0.1', 'localhost'),
-
       if (apiBaseUrl.contains('localhost')) apiBaseUrl.replaceAll('localhost', '127.0.0.1'),
-
       'http://127.0.0.1:8000',
-
       'http://localhost:8000',
-
       'http://10.0.2.2:8000',
-
     ];
 
 

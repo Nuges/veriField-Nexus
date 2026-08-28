@@ -1668,7 +1668,7 @@ app.add_middleware(
     allow_origin_regex=r"http://localhost(:\d+)?|http://127\.0\.0\.1(:\d+)?|https://.*\.vercel\.app|https://.*\.onrender\.com",
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"],
-    allow_headers=["Authorization", "Content-Type", "Accept", "Origin", "X-Requested-With", "apikey"],
+    allow_headers=["*"],
 )
 
 

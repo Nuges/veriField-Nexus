@@ -66,34 +66,26 @@ async def create_activity(
 
 
 
-    org_id = current_user.organization_id or current_user.id
-
-
+    org_id = current_user.organization_id
+    if not org_id:
+        from app.domains.organizations.models import Organization
+        from sqlalchemy import select
+        org_res = await db.execute(select(Organization.id).limit(1))
+        default_org_id = org_res.scalar_one_or_none()
+        org_id = default_org_id or current_user.id
 
     repo = ActivityRepository(db)
-
     service = ActivityService(repo)
 
-
-
     # Check deduplication for offline-first clients using client_id
-
     if payload.client_id:
-
         existing = await service.get_activity_by_client(payload.client_id, org_id)
-
         if existing:
-
             return ActivityResponse.model_validate(existing)
 
-
-
     activity = await service.create_activity(
-
         payload, user_id=current_user.id, organization_id=org_id
-
     )
-
     return ActivityResponse.model_validate(activity)
 
 
@@ -571,37 +563,32 @@ async def upload_proof(
 
 
         try:
-
             async with httpx.AsyncClient(timeout=30.0) as client:
-
                 resp = await client.post(upload_url, content=file_bytes, headers=headers)
 
-
+                # If bucket does not exist, create it and retry
+                if resp.status_code in (404, 400) and ("not found" in resp.text.lower() or "bucket" in resp.text.lower()):
+                    logger.info("Attempting to auto-create missing Supabase bucket '%s'", bucket)
+                    create_bucket_url = f"{supabase_url}/storage/v1/bucket"
+                    await client.post(
+                        create_bucket_url,
+                        json={"id": bucket, "name": bucket, "public": True},
+                        headers={"Authorization": f"Bearer {admin_key}", "apikey": admin_key},
+                    )
+                    resp = await client.post(upload_url, content=file_bytes, headers=headers)
 
             if resp.status_code in (200, 201):
-
                 public_url = f"{supabase_url}/storage/v1/object/public/{bucket}/{unique_filename}"
-
                 logger.info("Uploaded proof image to Supabase Storage: %s", unique_filename)
-
                 return {"image_url": public_url}
-
             else:
-
                 logger.error(
-
                     "Supabase Storage upload failed (status %s): %s",
-
                     resp.status_code, resp.text,
-
                 )
-
                 # Fall through to local filesystem fallback
-
         except Exception as e:
-
             logger.error("Supabase Storage upload exception: %s", e)
-
             # Fall through to local filesystem fallback
 
 

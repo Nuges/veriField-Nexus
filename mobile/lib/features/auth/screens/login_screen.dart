@@ -149,51 +149,53 @@ class _LoginScreenState extends State<LoginScreen> {
           children: [
 
             Text('Enter the URL of your FastAPI backend:', style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary)),
-
             const SizedBox(height: 12),
-
             TextField(
-
               controller: controller,
-
               style: AppTypography.bodySmall.copyWith(color: AppColors.textPrimary, fontFamily: 'monospace'),
-
               decoration: const InputDecoration(
-
-                hintText: 'http://127.0.0.1:8000',
-
+                hintText: 'https://verifield-nexus.onrender.com',
                 border: OutlineInputBorder(),
-
               ),
-
             ),
-
+            const SizedBox(height: 14),
+            Text('Quick Presets:', style: AppTypography.caption.copyWith(color: AppColors.textSecondary, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                ActionChip(
+                  avatar: const Icon(Icons.cloud_done, size: 16, color: AppColors.primary),
+                  label: const Text('Live Cloud (Render)', style: TextStyle(fontSize: 12)),
+                  backgroundColor: AppColors.surfaceLight,
+                  onPressed: () {
+                    controller.text = 'https://verifield-nexus.onrender.com';
+                  },
+                ),
+                ActionChip(
+                  avatar: const Icon(Icons.computer, size: 16, color: AppColors.textSecondary),
+                  label: const Text('Local Dev', style: TextStyle(fontSize: 12)),
+                  backgroundColor: AppColors.surfaceLight,
+                  onPressed: () {
+                    controller.text = 'http://127.0.0.1:8000';
+                  },
+                ),
+              ],
+            ),
           ],
-
         ),
-
         actions: [
-
           TextButton(
-
             onPressed: () => Navigator.pop(ctx),
-
             child: const Text('Cancel'),
-
           ),
-
           ElevatedButton(
-
             onPressed: () async {
-
-              ApiService.setCustomServerUrl(controller.text);
-
-              Navigator.pop(ctx);
-
+              await ApiService.setCustomServerUrl(controller.text);
+              if (mounted) Navigator.pop(ctx);
               await _checkServerConnection();
-
             },
-
             child: const Text('Save & Connect'),
 
           ),
