@@ -64,9 +64,18 @@ class _AuditListScreenState extends State<AuditListScreen> {
           ? '/audits?per_page=50'
           : '/audits?status=$_statusFilter&per_page=50';
       final response = await ApiService.get(endpoint);
-      final auditsList = response['audits'] as List? ?? [];
+      final List<dynamic> auditsList;
+      if (response is List) {
+        auditsList = response;
+      } else if (response is Map && response['audits'] is List) {
+        auditsList = response['audits'] as List;
+      } else if (response is Map && response['tasks'] is List) {
+        auditsList = response['tasks'] as List;
+      } else {
+        auditsList = [];
+      }
       setState(() {
-        _audits = auditsList.cast<Map<String, dynamic>>();
+        _audits = auditsList.map((e) => Map<String, dynamic>.from(e as Map)).toList();
       });
     } catch (e) {
       setState(() {

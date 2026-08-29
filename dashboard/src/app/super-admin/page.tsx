@@ -1054,228 +1054,112 @@ function SuperAdminDashboard() {
 
 
   if (isLoading || !user || user.role !== "SUPER_ADMIN") {
-
     return (
-
-      <div className="flex flex-col items-center justify-center min-h-screen bg-[#090F10] space-y-3">
-
-        <div className="w-8 h-8 border-2 border-[#00B47A] border-t-transparent rounded-full animate-spin" />
-
-        <p className="text-zinc-500 text-xs font-semibold tracking-tight animate-pulse">
-
+      <div className="flex flex-col items-center justify-center min-h-screen bg-[var(--color-background)] space-y-3">
+        <div className="w-8 h-8 border-2 border-[#008A5E] border-t-transparent rounded-full animate-spin" />
+        <p className="text-[var(--color-text-secondary)] text-xs font-medium">
           Resolving Super Admin Authority...
-
         </p>
-
       </div>
-
     );
-
   }
 
-
-
   return (
-
-    <div className="min-h-screen bg-[#090F10] text-[#F8FAF9] flex flex-col font-sans select-none selection:bg-[#00B47A]/30 selection:text-white">
-
-
-
-      {/* Dynamic glow decoration */}
-
-      <div className="absolute top-0 right-1/4 w-96 h-96 bg-[#00B47A]/5 rounded-full blur-[140px] pointer-events-none" />
-
-
-
+    <div className="min-h-screen bg-[var(--color-background)] text-[var(--color-text-primary)] flex flex-col font-sans select-none">
       {/* SUPER ADMIN NAVBAR */}
-
-      <header className="sticky top-0 w-full bg-[#0E1617]/90 border-b border-[#213233]/80 z-40 backdrop-blur-sm">
-
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-
+      <header className="sticky top-0 w-full bg-[var(--color-surface)] border-b border-[var(--color-border)] z-40">
+        <div className="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
-
-            <img
-
-              src="/logo-white.png"
-
-              alt="VeriField Nexus"
-
-              className="h-7 w-auto object-contain"
-
-            />
-
-            <span className="text-xs font-mono font-extrabold uppercase px-2 py-0.5 rounded bg-[#00B47A]/15 text-[#00B47A] border border-[#00B47A]/20">
-
-              Governance
-
+            <div className="flex items-center gap-2">
+              <span className="w-6 h-6 rounded bg-[#008A5E] text-white flex items-center justify-center font-bold text-xs">V</span>
+              <span className="font-bold text-sm text-[var(--color-text-primary)]">VeriField</span>
+            </div>
+            <span className="text-[11px] font-mono font-semibold uppercase px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/50 text-[#008A5E] dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+              Super Admin Governance
             </span>
-
           </div>
 
-
-
-          <div className="flex items-center gap-4">
-
-            <div className="flex items-center gap-2 bg-[#141F20] px-3 py-1 rounded-full border border-[#213233]">
-
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-
-              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">
-
-                Super Admin Account
-
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 bg-[var(--color-background)] px-2.5 py-1 rounded-md border border-[var(--color-border)]">
+              <span className="w-2 h-2 rounded-full bg-emerald-500" />
+              <span className="text-[11px] font-semibold text-[#008A5E] dark:text-emerald-400">
+                Super Admin
               </span>
-
             </div>
 
             <button
-
               onClick={loadData}
-
               disabled={loadingData}
-
-              className="p-2 bg-[#141F20] hover:bg-[#213233] rounded-lg border border-[#213233] text-zinc-400 hover:text-white transition-colors"
-
+              className="p-1.5 bg-[var(--color-surface)] hover:bg-[var(--color-background)] rounded-md border border-[var(--color-border)] text-[var(--color-text-secondary)] transition-colors"
               title="Refresh Real-time Data"
-
             >
-
-              <RotateCw size={14} className={loadingData ? "animate-spin text-[#00B47A]" : ""} />
-
+              <RotateCw size={14} className={loadingData ? "animate-spin text-[#008A5E]" : ""} />
             </button>
 
             <button
-
               onClick={() => {
-
                 setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
-
                 setPasswordError("");
-
                 setPasswordSuccess("");
-
                 setIsPasswordModalOpen(true);
-
               }}
-
-              className="p-2 bg-[#141F20] hover:bg-[#213233] rounded-lg border border-[#213233] text-zinc-400 hover:text-white transition-colors"
-
+              className="p-1.5 bg-[var(--color-surface)] hover:bg-[var(--color-background)] rounded-md border border-[var(--color-border)] text-[var(--color-text-secondary)] transition-colors"
               title="Change Password"
-
             >
-
               <Settings size={14} />
-
             </button>
 
             <button
-
               onClick={handleSignOut}
-
-              className="text-[10px] uppercase font-bold tracking-wider py-1.5 px-3.5 rounded bg-red-950/20 hover:bg-red-950/40 border border-red-900/30 hover:border-red-500/50 text-red-400 transition-colors"
-
+              className="text-xs font-semibold py-1 px-3 rounded-md bg-red-50 dark:bg-red-950/40 hover:bg-red-100 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 transition-colors"
             >
-
               Sign Out
-
             </button>
-
           </div>
-
         </div>
-
       </header>
 
-
-
       {/* DASHBOARD WRAPPER */}
-
       <div className="flex-1 max-w-7xl w-full mx-auto p-6 flex flex-col md:flex-row gap-6">
-
-
-
         {/* SIDEBAR NAVIGATION TABS */}
-
-        <aside className="w-full md:w-64 space-y-1 bg-[#0E1617] p-3 rounded-2xl border border-[#213233] self-start">
-
-          <div className="px-3 py-2 text-[10px] uppercase tracking-wider font-extrabold text-zinc-500">
-
-            Governance Dashboard
-
+        <aside className="w-full md:w-56 space-y-1 bg-[var(--color-surface)] p-2 rounded-lg border border-[var(--color-border)] self-start">
+          <div className="px-2.5 py-1.5 text-[10px] uppercase tracking-wider font-semibold text-[var(--color-text-muted)]">
+            Governance Console
           </div>
 
-
-
           {[
-
             { id: "leads", label: "Access Requests", icon: FileCheck2 },
-
             { id: "organizations", label: "Organizations", icon: Building2 },
-
             { id: "users", label: "Users & Accounts", icon: Users },
-
             { id: "roles", label: "Roles & Permissions", icon: ShieldCheck },
-
             { id: "projects", label: "Projects & Access", icon: Database },
-
-            { id: "audit", label: "Security Audit Logs", icon: History },
-
+            { id: "audit", label: "Audit Ledger", icon: History },
             { id: "analytics", label: "System Analytics", icon: Activity }
-
           ].map(tab => (
-
             <button
-
               key={tab.id}
-
               onClick={() => setActiveTab(tab.id as Tab)}
-
-              className={`w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all ${
-
+              className={`w-full flex items-center justify-between px-2.5 py-2 rounded-md text-xs transition-colors ${
                 activeTab === tab.id
-
-                  ? "bg-[#00B47A] text-black font-extrabold"
-
-                  : "text-zinc-400 hover:text-white hover:bg-[#141F20]"
-
+                  ? "bg-emerald-50 dark:bg-emerald-950/40 text-[#008A5E] dark:text-emerald-400 font-semibold border border-emerald-200 dark:border-emerald-800"
+                  : "text-[var(--color-text-secondary)] hover:bg-[var(--color-background)] hover:text-[var(--color-text-primary)] font-medium"
               }`}
-
             >
-
-              <div className="flex items-center gap-2.5">
-
+              <div className="flex items-center gap-2">
                 <tab.icon size={15} />
-
                 <span>{tab.label}</span>
-
               </div>
-
               {tab.id === "leads" && requests.filter(r => r.status === "PENDING").length > 0 && (
-
-                <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold font-mono ${
-
-                  activeTab === "leads" ? "bg-black text-[#00B47A]" : "bg-red-500/10 text-red-400 border border-red-500/20"
-
-                }`}>
-
+                <span className="px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300">
                   {requests.filter(r => r.status === "PENDING").length}
-
                 </span>
-
               )}
-
             </button>
-
           ))}
-
         </aside>
 
-
-
         {/* MAIN PANEL */}
-
-        <main className="flex-1 bg-[#0E1617] rounded-2xl border border-[#213233] p-6 min-h-[500px] flex flex-col relative overflow-hidden">
+        <main className="flex-1 bg-[var(--color-surface)] rounded-lg border border-[var(--color-border)] p-5 min-h-[500px] flex flex-col relative">
 
 
 

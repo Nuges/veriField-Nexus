@@ -302,129 +302,92 @@ export default function PropertiesPage() {
 
 
       {/* 📊 DYNAMIC METRICS SUMMARY CARDS */}
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-
-
-
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         {/* Total Assets Summary */}
-        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-4 flex items-center justify-between shadow-sm relative overflow-hidden group hover:border-[#00B47A]/30 transition-all">
+        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-4 flex items-center justify-between">
           <div className="space-y-1">
-            <p className="text-[9px] font-extrabold text-[var(--color-text-muted)] uppercase tracking-wider">
+            <p className="text-[11px] font-medium text-[var(--color-text-secondary)]">
               {activeSector === "ev_mobility" ? "Registered EV Fleets & Stations" :
                activeSector === "hybrid_energy" ? "Registered Solar Mini-grids" :
                activeSector === "biochar" ? "Registered Biochar Pyrolyzers" :
                activeSector === "cookstoves" ? "Monitored Stove Devices" : "Monitored Carbon Assets"}
             </p>
-            <p className="text-2xl font-black text-[var(--color-text-primary)] tracking-tight">
+            <p className="text-2xl font-bold text-[var(--color-text-primary)] tracking-tight">
               {isLoading ? "..." : totalAssetsCount}
             </p>
-            <p className="text-[9px] text-[var(--color-text-muted)] font-medium">
-              {realProjects.length} Active Project{realProjects.length === 1 ? "" : "s"} Onboarded
+            <p className="text-[11px] text-[var(--color-text-muted)]">
+              {realProjects.length} Active Project{realProjects.length === 1 ? "" : "s"}
             </p>
           </div>
-          <div className="p-3 bg-[#00B47A]/5 border border-[#00B47A]/10 rounded-xl text-[#00B47A] shrink-0 group-hover:bg-[#00B47A] group-hover:text-white transition-all duration-300">
+          <div className="w-9 h-9 bg-emerald-50 dark:bg-emerald-950/40 rounded-md text-[#008A5E] flex items-center justify-center shrink-0">
             <Layers size={18} />
           </div>
         </div>
 
-
-
         {/* Total Carbon Offsets Dynamic Sum */}
-
-        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-4 flex items-center justify-between shadow-sm relative overflow-hidden group hover:border-blue-500/30 transition-all">
-
+        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-4 flex items-center justify-between">
           <div className="space-y-1">
-
-            <p className="text-[9px] font-extrabold text-[var(--color-text-muted)] uppercase tracking-wider">Verified Emissions Offsets</p>
-
-            <p className="text-2xl font-black text-blue-400 tracking-tight">
-
+            <p className="text-[11px] font-medium text-[var(--color-text-secondary)]">Verified Emissions Offsets</p>
+            <p className="text-2xl font-bold text-blue-600 dark:text-blue-400 tracking-tight">
               {isLoading ? "..." : `${totalCarbonOffset.toLocaleString()} kg`}
-
             </p>
-
-            <p className="text-[9px] text-[var(--color-text-muted)] font-medium">Avoided CO₂ output</p>
-
+            <p className="text-[11px] text-[var(--color-text-muted)]">Avoided CO₂ output</p>
           </div>
-
-          <div className="p-3 bg-blue-500/5 border border-blue-500/10 rounded-xl text-blue-400 shrink-0 group-hover:bg-blue-500 group-hover:text-white transition-all duration-300">
-
+          <div className="w-9 h-9 bg-blue-50 dark:bg-blue-950/40 rounded-md text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
             <TreePine size={18} />
-
           </div>
-
         </div>
-
-
 
         {/* Verified Gold Status Counts */}
-
-        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-4 flex items-center justify-between shadow-sm relative overflow-hidden group hover:border-purple-500/30 transition-all">
-
+        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-4 flex items-center justify-between">
           <div className="space-y-1">
-
-            <p className="text-[9px] font-extrabold text-[var(--color-text-muted)] uppercase tracking-wider">Certified Gold Standard</p>
-
-            <p className="text-2xl font-black text-[#00B47A] tracking-tight">
-
+            <p className="text-[11px] font-medium text-[var(--color-text-secondary)]">Certified Gold Standard</p>
+            <p className="text-2xl font-bold text-[#008A5E] tracking-tight">
               {isLoading ? "..." : verifiedAssetsCount}
-
             </p>
-
-            <p className="text-[9px] text-[var(--color-text-muted)] font-medium">Fully verified MRV status</p>
-
+            <p className="text-[11px] text-[var(--color-text-muted)]">Fully verified MRV status</p>
           </div>
-
-          <div className="p-3 bg-[#00B47A]/5 border border-[#00B47A]/10 rounded-xl text-[#00B47A] shrink-0 group-hover:bg-purple-500 group-hover:text-white transition-all duration-300">
-
+          <div className="w-9 h-9 bg-emerald-50 dark:bg-emerald-950/40 rounded-md text-[#008A5E] flex items-center justify-center shrink-0">
             <ShieldCheck size={18} />
-
           </div>
-
         </div>
-
-
-
       </div>
 
-
-
       {/* 📁 REGISTERED CLIMATE PROJECTS ROSTER */}
-      <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-5 shadow-sm space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[var(--color-border)] pb-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-[#00B47A]/10 text-[#00B47A] border border-[#00B47A]/20">
-              <Building2 size={20} />
+      <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-4 space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[var(--color-border)] pb-3">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-md bg-emerald-50 dark:bg-emerald-950/40 text-[#008A5E]">
+              <Building2 size={18} />
             </div>
             <div>
-              <h2 className="text-sm font-extrabold uppercase tracking-wider text-[var(--color-text-primary)]">
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-primary)]">
                 Registered Climate Projects ({realProjects.length})
               </h2>
-              <p className="text-xs text-[var(--color-text-secondary)]">
+              <p className="text-[11px] text-[var(--color-text-secondary)]">
                 All onboarded climate projects, methodologies, and spatial boundaries for your organization.
               </p>
             </div>
           </div>
           <button
             onClick={() => setShowModal(true)}
-            className="px-3.5 py-1.5 rounded-xl bg-[#00B47A] hover:bg-[#009b68] text-slate-950 font-extrabold text-xs transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
+            className="px-3 py-1.5 rounded-md bg-[#008A5E] hover:bg-[#00734E] text-white font-semibold text-xs transition-colors flex items-center gap-1.5 cursor-pointer shrink-0"
           >
-            <Plus size={14} />
+            <Plus size={13} />
             <span>+ Create New Project</span>
           </button>
         </div>
 
         {realProjects.length === 0 ? (
-          <div className="p-8 text-center bg-[var(--color-background)] rounded-xl border border-[var(--color-border)] space-y-2">
-            <p className="text-xs font-bold text-[var(--color-text-primary)]">No Projects Registered Yet</p>
-            <p className="text-[11px] text-zinc-500">Click "+ Create New Project" to onboard your first project.</p>
+          <div className="p-6 text-center bg-[var(--color-background)] rounded-md border border-[var(--color-border)] space-y-1.5">
+            <p className="text-xs font-semibold text-[var(--color-text-primary)]">No Projects Registered Yet</p>
+            <p className="text-[11px] text-[var(--color-text-muted)]">Click "+ Create New Project" to onboard your first project.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
+            <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className="border-b border-[var(--color-border)] text-[10px] font-extrabold uppercase tracking-wider text-[var(--color-text-secondary)] bg-[var(--color-background)]/50">
+                <tr className="border-b border-[var(--color-border)] text-[11px] font-semibold text-[var(--color-text-secondary)] bg-[#F8FAFC] dark:bg-slate-900">
                   <th className="py-2.5 px-3">Project Name</th>
                   <th className="py-2.5 px-3">Project Code</th>
                   <th className="py-2.5 px-3">Country</th>
@@ -434,30 +397,30 @@ export default function PropertiesPage() {
                   <th className="py-2.5 px-3 text-right">Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[var(--color-border)]">
+              <tbody className="divide-y divide-[var(--color-border)] text-xs">
                 {realProjects.map((proj) => (
-                  <tr key={proj.id} className="hover:bg-[var(--color-background)]/60 transition-colors group">
-                    <td className="py-3 px-3 font-bold text-[var(--color-text-primary)] group-hover:text-[#00B47A]">
+                  <tr key={proj.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
+                    <td className="py-2.5 px-3 font-medium text-[var(--color-text-primary)]">
                       {proj.name}
                     </td>
-                    <td className="py-3 px-3 font-mono text-[11px] text-zinc-400">
+                    <td className="py-2.5 px-3 font-mono text-[11px] text-[var(--color-text-muted)]">
                       {proj.project_code || "VF-GP-001"}
                     </td>
-                    <td className="py-3 px-3 text-zinc-300">
+                    <td className="py-2.5 px-3 text-[var(--color-text-secondary)]">
                       {proj.country || "Nigeria"}
                     </td>
-                    <td className="py-3 px-3 font-mono text-[11px] text-[#00B47A]">
-                      {proj.methodology_id ? "AMS-III.C / Verified" : "AMS-II.G"}
+                    <td className="py-2.5 px-3 font-mono text-[11px] text-[#008A5E]">
+                      {proj.methodology_id ? "AMS-III.C" : "AMS-II.G"}
                     </td>
-                    <td className="py-3 px-3 text-[11px] text-zinc-400 font-mono">
-                      {proj.crediting_start ? `${proj.crediting_start} to ${proj.crediting_end}` : "2026-2031"}
+                    <td className="py-2.5 px-3 text-[var(--color-text-secondary)] text-[11px]">
+                      {proj.crediting_start ? `${proj.crediting_start} → ${proj.crediting_end || "Ongoing"}` : "Standard 10-Year"}
                     </td>
-                    <td className="py-3 px-3 text-[11px] text-zinc-500 font-mono">
-                      {proj.created_at ? new Date(proj.created_at).toLocaleDateString() : "Today"}
+                    <td className="py-2.5 px-3 text-[var(--color-text-muted)] text-[11px]">
+                      {proj.created_at ? new Date(proj.created_at).toLocaleDateString() : "Active"}
                     </td>
-                    <td className="py-3 px-3 text-right">
-                      <span className="px-2 py-0.5 rounded text-[9px] font-extrabold uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                        ACTIVE
+                    <td className="py-2.5 px-3 text-right">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 dark:bg-emerald-950/50 text-[#008A5E] dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+                        Active
                       </span>
                     </td>
                   </tr>
@@ -469,234 +432,114 @@ export default function PropertiesPage() {
       </div>
 
       {/* 🧭 MONITORED CARBON ASSETS & DEVICES DIRECTORY TOOLBAR */}
-      <div className="pt-4 border-t border-[var(--color-border)] space-y-4">
-        <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
+      <div className="pt-3 border-t border-[var(--color-border)] space-y-3">
+        <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
           <div>
-            <h3 className="text-sm font-extrabold uppercase tracking-wider text-[var(--color-text-primary)]">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-primary)]">
               Monitored Assets & Device Telemetry
             </h3>
-            <p className="text-xs text-[var(--color-text-secondary)]">
+            <p className="text-[11px] text-[var(--color-text-secondary)]">
               Physical hardware devices, chargers, and sensors bound to onboarded projects.
             </p>
           </div>
-          <div className="relative w-full max-w-xs group">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] group-focus-within:text-[#00B47A] transition-colors" />
+          <div className="relative w-full max-w-xs">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] pointer-events-none" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search assets by name or region..."
-              className="w-full pl-9 pr-4 py-2 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl text-xs text-[var(--color-text-primary)] placeholder:text-slate-500 focus:border-[#00B47A]/40 focus:outline-none transition-all shadow-inner font-semibold"
+              className="w-full pl-8 pr-3 py-1.5 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md text-xs text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:border-[#008A5E] focus:outline-none transition-colors"
             />
           </div>
         </div>
       </div>
 
-
-
       {/* 🧭 ASSETS GRID CONTAINER */}
-
       {isLoading ? (
-
-        <div className="flex flex-col items-center justify-center py-16 space-y-3">
-
-          <div className="w-7 h-7 border-2 border-[#00B47A] border-t-transparent rounded-full animate-spin" />
-
-          <p className="text-[var(--color-text-secondary)] text-xs font-semibold tracking-tight animate-pulse">
-
-            Retrieving secure MRV properties...
-
+        <div className="flex flex-col items-center justify-center py-12 space-y-2.5">
+          <div className="w-6 h-6 border-2 border-[#008A5E] border-t-transparent rounded-full animate-spin" />
+          <p className="text-[var(--color-text-secondary)] text-xs font-medium">
+            Loading registered assets...
           </p>
-
         </div>
-
       ) : filteredProperties.length === 0 ? (
-
-        <div className="p-12 text-center flex flex-col items-center justify-center bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl max-w-md mx-auto shadow-sm">
-
-          <Building2 size={36} className="text-[var(--color-text-muted)] mb-3 animate-pulse" />
-
-          <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-primary)]">No Assets Matched</h3>
-
-          <p className="text-[var(--color-text-secondary)] text-xs mt-1 leading-relaxed">
-
-            There are no registered assets matching your query search. Please try adjusting your parameters.
-
+        <div className="p-8 text-center flex flex-col items-center justify-center bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg max-w-md mx-auto">
+          <Building2 size={28} className="text-[var(--color-text-muted)] mb-2" />
+          <h3 className="text-xs font-semibold text-[var(--color-text-primary)]">No Assets Found</h3>
+          <p className="text-[11px] text-[var(--color-text-secondary)] mt-1">
+            There are no registered assets matching your search query.
           </p>
-
         </div>
-
       ) : (
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           {filteredProperties.map((property) => {
-
             const Icon = getIcon(property.property_type);
-
             const metrics = property.sustainability_metrics as any || {};
-
             const isVerified = metrics?.status?.toLowerCase().includes("verif");
-
             const isFlagged = metrics?.status?.toLowerCase().includes("flag");
 
-
-
             return (
-
               <Link
-
                 href={`/dashboard/properties/${property.id}`}
-
                 key={property.id}
-
-                className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl overflow-hidden hover:border-[#00B47A]/30 hover:shadow-lg hover:shadow-black/10 transition-all duration-300 group flex flex-col justify-between"
-
+                className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg overflow-hidden hover:border-slate-300 dark:hover:border-slate-700 transition-colors flex flex-col justify-between"
               >
-
                 {/* Upper Module */}
-
-                <div className="p-4.5">
-
-                  <div className="flex items-start justify-between mb-3.5">
-
-                    <div className="w-10 h-10 rounded-xl bg-[#00B47A]/5 border border-[#00B47A]/10 group-hover:bg-[#00B47A] group-hover:text-white flex items-center justify-center text-[#00B47A] transition-all duration-300 shrink-0">
-
-                      <Icon size={18} />
-
+                <div className="p-4">
+                  <div className="flex items-start justify-between mb-2.5">
+                    <div className="w-8 h-8 rounded-md bg-emerald-50 dark:bg-emerald-950/40 flex items-center justify-center text-[#008A5E] shrink-0">
+                      <Icon size={16} />
                     </div>
-
-                    <span className="px-2.5 py-0.5 rounded bg-[var(--color-background)] border border-[var(--color-border)] text-[9px] font-extrabold text-[var(--color-text-secondary)] uppercase tracking-wider">
-
+                    <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-[var(--color-background)] border border-[var(--color-border)] text-[var(--color-text-secondary)] capitalize">
                       {property.property_type}
-
                     </span>
-
                   </div>
 
-
-
-                  <h3 className="text-sm font-bold text-[var(--color-text-primary)] group-hover:text-[#00B47A] transition-colors truncate" title={property.name}>
-
+                  <h3 className="text-xs font-semibold text-[var(--color-text-primary)] truncate" title={property.name}>
                     {property.name}
-
                   </h3>
-
-                  <p className="text-xs text-[var(--color-text-secondary)] mt-1 line-clamp-2 min-h-[32px] font-medium leading-relaxed">
-
-                    {property.address || "No region/address was registered."}
-
+                  <p className="text-[11px] text-[var(--color-text-secondary)] mt-0.5 line-clamp-1">
+                    {property.address || "Location unassigned"}
                   </p>
-
                 </div>
-
-
 
                 {/* Lower Module / Sustainability Info */}
-
-                <div className="p-4.5 bg-[var(--color-background)]/50 border-t border-[var(--color-border)] flex-1 flex flex-col justify-end">
-
-                  <div className="flex items-center gap-1.5 mb-3">
-
-                    <Leaf size={13} className="text-[#00B47A]" />
-
-                    <span className="text-[9px] font-extrabold text-[#00B47A] uppercase tracking-widest">
-
-                      Sustainability Profile
-
-                    </span>
-
-                  </div>
-
-
-
-                  <div className="grid grid-cols-3 gap-2">
-
-
-
-                    <div className="bg-[var(--color-surface)] rounded-xl p-2.5 border border-[var(--color-border)] shadow-inner">
-
-                      <p className="text-[8px] text-[var(--color-text-muted)] font-extrabold uppercase tracking-wider mb-0.5">Energy Score</p>
-
-                      <p className="text-xs font-black text-[#00B47A] font-mono">
-
+                <div className="p-3 bg-slate-50/60 dark:bg-slate-900/40 border-t border-[var(--color-border)]">
+                  <div className="grid grid-cols-3 gap-2 text-center">
+                    <div className="bg-[var(--color-surface)] rounded-md p-1.5 border border-[var(--color-border)]">
+                      <p className="text-[9px] text-[var(--color-text-muted)] font-medium uppercase">Score</p>
+                      <p className="text-xs font-bold text-[#008A5E]">
                         {metrics?.energy_score || 'N/A'}
-
                       </p>
-
                     </div>
 
-
-
-                    <div className="bg-[var(--color-surface)] rounded-xl p-2.5 border border-[var(--color-border)] shadow-inner">
-
-                      <p className="text-[8px] text-[var(--color-text-muted)] font-extrabold uppercase tracking-wider mb-0.5">Offset CO₂</p>
-
-                      <p className="text-xs font-black text-blue-400 font-mono truncate">
-
+                    <div className="bg-[var(--color-surface)] rounded-md p-1.5 border border-[var(--color-border)]">
+                      <p className="text-[9px] text-[var(--color-text-muted)] font-medium uppercase">Offset</p>
+                      <p className="text-xs font-bold text-blue-600 dark:text-blue-400 truncate">
                         {metrics?.carbon_offset_kg ? `${metrics.carbon_offset_kg}kg` : 'N/A'}
-
                       </p>
-
                     </div>
 
-
-
-                    <div className="bg-[var(--color-surface)] rounded-xl p-2.5 border border-[var(--color-border)] shadow-inner overflow-hidden">
-
-                      <p className="text-[8px] text-[var(--color-text-muted)] font-extrabold uppercase tracking-wider mb-0.5">Status</p>
-
-                      <p className={`text-[10px] font-extrabold uppercase truncate ${
-
+                    <div className="bg-[var(--color-surface)] rounded-md p-1.5 border border-[var(--color-border)]">
+                      <p className="text-[9px] text-[var(--color-text-muted)] font-medium uppercase">Status</p>
+                      <p className={`text-[10px] font-semibold truncate ${
                         isVerified
-
-                          ? "text-[#00B47A]"
-
+                          ? "text-[#008A5E]"
                           : isFlagged
-
-                          ? "text-red-500"
-
-                          : "text-amber-500"
-
+                          ? "text-red-600 dark:text-red-400"
+                          : "text-amber-600 dark:text-amber-400"
                       }`} title={metrics?.status || 'Unverified'}>
-
-                        {metrics?.status || 'Unverified'}
-
+                        {metrics?.status || 'Active'}
                       </p>
-
                     </div>
-
-
-
                   </div>
-
-
-
-                  {/* Micro-interaction Hover Indicator */}
-
-                  <div className="mt-3.5 pt-2.5 border-t border-[var(--color-border)]/5 flex items-center justify-between text-[9px] font-extrabold text-[var(--color-text-secondary)] uppercase tracking-wider opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-
-                    <span>Inspect Ledger Details</span>
-
-                    <ArrowRight size={12} className="text-[#00B47A] transform translate-x-0 group-hover:translate-x-1 transition-transform" />
-
-                  </div>
-
-
-
                 </div>
-
               </Link>
-
             );
-
           })}
-
         </div>
-
       )}
-
-
 
       {/* ➕ CREATE NEW PROJECT ONBOARDING MODAL */}
 

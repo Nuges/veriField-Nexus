@@ -228,10 +228,10 @@ export function DataTable<T extends Record<string, any>>({
       )}
 
       {/* Control Toolbar: Search, Select Filters, Date Range, Reset */}
-      <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-3 shadow-sm flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+      <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-2.5 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2.5">
         {/* Search Input */}
         <div className="relative flex-1 min-w-[240px]">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] pointer-events-none" />
           <input
             type="text"
             value={searchQuery}
@@ -240,14 +240,14 @@ export function DataTable<T extends Record<string, any>>({
               setCurrentPage(1);
             }}
             placeholder={searchPlaceholder}
-            className="w-full pl-9 pr-8 py-2 rounded-lg bg-[var(--color-background)] border border-[var(--color-border)] text-xs text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-emerald-500 focus:ring-1"
+            className="w-full pl-8 pr-8 py-1.5 rounded-md bg-[var(--color-background)] border border-[var(--color-border)] text-xs text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[#008A5E]"
           />
           {searchQuery && (
             <button
               onClick={() => setSearchQuery("")}
               className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
             >
-              <X size={14} />
+              <X size={13} />
             </button>
           )}
         </div>
@@ -260,7 +260,7 @@ export function DataTable<T extends Record<string, any>>({
               key={filter.key}
               value={selectedFilters[filter.key] || "ALL"}
               onChange={e => handleFilterChange(filter.key, e.target.value)}
-              className="py-2 px-3 rounded-lg bg-[var(--color-background)] border border-[var(--color-border)] text-xs text-[var(--color-text-primary)] focus:outline-none focus:border-emerald-500"
+              className="py-1.5 px-2.5 rounded-md bg-[var(--color-background)] border border-[var(--color-border)] text-xs text-[var(--color-text-primary)] focus:outline-none focus:border-[#008A5E]"
             >
               <option value="ALL">{filter.label}: All</option>
               {filter.options.map(opt => (
@@ -274,14 +274,14 @@ export function DataTable<T extends Record<string, any>>({
           {/* Date Range Selector (if dateKey provided) */}
           {dateKey && (
             <div className="relative flex items-center">
-              <Calendar size={14} className="absolute left-2.5 text-[var(--color-text-muted)] pointer-events-none" />
+              <Calendar size={13} className="absolute left-2.5 text-[var(--color-text-muted)] pointer-events-none" />
               <select
                 value={dateRange}
                 onChange={e => {
                   setDateRange(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="pl-8 pr-3 py-2 rounded-lg bg-[var(--color-background)] border border-[var(--color-border)] text-xs text-[var(--color-text-primary)] focus:outline-none focus:border-emerald-500"
+                className="pl-7 pr-3 py-1.5 rounded-md bg-[var(--color-background)] border border-[var(--color-border)] text-xs text-[var(--color-text-primary)] focus:outline-none focus:border-[#008A5E]"
               >
                 <option value="all">Date: All Time</option>
                 <option value="today">Today</option>
@@ -296,10 +296,10 @@ export function DataTable<T extends Record<string, any>>({
           {hasActiveFilters && (
             <button
               onClick={resetFilters}
-              className="px-2.5 py-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 text-xs flex items-center gap-1.5 transition-colors"
+              className="px-2.5 py-1.5 rounded-md bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 text-xs flex items-center gap-1.5 transition-colors"
               title="Reset all filters"
             >
-              <RefreshCw size={12} />
+              <RefreshCw size={11} />
               Reset
             </button>
           )}
@@ -307,16 +307,16 @@ export function DataTable<T extends Record<string, any>>({
       </div>
 
       {/* Main Table View */}
-      <div className="bg-[var(--color-card)] border border-[var(--color-border)] rounded-xl overflow-hidden shadow-md">
+      <div className="bg-[var(--color-card)] border border-[var(--color-border)] rounded-lg overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-[var(--color-surface)] border-b border-[var(--color-border)] text-[11px] font-bold text-[var(--color-text-secondary)] uppercase tracking-wider">
+              <tr className="bg-[#F8FAFC] dark:bg-slate-900 border-b border-[var(--color-border)] text-[11px] font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider">
                 {columns.map(col => (
                   <th
                     key={col.key}
                     onClick={() => col.sortable !== false && handleSort(col.key)}
-                    className={`py-3 px-4 transition-colors ${
+                    className={`py-2.5 px-3.5 transition-colors ${
                       col.sortable !== false ? "cursor-pointer hover:text-[var(--color-text-primary)] select-none" : ""
                     } ${col.align === "right" ? "text-right" : col.align === "center" ? "text-center" : "text-left"}`}
                   >
@@ -330,12 +330,12 @@ export function DataTable<T extends Record<string, any>>({
                         <span>
                           {sortKey === col.key ? (
                             sortDir === "asc" ? (
-                              <ChevronUp size={14} className="text-emerald-400" />
+                              <ChevronUp size={13} className="text-[#008A5E]" />
                             ) : (
-                              <ChevronDown size={14} className="text-emerald-400" />
+                              <ChevronDown size={13} className="text-[#008A5E]" />
                             )
                           ) : (
-                            <ChevronsUpDown size={12} className="text-[var(--color-text-muted)] opacity-50" />
+                            <ChevronsUpDown size={12} className="text-[var(--color-text-muted)] opacity-40" />
                           )}
                         </span>
                       )}

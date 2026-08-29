@@ -397,34 +397,12 @@ class _LoginScreenState extends State<LoginScreen> {
 
 
   Widget _buildHeader() {
-
     return Column(
-
       crossAxisAlignment: CrossAxisAlignment.start,
-
       children: [
-
-        // App icon
-
-        Container(
-
-          width: 56,
-
-          height: 56,
-
-          decoration: BoxDecoration(
-
-            gradient: AppColors.primaryGradient,
-
-            borderRadius: BorderRadius.circular(16),
-
-          ),
-
-          child: const Icon(Icons.verified_rounded, color: Colors.white, size: 32),
-
-        ).animate().fadeIn(duration: 500.ms).scale(begin: const Offset(0.8, 0.8)),
-
-
+        // App logo
+        const VFLogo(height: 38, isDark: true)
+            .animate().fadeIn(duration: 500.ms).scale(begin: const Offset(0.9, 0.9)),
 
         const SizedBox(height: AppSpacing.xl),
 

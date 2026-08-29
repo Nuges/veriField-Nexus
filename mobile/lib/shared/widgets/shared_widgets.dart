@@ -409,3 +409,65 @@ class VFNotification {
     );
   }
 }
+
+// =============================================================================
+// VFLogo — Official VeriField Nexus Brand Logo Widget
+// =============================================================================
+class VFLogo extends StatelessWidget {
+  final double height;
+  final bool showText;
+  final bool isDark;
+
+  const VFLogo({
+    super.key,
+    this.height = 32,
+    this.showText = true,
+    this.isDark = true,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final assetPath = isDark ? 'assets/images/logo-white.png' : 'assets/images/logo-black.png';
+
+    return Image.asset(
+      assetPath,
+      height: height,
+      fit: BoxFit.contain,
+      errorBuilder: (context, error, stackTrace) {
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: height,
+              height: height,
+              decoration: BoxDecoration(
+                color: AppColors.primary,
+                borderRadius: BorderRadius.circular(height * 0.25),
+              ),
+              child: Center(
+                child: Text(
+                  'V',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: height * 0.55,
+                  ),
+                ),
+              ),
+            ),
+            if (showText) ...[
+              const SizedBox(width: 8),
+              Text(
+                'VeriField Nexus',
+                style: AppTypography.title.copyWith(
+                  fontWeight: FontWeight.bold,
+                  fontSize: height * 0.5,
+                ),
+              ),
+            ],
+          ],
+        );
+      },
+    );
+  }
+}

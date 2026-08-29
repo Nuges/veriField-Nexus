@@ -1800,9 +1800,10 @@ app.include_router(
 app.include_router(evidence_router, prefix="/api/v1/evidence", tags=["Evidence & MRV"])
 
 app.include_router(
-
     verification_router, prefix="/api/v1/verification", tags=["Verification & Auditing"]
-
+)
+app.include_router(
+    verification_router, prefix="/api/v1/audits", tags=["Audits"]
 )
 
 app.include_router(finance_router, prefix="/api/v1/finance", tags=["Climate Finance"])

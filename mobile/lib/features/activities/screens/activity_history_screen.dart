@@ -90,13 +90,7 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Row(
-          children: [
-            const Icon(Icons.energy_savings_leaf_rounded, color: AppColors.primary, size: 20),
-            const SizedBox(width: 8),
-            const Text('VeriField Nexus'),
-          ],
-        ),
+        title: const VFLogo(height: 24, isDark: true),
         actions: [
           const SyncStatusIndicator(),
           if (_user != null) ...[

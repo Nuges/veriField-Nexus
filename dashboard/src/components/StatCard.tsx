@@ -25,41 +25,37 @@ export default function StatCard({
   color = "emerald",
 }: StatCardProps) {
   const colorMap: Record<string, { bg: string; text: string; icon: string }> = {
-    emerald: { bg: "bg-emerald-500/10", text: "text-emerald-600 dark:text-emerald-400", icon: "text-emerald-500" },
-    blue: { bg: "bg-blue-500/10", text: "text-blue-400", icon: "text-blue-500" },
-    amber: { bg: "bg-amber-500/10", text: "text-amber-400", icon: "text-amber-500" },
-    red: { bg: "bg-red-500/10", text: "text-red-400", icon: "text-red-500" },
-    purple: { bg: "bg-purple-500/10", text: "text-purple-400", icon: "text-purple-500" },
+    emerald: { bg: "bg-emerald-50 dark:bg-emerald-950/40", text: "text-[#008A5E] dark:text-emerald-400", icon: "text-[#008A5E]" },
+    blue: { bg: "bg-blue-50 dark:bg-blue-950/40", text: "text-blue-600 dark:text-blue-400", icon: "text-blue-600" },
+    amber: { bg: "bg-amber-50 dark:bg-amber-950/40", text: "text-amber-700 dark:text-amber-400", icon: "text-amber-600" },
+    red: { bg: "bg-red-50 dark:bg-red-950/40", text: "text-red-600 dark:text-red-400", icon: "text-red-600" },
+    purple: { bg: "bg-purple-50 dark:bg-purple-950/40", text: "text-purple-600 dark:text-purple-400", icon: "text-purple-600" },
   };
 
   const colors = colorMap[color] || colorMap.emerald;
 
   return (
-    <div className="bg-[var(--color-card)] border border-[var(--color-border)] rounded-2xl p-5 hover:border-[#475569] transition-all duration-300">
-      <div className="flex items-start justify-between">
-        {/* Icon container */}
-        <div className={`w-10 h-10 rounded-xl ${colors.bg} flex items-center justify-center`}>
-          <Icon size={20} className={colors.icon} />
+    <div className="bg-[var(--color-card)] border border-[var(--color-border)] rounded-lg p-4 transition-colors hover:border-slate-300 dark:hover:border-slate-700">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-medium text-[var(--color-text-secondary)] truncate">{title}</span>
+        <div className={`w-8 h-8 rounded-md ${colors.bg} flex items-center justify-center shrink-0`}>
+          <Icon size={16} className={colors.icon} />
         </div>
+      </div>
 
-        {/* Trend indicator */}
+      <div className="mt-3 flex items-baseline justify-between">
+        <p className="text-2xl font-bold text-[var(--color-text-primary)] tracking-tight">{value}</p>
         {trend && (
           <span
-            className={`text-xs font-semibold px-2 py-1 rounded-lg ${
+            className={`text-[11px] font-semibold px-1.5 py-0.5 rounded ${
               trendUp
-                ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                : "bg-red-500/10 text-red-400"
+                ? "bg-emerald-50 dark:bg-emerald-950/50 text-[#008A5E] dark:text-emerald-400"
+                : "bg-red-50 dark:bg-red-950/50 text-red-600 dark:text-red-400"
             }`}
           >
             {trend}
           </span>
         )}
-      </div>
-
-      {/* Value */}
-      <div className="mt-4">
-        <p className="text-2xl font-bold text-[var(--color-text-primary)] tracking-tight">{value}</p>
-        <p className="text-sm text-[var(--color-text-secondary)] mt-1">{title}</p>
       </div>
     </div>
   );

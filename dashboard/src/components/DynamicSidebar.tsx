@@ -111,408 +111,255 @@ interface WorkspaceNavItem {
 
 
 
+interface NavGroup {
+  title: string;
+  items: WorkspaceNavItem[];
+}
+
 export default function DynamicSidebar() {
-
   const pathname = usePathname();
-
-  const { user, isSidebarCollapsed } = useWorkspace();
-
-  const [isDark, setIsDark] = useState(false);
-
+  const { user, isSidebarCollapsed, setIsSidebarCollapsed } = useWorkspace();
+  const toggleSidebar = () => setIsSidebarCollapsed(!isSidebarCollapsed);
   const [flaggedCount, setFlaggedCount] = useState<number | null>(null);
-
   const [pendingCount, setPendingCount] = useState<number | null>(null);
 
-
-
-  useEffect(() => {
-
-    const updateTheme = () => {
-
-      setIsDark(document.documentElement.classList.contains("dark"));
-
-    };
-
-    updateTheme();
-
-
-
-    const observer = new MutationObserver(updateTheme);
-
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
-
-
-
-    return () => observer.disconnect();
-
-  }, []);
-
-
-
   // Fetch real-time activity counts from the database
-
   useEffect(() => {
-
     async function loadRealTimeCounts() {
-
       try {
-
         const res = await fetchActivities();
-
         const activities = Array.isArray(res) ? res : (res?.activities || []);
-
         if (activities.length > 0) {
-
           const flagged = activities.filter((a: any) =>
-
             a.trust_status === "REVIEW" || a.trust_status === "FLAGGED" || (a.trust_score !== undefined && a.trust_score < 80)
-
           ).length;
-
           const pending = activities.filter((a: any) =>
-
             a.verification_status === "PENDING" || a.trust_status === "REVIEW" || a.status === "audit"
-
           ).length;
-
           setFlaggedCount(flagged);
-
           setPendingCount(pending);
-
         }
-
       } catch (err) {
-
         console.error("Failed to load real-time sidebar badges", err);
-
       }
-
     }
-
     loadRealTimeCounts();
-
   }, []);
-
-
 
   const userRole = (user?.role || "ADMIN").toUpperCase();
 
-
-
-  // Role-Exclusive Dynamic Navigation Sequences (Consolidated Projects Entry Point)
-
-  const getRoleNavigation = (): WorkspaceNavItem[] => {
-
-    const defaultNav: WorkspaceNavItem[] = [
-      { label: "Mission Control", icon: "LayoutDashboard", href: "/dashboard" },
-      { label: "Projects", icon: "Briefcase", href: "/dashboard/projects" },
-      { label: "Methodology", icon: "Layers", href: "/dashboard/methodologies" },
-      {
-        label: "Field Operations",
-        icon: "Radio",
-        href: "/dashboard/operations",
-        badge: flaggedCount !== null && flaggedCount > 0 ? `${flaggedCount} Review` : undefined
-      },
-      { label: "Monitoring", icon: "Activity", href: "/dashboard/monitoring" },
-      {
-        label: "Verification",
-        icon: "ShieldCheck",
-        href: "/dashboard/verifications",
-        badge: pendingCount !== null && pendingCount > 0 ? `${pendingCount} Audit` : undefined
-      },
-      { label: "Carbon Credits", icon: "Sliders", href: "/dashboard/carbon" },
-      { label: "Compliance", icon: "Globe", href: "/dashboard/command-center" },
-      { label: "AI Assistant", icon: "Bot", href: "/dashboard/ai", badge: "Proactive" },
-      { label: "Reports", icon: "FileText", href: "/dashboard/analytics" },
-      { label: "People & Agents", icon: "Users", href: "/dashboard/agents" },
-      { label: "Settings", icon: "Settings", href: "/dashboard/settings" },
-      { label: "Help & Guides", icon: "HelpCircle", href: "/dashboard/help" },
-    ];
+  // Categorized Navigation Groups
+  const getNavGroups = (): NavGroup[] => {
+    if (userRole === "FIELD_AGENT") {
+      return [
+        {
+          title: "Operations",
+          items: [
+            { label: "Mission Control", icon: "LayoutDashboard", href: "/dashboard" },
+            {
+              label: "Field Operations",
+              icon: "Radio",
+              href: "/dashboard/operations",
+              badge: flaggedCount !== null && flaggedCount > 0 ? `${flaggedCount}` : undefined
+            },
+            { label: "Monitoring", icon: "Activity", href: "/dashboard/monitoring" },
+          ]
+        },
+        {
+          title: "Intelligence & Guides",
+          items: [
+            { label: "AI Assistant", icon: "Bot", href: "/dashboard/ai" },
+            { label: "Settings", icon: "Settings", href: "/dashboard/settings" },
+            { label: "Help & Guides", icon: "HelpCircle", href: "/dashboard/help" },
+          ]
+        }
+      ];
+    }
 
     if (userRole === "AUDITOR" || userRole === "VVB" || userRole === "VERIFIER") {
       return [
-        { label: "Mission Control", icon: "LayoutDashboard", href: "/dashboard" },
         {
-          label: "Verification",
-          icon: "ShieldCheck",
-          href: "/dashboard/verifications",
-          badge: pendingCount !== null && pendingCount > 0 ? `${pendingCount} Audit` : undefined
+          title: "Operations",
+          items: [
+            { label: "Mission Control", icon: "LayoutDashboard", href: "/dashboard" },
+            { label: "Monitoring", icon: "Activity", href: "/dashboard/monitoring" },
+          ]
         },
-        { label: "Monitoring", icon: "Activity", href: "/dashboard/monitoring" },
-        { label: "Compliance", icon: "Globe", href: "/dashboard/command-center" },
-        { label: "Carbon Credits", icon: "Sliders", href: "/dashboard/carbon" },
-        { label: "Reports", icon: "FileText", href: "/dashboard/analytics" },
-        { label: "AI Assistant", icon: "Bot", href: "/dashboard/ai", badge: "Proactive" },
-        { label: "Settings", icon: "Settings", href: "/dashboard/settings" },
-        { label: "Help & Guides", icon: "HelpCircle", href: "/dashboard/help" },
+        {
+          title: "MRV & Verification",
+          items: [
+            {
+              label: "Verification",
+              icon: "ShieldCheck",
+              href: "/dashboard/verifications",
+              badge: pendingCount !== null && pendingCount > 0 ? `${pendingCount}` : undefined
+            },
+            { label: "Carbon Ledger", icon: "Sliders", href: "/dashboard/carbon" },
+            { label: "Compliance", icon: "Globe", href: "/dashboard/command-center" },
+            { label: "MRV Reports", icon: "FileText", href: "/dashboard/analytics" },
+          ]
+        },
+        {
+          title: "Intelligence & Guides",
+          items: [
+            { label: "AI Assistant", icon: "Bot", href: "/dashboard/ai" },
+            { label: "Settings", icon: "Settings", href: "/dashboard/settings" },
+            { label: "Help & Guides", icon: "HelpCircle", href: "/dashboard/help" },
+          ]
+        }
       ];
     }
 
-    if (userRole === "FIELD_AGENT") {
-      return [
-        { label: "Mission Control", icon: "LayoutDashboard", href: "/dashboard" },
-        {
-          label: "Field Operations",
-          icon: "Radio",
-          href: "/dashboard/operations",
-          badge: flaggedCount !== null && flaggedCount > 0 ? `${flaggedCount} Review` : undefined
-        },
-        { label: "Monitoring", icon: "Activity", href: "/dashboard/monitoring" },
-        { label: "AI Assistant", icon: "Bot", href: "/dashboard/ai" },
-        { label: "Settings", icon: "Settings", href: "/dashboard/settings" },
-        { label: "Help & Guides", icon: "HelpCircle", href: "/dashboard/help" },
-      ];
-    }
-
-    if (userRole === "QA_OFFICER") {
-      return [
-        { label: "Mission Control", icon: "LayoutDashboard", href: "/dashboard" },
-        {
-          label: "Field Operations",
-          icon: "Radio",
-          href: "/dashboard/operations",
-          badge: flaggedCount !== null && flaggedCount > 0 ? `${flaggedCount} Review` : undefined
-        },
-        { label: "Monitoring", icon: "Activity", href: "/dashboard/monitoring" },
-        {
-          label: "Verification",
-          icon: "ShieldCheck",
-          href: "/dashboard/verifications",
-          badge: pendingCount !== null && pendingCount > 0 ? `${pendingCount} Audit` : undefined
-        },
-        { label: "Reports", icon: "FileText", href: "/dashboard/analytics" },
-        { label: "AI Assistant", icon: "Bot", href: "/dashboard/ai" },
-        { label: "Settings", icon: "Settings", href: "/dashboard/settings" },
-        { label: "Help & Guides", icon: "HelpCircle", href: "/dashboard/help" },
-      ];
-    }
-
-    if (userRole === "REGISTRY_MANAGER" || userRole === "REGISTRY") {
-      return [
-        { label: "Mission Control", icon: "LayoutDashboard", href: "/dashboard" },
-        { label: "Carbon Credits", icon: "Sliders", href: "/dashboard/carbon" },
-        {
-          label: "Verification",
-          icon: "ShieldCheck",
-          href: "/dashboard/verifications",
-          badge: pendingCount !== null && pendingCount > 0 ? `${pendingCount} Audit` : undefined
-        },
-        { label: "Compliance", icon: "Globe", href: "/dashboard/command-center" },
-        { label: "Reports", icon: "FileText", href: "/dashboard/analytics" },
-        { label: "AI Assistant", icon: "Bot", href: "/dashboard/ai" },
-        { label: "Settings", icon: "Settings", href: "/dashboard/settings" },
-        { label: "Help & Guides", icon: "HelpCircle", href: "/dashboard/help" },
-      ];
-    }
-
-    // Admin-level roles get full navigation
-    if (userRole === "ADMIN" || userRole === "ORG_ADMIN" || userRole === "SUPER_ADMIN" || userRole === "PORTFOLIO_MANAGER" || userRole === "IOT_ENGINEER") {
-      return defaultNav;
-    }
-
-    // Restrictive default for business/unmapped roles
+    // Default & Admin-level categorized groups
     return [
-      { label: "Mission Control", icon: "LayoutDashboard", href: "/dashboard" },
-      { label: "Projects", icon: "Briefcase", href: "/dashboard/projects" },
-      { label: "Monitoring", icon: "Activity", href: "/dashboard/monitoring" },
-      { label: "Reports", icon: "FileText", href: "/dashboard/analytics" },
-      { label: "AI Assistant", icon: "Bot", href: "/dashboard/ai" },
-      { label: "Settings", icon: "Settings", href: "/dashboard/settings" },
-      { label: "Help & Guides", icon: "HelpCircle", href: "/dashboard/help" },
+      {
+        title: "Operations",
+        items: [
+          { label: "Mission Control", icon: "LayoutDashboard", href: "/dashboard" },
+          { label: "Projects & Fleets", icon: "Briefcase", href: "/dashboard/projects" },
+          {
+            label: "Field Operations",
+            icon: "Radio",
+            href: "/dashboard/operations",
+            badge: flaggedCount !== null && flaggedCount > 0 ? `${flaggedCount}` : undefined
+          },
+          { label: "Live Telemetry", icon: "Activity", href: "/dashboard/monitoring" },
+        ]
+      },
+      {
+        title: "MRV & Registry",
+        items: [
+          { label: "Methodology & PDD", icon: "Layers", href: "/dashboard/methodologies" },
+          {
+            label: "Verification & Audit",
+            icon: "ShieldCheck",
+            href: "/dashboard/verifications",
+            badge: pendingCount !== null && pendingCount > 0 ? `${pendingCount}` : undefined
+          },
+          { label: "Carbon Ledger", icon: "Sliders", href: "/dashboard/carbon" },
+          { label: "Compliance Center", icon: "Globe", href: "/dashboard/command-center" },
+          { label: "Reports & Certificates", icon: "FileText", href: "/dashboard/analytics" },
+        ]
+      },
+      {
+        title: "Administration",
+        items: [
+          { label: "People & Agents", icon: "Users", href: "/dashboard/agents" },
+          { label: "Access Control", icon: "ShieldCheck", href: "/dashboard/access-control" },
+          { label: "System Settings", icon: "Settings", href: "/dashboard/settings" },
+        ]
+      },
+      {
+        title: "Intelligence & Guides",
+        items: [
+          { label: "AI Assistant", icon: "Bot", href: "/dashboard/ai", badge: "Live" },
+          { label: "Help & Knowledge", icon: "HelpCircle", href: "/dashboard/help" },
+        ]
+      }
     ];
-
   };
 
-
-
-  const workspaceNav = getRoleNavigation();
-
-
+  const navGroups = getNavGroups();
 
   const getIsActive = (href: string) => {
-
     if (!pathname) return false;
-
     if (href === "/dashboard") return pathname === "/dashboard";
-
     return pathname.startsWith(href);
-
   };
 
-
-
   return (
-
     <>
-
       <aside
-
-        className={`hidden md:flex flex-col bg-[var(--color-surface)] border-r border-[var(--color-border)] h-screen sticky top-0 transition-all duration-300 z-50 ${
-
-          isSidebarCollapsed ? "w-20" : "w-64"
-
+        className={`hidden md:flex flex-col bg-[var(--color-surface)] border-r border-[var(--color-border)] h-screen sticky top-0 transition-all duration-200 z-40 select-none ${
+          isSidebarCollapsed ? "w-16" : "w-60"
         }`}
-
       >
-
         {/* Brand Header */}
-
         <div className="h-14 flex items-center justify-between px-4 border-b border-[var(--color-border)] shrink-0">
-
-          {!isSidebarCollapsed && (
-
-            <div className="flex items-center gap-2">
-
+          {!isSidebarCollapsed ? (
+            <div className="flex items-center gap-2.5">
               <ThemeLogo className="h-6 w-auto object-contain" />
-
             </div>
-
-          )}
-
-          {isSidebarCollapsed && (
-
+          ) : (
             <div className="w-full flex justify-center">
-
-              <div className="w-7 h-7 rounded-lg bg-[#00B47A]/10 flex items-center justify-center border border-[#00B47A]/20">
-
-                <span className="text-[#00B47A] font-bold text-base leading-none">V</span>
-
+              <div className="w-7 h-7 rounded-md bg-[#008A5E] flex items-center justify-center text-white font-bold text-sm">
+                V
               </div>
-
             </div>
-
           )}
-
         </div>
 
-
-
-        {/* STANDARDIZED ENTERPRISE NAVIGATION */}
-
-        <div className="flex-1 overflow-y-auto py-3 px-2.5 custom-scrollbar space-y-1">
-
-          {!isSidebarCollapsed && (
-
-            <div className="px-2 pb-1.5 flex items-center justify-between text-[9px] font-black uppercase tracking-widest text-[var(--color-text-secondary)] opacity-80">
-
-              <span>{userRole.replace("_", " ")} WORKSPACE</span>
-
-              <span className="text-[8px] font-mono text-[#00B47A] bg-emerald-500/10 px-1 py-0.5 rounded border border-emerald-500/20">CIOS L5</span>
-
-            </div>
-
-          )}
-
-          {workspaceNav.map((item, idx) => {
-
-            const Icon = ICON_MAP[item.icon] || LayoutDashboard;
-
-            const active = getIsActive(item.href);
-
-            return (
-
-              <Link
-
-                key={idx}
-
-                href={item.href}
-
-                className={`flex items-center gap-2.5 px-3 py-2 rounded-xl transition-all duration-150 group text-xs ${
-
-                  active
-
-                    ? "bg-[#00B47A]/10 text-[#00B47A] font-bold border border-[#00B47A]/20 dark:bg-[#00B47A]/20 shadow-xs"
-
-                    : "text-[var(--color-text-secondary)] hover:bg-[var(--color-background)] hover:text-[var(--color-text-primary)]"
-
-                }`}
-
-              >
-
-                <Icon size={16} className={`shrink-0 ${active ? "text-[#00B47A]" : "text-[var(--color-text-secondary)] group-hover:text-[var(--color-text-primary)]"}`} />
-
-                {!isSidebarCollapsed && (
-
-                  <div className="flex items-center justify-between w-full min-w-0">
-
-                    <span className="truncate tracking-wide">{item.label}</span>
-
-                    {item.badge && (
-
-                      <span className="text-[8px] font-black px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30 font-mono">
-
-                        {item.badge}
-
-                      </span>
-
-                    )}
-
-                  </div>
-
-                )}
-
-              </Link>
-
-            );
-
-          })}
-
-        </div>
-
-
-
-        {/* USER PROFILE FOOTER */}
-
-        <div className="p-3 border-t border-[var(--color-border)] shrink-0">
-
-          <div className={`flex items-center ${isSidebarCollapsed ? 'justify-center' : 'gap-2.5'} p-1.5 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] shadow-xs`}>
-
-            <div className="w-7 h-7 rounded-full border border-emerald-500/20 overflow-hidden bg-emerald-500/10 flex items-center justify-center shrink-0">
-
-              {user?.avatar_url ? (
-
-                <img src={user.avatar_url} alt="Profile" className="w-full h-full object-cover" />
-
-              ) : (
-
-                <span className="text-[10px] font-black text-emerald-400">
-
-                  {user?.full_name ? user.full_name.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2) : "AD"}
-
-                </span>
-
+        {/* Navigation Categories */}
+        <div className="flex-1 overflow-y-auto py-3 px-2 space-y-4 custom-scrollbar">
+          {navGroups.map((group, gIdx) => (
+            <div key={gIdx} className="space-y-1">
+              {!isSidebarCollapsed && (
+                <p className="px-2.5 pb-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
+                  {group.title}
+                </p>
               )}
+              {group.items.map((item, iIdx) => {
+                const Icon = ICON_MAP[item.icon] || LayoutDashboard;
+                const active = getIsActive(item.href);
 
+                return (
+                  <Link
+                    key={iIdx}
+                    href={item.href}
+                    title={isSidebarCollapsed ? item.label : undefined}
+                    className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg transition-colors text-xs ${
+                      active
+                        ? "bg-emerald-50 dark:bg-emerald-950/40 text-[#008A5E] dark:text-emerald-400 font-semibold border border-emerald-200/60 dark:border-emerald-800/40"
+                        : "text-[var(--color-text-secondary)] hover:bg-[var(--color-background)] hover:text-[var(--color-text-primary)] font-medium"
+                    }`}
+                  >
+                    <Icon size={16} className={`shrink-0 ${active ? "text-[#008A5E] dark:text-emerald-400" : "text-[var(--color-text-secondary)]"}`} />
+                    {!isSidebarCollapsed && (
+                      <div className="flex items-center justify-between w-full min-w-0">
+                        <span className="truncate">{item.label}</span>
+                        {item.badge && (
+                          <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded-full ${
+                            active
+                              ? "bg-[#008A5E] text-white"
+                              : "bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300"
+                          }`}>
+                            {item.badge}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </Link>
+                );
+              })}
             </div>
-
-            {!isSidebarCollapsed && (
-
-              <div className="flex flex-col min-w-0">
-
-                <span className="text-[11px] font-bold text-[var(--color-text-primary)] truncate leading-tight">
-
-                  {user?.full_name || "Admin User"}
-
-                </span>
-
-                <span className="text-[9px] text-[var(--color-text-secondary)] font-semibold uppercase tracking-wider truncate">
-
-                  {user?.role ? user.role.replace("_", " ") : "Org Admin"}
-
-                </span>
-
-              </div>
-
-            )}
-
-          </div>
-
+          ))}
         </div>
 
+        {/* Footer Workspace Context & User */}
+        <div className="p-2.5 border-t border-[var(--color-border)] bg-[var(--color-surface)] shrink-0">
+          {!isSidebarCollapsed ? (
+            <div className="flex items-center justify-between px-1">
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-[var(--color-text-primary)] truncate">
+                  {user?.full_name || "Enterprise User"}
+                </p>
+                <p className="text-[10px] text-[var(--color-text-muted)] truncate font-mono uppercase">
+                  {userRole.replace("_", " ")}
+                </p>
+              </div>
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-100 dark:bg-emerald-950 text-[#008A5E] dark:text-emerald-300">
+                CIOS
+              </span>
+            </div>
+          ) : (
+            <div className="w-full flex justify-center">
+              <div className="w-6 h-6 rounded-full bg-emerald-100 dark:bg-emerald-950 text-[#008A5E] text-[10px] font-bold flex items-center justify-center">
+                {(user?.full_name || "U")[0].toUpperCase()}
+              </div>
+            </div>
+          )}
+        </div>
       </aside>
-
     </>
-
   );
-
 }

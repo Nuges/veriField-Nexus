@@ -12,10 +12,10 @@ import 'package:flutter/material.dart';
 class AppColors {
   AppColors._(); // Prevent instantiation
 
-  // --- Primary Brand Colors (VeriField Branded Emerald Green) ---
-  static const Color primary = Color(0xFF00B47A);
-  static const Color primaryDark = Color(0xFF009665);
-  static const Color primaryLight = Color(0xFF33C395);
+  // --- Primary Brand Colors (VeriField Climate Enterprise Green) ---
+  static const Color primary = Color(0xFF008A5E);
+  static const Color primaryDark = Color(0xFF00734E);
+  static const Color primaryLight = Color(0xFF10B981);
 
   // --- Surface Colors (Premium Technical Slate Dark Theme) ---
   static const Color background = Color(0xFF090F10); // Technical dark green-tint slate

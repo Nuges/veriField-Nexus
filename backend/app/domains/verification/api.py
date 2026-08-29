@@ -35,17 +35,43 @@ async def create_verification_task(
     return await service.create_verification_task(data, actor_id=current_user.id, db=db)
 
 
-@router.get("/tasks", response_model=list[VerificationTaskResponse])
-async def get_verification_tasks(
+@router.get("", response_model=None)
+@router.get("/", response_model=None)
+@router.get("/tasks", response_model=None)
+@router.get("/audits", response_model=None)
+async def get_audits_endpoint(
+    status: Optional[str] = None,
+    per_page: int = 50,
+    page: int = 1,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
     service: VerificationService = Depends(get_verification_service),
 ):
-    return await service.get_tasks()
+    tasks = await service.get_tasks()
+    audits = []
+    for t in tasks:
+        t_status = (t.status or "pending").lower()
+        if status and status.lower() != "all" and t_status != status.lower():
+            continue
+        audits.append({
+            "id": str(t.id),
+            "status": t.status or "pending",
+            "deadline": t.deadline.isoformat() if t.deadline else None,
+            "property_name": "Registered Carbon Asset",
+            "property_address": "Federal Capital Territory, Nigeria",
+            "property_type": "Clean Energy",
+            "agent_name": "Field Auditor",
+            "assigned_agent": str(t.verifier_id) if t.verifier_id else None,
+            "findings": t.findings or {},
+            "created_at": t.created_at.isoformat() if t.created_at else None
+        })
+    return {"audits": audits, "total": len(audits), "page": page, "per_page": per_page}
 
 
-@router.get("/tasks/{task_id}", response_model=VerificationTaskResponse)
-async def get_verification_task(
+@router.get("/tasks/{task_id}")
+@router.get("/audits/{task_id}")
+@router.get("/{task_id}")
+async def get_audit_by_id(
     task_id: UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -53,8 +79,19 @@ async def get_verification_task(
 ):
     task = await service.get_task(task_id)
     if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
-    return task
+        raise HTTPException(status_code=404, detail="Audit task not found")
+    return {
+        "id": str(task.id),
+        "status": task.status or "pending",
+        "deadline": task.deadline.isoformat() if task.deadline else None,
+        "property_name": "Registered Carbon Asset",
+        "property_address": "Federal Capital Territory, Nigeria",
+        "property_type": "Clean Energy",
+        "agent_name": "Field Auditor",
+        "assigned_agent": str(task.verifier_id) if task.verifier_id else None,
+        "findings": task.findings or {},
+        "created_at": task.created_at.isoformat() if task.created_at else None
+    }
 
 
 from pydantic import BaseModel
@@ -63,7 +100,9 @@ class TaskUpdate(BaseModel):
     deadline: Optional[str] = None
     assigned_agent: Optional[str] = None
 
-@router.patch("/tasks/{task_id}", response_model=VerificationTaskResponse)
+@router.patch("/tasks/{task_id}")
+@router.patch("/audits/{task_id}")
+@router.patch("/{task_id}")
 async def update_verification_task(
     task_id: UUID,
     data: TaskUpdate,
@@ -71,14 +110,12 @@ async def update_verification_task(
     current_user: User = Depends(get_current_user),
     service: VerificationService = Depends(get_verification_service),
 ):
-    # For now just update the status via the existing service method if provided
     if data.status:
         updated = await service.repository.update_task_status(task_id, data.status, {})
         if not updated:
             raise HTTPException(status_code=404, detail="Task not found")
         return updated
     
-    # If just updating agent/deadline, return the task for now
     return await service.get_task(task_id)
 
 

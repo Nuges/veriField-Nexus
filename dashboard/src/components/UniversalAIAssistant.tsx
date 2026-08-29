@@ -177,115 +177,63 @@ export default function UniversalAIAssistant() {
 
 
   return (
-
-    <div className="my-6 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-[#00B47A]/5 to-transparent border border-[#00B47A]/30 shadow-sm overflow-hidden transition-all duration-300">
-
+    <div className="my-4 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)] overflow-hidden">
       {/* AI Header Surface */}
-
-      <div className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-
+      <div className="p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-
-          <div>
-
-            <div className="flex items-center gap-2">
-
-              <span className="font-extrabold text-xs text-[#00B47A] uppercase tracking-wider">
-
-                {insight.pageTitle} AI Assistant
-
-              </span>
-
-            </div>
-
-            <p className="text-xs text-[var(--color-text-primary)] font-medium mt-0.5 leading-snug">
-
-              &quot;{insight.aiRecommendation}&quot;
-
-            </p>
-
+          <div className="w-8 h-8 rounded-md bg-emerald-50 dark:bg-emerald-950/40 text-[#008A5E] flex items-center justify-center shrink-0">
+            <Bot size={17} />
           </div>
-
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-xs text-[var(--color-text-primary)]">
+                {insight.pageTitle} Assistant
+              </span>
+            </div>
+            <p className="text-xs text-[var(--color-text-secondary)] mt-0.5 leading-snug">
+              {insight.aiRecommendation}
+            </p>
+          </div>
         </div>
-
-
 
         <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
-
           <button
-
             onClick={() => setIsExpanded(!isExpanded)}
-
-            className="px-3 py-1.5 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] text-xs font-bold text-[var(--color-text-primary)] hover:bg-[var(--color-background)] transition-all flex items-center gap-1.5 cursor-pointer"
-
+            className="px-2.5 py-1 rounded-md bg-[var(--color-background)] border border-[var(--color-border)] text-xs font-medium text-[var(--color-text-primary)] hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center gap-1.5 cursor-pointer"
           >
-
-            <HelpCircle size={14} className="text-[#00B47A]" />
-
-            <span>{isExpanded ? "Hide Guidance" : "Context & Guidance"}</span>
-
-            {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-
+            <HelpCircle size={13} className="text-[#008A5E]" />
+            <span>{isExpanded ? "Hide Details" : "Guidance"}</span>
+            {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
           </button>
 
-
-
           <Link
-
             href={insight.nextActionHref}
-
-            className="px-4 py-1.5 rounded-xl bg-[#00B47A] text-slate-950 font-extrabold text-xs hover:bg-[#009b68] transition-all flex items-center gap-1.5 shadow-xs"
-
+            className="px-3 py-1 rounded-md bg-[#008A5E] text-white font-semibold text-xs hover:bg-[#00734E] transition-colors flex items-center gap-1.5"
           >
-
             <span>{insight.nextActionLabel}</span>
-
-            <ArrowRight size={14} />
-
+            <ArrowRight size={13} />
           </Link>
-
         </div>
-
       </div>
 
-
-
       {/* Expanded Contextual Guidance & Interactive Assistant Panel */}
-
       {isExpanded && (
-
-        <div className="p-4 border-t border-[#00B47A]/20 bg-[var(--color-surface)] space-y-4 animate-fade-in text-xs">
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-
-            <div className="p-3 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)]">
-
-              <h4 className="font-extrabold text-[var(--color-text-primary)] text-xs mb-1">What This Screen Does</h4>
-
+        <div className="p-3.5 border-t border-[var(--color-border)] bg-[var(--color-surface)] space-y-3 text-xs">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="p-3 rounded-md bg-[var(--color-background)] border border-[var(--color-border)]">
+              <h4 className="font-semibold text-[var(--color-text-primary)] text-xs mb-1">Purpose</h4>
               <p className="text-[var(--color-text-secondary)] text-[11px] leading-relaxed">{insight.purpose}</p>
-
             </div>
 
-
-
-            <div className="p-3 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)]">
-
-              <h4 className="font-extrabold text-[var(--color-text-primary)] text-xs mb-1">Why It Matters</h4>
-
+            <div className="p-3 rounded-md bg-[var(--color-background)] border border-[var(--color-border)]">
+              <h4 className="font-semibold text-[var(--color-text-primary)] text-xs mb-1">Impact</h4>
               <p className="text-[var(--color-text-secondary)] text-[11px] leading-relaxed">{insight.whyItMatters}</p>
-
             </div>
 
-
-
-            <div className="p-3 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)]">
-
-              <h4 className="font-extrabold text-[var(--color-text-primary)] text-xs mb-1">Recommended Next Step</h4>
-
-              <p className="text-[#00B47A] font-bold text-[11px] leading-relaxed">{insight.whatToDoNext}</p>
-
+            <div className="p-3 rounded-md bg-[var(--color-background)] border border-[var(--color-border)]">
+              <h4 className="font-semibold text-[var(--color-text-primary)] text-xs mb-1">Next Step</h4>
+              <p className="text-[#008A5E] font-medium text-[11px] leading-relaxed">{insight.whatToDoNext}</p>
             </div>
-
           </div>
 
 

@@ -131,3 +131,4 @@ backend/static/reports/*
 !backend/static/reports/.gitkeep
 backend/static/proofs/*
 !backend/static/proofs/.gitkeep
+static/

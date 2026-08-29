@@ -280,174 +280,85 @@ export default function EnterpriseDashboard() {
 
             <>
 
-              <div className="p-4 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-xs space-y-2">
-
-                <div className="flex flex-wrap items-center justify-between gap-2">
-
-                  <div className="flex flex-wrap items-center gap-2 min-w-0">
-
-                    <ShieldCheck size={18} className="text-[#00B47A] shrink-0" />
-
-                    <span className="font-bold text-[var(--color-text-primary)] uppercase text-xs tracking-wider">
-
-                      Operational Summary
-
-                    </span>
-
-                  </div>
-
+              <div className="p-4 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)] space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck size={16} className="text-[#008A5E] shrink-0" />
+                  <span className="font-semibold text-[var(--color-text-primary)] uppercase text-xs tracking-wider">
+                    Operational Status & Summary
+                  </span>
                 </div>
-
-                <p className="text-xs text-[var(--color-text-secondary)] font-medium leading-relaxed">
-
+                <p className="text-xs text-[var(--color-text-secondary)] leading-relaxed">
                   {!hasSubmissions
-
-                    ? `0 field activities submitted for ${project?.name || titleName}. Emission telemetry stream active and awaiting field data capture.`
-
+                    ? `0 field activities submitted for ${project?.name || titleName}. Telemetry stream active and awaiting field data capture.`
                     : `Active project carbon yield tracking operational across ${totalSubmissions} verified field submissions.`
-
                   }
-
                 </p>
-
               </div>
-
-
 
               {/* 2. ACTION REQUIRED & RISKS & ACTIONS */}
-
               <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-
                 {/* Action Required (7 Cols) */}
-
-                <div className="md:col-span-7 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-4 space-y-3">
-
-                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--color-border)] pb-2">
-
+                <div className="md:col-span-7 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-4 space-y-3">
+                  <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-2">
                     <div className="flex items-center gap-2">
-
-                      <ShieldCheck size={16} className="text-[#00B47A] shrink-0" />
-
-                      <span className="font-bold text-xs uppercase tracking-wider text-[var(--color-text-primary)]">
-
+                      <ShieldCheck size={15} className="text-[#008A5E] shrink-0" />
+                      <span className="font-semibold text-xs uppercase tracking-wider text-[var(--color-text-primary)]">
                         Action Required
-
                       </span>
-
                     </div>
-
                   </div>
-
-
 
                   <div className="space-y-2 text-xs">
-
                     {!hasSubmissions ? (
-
-                      <div className="p-4 text-center text-zinc-500 text-xs font-mono rounded-xl bg-[var(--color-background)] border border-[var(--color-border)]">
-
+                      <div className="p-4 text-center text-[var(--color-text-muted)] text-xs rounded-md bg-[var(--color-background)] border border-[var(--color-border)]">
                         No pending actions required.
-
                       </div>
-
                     ) : (
-
-                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 p-2.5 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)]">
-
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 p-2.5 rounded-md bg-[var(--color-background)] border border-[var(--color-border)]">
                         <div className="flex items-center gap-2.5">
-
-                          <div className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
-
+                          <div className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
                           <div>
-
-                            <p className="font-bold text-[var(--color-text-primary)]">Execute VVB Independent Audit Sign-off</p>
-
-                            <p className="text-[10px] text-[var(--color-text-secondary)]">Target Stage: Phase 5 (Verification)</p>
-
+                            <p className="font-semibold text-[var(--color-text-primary)]">Execute VVB Independent Audit Sign-off</p>
+                            <p className="text-[11px] text-[var(--color-text-secondary)]">Target Stage: Phase 5 (Verification)</p>
                           </div>
-
                         </div>
-
                         <Link
-
                           href="/dashboard/verifications"
-
-                          className="px-3 py-1.5 rounded-lg bg-zinc-900 text-white font-bold text-[11px] hover:bg-black transition-all flex items-center gap-1 shadow-xs shrink-0 self-end sm:self-auto"
-
+                          className="px-3 py-1.5 rounded-md bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs transition-colors flex items-center gap-1 shrink-0 self-end sm:self-auto"
                         >
-
                           <span>Sign Task</span>
-
                           <ArrowRight size={12} />
-
                         </Link>
-
                       </div>
-
                     )}
-
                   </div>
-
                 </div>
-
-
 
                 {/* Risks & Actions (5 Cols) */}
-
-                <div className="md:col-span-5 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-4 space-y-3">
-
+                <div className="md:col-span-5 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-4 space-y-3">
                   <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-2">
-
                     <div className="flex items-center gap-2">
-
-                      <AlertOctagon size={16} className="text-emerald-500 shrink-0" />
-
-                      <span className="font-bold text-xs uppercase tracking-wider text-[var(--color-text-primary)]">
-
-                        Risks & Actions
-
+                      <Clock size={15} className="text-[#008A5E] shrink-0" />
+                      <span className="font-semibold text-xs uppercase tracking-wider text-[var(--color-text-primary)]">
+                        Activity Timeline
                       </span>
-
                     </div>
-
                   </div>
-
-
-
                   <div className="space-y-2 text-xs">
-
-                    <div className="p-3 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] flex items-start gap-2.5">
-
-                      <Clock size={16} className="text-emerald-500 shrink-0 mt-0.5" />
-
-                      <div>
-
-                        <p className="font-bold text-[var(--color-text-primary)]">
-
-                          {!hasSubmissions ? "No SLA Risks Detected" : "SLA Tracking Operational"}
-
-                        </p>
-
-                        <p className="text-[10px] text-[var(--color-text-secondary)] font-mono mt-0.5">
-
-                          {!hasSubmissions ? "All active verification pipelines nominal." : "SLA: Active • Owner: Lead Auditor"}
-
-                        </p>
-
+                    {!hasSubmissions ? (
+                      <div className="p-4 text-center text-[var(--color-text-muted)] text-xs rounded-md bg-[var(--color-background)] border border-[var(--color-border)]">
+                        No recent anomalies or risks reported.
                       </div>
-
-                    </div>
-
+                    ) : (
+                      <div className="p-2.5 rounded-md bg-[var(--color-background)] border border-[var(--color-border)] text-xs text-[var(--color-text-secondary)]">
+                        System telemetry operating within normal bounds.
+                      </div>
+                    )}
                   </div>
-
                 </div>
-
               </div>
-
             </>
-
           );
-
         })()}
 
 

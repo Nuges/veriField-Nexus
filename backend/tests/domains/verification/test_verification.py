@@ -45,3 +45,22 @@ async def test_verification_lifecycle(
     )
     assert audit_resp.status_code == 201, audit_resp.text
     assert audit_resp.json()["is_positive_opinion"]
+
+
+@pytest.mark.asyncio
+async def test_community_feed_and_audits_endpoints(
+    async_client: AsyncClient, admin_token_headers: dict
+):
+    # 1. Test Community Feed (no 500 error, returns 200 OK with valid list)
+    comm_resp = await async_client.get("/api/v1/community")
+    assert comm_resp.status_code == 200
+    comm_data = comm_resp.json()
+    assert "posts" in comm_data
+    assert isinstance(comm_data["posts"], list)
+
+    # 2. Test Audits list endpoint for mobile app
+    audits_resp = await async_client.get("/api/v1/audits", headers=admin_token_headers)
+    assert audits_resp.status_code == 200
+    audits_data = audits_resp.json()
+    assert "audits" in audits_data
+    assert isinstance(audits_data["audits"], list)

@@ -16,7 +16,7 @@
 
 import React from "react";
 
-import { Sparkles, ArrowRight, Bot, RefreshCw } from "lucide-react";
+import { Inbox, ArrowRight, Info } from "lucide-react";
 
 import Link from "next/link";
 
@@ -62,11 +62,11 @@ export default function SmartEmptyState({
 
   return (
 
-    <div className="p-8 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] text-center space-y-4 shadow-sm my-4 animate-fade-in">
+    <div className="p-8 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)] text-center space-y-4 my-4">
 
-      <div className="w-12 h-12 rounded-2xl bg-[#00B47A]/15 border border-[#00B47A]/30 flex items-center justify-center text-[#00B47A] mx-auto">
+      <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 border border-[var(--color-border)] flex items-center justify-center text-[var(--color-text-secondary)] mx-auto">
 
-        <Sparkles size={24} className="animate-pulse" />
+        <Inbox size={20} />
 
       </div>
 
@@ -74,7 +74,7 @@ export default function SmartEmptyState({
 
       <div className="max-w-md mx-auto space-y-1">
 
-        <h3 className="text-base font-extrabold text-[var(--color-text-primary)]">{title}</h3>
+        <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">{title}</h3>
 
         <p className="text-xs text-[var(--color-text-secondary)] leading-relaxed">{description}</p>
 
@@ -82,21 +82,41 @@ export default function SmartEmptyState({
 
 
 
-        <div className="max-w-lg mx-auto p-3 rounded-xl bg-gradient-to-r from-emerald-500/10 via-[#00B47A]/5 to-transparent border border-[#00B47A]/20 text-xs text-left flex items-start gap-2">
+      {aiInsight && (
 
-          <Sparkles size={16} className="text-[#00B47A] shrink-0 mt-0.5" />
+        <div className="max-w-lg mx-auto p-3 rounded-md bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-200/60 dark:border-emerald-800/40 text-xs text-left flex items-start gap-2.5">
 
-          <p className="text-[var(--color-text-primary)] font-medium leading-relaxed">
+          <Info size={15} className="text-[#008A5E] shrink-0 mt-0.5" />
 
-            <strong className="text-[#00B47A]">System Recommendation:</strong> {aiInsight}
+          <p className="text-[var(--color-text-primary)] leading-relaxed">
+
+            <strong className="text-[#008A5E] font-semibold">Guidance: </strong>{aiInsight}
 
           </p>
 
         </div>
 
+      )}
 
 
-      <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+
+      <div className="flex flex-wrap items-center justify-center gap-2.5 pt-1">
+
+        <Link
+
+          href={primaryActionHref}
+
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-[#008A5E] hover:bg-[#00734E] text-white text-xs font-semibold transition-colors"
+
+        >
+
+          <span>{primaryActionLabel}</span>
+
+          <ArrowRight size={13} />
+
+        </Link>
+
+
 
         {secondaryActionLabel && onSecondaryAction && (
 
@@ -104,13 +124,11 @@ export default function SmartEmptyState({
 
             onClick={onSecondaryAction}
 
-            className="px-4 py-2 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] text-xs font-bold text-[var(--color-text-primary)] hover:bg-[var(--color-surface)] transition-all cursor-pointer flex items-center gap-1.5"
+            className="px-3 py-1.5 rounded-md bg-[var(--color-background)] border border-[var(--color-border)] hover:bg-slate-100 dark:hover:bg-slate-800 text-[var(--color-text-primary)] text-xs font-medium transition-colors"
 
           >
 
-            <RefreshCw size={14} className="text-[#00B47A]" />
-
-            <span>{secondaryActionLabel}</span>
+            {secondaryActionLabel}
 
           </button>
 

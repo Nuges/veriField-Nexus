@@ -17,57 +17,45 @@
 
 
 :root {
-
-  /* Day Theme Default (White / Off-White) */
-
-  --color-background: #F8FAF9;
-
+  /* Day Theme Default (Clean Enterprise Light #F8FAFC) */
+  --color-background: #F8FAFC;
   --color-surface: #FFFFFF;
-
   --color-card: #FFFFFF;
-
   --color-border: #E2E8F0;
-
-  --color-primary: #00B47A;
-
+  --color-border-subtle: #F1F5F9;
+  --color-primary: #008A5E;
+  --color-primary-hover: #00734E;
+  --color-primary-light: #ECFDF5;
   --color-text-primary: #0F172A;
-
-  --color-text-secondary: #64748B;
-
+  --color-text-secondary: #475569;
   --color-text-muted: #94A3B8;
-
-  --color-warning: #F59E0B;
-
-  --color-danger: #EF4444;
-
+  --color-warning: #D97706;
+  --color-warning-bg: #FEF3C7;
+  --color-danger: #DC2626;
+  --color-danger-bg: #FEE2E2;
+  --color-info: #2563EB;
+  --color-info-bg: #EFF6FF;
 }
 
-
-
 .dark {
-
-  /* Night Theme (Dark Obsidian #0B0F17) */
-
+  /* Night Theme (Clean Dark Slate #0B0F17) */
   --color-background: #0B0F17;
-
-  --color-surface: #0E1624;
-
-  --color-card: #0E1624;
-
-  --color-border: #1E293B;
-
+  --color-surface: #111827;
+  --color-card: #111827;
+  --color-border: #1F2937;
+  --color-border-subtle: #182234;
   --color-primary: #00B47A;
-
-  --color-text-primary: #F8FAF9;
-
+  --color-primary-hover: #008A5E;
+  --color-primary-light: #064E3B;
+  --color-text-primary: #F8FAFC;
   --color-text-secondary: #94A3B8;
-
   --color-text-muted: #64748B;
-
   --color-warning: #F59E0B;
-
+  --color-warning-bg: #78350F;
   --color-danger: #EF4444;
-
+  --color-danger-bg: #7F1D1D;
+  --color-info: #3B82F6;
+  --color-info-bg: #1E3A8A;
 }
 
 
