@@ -9,18 +9,13 @@
 
 
 import UniversalEntityHeader from "@/components/UniversalEntityHeader";
-
 import { UniversalMethodologyRenderer } from "@/components/UniversalMethodologyRenderer";
-
 import { useWorkspace } from "@/context/WorkspaceContext";
-
-
+import { getSectorTerminology } from "@/lib/moduleRegistry";
 
 export default function MethodologiesPage() {
-
   const { activeSector, activeMethodology } = useWorkspace();
-
-
+  const sectorTerms = getSectorTerminology(activeSector);
 
   const methCode = activeMethodology || (activeSector === "hybrid_energy" ? "ACM0002" : activeSector === "biochar" ? "VM0042" : activeSector === "ev_mobility" ? "AMS-III.C" : "AMS-II.G");
 
@@ -38,7 +33,7 @@ export default function MethodologiesPage() {
         status=""
         aiConfidence={99.8}
         aiRecommendation="Emission factors, non-renewable biomass fraction (fNRB), and AST algorithms locked."
-        primaryNextActionLabel="Proceed to Fleet Onboarding"
+        primaryNextActionLabel={sectorTerms.proceedToStage3Label}
         onPrimaryNextAction={() => {
           window.location.href = "/dashboard/assets";
         }}

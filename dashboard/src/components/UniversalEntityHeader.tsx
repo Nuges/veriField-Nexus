@@ -9,6 +9,8 @@
 
 
 import { ShieldCheck, Clock, User, AlertTriangle, ArrowRight, Bot, CheckCircle2 } from "lucide-react";
+import { useWorkspace } from "@/context/WorkspaceContext";
+import { getSectorLifecycleStages, getSectorTerminology } from "@/lib/moduleRegistry";
 
 
 
@@ -58,24 +60,6 @@ interface UniversalEntityHeaderProps {
 
 
 
-const LIFECYCLE_STAGES = [
-
-  "1. Origination",
-
-  "2. Methodology",
-
-  "3. Fleet Onboard",
-
-  "4. Field Ops & Telemetry",
-
-  "5. VVB Verification",
-
-  "6. Credit Minting",
-
-];
-
-
-
 export default function UniversalEntityHeader({
 
   entityType,
@@ -107,6 +91,17 @@ export default function UniversalEntityHeader({
   secondaryActions = [],
 
 }: UniversalEntityHeaderProps) {
+
+  const { activeSector } = useWorkspace();
+  const lifecycleStages = getSectorLifecycleStages(activeSector);
+  const sectorTerms = getSectorTerminology(activeSector);
+
+  // Normalize displayed current stage name if stage 3 is active
+  const resolvedCurrentStageName = currentStage === 3 && currentStageName.toLowerCase().includes("fleet") && activeSector !== "ev_mobility"
+    ? sectorTerms.stage3DetailedName
+    : currentStageName;
+
+
 
   const getStatusColor = (st: string) => {
 
@@ -207,20 +202,13 @@ export default function UniversalEntityHeader({
 
 
       {/* 2. 6-Stage Carbon Lifecycle Progress Timeline */}
-
       <div className="space-y-1.5">
-
         <div className="flex items-center justify-between text-[10px] font-mono uppercase tracking-wider text-[var(--color-text-secondary)]">
-
           <span>Carbon Project Operational Lifecycle</span>
-
-          <span>Current Phase: <strong className="text-[#00B47A] font-bold">{currentStageName}</strong></span>
-
+          <span>Current Phase: <strong className="text-[#00B47A] font-bold">{resolvedCurrentStageName}</strong></span>
         </div>
-
         <div className="grid grid-cols-2 md:grid-cols-6 gap-1.5">
-
-          {LIFECYCLE_STAGES.map((stg, idx) => {
+          {lifecycleStages.map((stg, idx) => {
 
             const stageNum = idx + 1;
 

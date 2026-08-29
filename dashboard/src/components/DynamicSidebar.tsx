@@ -60,6 +60,7 @@ import { useState, useEffect } from "react";
 import { useWorkspace } from "@/context/WorkspaceContext";
 
 import { fetchActivities } from "@/lib/api";
+import { getSectorTerminology } from "@/lib/moduleRegistry";
 
 
 
@@ -118,8 +119,9 @@ interface NavGroup {
 
 export default function DynamicSidebar() {
   const pathname = usePathname();
-  const { user, isSidebarCollapsed, setIsSidebarCollapsed } = useWorkspace();
+  const { user, isSidebarCollapsed, setIsSidebarCollapsed, activeSector } = useWorkspace();
   const toggleSidebar = () => setIsSidebarCollapsed(!isSidebarCollapsed);
+  const sectorTerms = getSectorTerminology(activeSector);
   const [flaggedCount, setFlaggedCount] = useState<number | null>(null);
   const [pendingCount, setPendingCount] = useState<number | null>(null);
 
@@ -217,7 +219,7 @@ export default function DynamicSidebar() {
         title: "Operations",
         items: [
           { label: "Mission Control", icon: "LayoutDashboard", href: "/dashboard" },
-          { label: "Projects & Fleets", icon: "Briefcase", href: "/dashboard/projects" },
+          { label: sectorTerms.projectsNavLabel, icon: "Briefcase", href: "/dashboard/projects" },
           { label: "Programmes (PoA)", icon: "Globe", href: "/dashboard/poa" },
           {
             label: "Field Operations",

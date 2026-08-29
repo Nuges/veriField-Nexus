@@ -88,22 +88,21 @@ export default function WidgetRenderer({ kpis, sectorCode }: { kpis?: KPI[]; sec
 
       ];
 
-    } else {
-
-      // EV Mobility & Generic
-
+    } else if (code.includes("EV") || code.includes("MOBILITY")) {
       return [
-
         { code: "co2_reduced", label: "CO₂ DISPLACED", value: "0", unit: "tCO₂e EV fleet emissions", iconName: "Leaf", colorTheme: "emerald" },
-
         { code: "charging_sessions", label: "CHARGING SESSIONS", value: "0", unit: "Completed charges", iconName: "Zap", colorTheme: "blue" },
-
         { code: "active_vehicles", label: "ACTIVE VEHICLES", value: "0", unit: "Monitored EV units", iconName: "Globe", colorTheme: "amber" },
-
         { code: "credit_val", label: "ESTIMATED CREDIT VALUE", value: "$0", unit: "At baseline price", iconName: "DollarSign", colorTheme: "emerald" }
-
       ];
-
+    } else {
+      // Universal Carbon Assets Default
+      return [
+        { code: "co2_reduced", label: "TOTAL CO₂ QUANTIFIED", value: "0", unit: "tCO₂e emissions reduced", iconName: "Leaf", colorTheme: "emerald" },
+        { code: "active_assets", label: "MONITORED ASSETS", value: "0", unit: "Registered field devices", iconName: "Layers", colorTheme: "blue" },
+        { code: "usage_rate", label: "TELEMETRY UPTIME", value: "99.8%", unit: "Operational sensor stream", iconName: "Activity", colorTheme: "amber" },
+        { code: "credit_val", label: "ESTIMATED CREDIT VALUE", value: "$0", unit: "At baseline price", iconName: "DollarSign", colorTheme: "emerald" }
+      ];
     }
 
   })();

@@ -773,3 +773,243 @@ export function getRecordSector(record: any): string {
   return mapToWorkspace(record) || "generic";
 
 }
+
+
+
+// ─── Sector Terminology & Metadata Resolvers ───────────────────────────────────
+
+
+
+export interface SectorTerminology {
+
+  sectorCode: string;
+
+  sectorName: string;
+
+  assetSingular: string;      // e.g., "Cookstove Device", "EV Vehicle / Station", "Solar Mini-Grid"
+
+  assetPlural: string;        // e.g., "Cookstove Devices", "EV Fleets & Stations", "Solar Mini-Grids"
+
+  projectsNavLabel: string;   // e.g., "Projects & Devices", "Projects & Fleets", "Projects & Mini-Grids"
+
+  stage3Label: string;        // e.g., "3. Device Deployment", "3. Fleet Onboard", "3. Mini-grid Install"
+
+  stage3DetailedName: string; // e.g., "3. Device Deployment & Calibration"
+
+  proceedToStage3Label: string; // e.g., "Proceed to Device Deployment"
+
+  telemetrySource: string;    // e.g., "Thermal Sensors & Stove Logs"
+
+  entityTypeAsset: string;    // e.g., "Cookstove Device Fleet", "EV Mobility Fleet"
+
+}
+
+
+
+export function getSectorTerminology(sectorCode?: string): SectorTerminology {
+
+  const code = canonicalSectorCode(sectorCode || "");
+
+
+
+  if (code === "cookstoves") {
+
+    return {
+
+      sectorCode: "cookstoves",
+
+      sectorName: "Clean Cookstoves",
+
+      assetSingular: "Cookstove Device",
+
+      assetPlural: "Cookstove Devices",
+
+      projectsNavLabel: "Projects & Devices",
+
+      stage3Label: "3. Device Deployment",
+
+      stage3DetailedName: "3. Device Deployment & Calibration",
+
+      proceedToStage3Label: "Proceed to Device Deployment",
+
+      telemetrySource: "Thermal Sensors & Stove Usage Logs",
+
+      entityTypeAsset: "Cookstove Device Fleet"
+
+    };
+
+  }
+
+
+
+  if (code === "ev_mobility") {
+
+    return {
+
+      sectorCode: "ev_mobility",
+
+      sectorName: "Electric Mobility",
+
+      assetSingular: "EV Vehicle / Station",
+
+      assetPlural: "EV Fleets & Stations",
+
+      projectsNavLabel: "Projects & Fleets",
+
+      stage3Label: "3. Fleet Onboard",
+
+      stage3DetailedName: "3. Fleet & Station Onboarding",
+
+      proceedToStage3Label: "Proceed to Fleet Onboarding",
+
+      telemetrySource: "EV Telemetry & Charging Sessions",
+
+      entityTypeAsset: "EV Mobility Fleet"
+
+    };
+
+  }
+
+
+
+  if (code === "hybrid_energy" || code === "solar") {
+
+    return {
+
+      sectorCode: "hybrid_energy",
+
+      sectorName: "Solar & Mini-Grids",
+
+      assetSingular: "Solar Mini-Grid",
+
+      assetPlural: "Solar Mini-Grids",
+
+      projectsNavLabel: "Projects & Mini-Grids",
+
+      stage3Label: "3. Mini-grid Install",
+
+      stage3DetailedName: "3. Mini-grid & Inverter Onboarding",
+
+      proceedToStage3Label: "Proceed to Mini-Grid Onboarding",
+
+      telemetrySource: "Smart Inverters & Solar Generation Logs",
+
+      entityTypeAsset: "Renewable Solar Asset"
+
+    };
+
+  }
+
+
+
+  if (code === "biochar") {
+
+    return {
+
+      sectorCode: "biochar",
+
+      sectorName: "Biochar Carbon Removal",
+
+      assetSingular: "Biochar Pyrolyzer",
+
+      assetPlural: "Biochar Pyrolyzers",
+
+      projectsNavLabel: "Projects & Facilities",
+
+      stage3Label: "3. Facility Onboard",
+
+      stage3DetailedName: "3. Pyrolyzer Facility Onboarding",
+
+      proceedToStage3Label: "Proceed to Facility Onboarding",
+
+      telemetrySource: "Pyrolyzer Thermal Probes & Batch Logs",
+
+      entityTypeAsset: "Pyrolysis Facility Asset"
+
+    };
+
+  }
+
+
+
+  if (code === "agroforestry" || code === "forestry") {
+
+    return {
+
+      sectorCode: "agroforestry",
+
+      sectorName: "Agroforestry & Land",
+
+      assetSingular: "Land Plot / Parcel",
+
+      assetPlural: "Land Plots & Parcels",
+
+      projectsNavLabel: "Projects & Land Plots",
+
+      stage3Label: "3. Plot Registration",
+
+      stage3DetailedName: "3. Land Plot & Parcel Onboarding",
+
+      proceedToStage3Label: "Proceed to Plot Registration",
+
+      telemetrySource: "LiDAR & Canopy Biomass Sensors",
+
+      entityTypeAsset: "Forestry Land Parcel"
+
+    };
+
+  }
+
+
+
+  // Generic / Multi-sector fallback
+
+  return {
+
+    sectorCode: code || "generic",
+
+    sectorName: "Carbon Projects",
+
+    assetSingular: "Monitored Asset",
+
+    assetPlural: "Monitored Assets",
+
+    projectsNavLabel: "Projects & Assets",
+
+    stage3Label: "3. Asset Deployment",
+
+    stage3DetailedName: "3. Asset Deployment & Onboarding",
+
+    proceedToStage3Label: "Proceed to Asset Onboarding",
+
+    telemetrySource: "IoT Telemetry & Field Sensors",
+
+    entityTypeAsset: "Carbon Project Asset"
+
+  };
+
+}
+
+
+
+export function getSectorLifecycleStages(sectorCode?: string): string[] {
+
+  const terms = getSectorTerminology(sectorCode);
+
+  return [
+
+    "1. Origination",
+
+    "2. Methodology",
+
+    terms.stage3Label,
+
+    "4. Field Ops & Telemetry",
+
+    "5. VVB Verification",
+
+    "6. Credit Minting",
+
+  ];
+
+}

@@ -165,6 +165,11 @@ const PAGE_INSIGHTS: Record<string, (sector: string, role: string) => Contextual
 
   "/dashboard/methodologies": (sector, role) => {
     const ctx = getSectorContext(sector);
+    const actionLabel = sector === "ev_mobility" ? "View Assets Fleet" :
+                        sector === "cookstoves" ? "View Deployed Devices" :
+                        sector === "hybrid_energy" ? "View Solar Assets" :
+                        sector === "biochar" ? "View Facility Assets" :
+                        sector === "agroforestry" ? "View Land Plots" : "View Project Assets";
     return {
       pageTitle: "Methodology",
       purpose: `Configures methodological DNA, AST equations, emission factors, and automated monitoring requirements for ${ctx.sectorName}.`,
@@ -172,7 +177,7 @@ const PAGE_INSIGHTS: Record<string, (sector: string, role: string) => Contextual
       whatToDoNext: "Verify emission factor formulas and baseline non-renewable biomass/grid parameters.",
       aiRecommendation: ctx.methodologyRec,
       confidenceScore: 99.8,
-      nextActionLabel: "View Assets Fleet",
+      nextActionLabel: actionLabel,
       nextActionHref: "/dashboard/assets"
     };
   },
