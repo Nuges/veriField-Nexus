@@ -307,11 +307,11 @@ export function DataTable<T extends Record<string, any>>({
       </div>
 
       {/* Main Table View */}
-      <div className="bg-[var(--color-card)] border border-[var(--color-border)] rounded-lg overflow-hidden">
+      <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg overflow-hidden shadow-xs">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-[#F8FAFC] dark:bg-slate-900 border-b border-[var(--color-border)] text-[11px] font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider">
+              <tr className="bg-[var(--color-surface-subtle)] border-b border-[var(--color-border)] text-[11px] font-bold text-[var(--color-text-secondary)] uppercase tracking-wider">
                 {columns.map(col => (
                   <th
                     key={col.key}
@@ -350,7 +350,7 @@ export function DataTable<T extends Record<string, any>>({
                   <tr key={idx} className="animate-pulse">
                     {columns.map(col => (
                       <td key={col.key} className="py-4 px-4">
-                        <div className="h-4 bg-[var(--color-surface)] rounded w-3/4" />
+                        <div className="h-4 bg-[var(--color-surface-subtle)] rounded w-3/4" />
                       </td>
                     ))}
                   </tr>
@@ -360,7 +360,7 @@ export function DataTable<T extends Record<string, any>>({
                   <tr
                     key={row.id || row._id || rowIdx}
                     onClick={() => onRowClick && onRowClick(row)}
-                    className={`transition-colors hover:bg-[var(--color-surface)]/50 ${
+                    className={`transition-colors hover:bg-[var(--color-surface-subtle)] ${
                       onRowClick ? "cursor-pointer" : ""
                     }`}
                   >
@@ -384,12 +384,12 @@ export function DataTable<T extends Record<string, any>>({
                 <tr>
                   <td colSpan={columns.length} className="py-12 text-center text-[var(--color-text-muted)]">
                     <div className="flex flex-col items-center justify-center space-y-2">
-                      <Filter size={24} className="opacity-40 text-emerald-400" />
+                      <Filter size={24} className="opacity-40 text-[#008A5E]" />
                       <p className="text-sm font-medium">{emptyStateText}</p>
                       {hasActiveFilters && (
                         <button
                           onClick={resetFilters}
-                          className="text-xs text-emerald-400 hover:underline pt-1"
+                          className="text-xs text-[#008A5E] font-bold hover:underline pt-1 cursor-pointer"
                         >
                           Clear active search & filters
                         </button>

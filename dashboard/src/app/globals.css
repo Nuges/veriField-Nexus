@@ -14,14 +14,18 @@
 
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 
 
 :root {
   /* Day Theme Default (Clean Enterprise Light #F8FAFC) */
   --color-background: #F8FAFC;
   --color-surface: #FFFFFF;
+  --color-surface-subtle: #F1F5F9;
   --color-card: #FFFFFF;
   --color-border: #E2E8F0;
+  --color-border-hover: #CBD5E1;
   --color-border-subtle: #F1F5F9;
   --color-primary: #008A5E;
   --color-primary-hover: #00734E;
@@ -41,8 +45,10 @@
   /* Night Theme (Clean Dark Slate #0B0F17) */
   --color-background: #0B0F17;
   --color-surface: #111827;
+  --color-surface-subtle: #1E293B;
   --color-card: #111827;
   --color-border: #1F2937;
+  --color-border-hover: #374151;
   --color-border-subtle: #182234;
   --color-primary: #00B47A;
   --color-primary-hover: #008A5E;
