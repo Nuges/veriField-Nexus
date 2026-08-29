@@ -449,127 +449,95 @@ export default function LoginPage() {
                 <Mail size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
 
                 <input
-
                   type="email"
-
                   value={email}
-
                   onChange={(e) => setEmail(e.target.value)}
-
-                  placeholder="admin@verifield.io"
-
+                  placeholder="segunoluwole22@gmail.com"
                   required
-
                   className="w-full pl-10 pr-4 py-3 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)]
-
-                    text-[var(--color-text-primary)] placeholder:text-slate-600 text-sm
-
+                    text-[var(--color-text-primary)] placeholder:text-slate-500 text-sm
                     focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/50
-
                     transition-all duration-200"
-
                 />
-
               </div>
-
             </div>
-
-
 
             {/* Password */}
-
             <div>
-
               <label className="text-sm text-[var(--color-text-secondary)] mb-1.5 block">Password</label>
-
               <div className="relative">
-
                 <Lock size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
-
                 <input
-
                   type="password"
-
                   value={password}
-
                   onChange={(e) => setPassword(e.target.value)}
-
                   placeholder="••••••••"
-
                   required
-
                   className="w-full pl-10 pr-4 py-3 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)]
-
-                    text-[var(--color-text-primary)] placeholder:text-slate-600 text-sm
-
+                    text-[var(--color-text-primary)] placeholder:text-slate-500 text-sm
                     focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/50
-
                     transition-all duration-200"
-
                 />
-
               </div>
-
             </div>
 
-
+            {/* Quick Demo Fill Credentials */}
+            <div className="pt-1 pb-1">
+              <p className="text-[11px] font-semibold text-[var(--color-text-secondary)] mb-1.5 uppercase tracking-wider">Quick Sign-In Presets</p>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEmail("segunoluwole22@gmail.com");
+                    setPassword("VeriField_Dev_2026!");
+                  }}
+                  className="px-2.5 py-1.5 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)] hover:border-emerald-500/40 text-[11px] font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] text-left transition-colors flex items-center gap-1.5 cursor-pointer"
+                >
+                  <ShieldCheck size={13} className="text-[#008A5E] shrink-0" />
+                  <span className="truncate">Super Admin</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEmail("shalom@gmail.com");
+                    setPassword("Password123!");
+                  }}
+                  className="px-2.5 py-1.5 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)] hover:border-blue-500/40 text-[11px] font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] text-left transition-colors flex items-center gap-1.5 cursor-pointer"
+                >
+                  <ShieldCheck size={13} className="text-blue-400 shrink-0" />
+                  <span className="truncate">Org Admin</span>
+                </button>
+              </div>
+            </div>
 
             {/* Submit Button */}
-
             <button
-
               type="submit"
-
               disabled={isLoading}
-
               className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600
-
                 text-[var(--color-text-primary)] font-semibold text-sm
-
                 hover:from-emerald-600 hover:to-emerald-700
-
                 disabled:opacity-50 disabled:cursor-not-allowed
-
                 transition-all duration-200 flex items-center justify-center gap-2
-
                 shadow-lg shadow-emerald-500/20"
-
             >
-
               {isLoading ? (
-
                 <>
-
                   <Loader2 size={18} className="animate-spin" />
-
                   Signing in...
-
                 </>
-
               ) : (
-
                 "Sign In"
-
               )}
-
             </button>
-
           </form>
 
-
-
           {/* New public onboarding/signup link */}
-
           <div className="text-center mt-6 pt-4 border-t border-[var(--color-border)]">
-
             <span className="text-xs text-[var(--color-text-muted)] font-medium">New Carbon Developer or NGO? </span>
-
             <Link href="/signup" className="text-xs text-emerald-400 font-bold hover:underline">
-
               Create Organization Account
-
             </Link>
-
           </div>
 
 
