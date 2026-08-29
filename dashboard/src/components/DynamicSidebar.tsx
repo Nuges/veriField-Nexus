@@ -194,6 +194,7 @@ export default function DynamicSidebar() {
               href: "/dashboard/verifications",
               badge: pendingCount !== null && pendingCount > 0 ? `${pendingCount}` : undefined
             },
+            { label: "Programmes (PoA)", icon: "Globe", href: "/dashboard/poa" },
             { label: "Carbon Ledger", icon: "Sliders", href: "/dashboard/carbon" },
             { label: "Compliance", icon: "Globe", href: "/dashboard/command-center" },
             { label: "MRV Reports", icon: "FileText", href: "/dashboard/analytics" },
@@ -217,6 +218,7 @@ export default function DynamicSidebar() {
         items: [
           { label: "Mission Control", icon: "LayoutDashboard", href: "/dashboard" },
           { label: "Projects & Fleets", icon: "Briefcase", href: "/dashboard/projects" },
+          { label: "Programmes (PoA)", icon: "Globe", href: "/dashboard/poa" },
           {
             label: "Field Operations",
             icon: "Radio",
@@ -244,8 +246,7 @@ export default function DynamicSidebar() {
       {
         title: "Administration",
         items: [
-          { label: "People & Agents", icon: "Users", href: "/dashboard/agents" },
-          { label: "Access Control", icon: "ShieldCheck", href: "/dashboard/access-control" },
+          { label: "People & Access", icon: "Users", href: "/dashboard/people" },
           { label: "System Settings", icon: "Settings", href: "/dashboard/settings" },
         ]
       },

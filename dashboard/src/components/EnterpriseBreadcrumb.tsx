@@ -61,6 +61,8 @@ export default function EnterpriseBreadcrumb() {
 
   const getStageFromPath = (path: string | null) => {
     if (!path || path === "/dashboard") return "Mission Control";
+    if (path.startsWith("/dashboard/poa")) return "Programmes (PoA)";
+    if (path.startsWith("/dashboard/portfolio")) return "PoA & Portfolio";
     if (path.startsWith("/dashboard/projects")) return "Projects";
     if (path.startsWith("/dashboard/methodologies")) return "Methodology";
     if (path.startsWith("/dashboard/assets")) return "Assets";
@@ -72,8 +74,9 @@ export default function EnterpriseBreadcrumb() {
     if (path.startsWith("/dashboard/ai")) return "AI Assistant";
     if (path.startsWith("/dashboard/analytics")) return "Reports";
     if (path.startsWith("/dashboard/settings")) return "Settings";
-    if (path.startsWith("/dashboard/access-control")) return "Access Control";
-    if (path.startsWith("/dashboard/agents")) return "People & Agents";
+    if (path.startsWith("/dashboard/people")) return "People & Access";
+    if (path.startsWith("/dashboard/access-control")) return "People & Access";
+    if (path.startsWith("/dashboard/agents")) return "People & Access";
     return "Operations";
   };
 

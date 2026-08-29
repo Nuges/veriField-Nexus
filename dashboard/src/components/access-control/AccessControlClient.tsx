@@ -1,31 +1,73 @@
 "use client";
-import { useState, useEffect } from "react";
+
+import { useState, useEffect, useMemo } from "react";
 import { useToast } from "@/components/Toast";
-import { Search, Shield, UserPlus, Filter, Download, UserCheck, UserX, MoreVertical, Building } from "lucide-react";
-import { apiFetch } from "@/lib/api";
+import {
+  Search,
+  Shield,
+  UserPlus,
+  Filter,
+  Download,
+  UserCheck,
+  UserX,
+  MoreVertical,
+  Building,
+  Key,
+  Lock,
+  Unlock,
+  RefreshCw,
+  Edit3,
+  CheckCircle2,
+  Trash2,
+  X
+} from "lucide-react";
+import { apiFetch, createUserAccount, resetAgentPassword, updateAgentStatus } from "@/lib/api";
+import { DataTable } from "@/components/common/DataTable";
+
+export interface EnterpriseUser {
+  id: string;
+  email: string;
+  full_name: string;
+  role: string;
+  organization?: string;
+  organization_name?: string;
+  organization_id?: string;
+  status?: string;
+  is_suspended?: boolean;
+  created_at?: string;
+  licensed_sectors?: string[];
+}
 
 export default function AccessControlClient() {
   const toast = useToast();
 
-  const [users, setUsers] = useState<any[]>([]);
+  const [users, setUsers] = useState<EnterpriseUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
-  const [inviteData, setInviteData] = useState({
+  const [isProvisionModalOpen, setIsProvisionModalOpen] = useState(false);
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<EnterpriseUser | null>(null);
+
+  // Provision state
+  const [provisionData, setProvisionData] = useState({
     email: "",
     full_name: "",
-    role: "field_agent",
-    password: ""
+    role: "FIELD_AGENT",
+    password: "",
   });
+  const [isProvisioning, setIsProvisioning] = useState(false);
+
+  // Password reset state
+  const [resetPasswordValue, setResetPasswordValue] = useState("");
+  const [isResetting, setIsResetting] = useState(false);
 
   const loadUsers = async () => {
     setIsLoading(true);
     try {
-      // Hit the correct backend auth/users endpoint
-      const data = await apiFetch<any[]>("/auth/users?limit=100");
-      setUsers(data);
-    } catch (error) {
+      const data = await apiFetch<EnterpriseUser[]>("/auth/users?limit=100");
+      setUsers(Array.isArray(data) ? data : []);
+    } catch (error: any) {
       console.error("Failed to load users", error);
+      toast.error("Load Failed", error.message || "Failed to load enterprise user directory.");
     } finally {
       setIsLoading(false);
     }
@@ -35,266 +77,424 @@ export default function AccessControlClient() {
     loadUsers();
   }, []);
 
-  const handleInvite = async (e: React.FormEvent) => {
+  const handleProvision = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!provisionData.email || !provisionData.full_name) {
+      toast.error("Validation Error", "Full Name and Email Address are required.");
+      return;
+    }
+
+    setIsProvisioning(true);
     try {
-      await apiFetch("/auth/users", {
-        method: "POST",
-        body: JSON.stringify(inviteData),
+      await createUserAccount({
+        email: provisionData.email.trim(),
+        full_name: provisionData.full_name.trim(),
+        role: provisionData.role,
+        password: provisionData.password.trim() || undefined,
       });
-      setIsInviteModalOpen(false);
-      loadUsers();
-    } catch (error) {
-      console.error("Invite failed", error);
-      toast.error('Operation Failed', "Failed to create user. Ensure you have SUPER_ADMIN rights.");
+
+      toast.success("Account Provisioned", `User account for ${provisionData.full_name} (${provisionData.role}) created successfully.`);
+      setIsProvisionModalOpen(false);
+      setProvisionData({
+        email: "",
+        full_name: "",
+        role: "FIELD_AGENT",
+        password: "",
+      });
+      await loadUsers();
+    } catch (error: any) {
+      console.error("Provision failed", error);
+      toast.error("Provisioning Failed", error.message || "Could not provision user account.");
+    } finally {
+      setIsProvisioning(false);
     }
   };
 
-  const handleDelete = async (userId: string) => {
-    if (!confirm("Are you sure you want to delete this user?")) return;
+  const handleStatusToggle = async (user: EnterpriseUser) => {
+    const newStatus = user.status === "suspended" || user.is_suspended ? "active" : "suspended";
     try {
-      await apiFetch(`/auth/users/${userId}`, {
-        method: "DELETE",
-      });
-      loadUsers();
-    } catch (error) {
-      console.error("Delete failed", error);
+      await updateAgentStatus(user.id, newStatus);
+      toast.success("Status Updated", `Account ${user.full_name || user.email} status changed to ${newStatus}.`);
+      await loadUsers();
+    } catch (error: any) {
+      console.error("Status update failed", error);
+      toast.error("Action Failed", error.message || "Failed to update account status.");
     }
   };
 
-  const filteredUsers = users.filter((u) => 
-    u.email.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    u.full_name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const handlePasswordReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedUser) return;
+    if (resetPasswordValue.length < 8) {
+      toast.error("Validation Error", "Temporary password must be at least 8 characters.");
+      return;
+    }
+
+    setIsResetting(true);
+    try {
+      await resetAgentPassword(selectedUser.id, resetPasswordValue);
+      toast.success("Password Reset", `Password for ${selectedUser.full_name} has been securely reset.`);
+      setIsResetModalOpen(false);
+      setSelectedUser(null);
+      setResetPasswordValue("");
+    } catch (error: any) {
+      console.error("Password reset failed", error);
+      toast.error("Reset Failed", error.message || "Failed to reset password.");
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
+  const handleExportCSV = () => {
+    if (users.length === 0) {
+      toast.error("Export Empty", "No user records to export.");
+      return;
+    }
+    const headers = ["ID", "Full Name", "Email", "Role", "Organization", "Status", "Created At"];
+    const rows = users.map(u => [
+      u.id,
+      `"${u.full_name || ""}"`,
+      `"${u.email || ""}"`,
+      u.role || "",
+      `"${u.organization_name || u.organization || "Global"}"`,
+      u.status || "active",
+      u.created_at || ""
+    ]);
+    const csvContent = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `verifield_users_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success("Export Complete", "Enterprise user directory exported as CSV.");
+  };
+
+  // Metrics
+  const activeCount = users.filter(u => u.status !== "suspended" && !u.is_suspended).length;
+  const suspendedCount = users.filter(u => u.status === "suspended" || u.is_suspended).length;
+  const rolesCount = new Set(users.map(u => (u.role || "").toUpperCase())).size;
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      {/* Top Header & Actions */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-[var(--color-surface)] border border-[var(--color-border)] p-5 rounded-2xl shadow-xs">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--color-text-primary)]">Identity & Access Management</h1>
-          <p className="text-[var(--color-text-secondary)] text-sm mt-1">
-            Enterprise role-based access control, provisioning, and audit directory.
+          <div className="flex items-center gap-2">
+            <span className="px-2.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 text-[10px] font-mono font-bold uppercase">
+              IAM & RBAC Directory
+            </span>
+          </div>
+          <h1 className="text-xl font-black text-[var(--color-text-primary)] mt-1">Team & Access Governance</h1>
+          <p className="text-[var(--color-text-secondary)] text-xs mt-0.5">
+            Single point of administration for enterprise user accounts, roles, privileges, and authentication credentials.
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <button className="btn-secondary px-4 py-2 flex items-center gap-2">
-            <Download size={16} />
-            <span className="text-sm font-medium">Export</span>
-          </button>
-          <button 
-            onClick={() => setIsInviteModalOpen(true)}
-            className="btn-primary px-4 py-2 flex items-center gap-2"
+        <div className="flex items-center gap-2.5">
+          <button
+            onClick={handleExportCSV}
+            className="px-3.5 py-2 rounded-xl bg-[var(--color-surface)] hover:bg-[var(--color-surface-subtle)] border border-[var(--color-border)] text-xs font-bold text-[var(--color-text-primary)] flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
           >
-            <UserPlus size={16} />
-            <span className="text-sm font-medium">Invite User</span>
+            <Download size={14} className="text-blue-700 dark:text-blue-400" />
+            <span>Export CSV</span>
+          </button>
+          <button
+            onClick={() => setIsProvisionModalOpen(true)}
+            className="px-4 py-2 rounded-xl bg-[#008A5E] hover:bg-[#00734E] text-white font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
+          >
+            <UserPlus size={14} />
+            <span>+ Provision User Account</span>
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="card p-4">
-          <p className="text-sm text-[var(--color-text-secondary)] font-medium">Total Users</p>
-          <p className="text-2xl font-bold text-[var(--color-text-primary)] mt-1">{users.length}</p>
+      {/* Metrics Summary Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] p-4 rounded-xl shadow-xs">
+          <p className="text-xs text-[var(--color-text-muted)] font-bold uppercase tracking-wider">Total Registered Accounts</p>
+          <p className="text-2xl font-black text-[var(--color-text-primary)] mt-1">{users.length}</p>
         </div>
-        <div className="card p-4">
-          <p className="text-sm text-[var(--color-text-secondary)] font-medium">Active Sessions</p>
-          <p className="text-2xl font-bold text-[var(--color-text-primary)] mt-1">{users.filter(u => u.status === 'active').length}</p>
+        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] p-4 rounded-xl shadow-xs">
+          <p className="text-xs text-[var(--color-text-muted)] font-bold uppercase tracking-wider">Active Accounts</p>
+          <p className="text-2xl font-black text-emerald-800 dark:text-emerald-300 mt-1">{activeCount}</p>
         </div>
-        <div className="card p-4">
-          <p className="text-sm text-[var(--color-text-secondary)] font-medium">Pending Invites</p>
-          <p className="text-2xl font-bold text-[var(--color-text-primary)] mt-1">0</p>
+        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] p-4 rounded-xl shadow-xs">
+          <p className="text-xs text-[var(--color-text-muted)] font-bold uppercase tracking-wider">Suspended Accounts</p>
+          <p className="text-2xl font-black text-amber-800 dark:text-amber-300 mt-1">{suspendedCount}</p>
         </div>
-        <div className="card p-4">
-          <p className="text-sm text-[var(--color-text-secondary)] font-medium">System Roles</p>
-          <p className="text-2xl font-bold text-[var(--color-text-primary)] mt-1">8</p>
-        </div>
-      </div>
-
-      <div className="card">
-        <div className="p-4 border-b border-[var(--color-border)] flex flex-col sm:flex-row gap-4 justify-between items-center bg-slate-50 dark:bg-slate-900/50 rounded-t-xl">
-          <div className="relative w-full sm:max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" size={18} />
-            <input
-              type="text"
-              placeholder="Search by name or email..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg text-sm focus:border-emerald-500 outline-none"
-            />
-          </div>
-          <button className="btn-secondary px-4 py-2 flex items-center gap-2">
-            <Filter size={16} />
-            <span className="text-sm font-medium">Filters</span>
-          </button>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="border-b border-[var(--color-border)] text-xs uppercase tracking-wider text-[var(--color-text-secondary)] bg-slate-50/50 dark:bg-slate-900/20">
-                <th className="px-6 py-4 font-bold">User</th>
-                <th className="px-6 py-4 font-bold">Role</th>
-                <th className="px-6 py-4 font-bold">Organization</th>
-                <th className="px-6 py-4 font-bold">Status</th>
-                <th className="px-6 py-4 font-bold text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[var(--color-border)] text-sm">
-              {isLoading ? (
-                <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-[var(--color-text-secondary)]">
-                    <div className="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
-                    Loading users...
-                  </td>
-                </tr>
-              ) : filteredUsers.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-[var(--color-text-secondary)]">
-                    No users found matching "{searchTerm}"
-                  </td>
-                </tr>
-              ) : (
-                filteredUsers.map((user) => (
-                  <tr key={user.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/20 transition-colors">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold text-xs">
-                          {user.full_name.charAt(0).toUpperCase()}
-                        </div>
-                        <div>
-                          <p className="font-semibold text-[var(--color-text-primary)]">{user.full_name}</p>
-                          <p className="text-xs text-[var(--color-text-secondary)]">{user.email}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-1.5">
-                        <Shield size={14} className="text-emerald-500" />
-                        <span className="font-medium text-[var(--color-text-primary)] bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md text-xs border border-[var(--color-border)]">
-                          {user.role}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-1.5 text-[var(--color-text-secondary)]">
-                        <Building size={14} />
-                        <span>{user.organization || "VeriField Internal"}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      {user.status === "active" ? (
-                        <span className="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 text-xs font-semibold bg-emerald-50 dark:bg-emerald-500/10 px-2 py-1 rounded-full">
-                          <UserCheck size={12} /> Active
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1.5 text-red-600 dark:text-red-400 text-xs font-semibold bg-red-50 dark:bg-red-500/10 px-2 py-1 rounded-full">
-                          <UserX size={12} /> Suspended
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex justify-end gap-2">
-                        <button 
-                          onClick={() => handleDelete(user.id)}
-                          className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors"
-                          title="Delete User"
-                        >
-                          <UserX size={16} />
-                        </button>
-                        <button className="p-1.5 text-[var(--color-text-secondary)] hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors">
-                          <MoreVertical size={16} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] p-4 rounded-xl shadow-xs">
+          <p className="text-xs text-[var(--color-text-muted)] font-bold uppercase tracking-wider">Distinct Enterprise Roles</p>
+          <p className="text-2xl font-black text-purple-800 dark:text-purple-300 mt-1">{rolesCount}</p>
         </div>
       </div>
 
-      {isInviteModalOpen && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl w-full max-w-md shadow-2xl animate-fade-in-up">
+      {/* Data Table */}
+      <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-5 shadow-xs space-y-4">
+        <DataTable
+          title="Enterprise Account Directory"
+          subtitle="Real-time role-based access control and user status matrix"
+          columns={[
+            {
+              key: "full_name",
+              label: "User / Email",
+              sortable: true,
+              render: (row: EnterpriseUser) => (
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-700 text-emerald-800 dark:text-emerald-300 flex items-center justify-center font-black text-xs shrink-0">
+                    {(row.full_name || row.email || "U").charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <div className="font-bold text-[var(--color-text-primary)] text-xs">{row.full_name || "Unnamed"}</div>
+                    <div className="text-[11px] text-[var(--color-text-secondary)] font-mono">{row.email}</div>
+                  </div>
+                </div>
+              )
+            },
+            {
+              key: "role",
+              label: "Role & Privileges",
+              sortable: true,
+              render: (row: EnterpriseUser) => {
+                const rUpper = (row.role || "").toUpperCase();
+                return (
+                  <span className={`text-[10px] font-mono font-bold uppercase px-2.5 py-1 rounded border ${
+                    rUpper === "SUPER_ADMIN" ? "bg-purple-100 dark:bg-purple-950/60 border-purple-300 dark:border-purple-700 text-purple-800 dark:text-purple-300" :
+                    (rUpper === "ORG_ADMIN" || rUpper === "ADMIN") ? "bg-blue-100 dark:bg-blue-950/60 border-blue-300 dark:border-blue-700 text-blue-800 dark:text-blue-300" :
+                    (rUpper === "AUDITOR" || rUpper === "VVB" || rUpper === "VERIFIER") ? "bg-amber-100 dark:bg-amber-950/60 border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-300" :
+                    (rUpper === "FIELD_AGENT" || rUpper === "FIELD_SUPERVISOR") ? "bg-emerald-100 dark:bg-emerald-950/60 border-emerald-300 dark:border-emerald-700 text-emerald-800 dark:text-emerald-300" :
+                    (rUpper.includes("MANAGER") || rUpper.includes("PROJECT") || rUpper.includes("PORTFOLIO")) ? "bg-cyan-100 dark:bg-cyan-950/60 border-cyan-300 dark:border-cyan-700 text-cyan-800 dark:text-cyan-300" :
+                    "bg-[var(--color-surface-subtle)] border-[var(--color-border)] text-[var(--color-text-secondary)]"
+                  }`}>
+                    {rUpper === "ADMIN" ? "ORG_ADMIN" : rUpper}
+                  </span>
+                );
+              }
+            },
+            {
+              key: "organization",
+              label: "Workspace Tenant",
+              sortable: true,
+              render: (row: EnterpriseUser) => (
+                <div className="flex items-center gap-1.5 text-xs text-[var(--color-text-secondary)]">
+                  <Building size={14} className="text-[var(--color-text-muted)] shrink-0" />
+                  <span className="font-semibold text-[var(--color-text-primary)]">
+                    {row.organization_name || row.organization || "Global Tenant"}
+                  </span>
+                </div>
+              )
+            },
+            {
+              key: "status",
+              label: "Status",
+              sortable: true,
+              render: (row: EnterpriseUser) => {
+                const isSusp = row.status === "suspended" || row.is_suspended;
+                return (
+                  <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
+                    isSusp
+                      ? "bg-red-100 dark:bg-red-950/60 text-red-800 dark:text-red-300 border-red-300 dark:border-red-700"
+                      : "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700"
+                  }`}>
+                    {isSusp ? <UserX size={10} /> : <UserCheck size={10} />}
+                    {isSusp ? "Suspended" : "Active"}
+                  </span>
+                );
+              }
+            },
+            {
+              key: "actions",
+              label: "Actions",
+              render: (row: EnterpriseUser) => (
+                <div className="flex items-center gap-1.5 justify-end">
+                  <button
+                    onClick={() => {
+                      setSelectedUser(row);
+                      setResetPasswordValue("");
+                      setIsResetModalOpen(true);
+                    }}
+                    className="p-1.5 rounded-lg bg-[var(--color-surface)] hover:bg-[var(--color-surface-subtle)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] border border-[var(--color-border)] transition-colors cursor-pointer shadow-xs"
+                    title="Reset Password"
+                  >
+                    <Key size={13} />
+                  </button>
+                  <button
+                    onClick={() => handleStatusToggle(row)}
+                    className={`p-1.5 rounded-lg border font-bold transition-colors cursor-pointer shadow-xs ${
+                      row.status === "suspended" || row.is_suspended
+                        ? "bg-emerald-50 hover:bg-emerald-600 hover:text-white text-emerald-800 border-emerald-300"
+                        : "bg-amber-50 hover:bg-amber-600 hover:text-white text-amber-800 border-amber-300"
+                    }`}
+                    title={row.status === "suspended" || row.is_suspended ? "Activate Account" : "Suspend Account"}
+                  >
+                    {row.status === "suspended" || row.is_suspended ? <Unlock size={13} /> : <Lock size={13} />}
+                  </button>
+                </div>
+              )
+            }
+          ]}
+          data={users}
+          isLoading={isLoading}
+          searchKeys={["full_name", "email", "role", "organization", "organization_name"]}
+          searchPlaceholder="Filter by user name, email, or role..."
+          emptyStateText="No enterprise accounts match your search query."
+        />
+      </div>
+
+      {/* Unified User Provisioning Modal */}
+      {isProvisionModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl w-full max-w-md shadow-2xl animate-scale-up">
             <div className="p-5 border-b border-[var(--color-border)] flex justify-between items-center">
-              <h2 className="font-bold text-lg text-[var(--color-text-primary)] flex items-center gap-2">
-                <UserPlus size={20} className="text-emerald-500" />
-                Invite New User
+              <h2 className="font-black text-base text-[var(--color-text-primary)] flex items-center gap-2">
+                <UserPlus size={18} className="text-[#008A5E]" />
+                Provision User Account
               </h2>
-              <button 
-                onClick={() => setIsInviteModalOpen(false)}
-                className="text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
+              <button
+                onClick={() => setIsProvisionModalOpen(false)}
+                className="p-1 rounded-lg bg-[var(--color-surface-subtle)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] border border-[var(--color-border)] cursor-pointer"
               >
-                ✕
+                <X size={16} />
               </button>
             </div>
-            
-            <form onSubmit={handleInvite} className="p-5 space-y-4">
+
+            <form onSubmit={handleProvision} className="p-5 space-y-4 text-xs">
               <div>
-                <label className="block text-xs font-bold text-[var(--color-text-secondary)] mb-1 uppercase tracking-wider">Full Name</label>
-                <input 
+                <label className="block text-[10px] font-bold text-[var(--color-text-secondary)] mb-1 uppercase tracking-wider">
+                  Full Name *
+                </label>
+                <input
                   required
-                  type="text" 
-                  value={inviteData.full_name}
-                  onChange={(e) => setInviteData({...inviteData, full_name: e.target.value})}
-                  className="w-full bg-[var(--color-background)] border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm focus:border-emerald-500 outline-none" 
+                  type="text"
+                  value={provisionData.full_name}
+                  onChange={(e) => setProvisionData({ ...provisionData, full_name: e.target.value })}
+                  className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg px-3 py-2 text-xs text-[var(--color-text-primary)] font-semibold focus:border-[#008A5E] outline-none shadow-xs"
                   placeholder="e.g. Jane Doe"
                 />
               </div>
-              
+
               <div>
-                <label className="block text-xs font-bold text-[var(--color-text-secondary)] mb-1 uppercase tracking-wider">Email Address</label>
-                <input 
+                <label className="block text-[10px] font-bold text-[var(--color-text-secondary)] mb-1 uppercase tracking-wider">
+                  Email Address *
+                </label>
+                <input
                   required
-                  type="email" 
-                  value={inviteData.email}
-                  onChange={(e) => setInviteData({...inviteData, email: e.target.value})}
-                  className="w-full bg-[var(--color-background)] border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm focus:border-emerald-500 outline-none" 
-                  placeholder="jane@example.com"
+                  type="email"
+                  value={provisionData.email}
+                  onChange={(e) => setProvisionData({ ...provisionData, email: e.target.value })}
+                  className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg px-3 py-2 text-xs text-[var(--color-text-primary)] font-mono focus:border-[#008A5E] outline-none shadow-xs"
+                  placeholder="jane@organization.com"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-[var(--color-text-secondary)] mb-1 uppercase tracking-wider">Temporary Password</label>
-                <input 
-                  type="text" 
-                  value={inviteData.password}
-                  onChange={(e) => setInviteData({...inviteData, password: e.target.value})}
-                  className="w-full bg-[var(--color-background)] border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm focus:border-emerald-500 outline-none" 
-                  placeholder="Leave blank to auto-generate"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-xs font-bold text-[var(--color-text-secondary)] mb-1 uppercase tracking-wider">Assign Role</label>
-                <select 
-                  value={inviteData.role}
-                  onChange={(e) => setInviteData({...inviteData, role: e.target.value})}
-                  className="w-full bg-[var(--color-background)] border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm focus:border-emerald-500 outline-none"
+                <label className="block text-[10px] font-bold text-[var(--color-text-secondary)] mb-1 uppercase tracking-wider">
+                  Assign Enterprise Role *
+                </label>
+                <select
+                  value={provisionData.role}
+                  onChange={(e) => setProvisionData({ ...provisionData, role: e.target.value })}
+                  className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg px-3 py-2 text-xs text-[var(--color-text-primary)] font-bold focus:border-[#008A5E] outline-none cursor-pointer shadow-xs"
                 >
-                  <option value="field_agent">Field Agent (Data Collection)</option>
-                  <option value="PROJECT_MANAGER">Project Manager</option>
-                  <option value="QA_OFFICER">QA Officer (Internal Audit)</option>
-                  <option value="VERIFIER">VVB Verifier (External Audit)</option>
-                  <option value="ORG_ADMIN">Organization Admin</option>
-                  <option value="SUPER_ADMIN">System Super Admin</option>
+                  <option value="FIELD_AGENT">Field Agent (Mobile Telemetry Capture)</option>
+                  <option value="FIELD_SUPERVISOR">Field Supervisor (Field QA & Routing)</option>
+                  <option value="PROJECT_MANAGER">Project Manager (Asset & Methodology Binding)</option>
+                  <option value="PORTFOLIO_MANAGER">Portfolio Manager (PoA & Registry Allocation)</option>
+                  <option value="QA_OFFICER">QA Officer (Internal MRV Audit)</option>
+                  <option value="AUDITOR">Third-Party Auditor (External Verification)</option>
+                  <option value="VVB">VVB Verifier (Digital Signature & Attestation)</option>
+                  <option value="ORG_ADMIN">Organization Administrator (Tenant IAM)</option>
+                  <option value="VIEWER">Read-Only Viewer</option>
                 </select>
               </div>
 
-              <div className="pt-4 flex justify-end gap-3">
-                <button 
+              <div>
+                <label className="block text-[10px] font-bold text-[var(--color-text-secondary)] mb-1 uppercase tracking-wider">
+                  Temporary Password (Optional)
+                </label>
+                <input
+                  type="password"
+                  value={provisionData.password}
+                  onChange={(e) => setProvisionData({ ...provisionData, password: e.target.value })}
+                  className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg px-3 py-2 text-xs text-[var(--color-text-primary)] font-mono focus:border-[#008A5E] outline-none shadow-xs"
+                  placeholder="Auto-generated if left blank (min 8 chars)"
+                />
+              </div>
+
+              <div className="pt-3 flex justify-end gap-2 border-t border-[var(--color-border)]">
+                <button
                   type="button"
-                  onClick={() => setIsInviteModalOpen(false)}
-                  className="px-4 py-2 text-sm font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
+                  onClick={() => setIsProvisionModalOpen(false)}
+                  className="px-4 py-2 rounded-lg bg-[var(--color-surface)] hover:bg-[var(--color-surface-subtle)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] border border-[var(--color-border)] text-xs font-bold transition-colors cursor-pointer shadow-xs"
                 >
                   Cancel
                 </button>
-                <button 
+                <button
                   type="submit"
-                  className="btn-primary px-5 py-2 text-sm font-bold"
+                  disabled={isProvisioning}
+                  className="px-4 py-2 rounded-lg bg-[#008A5E] hover:bg-[#00734E] text-white text-xs font-bold transition-colors flex items-center gap-1.5 disabled:opacity-50 cursor-pointer shadow-xs"
                 >
-                  Send Invitation
+                  {isProvisioning ? <RefreshCw size={13} className="animate-spin" /> : <UserPlus size={13} />}
+                  <span>Provision Account</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Password Reset Modal */}
+      {isResetModalOpen && selectedUser && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl w-full max-w-md shadow-2xl animate-scale-up">
+            <div className="p-5 border-b border-[var(--color-border)] flex justify-between items-center">
+              <h2 className="font-black text-base text-[var(--color-text-primary)] flex items-center gap-2">
+                <Key size={18} className="text-purple-700 dark:text-purple-400" />
+                Reset Account Password
+              </h2>
+              <button
+                onClick={() => setIsResetModalOpen(false)}
+                className="p-1 rounded-lg bg-[var(--color-surface-subtle)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] border border-[var(--color-border)] cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={handlePasswordReset} className="p-5 space-y-4 text-xs">
+              <p className="text-[var(--color-text-secondary)] leading-relaxed">
+                Set a new temporary password for <strong className="text-[var(--color-text-primary)]">{selectedUser.full_name}</strong> ({selectedUser.email}).
+              </p>
+
+              <div>
+                <label className="block text-[10px] font-bold text-[var(--color-text-secondary)] mb-1 uppercase tracking-wider">
+                  New Password *
+                </label>
+                <input
+                  required
+                  type="password"
+                  value={resetPasswordValue}
+                  onChange={(e) => setResetPasswordValue(e.target.value)}
+                  className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg px-3 py-2 text-xs text-[var(--color-text-primary)] font-mono focus:border-[#008A5E] outline-none shadow-xs"
+                  placeholder="Enter minimum 8 characters..."
+                />
+              </div>
+
+              <div className="pt-3 flex justify-end gap-2 border-t border-[var(--color-border)]">
+                <button
+                  type="button"
+                  onClick={() => setIsResetModalOpen(false)}
+                  className="px-4 py-2 rounded-lg bg-[var(--color-surface)] hover:bg-[var(--color-surface-subtle)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] border border-[var(--color-border)] text-xs font-bold transition-colors cursor-pointer shadow-xs"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isResetting}
+                  className="px-4 py-2 rounded-lg bg-[#008A5E] hover:bg-[#00734E] text-white text-xs font-bold transition-colors flex items-center gap-1.5 disabled:opacity-50 cursor-pointer shadow-xs"
+                >
+                  {isResetting ? <RefreshCw size={13} className="animate-spin" /> : <Key size={13} />}
+                  <span>Update Password</span>
                 </button>
               </div>
             </form>
@@ -304,3 +504,4 @@ export default function AccessControlClient() {
     </div>
   );
 }
+
