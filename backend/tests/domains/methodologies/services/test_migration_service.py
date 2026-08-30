@@ -12,6 +12,8 @@ from app.domains.methodologies.services.migration_service import \
 @pytest.mark.asyncio
 async def test_migration_service_creates_records():
     mock_db = AsyncMock()
+    mock_db.add = MagicMock()
+    mock_db.add_all = MagicMock()
     # Mock execute().scalar_one_or_none() to always return None to force creation
     mock_result = MagicMock()
     mock_result.scalar_one_or_none.return_value = None

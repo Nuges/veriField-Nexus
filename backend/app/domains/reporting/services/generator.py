@@ -424,12 +424,12 @@ class RealDocumentGeneratorService:
                 ])
         else:
             ledger_data.append([
-                Paragraph("N/A", td_mono),
-                Paragraph("Clean Cookstove", td_style),
-                Paragraph("4,000 kg/yr", td_style),
+                Paragraph("NO_ASSETS", td_mono),
+                Paragraph("No assets enrolled", td_style),
+                Paragraph("0 kg/yr", td_style),
                 Paragraph("0.00", td_style),
-                Paragraph("100.0%", td_style),
-                Paragraph("<font color='#1B8A5A'><b>VERIFIED</b></font>", td_style),
+                Paragraph("N/A", td_style),
+                Paragraph("<font color='#64748B'><b>UNVERIFIED</b></font>", td_style),
             ])
 
         t_ledger = Table(ledger_data, colWidths=[76, 110, 120, 86, 80, 80])

@@ -34,6 +34,12 @@ class PrometheusMiddleware(BaseHTTPMiddleware):
     """
 
     async def dispatch(self, request: Request, call_next):
+        try:
+            from app.domains.observability.api import NEXUS_REQUESTS_TOTAL
+            NEXUS_REQUESTS_TOTAL.inc()
+        except Exception:
+            pass
+
         method = request.method
         endpoint = request.url.path.split("/")[0:4]
         endpoint_str = "/".join(endpoint)

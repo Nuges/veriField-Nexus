@@ -132,3 +132,7 @@ backend/static/reports/*
 backend/static/proofs/*
 !backend/static/proofs/.gitkeep
 static/
+*.pem
+*.key
+backend/app/static/keys/*
+!backend/app/static/keys/.gitkeep

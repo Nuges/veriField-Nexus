@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional
 from datetime import datetime
 from uuid import UUID
@@ -28,8 +28,7 @@ class SolarAssetResponse(BaseModel):
     status: str
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class EnergyTelemetryCreate(BaseModel):
@@ -53,8 +52,7 @@ class EnergyTelemetryResponse(BaseModel):
     anomaly_reason: Optional[str] = None
     timestamp: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class EnergyPortfolioResponse(BaseModel):

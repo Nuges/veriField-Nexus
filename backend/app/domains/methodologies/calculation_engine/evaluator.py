@@ -46,8 +46,10 @@ class DeterministicEvaluator(ast.NodeVisitor):
         except SyntaxError as e:
             raise EvaluationError(f"Syntax error in expression: {expression}") from e
 
-    def visit_Constant(self, node: ast.Constant) -> float:
-        if isinstance(node.value, (int, float)):
+    def visit_Constant(self, node: ast.Constant) -> Union[int, float]:
+        if isinstance(node.value, int):
+            return int(node.value)
+        elif isinstance(node.value, float):
             return float(node.value)
         raise EvaluationError(f"Unsupported constant type: {type(node.value)}")
 

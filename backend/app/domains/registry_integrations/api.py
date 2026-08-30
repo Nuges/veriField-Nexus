@@ -1,13 +1,14 @@
-from typing import List
+from typing import Any, Dict, List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import get_current_user
 from app.db.session import get_db
 from app.domains.authentication.models import User
+from app.domains.projects.models import Project
 
 from .models import RegistryConfig
 from .schemas import (RegistryConfigCreate, RegistryConfigResponse,
@@ -89,22 +90,31 @@ async def sync_bundle_to_registry(
     bundle_id: str,
     provider_name: str = "local",
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     from app.domains.registry_integrations.providers.factory import get_registry_provider
     import uuid
     from app.domains.registry_integrations.models import RegistrySyncLog
 
-    provider = get_registry_provider(provider_name)
-
-    # 1. Authenticate
-    await provider.authenticate()
+    try:
+        provider = get_registry_provider(provider_name, db=db)
+        # 1. Authenticate
+        await provider.authenticate()
+    except NotImplementedError as nie:
+        raise HTTPException(
+            status_code=status.HTTP_501_NOT_IMPLEMENTED,
+            detail=f"Registry provider '{provider_name}' is currently in staging/local packaging mode. Direct external API synchronization requires production registry credentials: {str(nie)}",
+        )
+    except ValueError as ve:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(ve),
+        )
 
     # 2. Convert string to UUID for the bundle
     try:
         project_uuid = uuid.UUID(bundle_id)
     except ValueError:
-        # Fallback to a generated UUID for testing if bundle_id is not UUID format
         project_uuid = uuid.uuid4()
 
     idempotency_key = f"sync-{bundle_id}-{uuid.uuid4().hex[:8]}"
@@ -115,20 +125,28 @@ async def sync_bundle_to_registry(
         action="submit_bundle",
         status="Queued",
         idempotency_key=idempotency_key,
-        registry_id=uuid.uuid4() # Temporary auto-generated registry config ID
+        registry_id=uuid.uuid4(),
     )
     db.add(sync_log)
     await db.commit()
     await db.refresh(sync_log)
 
     # 4. Trigger Provider Submission
-    result = await provider.submit_bundle(project_uuid, {"bundle_id": bundle_id}, idempotency_key)
+    try:
+        result = await provider.submit_bundle(project_uuid, {"bundle_id": bundle_id}, idempotency_key)
+    except NotImplementedError as nie:
+        sync_log.status = "Failed"
+        await db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_501_NOT_IMPLEMENTED,
+            detail=f"Registry submission for '{provider_name}' pending live credentials: {str(nie)}",
+        )
 
     return {
         "success": True,
         "message": f"Bundle {bundle_id} synced successfully via {provider_name}",
         "sync_id": str(sync_log.id),
-        "details": result
+        "details": result,
     }
 
 @router.get("/status/{sync_id}")
@@ -246,3 +264,146 @@ async def get_registry_submission_package(
             raise HTTPException(status_code=403, detail="Forbidden: Cannot generate registry packages for another organization.")
 
     return package
+
+
+@router.get("/dossier/{standard}/{project_id}")
+async def get_compliance_dossier(
+    standard: str,
+    project_id: UUID,
+    stage: str = "monitoring",
+    version: Optional[str] = None,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Generates an authoritative, standard-specific compliance dossier (NCCC, Article 6.2, Article 6.4, Verra, Gold Standard).
+    """
+    p_stmt = select(Project.organization_id).where(Project.id == project_id)
+    p_res = await db.execute(p_stmt)
+    proj_org = p_res.scalar_one_or_none()
+    if not proj_org and current_user.role != "SUPER_ADMIN":
+        # Check if project exists
+        p_check = await db.execute(select(Project.id).where(Project.id == project_id))
+        if not p_check.scalar_one_or_none():
+            raise HTTPException(status_code=404, detail=f"Project with ID {project_id} not found.")
+
+    if current_user.role != "SUPER_ADMIN":
+        user_org = current_user.organization_id
+        if not user_org or (proj_org and str(proj_org).lower() != str(user_org).lower()):
+            raise HTTPException(status_code=403, detail="Forbidden: Cannot access compliance dossiers for another organization.")
+
+    from app.domains.registry_integrations.services.compliance_dossier import RegistryComplianceDossierService
+    service = RegistryComplianceDossierService(db)
+    try:
+        dossier = await service.generate_dossier(standard=standard, project_id=project_id, stage=stage, version=version)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    return dossier
+
+
+@router.get("/readiness/{project_id}")
+async def get_project_registry_readiness(
+    project_id: UUID,
+    target_standard: str = "VERRA",
+    target_stage: str = "verification",
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Computes deterministic documentation completeness and registry readiness score across 9 pillars.
+    """
+    p_stmt = select(Project.organization_id).where(Project.id == project_id)
+    p_res = await db.execute(p_stmt)
+    proj_org = p_res.scalar_one_or_none()
+    if not proj_org and current_user.role != "SUPER_ADMIN":
+        p_check = await db.execute(select(Project.id).where(Project.id == project_id))
+        if not p_check.scalar_one_or_none():
+            raise HTTPException(status_code=404, detail=f"Project with ID {project_id} not found.")
+
+    if current_user.role != "SUPER_ADMIN":
+        user_org = current_user.organization_id
+        if not user_org or (proj_org and str(proj_org).lower() != str(user_org).lower()):
+            raise HTTPException(status_code=403, detail="Forbidden: Cannot access readiness scores for another organization.")
+
+    from app.domains.registry_integrations.services.readiness_engine import RegistryReadinessEngine
+    engine = RegistryReadinessEngine(db)
+    try:
+        readiness = await engine.evaluate_readiness(project_id=project_id, target_standard=target_standard, target_stage=target_stage)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+    return readiness
+
+
+@router.get("/lineage/{project_id}")
+async def get_project_data_lineage(
+    project_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Returns end-to-end data lineage provenance graph connecting raw sensor/field observations to approved carbon credits.
+    """
+    p_stmt = select(Project.organization_id).where(Project.id == project_id)
+    p_res = await db.execute(p_stmt)
+    proj_org = p_res.scalar_one_or_none()
+    if not proj_org and current_user.role != "SUPER_ADMIN":
+        p_check = await db.execute(select(Project.id).where(Project.id == project_id))
+        if not p_check.scalar_one_or_none():
+            raise HTTPException(status_code=404, detail=f"Project with ID {project_id} not found.")
+
+    if current_user.role != "SUPER_ADMIN":
+        user_org = current_user.organization_id
+        if not user_org or (proj_org and str(proj_org).lower() != str(user_org).lower()):
+            raise HTTPException(status_code=403, detail="Forbidden: Cannot access data lineage for another organization.")
+
+    from app.domains.reporting.services.lineage import DataLineageEngine
+    engine = DataLineageEngine(db)
+    try:
+        lineage = await engine.get_project_data_lineage(project_id=project_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+    return lineage
+
+
+@router.get("/package-download/{standard}/{project_id}")
+async def download_registry_package_zip(
+    standard: str,
+    project_id: UUID,
+    stage: str = "verification",
+    version: Optional[str] = None,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Generates and downloads a standardized, multi-directory, cryptographically sealed ZIP submission package.
+    """
+    p_stmt = select(Project.organization_id).where(Project.id == project_id)
+    p_res = await db.execute(p_stmt)
+    proj_org = p_res.scalar_one_or_none()
+    if not proj_org and current_user.role != "SUPER_ADMIN":
+        p_check = await db.execute(select(Project.id).where(Project.id == project_id))
+        if not p_check.scalar_one_or_none():
+            raise HTTPException(status_code=404, detail=f"Project with ID {project_id} not found.")
+
+    if current_user.role != "SUPER_ADMIN":
+        user_org = current_user.organization_id
+        if not user_org or (proj_org and str(proj_org).lower() != str(user_org).lower()):
+            raise HTTPException(status_code=403, detail="Forbidden: Cannot download registry packages for another organization.")
+
+    from app.domains.registry_integrations.services.package_builder import ComprehensivePackageBuilder
+    builder = ComprehensivePackageBuilder(db)
+    try:
+        zip_bytes, zip_filename, manifest = await builder.build_package_zip(
+            project_id=project_id, standard=standard, stage=stage, version=version
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+    return Response(
+        content=zip_bytes,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{zip_filename}"'},
+    )

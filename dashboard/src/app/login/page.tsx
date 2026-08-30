@@ -481,35 +481,6 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Quick Demo Fill Credentials */}
-            <div className="pt-1 pb-1">
-              <p className="text-[11px] font-semibold text-[var(--color-text-secondary)] mb-1.5 uppercase tracking-wider">Quick Sign-In Presets</p>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEmail("segunoluwole22@gmail.com");
-                    setPassword("VeriField_Dev_2026!");
-                  }}
-                  className="px-2.5 py-1.5 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)] hover:border-emerald-500/40 text-[11px] font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] text-left transition-colors flex items-center gap-1.5 cursor-pointer"
-                >
-                  <ShieldCheck size={13} className="text-[#008A5E] shrink-0" />
-                  <span className="truncate">Super Admin</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEmail("shalom@gmail.com");
-                    setPassword("Password123!");
-                  }}
-                  className="px-2.5 py-1.5 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)] hover:border-blue-500/40 text-[11px] font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] text-left transition-colors flex items-center gap-1.5 cursor-pointer"
-                >
-                  <ShieldCheck size={13} className="text-blue-400 shrink-0" />
-                  <span className="truncate">Org Admin</span>
-                </button>
-              </div>
-            </div>
-
             {/* Submit Button */}
             <button
               type="submit"

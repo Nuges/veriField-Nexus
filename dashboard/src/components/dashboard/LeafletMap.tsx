@@ -186,16 +186,13 @@ export default function LeafletMap({
 
 
 
-    // Dark-themed tile layer
+    // Dark-themed tile layer (Watermark-free Esri World Dark Gray Canvas or custom configured tile URL)
+    const tileUrl = process.env.NEXT_PUBLIC_MAP_TILE_URL || "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}";
+    const tileAttribution = '&copy; <a href="https://www.esri.com/">Esri</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
 
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
-
-      subdomains: "abcd",
-
+    L.tileLayer(tileUrl, {
+      attribution: tileAttribution,
       maxZoom: 19,
-
     }).addTo(map);
 
 

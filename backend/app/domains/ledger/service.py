@@ -4,7 +4,8 @@ import logging
 import uuid
 from typing import Any, Dict, Optional
 
-from cryptography.hazmat.primitives import hashes
+from pathlib import Path
+from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -24,14 +25,69 @@ class HashGenerator:
         return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
 
 
+_PLATFORM_KEYPAIR = None
+
+
+def _get_platform_keypair():
+    """
+    Returns the persistent platform RSA keypair for cryptographic ledger signing.
+    Resolution order:
+    1. settings.ledger_private_key_pem / environment variable
+    2. Local persistent key file: backend/app/static/keys/ledger_platform_key.pem
+    3. Auto-generated and persisted key file
+    4. Safe in-memory fallback
+    """
+    global _PLATFORM_KEYPAIR
+    if _PLATFORM_KEYPAIR is not None:
+        return _PLATFORM_KEYPAIR
+
+    # 1. Environment / Settings
+    env_key = getattr(settings, "ledger_private_key_pem", None)
+    if env_key:
+        try:
+            _PLATFORM_KEYPAIR = serialization.load_pem_private_key(
+                env_key.encode("utf-8") if isinstance(env_key, str) else env_key,
+                password=None,
+            )
+            return _PLATFORM_KEYPAIR
+        except Exception as e:
+            logger.warning("Could not load ledger private key from settings: %s", e)
+
+    # 2. Local persistent key file
+    key_dir = Path(__file__).resolve().parent.parent.parent / "static" / "keys"
+    key_file = key_dir / "ledger_platform_key.pem"
+    if key_file.exists():
+        try:
+            with open(key_file, "rb") as f:
+                _PLATFORM_KEYPAIR = serialization.load_pem_private_key(f.read(), password=None)
+                return _PLATFORM_KEYPAIR
+        except Exception as e:
+            logger.warning("Could not read ledger key from %s: %s", key_file, e)
+
+    # 3. Generate and persist new platform key
+    try:
+        key_dir.mkdir(parents=True, exist_ok=True)
+        key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        pem_bytes = key.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.PKCS8,
+            encryption_algorithm=serialization.NoEncryption(),
+        )
+        with open(key_file, "wb") as f:
+            f.write(pem_bytes)
+        _PLATFORM_KEYPAIR = key
+        return _PLATFORM_KEYPAIR
+    except Exception as e:
+        logger.warning("Could not persist key to file (%s), using in-memory key: %s", key_file, e)
+        _PLATFORM_KEYPAIR = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        return _PLATFORM_KEYPAIR
+
+
 class DigitalSignatureProvider:
     """Layer 2: RSA digital signature generation and verification."""
 
-    def __init__(self):
-        # Generate or load global platform private key
-        self.private_key = rsa.generate_private_key(
-            public_exponent=65537, key_size=2048
-        )
+    def __init__(self, private_key=None):
+        self.private_key = private_key or _get_platform_keypair()
         self.public_key = self.private_key.public_key()
 
     def sign_hash(self, payload_hash: str) -> str:

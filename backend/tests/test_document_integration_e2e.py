@@ -129,7 +129,7 @@ async def test_real_database_project_document_upload_and_reconciliation():
 
         sec = MethodologyFamily(
             id=sec_id,
-            code=f"BIO_{uuid.uuid4().hex[:4].upper()}",
+            code=f"BIO_{uuid.uuid4().hex[:12].upper()}",
             name="Biochar Carbon Removal",
             is_active=True,
         )
@@ -137,7 +137,7 @@ async def test_real_database_project_document_upload_and_reconciliation():
 
         reg = MethodologyRegistry(
             id=uuid.uuid4(),
-            code=f"REG_{uuid.uuid4().hex[:4].upper()}",
+            code=f"REG_{uuid.uuid4().hex[:12].upper()}",
             name="Verra Registry",
             is_active=True,
         )
@@ -147,7 +147,7 @@ async def test_real_database_project_document_upload_and_reconciliation():
             id=meth_id,
             family_id=sec_id,
             registry_id=reg.id,
-            code=f"VM_{uuid.uuid4().hex[:4].upper()}",
+            code=f"VM_{uuid.uuid4().hex[:12].upper()}",
             name="Biochar Carbon Methodology",
             is_active=True,
         )
@@ -306,11 +306,11 @@ async def test_registry_packaging_service():
         meth_id = uuid.uuid4()
 
         db.add(Organization(id=org_id, name=f"Packaging Org {uuid.uuid4().hex[:6]}", org_type="DEVELOPER"))
-        sec = MethodologyFamily(id=sec_id, code=f"FOR_{uuid.uuid4().hex[:4].upper()}", name="Forestry", is_active=True)
+        sec = MethodologyFamily(id=sec_id, code=f"FOR_{uuid.uuid4().hex[:12].upper()}", name="Forestry", is_active=True)
         db.add(sec)
-        reg = MethodologyRegistry(id=uuid.uuid4(), code=f"VER_{uuid.uuid4().hex[:4].upper()}", name="Verra", is_active=True)
+        reg = MethodologyRegistry(id=uuid.uuid4(), code=f"VER_{uuid.uuid4().hex[:12].upper()}", name="Verra", is_active=True)
         db.add(reg)
-        meth = Methodology(id=meth_id, family_id=sec_id, registry_id=reg.id, code=f"VM_{uuid.uuid4().hex[:4].upper()}", name="REDD+ Methodology", is_active=True)
+        meth = Methodology(id=meth_id, family_id=sec_id, registry_id=reg.id, code=f"VM_{uuid.uuid4().hex[:12].upper()}", name="REDD+ Methodology", is_active=True)
         db.add(meth)
 
         proj = Project(
