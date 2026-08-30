@@ -1,6 +1,7 @@
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
+from pydantic import BaseModel
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -407,3 +408,92 @@ async def download_registry_package_zip(
         media_type="application/zip",
         headers={"Content-Disposition": f'attachment; filename="{zip_filename}"'},
     )
+
+
+class ITMOAuthorizationRequest(BaseModel):
+    project_id: UUID
+    acquiring_party: Optional[str] = "Bilateral Partner DNA"
+    authorized_use_scope: Optional[str] = "NDC Achievement / Other International Mitigation Purposes (OIMP)"
+    cooperative_approach_id: Optional[str] = None
+
+
+@router.post("/itmo/authorize")
+async def submit_itmo_authorization(
+    data: ITMOAuthorizationRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Formally records and seals an Article 6.2 ITMO authorization for a verified mitigation project.
+    """
+    from datetime import datetime, timezone
+    from sqlalchemy.orm.attributes import flag_modified
+    import hashlib
+
+    p_stmt = select(Project).where(Project.id == data.project_id)
+    p_res = await db.execute(p_stmt)
+    project = p_res.scalar_one_or_none()
+    if not project:
+        raise HTTPException(status_code=404, detail=f"Project with ID {data.project_id} not found.")
+
+    if current_user.role != "SUPER_ADMIN":
+        user_org = current_user.organization_id
+        if not user_org or str(project.organization_id).lower() != str(user_org).lower():
+            raise HTTPException(status_code=403, detail="Forbidden: Cannot authorize ITMOs for another organization's project.")
+
+    # Update project baseline parameters with Article 6 authorization metadata
+    params = dict(project.baseline_parameters) if isinstance(project.baseline_parameters, dict) else {}
+    params["article_6_authorized"] = True
+    params["itmo_authorized_at"] = datetime.now(timezone.utc).isoformat()
+    params["authorized_by"] = current_user.email
+    params["acquiring_party"] = data.acquiring_party or "Bilateral Partner DNA"
+    params["authorized_use_scope"] = data.authorized_use_scope or "NDC Achievement / Other International Mitigation Purposes (OIMP)"
+    if data.cooperative_approach_id:
+        params["cooperative_approach_id"] = data.cooperative_approach_id
+    elif not params.get("cooperative_approach_id"):
+        params["cooperative_approach_id"] = f"CA-{str(project.country or 'NGA')[:3].upper()}-2026-{str(project.id)[:6].upper()}"
+
+    project.baseline_parameters = params
+    flag_modified(project, "baseline_parameters")
+
+    # Record sync log entry
+    from app.domains.registry_integrations.models import RegistrySyncLog
+    import uuid
+    sync_log = RegistrySyncLog(
+        project_id=project.id,
+        action="ITMO_AUTHORIZATION",
+        status="AUTHORIZED",
+        idempotency_key=f"itmo-auth-{project.id}-{uuid.uuid4().hex[:8]}",
+        registry_id=uuid.uuid4(),
+        request_payload={
+            "acquiring_party": params["acquiring_party"],
+            "authorized_use_scope": params["authorized_use_scope"],
+        },
+        response_payload={
+            "status": "AUTHORIZED",
+            "cooperative_approach_id": params["cooperative_approach_id"],
+            "authorized_by": current_user.email,
+        }
+    )
+    db.add(sync_log)
+    await db.commit()
+    await db.refresh(project)
+
+    # Generate the resulting updated Article 6.2 dossier
+    from app.domains.registry_integrations.services.compliance_dossier import RegistryComplianceDossierService
+    service = RegistryComplianceDossierService(db)
+    dossier = await service.generate_dossier(standard="ARTICLE6_2", project_id=project.id)
+
+    return {
+        "status": "AUTHORIZED",
+        "message": "Article 6.2 ITMO Authorization successfully registered and sealed.",
+        "project_id": str(project.id),
+        "project_name": project.name,
+        "serial_number": dossier.get("itmo_accounting_ledger", {}).get("serial_number_format"),
+        "cumulative_itmos_tco2e": dossier.get("itmo_accounting_ledger", {}).get("cumulative_itmos_generated_tco2e", 0.0),
+        "cooperative_approach_id": params["cooperative_approach_id"],
+        "acquiring_party": params["acquiring_party"],
+        "dossier_sha256": dossier.get("dossier_sha256"),
+        "authorized_at": params["itmo_authorized_at"],
+        "dossier": dossier,
+    }

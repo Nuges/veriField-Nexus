@@ -376,3 +376,49 @@ async def test_article_6_2_invalid_state_transition_blocked():
         ca_status = dossier["itmo_accounting_ledger"]["corresponding_adjustment_status"]
         assert ca_status == "INVALID_STATE_CA_CANNOT_PRECEDE_FIRST_TRANSFER"
         assert dossier["itmo_accounting_ledger"]["authorization_status"] == "PENDING_AUTHORIZATION"
+
+
+@pytest.mark.asyncio
+async def test_itmo_authorization_endpoint_workflow():
+    """Verify ITMO authorization endpoint updates baseline params, sync log, and returns sealed A6.2 dossier."""
+    await _init_fallback_db()
+    factory = _get_fallback_session_factory()
+    proj_id = uuid.uuid4()
+    org_id = uuid.uuid4()
+
+    async with factory() as session:
+        proj = Project(
+            id=proj_id,
+            name="ITMO Authorization Test Project",
+            organization_id=org_id,
+            country="Nigeria",
+            baseline_parameters={"article_6_authorized": False},
+        )
+        session.add(proj)
+        await session.commit()
+
+        # Import endpoint directly and execute
+        from app.domains.registry_integrations.api import submit_itmo_authorization, ITMOAuthorizationRequest
+        from app.domains.authentication.models import User
+
+        user = User(
+            id=uuid.uuid4(),
+            email="auth_officer@verifield.io",
+            role="ORG_ADMIN",
+            organization_id=org_id,
+            is_active=True,
+        )
+
+        req = ITMOAuthorizationRequest(
+            project_id=proj_id,
+            acquiring_party="Swiss Federal Office for the Environment (FOEN)",
+            authorized_use_scope="NDC Achievement",
+        )
+
+        res = await submit_itmo_authorization(data=req, db=session, current_user=user)
+
+        assert res["status"] == "AUTHORIZED"
+        assert res["acquiring_party"] == "Swiss Federal Office for the Environment (FOEN)"
+        assert "ITMO-NGA" in res["serial_number"]
+        assert res["dossier"]["itmo_accounting_ledger"]["authorization_status"] == "AUTHORIZED"
+        assert res["dossier"]["dossier_sha256"] is not None

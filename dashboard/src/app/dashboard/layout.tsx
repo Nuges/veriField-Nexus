@@ -28,72 +28,40 @@ import AINotificationCenter from "@/components/AINotificationCenter";
 import UniversalAIAssistant from "@/components/UniversalAIAssistant";
 
 import InlineGuidance from "@/components/InlineGuidance";
-
+import { fetchUsers } from "@/lib/api";
 import Link from "next/link";
-
 import { WorkspaceProvider, useWorkspace } from "@/context/WorkspaceContext";
-
 import { useRouter, usePathname } from "next/navigation";
-
 import { useEffect, useState } from "react";
-
 import { Bot } from "lucide-react";
 
-
-
 export default function DashboardLayout({
-
   children,
-
 }: {
-
   children: React.ReactNode;
-
 }) {
-
   return (
-
     <WorkspaceProvider>
-
       <DashboardLayoutContent>{children}</DashboardLayoutContent>
-
     </WorkspaceProvider>
-
   );
-
 }
 
-
-
 function DashboardLayoutContent({
-
   children,
-
 }: {
-
   children: React.ReactNode;
-
 }) {
-
   const { user, isLoading, activeSector } = useWorkspace();
-
   const router = useRouter();
-
   const pathname = usePathname();
-
   const [isAINotificationsOpen, setIsAINotificationsOpen] = useState(false);
-
   const [isMounted, setIsMounted] = useState(false);
-
-
+  const [guidanceData, setGuidanceData] = useState<{ activeUsers?: number; pendingApprovals?: number }>({});
 
   useEffect(() => {
-
     setIsMounted(true);
-
   }, []);
-
-
 
   useEffect(() => {
     if (!user) return;
@@ -101,7 +69,21 @@ function DashboardLayoutContent({
     if (!isDashboardRoleAllowed(user.role)) {
       localStorage.clear();
       router.push("/login?error=unauthorized");
+      return;
     }
+
+    // Dynamically fetch live active users & pending approvals for administrative guidance
+    fetchUsers()
+      .then((users) => {
+        if (Array.isArray(users)) {
+          const activeCount = users.filter((u) => u.is_active !== false && u.status !== "suspended" && u.status !== "decommissioned").length;
+          const pendingCount = users.filter((u) => u.status === "pending" || u.status === "pending_approval").length;
+          setGuidanceData({ activeUsers: Math.max(1, activeCount), pendingApprovals: pendingCount });
+        }
+      })
+      .catch(() => {
+        setGuidanceData({ activeUsers: 1, pendingApprovals: 0 });
+      });
   }, [user, router]);
 
 
@@ -235,8 +217,7 @@ function DashboardLayoutContent({
 
 
           {/* Inline Role Guidance */}
-
-          <InlineGuidance role={user?.role} page={pathname} />
+          <InlineGuidance role={user?.role} page={pathname} data={guidanceData} />
 
 
 

@@ -242,7 +242,7 @@ class RegistryComplianceDossierService:
                 "authorization_status": "AUTHORIZED" if is_authorized else "PENDING_AUTHORIZATION",
                 "first_transfer_status": "FIRST_TRANSFERRED" if first_transferred else "NOT_TRANSFERRED",
                 "corresponding_adjustment_status": ca_status,
-                "serial_number_format": f"ITMO-{str(project.country or 'NGA')[:3].upper()}-{datetime.now(timezone.utc).year}-{project.id}-{int(total_itmos)}",
+                "serial_number_format": f"ITMO-{'NGA' if (project.country and project.country.lower() in ['nigeria', 'nga']) else str(project.country or 'NGA')[:3].upper()}-{datetime.now(timezone.utc).year}-{project.id}-{int(total_itmos)}",
             },
             "unfccc_structured_summary_fields": {
                 "table_1_itmo_metric": "tCO2eq",

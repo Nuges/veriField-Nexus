@@ -2898,9 +2898,38 @@ export async function adminRevokeUserSessions(userId: string): Promise<{ status:
 
 
 export async function fetchGovernanceAuditLogs(action?: string): Promise<any[]> {
-
   const query = action ? `?action=${encodeURIComponent(action)}` : "";
-
   return apiFetch<any[]>(`/admin/audit-logs${query}`);
+}
 
+export async function submitITMOAuthorization(data: {
+  project_id: string;
+  acquiring_party?: string;
+  authorized_use_scope?: string;
+  cooperative_approach_id?: string;
+}): Promise<{
+  status: string;
+  message: string;
+  project_id: string;
+  project_name: string;
+  serial_number: string;
+  cumulative_itmos_tco2e: number;
+  cooperative_approach_id: string;
+  acquiring_party: string;
+  dossier_sha256: string;
+  authorized_at: string;
+  dossier: any;
+}> {
+  return apiFetch<any>("/registry/itmo/authorize", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function fetchComplianceDossier(standard: string, projectId: string): Promise<any> {
+  return apiFetch<any>(`/registry/dossier/${standard}/${projectId}`);
+}
+
+export async function fetchRegistryReadiness(projectId: string, standard: string = "VERRA"): Promise<any> {
+  return apiFetch<any>(`/registry/readiness/${projectId}?target_standard=${standard}`);
 }

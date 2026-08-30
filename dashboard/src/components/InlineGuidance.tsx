@@ -161,17 +161,13 @@ function getGuidanceForRole(
     });
 
   } else if (r.includes("ADMIN") || r === "admin") {
-
+    const userCount = data?.activeUsers !== undefined ? data.activeUsers : 1;
+    const userText = `${userCount} active user${userCount === 1 ? "" : "s"}`;
     items.push({
-
-      message: `System running. ${data?.activeUsers ?? 0} active users.${data?.pendingApprovals ? ` ${data.pendingApprovals} pending approvals.` : ""}`,
-
+      message: `System running. ${userText}.${data?.pendingApprovals ? ` ${data.pendingApprovals} pending approval${data.pendingApprovals === 1 ? "" : "s"}.` : ""}`,
       actionLabel: "System Settings",
-
       actionHref: "/dashboard/settings",
-
       priority: "info",
-
     });
 
   } else if (r === "VVB_AUDITOR" || r === "vvb_auditor") {
