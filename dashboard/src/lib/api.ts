@@ -2920,16 +2920,40 @@ export async function submitITMOAuthorization(data: {
   authorized_at: string;
   dossier: any;
 }> {
-  return apiFetch<any>("/registry/itmo/authorize", {
-    method: "POST",
-    body: JSON.stringify(data),
-  });
+  try {
+    return await apiFetch<any>("/registry/itmo/authorize", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  } catch (err: any) {
+    if (err?.message?.includes("404") || err?.message?.includes("Not Found")) {
+      return await apiFetch<any>("/registry-integrations/itmo/authorize", {
+        method: "POST",
+        body: JSON.stringify(data),
+      });
+    }
+    throw err;
+  }
 }
 
 export async function fetchComplianceDossier(standard: string, projectId: string): Promise<any> {
-  return apiFetch<any>(`/registry/dossier/${standard}/${projectId}`);
+  try {
+    return await apiFetch<any>(`/registry/dossier/${standard}/${projectId}`);
+  } catch (err: any) {
+    if (err?.message?.includes("404") || err?.message?.includes("Not Found")) {
+      return await apiFetch<any>(`/registry-integrations/dossier/${standard}/${projectId}`);
+    }
+    throw err;
+  }
 }
 
 export async function fetchRegistryReadiness(projectId: string, standard: string = "VERRA"): Promise<any> {
-  return apiFetch<any>(`/registry/readiness/${projectId}?target_standard=${standard}`);
+  try {
+    return await apiFetch<any>(`/registry/readiness/${projectId}?target_standard=${standard}`);
+  } catch (err: any) {
+    if (err?.message?.includes("404") || err?.message?.includes("Not Found")) {
+      return await apiFetch<any>(`/registry-integrations/readiness/${projectId}?target_standard=${standard}`);
+    }
+    throw err;
+  }
 }

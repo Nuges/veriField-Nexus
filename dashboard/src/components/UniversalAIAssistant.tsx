@@ -217,7 +217,7 @@ export default function UniversalAIAssistant() {
                   .then((r) => {
                     const items = r?.items || [];
                     setProjects(items);
-                    if (items.length > 0 && !selectedProjectId) {
+                    if (items.length > 0) {
                       setSelectedProjectId(items[0].id);
                     }
                   })
@@ -535,7 +535,8 @@ export default function UniversalAIAssistant() {
                 <form
                   onSubmit={async (e) => {
                     e.preventDefault();
-                    if (!selectedProjectId) {
+                    const projIdToSubmit = selectedProjectId || (projects.length > 0 ? projects[0].id : "");
+                    if (!projIdToSubmit) {
                       setItmoError("Please select a project.");
                       return;
                     }
@@ -543,13 +544,13 @@ export default function UniversalAIAssistant() {
                     setItmoError(null);
                     try {
                       const res = await submitITMOAuthorization({
-                        project_id: selectedProjectId,
+                        project_id: projIdToSubmit,
                         acquiring_party: acquiringParty,
                         authorized_use_scope: authorizedUseScope,
                       });
                       setItmoResult(res);
                     } catch (err: any) {
-                      setItmoError(err?.message || "Failed to authorize ITMO. Ensure you have ORG_ADMIN permissions.");
+                      setItmoError(err?.message || "Failed to authorize ITMO. Ensure the project is approved and you have ORG_ADMIN permissions.");
                     } finally {
                       setIsSubmittingITMO(false);
                     }
