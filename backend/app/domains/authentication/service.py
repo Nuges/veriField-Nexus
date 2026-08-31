@@ -216,24 +216,18 @@ class AuthenticationService:
 
 
         for key, value in updates.items():
-
             if hasattr(user, key) and key not in [
-
                 "id",
-
+                "role",
+                "organization_id",
                 "version",
-
                 "created_at",
-
                 "updated_at",
-
             ]:
-
                 setattr(user, key, value)
 
-
-
         user = await self.repository.update(user)
+
 
 
 
@@ -261,9 +255,50 @@ class AuthenticationService:
 
         return user
 
+    async def update_user_role(
+        self, user_id: uuid.UUID, new_role: str, actor_user: User
+    ) -> User:
+        """Updates user role enforcing strict hierarchy and super admin invariants."""
+        from app.core.rbac import normalize_canonical_role, ROLE_SUPER_ADMIN, ROLE_ORG_ADMIN
+        target_user = await self.repository.get_by_id(user_id)
+        if not target_user:
+            raise HTTPException(status_code=404, detail="User not found")
 
+        canonical_new_role = normalize_canonical_role(new_role)
+        actor_canonical = normalize_canonical_role(actor_user.role)
+
+        # 1. Super admin invariant: SUPER_ADMIN role cannot be assigned by non-super-admin
+        if canonical_new_role == ROLE_SUPER_ADMIN:
+            if actor_canonical != ROLE_SUPER_ADMIN:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Forbidden: Only Super Admin can assign the Super Admin role."
+                )
+            if target_user.email != "segunoluwole22@gmail.com":
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Forbidden: Super Admin role is restricted to designated administrator email."
+                )
+
+        # 2. Org admin hierarchy: Org Admin cannot promote users to SUPER_ADMIN or modify users in other orgs
+        if actor_canonical != ROLE_SUPER_ADMIN:
+            if not actor_user.organization_id or target_user.organization_id != actor_user.organization_id:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Forbidden: Cannot modify roles for users outside your organization."
+                )
+            if target_user.role == ROLE_SUPER_ADMIN:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Forbidden: Cannot modify a Super Admin user account."
+                )
+
+        target_user.role = canonical_new_role
+        updated_user = await self.repository.update(target_user)
+        return updated_user
 
     async def delete_user(self, user_id: uuid.UUID, actor_id: str) -> User:
+
 
         """Soft deletes a user."""
 

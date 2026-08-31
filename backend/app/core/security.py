@@ -85,8 +85,7 @@ def get_password_hash(password: str) -> str:
 
 
 # Bearer token extractor from Authorization header
-
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)
 
 
 
@@ -248,12 +247,21 @@ async def decode_jwt_token(token: str) -> dict:
 
 
 async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    token: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
 ) -> User:
-    """Extracts and validates current user from Bearer token."""
+    """Extracts and validates current user from Bearer token or token query param."""
+    raw_token = credentials.credentials if credentials else token
+    if not raw_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     # Decode the JWT token
-    payload = await decode_jwt_token(credentials.credentials)
+    payload = await decode_jwt_token(raw_token)
 
 
 

@@ -35,22 +35,17 @@ class UserCreate(BaseModel):
 
 
 class UserUpdate(BaseModel):
-
     full_name: Optional[str] = Field(None, max_length=255)
-
     avatar_url: Optional[str] = Field(None, max_length=500)
-
     organization: Optional[str] = Field(None, max_length=255)
-
-    organization_id: Optional[UUID] = None
-
     phone: Optional[str] = Field(None, max_length=20)
-
-    role: Optional[str] = Field(None, max_length=20)
-
     status: Optional[str] = Field(None, max_length=20)
-
     meta_data: Optional[dict] = None
+
+
+class UserRoleUpdatePayload(BaseModel):
+    role: str = Field(..., max_length=50)
+
 
 
 

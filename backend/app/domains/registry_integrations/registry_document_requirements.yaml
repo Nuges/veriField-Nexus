@@ -1,0 +1,443 @@
+# =============================================================================
+# VeriField Nexus — Authoritative Registry Document Requirements Matrix
+# =============================================================================
+# Classifies all registry submission documents, authority forms, supporting
+# evidence dossiers, and Nexus-generated submission drafts across:
+# 1. Federal Republic of Nigeria — National Council on Climate Change (NCCC) / NCMAP
+# 2. UNFCCC Article 6.2 Cooperative Approaches (Decision 2/CMA.3)
+# 3. UNFCCC Article 6.4 Mechanism Supervisory Body (Decision 3/CMA.3)
+# 4. Verra Verified Carbon Standard (VCS Standard v4.5 / v5.0)
+# 5. Gold Standard for the Global Goals (GS4GG v2.2)
+# 6. VeriField Nexus Cryptographic MRV & Lineage Records
+# =============================================================================
+
+version: "2026.1.0"
+last_updated: "2026-08-31"
+
+document_classes:
+  - id: OFFICIAL_AUTHORITY_FORM
+    description: "Official statutory or proprietary form issued/prescribed by the regulatory authority or registry body."
+  - id: OFFICIAL_AUTHORITY_RECORD
+    description: "Official authorization, letter of approval, gazette notice, or certificate executed by the sovereign DNA or registry."
+  - id: REQUIRED_SUBMISSION_DOCUMENT
+    description: "Mandatory technical report or design document required to be prepared and submitted for validation/verification."
+  - id: REQUIRED_SUPPORTING_DOCUMENT
+    description: "Supporting empirical evidence, baseline calculations, stakeholder logs, or calibration records."
+  - id: NEXUS_GENERATED_SUBMISSION_DRAFT
+    description: "Structured technical submission draft generated deterministically by VeriField Nexus from verified telemetry and metadata."
+  - id: NEXUS_INTERNAL_RECORD
+    description: "Cryptographic audit trail, data lineage graph, or tamper-evident seal generated for internal verification."
+
+authorities:
+  # ---------------------------------------------------------------------------
+  # 1. NIGERIA — NATIONAL COUNCIL ON CLIMATE CHANGE (NCCC) / NCMAP
+  # ---------------------------------------------------------------------------
+  - id: NCCC_NIGERIA
+    name: "National Council on Climate Change (NCCC)"
+    jurisdiction: "Federal Republic of Nigeria"
+    enabling_framework: "Climate Change Act 2021 / National Carbon Market Framework (NCMAP)"
+    authority_type: "Designated National Authority (DNA)"
+    documents:
+      - document_id: NCCC_NOC_APPLICATION
+        official_name: "Application for No-Objection Certificate (NOC) for Carbon Mitigation Activity"
+        nexus_name: "NCCC No-Objection Certificate (NOC) Application Dossier"
+        document_class: "NEXUS_GENERATED_SUBMISSION_DRAFT"
+        companion_official_form: "NCCC Form NOC-01 (Prescribed by NCCC Secretariat)"
+        lifecycle_stage: "HOST_COUNTRY_PRE_REGISTRATION"
+        mandatory: true
+        conditional: false
+        official_template_available: false
+        official_template_source: "UNVERIFIED — Official NCCC digital upload portal under rollout"
+        nexus_generation_supported: true
+        supported_formats: ["PDF", "DOCX", "JSON"]
+        required_inputs: ["project_name", "developer_org", "location_state", "sector", "methodology", "estimated_annual_tco2e"]
+        required_evidence: ["developer_incorporation_proof", "land_tenure_or_site_consent"]
+        approval_authority: "National Council on Climate Change Secretariat"
+        authorization_required: true
+        blocking_conditions:
+          - "HOST_COUNTRY_NOT_NIGERIA"
+          - "PROJECT_DEVELOPER_UNLINKED"
+          - "METHODOLOGY_UNLINKED"
+        disclaimer: "This document is a VeriField Nexus Structured Compliance Draft prepared for submission to the National Council on Climate Change. It does NOT constitute an official No-Objection Certificate until formally gazetted/approved by the NCCC."
+
+      - document_id: NCCC_PROJECT_REGISTRATION
+        official_name: "Nigeria National Carbon Registry Project Registration Form"
+        nexus_name: "NCCC Project Registration Dossier"
+        document_class: "NEXUS_GENERATED_SUBMISSION_DRAFT"
+        lifecycle_stage: "PROJECT_REGISTRATION"
+        mandatory: true
+        conditional: false
+        official_template_available: false
+        nexus_generation_supported: true
+        supported_formats: ["PDF", "DOCX", "JSON"]
+        required_inputs: ["project_title", "sectoral_scope", "crediting_period", "baseline_summary"]
+        required_evidence: ["noc_reference_or_application", "baseline_study_report"]
+        approval_authority: "NCCC Carbon Registry Administrator"
+        authorization_required: true
+        blocking_conditions:
+          - "ZERO_ASSETS_ENROLLED"
+          - "METHODOLOGY_UNLINKED"
+
+      - document_id: NCCC_BENEFIT_SHARING
+        official_name: "National Benefit Sharing & Community Development Agreement"
+        nexus_name: "NCCC Sustainable Development & Benefit Sharing Report"
+        document_class: "NEXUS_GENERATED_SUBMISSION_DRAFT"
+        lifecycle_stage: "VALIDATION"
+        mandatory: true
+        conditional: false
+        official_template_available: false
+        nexus_generation_supported: true
+        supported_formats: ["PDF", "DOCX", "JSON"]
+        required_inputs: ["community_benefit_pct", "employment_metrics", "gender_action_plan"]
+        required_evidence: ["stakeholder_minutes", "lsc_attendance_records"]
+        approval_authority: "NCCC / Local Community Trust Committee"
+        authorization_required: false
+        blocking_conditions:
+          - "STAKEHOLDER_CONSULTATION_MISSING"
+
+  # ---------------------------------------------------------------------------
+  # 2. UNFCCC ARTICLE 6.2 COOPERATIVE APPROACHES (DECISION 2/CMA.3)
+  # ---------------------------------------------------------------------------
+  - id: UNFCCC_ARTICLE_6_2
+    name: "UNFCCC Article 6.2 Mechanism"
+    jurisdiction: "International / Bilateral Parties"
+    enabling_framework: "Decision 2/CMA.3 (Glasgow Rulebook for Article 6.2)"
+    authority_type: "Host Party DNA & Acquiring Party DNA"
+    documents:
+      - document_id: A62_INITIAL_REPORT
+        official_name: "Article 6.2 Initial Report on Cooperative Approach (Decision 2/CMA.3 Annex IV)"
+        nexus_name: "Article 6.2 Initial Report & Cooperative Approach Specification"
+        document_class: "NEXUS_GENERATED_SUBMISSION_DRAFT"
+        lifecycle_stage: "PRE_TRANSFER_AUTHORIZATION"
+        mandatory: true
+        conditional: false
+        official_template_available: true
+        official_template_source: "UNFCCC Article 6.2 Initial Report Outline (Decision 6/CMA.4)"
+        official_template_version: "CMA.4 Annex I Outline"
+        nexus_generation_supported: true
+        supported_formats: ["PDF", "DOCX", "JSON"]
+        required_inputs: ["cooperative_approach_title", "participating_parties", "ndc_crediting_period", "metrics_tco2e", "corresponding_adjustment_method"]
+        required_evidence: ["bilateral_mou_or_agreement", "host_country_letter_of_authorization"]
+        approval_authority: "Host Party DNA (e.g., NCCC) & UNFCCC Secretariat"
+        authorization_required: true
+        blocking_conditions:
+          - "HOST_COUNTRY_AUTHORIZATION_MISSING"
+          - "COOPERATIVE_APPROACH_UNSPECIFIED"
+          - "ZERO_ACTIVITY_DATA"
+
+      - document_id: A62_HOST_PARTY_AUTHORIZATION_RECORD
+        official_name: "Host Party Article 6.2 Authorization Instrument & Attestation"
+        nexus_name: "Host Party Authorization Attestation Record"
+        document_class: "OFFICIAL_AUTHORITY_RECORD"
+        lifecycle_stage: "AUTHORIZATION"
+        mandatory: true
+        conditional: false
+        official_template_available: true
+        official_template_source: "Host Country Statutory Format"
+        nexus_generation_supported: false
+        supported_formats: ["PDF", "JSON"]
+        required_inputs: ["authorization_reference", "issuing_dna", "authorized_entities", "use_scope_ndc_or_oimp"]
+        required_evidence: ["official_signed_gazetted_letter_pdf"]
+        approval_authority: "Host Country DNA Designated Official"
+        authorization_required: true
+        blocking_conditions:
+          - "AUTHORIZATION_DOCUMENT_UNUPLOADED"
+
+      - document_id: A62_STRUCTURED_SUMMARY
+        official_name: "Article 6.2 Annual Structured Summary Table (Decision 2/CMA.3 Annex Table 1-5)"
+        nexus_name: "Article 6.2 Annual Structured Summary / BTR Accounting Matrix"
+        document_class: "NEXUS_GENERATED_SUBMISSION_DRAFT"
+        lifecycle_stage: "ANNUAL_REPORTING"
+        mandatory: true
+        conditional: false
+        official_template_available: true
+        official_template_source: "UNFCCC Structured Summary Reporting Tables"
+        official_template_version: "Decision 6/CMA.4 Annex II"
+        nexus_generation_supported: true
+        supported_formats: ["PDF", "JSON", "CSV"]
+        required_inputs: ["vintage_year", "itmo_volume_generated", "first_transfer_serial_range", "ca_applied_status"]
+        required_evidence: ["verified_activity_telemetry", "vvb_verification_statement"]
+        approval_authority: "UNFCCC Article 6.2 Technical Expert Review Team"
+        authorization_required: true
+        blocking_conditions:
+          - "ZERO_ACTIVITY_DATA"
+          - "HOST_COUNTRY_AUTHORIZATION_MISSING"
+
+  # ---------------------------------------------------------------------------
+  # 3. UNFCCC ARTICLE 6.4 MECHANISM SUPERVISORY BODY (6.4-SB)
+  # ---------------------------------------------------------------------------
+  - id: UNFCCC_ARTICLE_6_4
+    name: "Article 6.4 Mechanism Supervisory Body (6.4-SB)"
+    jurisdiction: "UNFCCC Multilateral"
+    enabling_framework: "Decision 3/CMA.3 / 6.4-SB Standards and Procedures"
+    authority_type: "Supervisory Body (A6.4-SB)"
+    documents:
+      - document_id: A64_ACTIVITY_DESIGN_DOCUMENT
+        official_name: "Article 6.4 Mechanism Activity Design Document (A6.4-ADD)"
+        nexus_name: "Article 6.4 Activity Design Submission Draft"
+        document_class: "NEXUS_GENERATED_SUBMISSION_DRAFT"
+        lifecycle_stage: "ACTIVITY_REGISTRATION"
+        mandatory: true
+        conditional: false
+        official_template_available: true
+        official_template_source: "A6.4-SB-ADD Template"
+        official_template_version: "A6.4-FORM-ADD-v01.0"
+        nexus_generation_supported: true
+        supported_formats: ["PDF", "DOCX", "JSON"]
+        required_inputs: ["activity_title", "host_party", "methodology_id", "crediting_period_type", "baseline_scenario"]
+        required_evidence: ["host_party_approval_letter", "prior_consideration_evidence"]
+        approval_authority: "A6.4 Supervisory Body & Accredited DOE"
+        authorization_required: true
+        blocking_conditions:
+          - "METHODOLOGY_UNLINKED"
+          - "DEVELOPER_ORG_MISSING"
+
+      - document_id: A64_MONITORING_REPORT
+        official_name: "Article 6.4 Mechanism Monitoring Report (A6.4-MR)"
+        nexus_name: "Article 6.4 Monitoring & Telemetry Report"
+        document_class: "NEXUS_GENERATED_SUBMISSION_DRAFT"
+        lifecycle_stage: "VERIFICATION"
+        mandatory: true
+        conditional: false
+        official_template_available: true
+        official_template_source: "A6.4-SB-MR Template"
+        official_template_version: "A6.4-FORM-MR-v01.0"
+        nexus_generation_supported: true
+        supported_formats: ["PDF", "DOCX", "JSON", "CSV"]
+        required_inputs: ["monitoring_period_start", "monitoring_period_end", "measured_parameters", "net_emission_reductions"]
+        required_evidence: ["iot_telemetry_ledger", "calibration_certificates", "qa_qc_logs"]
+        approval_authority: "Accredited DOE / A6.4-SB"
+        authorization_required: false
+        blocking_conditions:
+          - "ZERO_ACTIVITY_DATA"
+          - "QA_QC_RATE_BELOW_THRESHOLD"
+
+      - document_id: A64_SOP_OMGE_ACCOUNTING
+        official_name: "Article 6.4 Share of Proceeds (SOP) & Overall Mitigation in Global Emissions (OMGE) Statement"
+        nexus_name: "Article 6.4 Levy Accounting Statement (5% SOP + 2% OMGE)"
+        document_class: "NEXUS_GENERATED_SUBMISSION_DRAFT"
+        lifecycle_stage: "ISSUANCE"
+        mandatory: true
+        conditional: false
+        official_template_available: true
+        nexus_generation_supported: true
+        supported_formats: ["PDF", "JSON"]
+        required_inputs: ["gross_issuance_tco2e", "sop_adaptation_tco2e", "omge_cancellation_tco2e", "net_a64er_issued"]
+        required_evidence: ["verified_calculation_log", "doe_verification_report"]
+        approval_authority: "A6.4 Registry Administrator"
+        authorization_required: false
+        blocking_conditions:
+          - "ZERO_ACTIVITY_DATA"
+
+  # ---------------------------------------------------------------------------
+  # 4. VERRA VERIFIED CARBON STANDARD (VCS)
+  # ---------------------------------------------------------------------------
+  - id: VERRA_VCS
+    name: "Verra Verified Carbon Standard (VCS)"
+    jurisdiction: "International Voluntary / Compliance Offsets"
+    enabling_framework: "VCS Program Guide v4.4 / VCS Standard v4.5 / v5.0"
+    authority_type: "Independent Carbon Standard Registry"
+    documents:
+      - document_id: VCS_PROJECT_DESCRIPTION
+        official_name: "VCS Project Description (VCS-PDD)"
+        nexus_name: "VCS Project Description Submission Draft (VCS Form v4.4)"
+        document_class: "NEXUS_GENERATED_SUBMISSION_DRAFT"
+        lifecycle_stage: "PROJECT_VALIDATION"
+        mandatory: true
+        conditional: false
+        official_template_available: true
+        official_template_source: "Verra VCS-PDD Template v4.4"
+        official_template_version: "v4.4"
+        nexus_generation_supported: true
+        supported_formats: ["PDF", "DOCX", "JSON"]
+        required_inputs: ["project_title", "sectoral_scope", "project_proponent", "applied_methodologies", "project_boundary", "baseline_scenario", "additionality_demonstration"]
+        required_evidence: ["pdd_supporting_docs", "stakeholder_consultation_minutes"]
+        approval_authority: "Accredited VVB & Verra Registry"
+        authorization_required: false
+        blocking_conditions:
+          - "METHODOLOGY_UNLINKED"
+          - "PROJECT_TITLE_INCOMPLETE"
+
+      - document_id: VCS_MONITORING_REPORT
+        official_name: "VCS Monitoring Report (VCS-MR)"
+        nexus_name: "VCS Monitoring Report Submission Draft (VCS Form v4.4)"
+        document_class: "NEXUS_GENERATED_SUBMISSION_DRAFT"
+        lifecycle_stage: "VERIFICATION"
+        mandatory: true
+        conditional: false
+        official_template_available: true
+        official_template_source: "Verra VCS-MR Template v4.4"
+        official_template_version: "v4.4"
+        nexus_generation_supported: true
+        supported_formats: ["PDF", "DOCX", "JSON", "CSV"]
+        required_inputs: ["monitoring_period", "monitoring_plan_implementation", "parameters_monitored", "quantification_of_ghg_emission_reductions"]
+        required_evidence: ["raw_observation_telemetry", "field_audit_logs", "calibration_records"]
+        approval_authority: "Accredited VVB & Verra Registry"
+        authorization_required: false
+        blocking_conditions:
+          - "ZERO_ASSETS_ENROLLED"
+          - "ZERO_ACTIVITY_DATA"
+
+      - document_id: VCS_NON_PERMANENCE_RISK
+        official_name: "VCS AFOLU Non-Permanence Risk Report"
+        nexus_name: "VCS Non-Permanence Risk Report & Buffer Determination"
+        document_class: "NEXUS_GENERATED_SUBMISSION_DRAFT"
+        lifecycle_stage: "VERIFICATION"
+        mandatory: false
+        conditional: true
+        condition: "Applicable only to AFOLU (Agriculture, Forestry, and Other Land Use) and Carbon Sequestration sectors."
+        official_template_available: true
+        official_template_source: "Verra AFOLU Non-Permanence Risk Tool v4.0"
+        nexus_generation_supported: true
+        supported_formats: ["PDF", "JSON"]
+        required_inputs: ["internal_risk_score", "external_risk_score", "natural_risk_score", "buffer_pool_allocation_pct"]
+        required_evidence: ["land_tenure_proof", "reversal_mitigation_plan"]
+        approval_authority: "Accredited VVB & Verra Registry"
+        authorization_required: false
+        blocking_conditions:
+          - "AFOLU_RISK_ASSESSMENT_INCOMPLETE"
+
+  # ---------------------------------------------------------------------------
+  # 5. GOLD STANDARD FOR THE GLOBAL GOALS (GS4GG)
+  # ---------------------------------------------------------------------------
+  - id: GOLD_STANDARD
+    name: "Gold Standard Foundation (GS4GG)"
+    jurisdiction: "International Standard"
+    enabling_framework: "Gold Standard for the Global Goals (GS4GG v2.2)"
+    authority_type: "Independent Standard & Certification Body"
+    documents:
+      - document_id: GS_PROJECT_DESIGN_DOCUMENT
+        official_name: "Gold Standard Project Design Document (GS-PDD)"
+        nexus_name: "GS4GG Project Design Document Submission Draft"
+        document_class: "NEXUS_GENERATED_SUBMISSION_DRAFT"
+        lifecycle_stage: "DESIGN_REVIEW_AND_VALIDATION"
+        mandatory: true
+        conditional: false
+        official_template_available: true
+        official_template_source: "Gold Standard GS4GG PDD Template"
+        official_template_version: "v2.2"
+        nexus_generation_supported: true
+        supported_formats: ["PDF", "DOCX", "JSON"]
+        required_inputs: ["project_title", "scale_of_project", "host_country", "methodology_applied", "sdg_contributions_min_3"]
+        required_evidence: ["lsc_report", "safeguards_assessment", "gender_sensitive_consultation_logs"]
+        approval_authority: "SustainCERT / Gold Standard Technical Advisory Committee"
+        authorization_required: false
+        blocking_conditions:
+          - "METHODOLOGY_UNLINKED"
+          - "STAKEHOLDER_CONSULTATION_MISSING"
+
+      - document_id: GS_LOCAL_STAKEHOLDER_CONSULTATION
+        official_name: "Gold Standard Local Stakeholder Consultation (LSC) Report"
+        nexus_name: "GS4GG Local Stakeholder Consultation & Grievance Report"
+        document_class: "NEXUS_GENERATED_SUBMISSION_DRAFT"
+        lifecycle_stage: "STAKEHOLDER_CONSULTATION"
+        mandatory: true
+        conditional: false
+        official_template_available: true
+        official_template_source: "GS4GG Stakeholder Consultation Report Template"
+        official_template_version: "v2.2"
+        nexus_generation_supported: true
+        supported_formats: ["PDF", "DOCX", "JSON"]
+        required_inputs: ["meeting_date", "location", "participants_breakdown", "grievance_mechanism_details", "modifications_incorporated"]
+        required_evidence: ["attendance_sheets", "photos_with_metadata", "grievance_logbook"]
+        approval_authority: "SustainCERT VVB"
+        authorization_required: false
+        blocking_conditions:
+          - "STAKEHOLDER_CONSULTATION_MISSING"
+
+      - document_id: GS_SAFEGUARDS_ASSESSMENT
+        official_name: "Gold Standard Safeguarding Principles Assessment & Do No Significant Harm (DNSH) Matrix"
+        nexus_name: "GS4GG Safeguarding Principles & DNSH Assessment"
+        document_class: "NEXUS_GENERATED_SUBMISSION_DRAFT"
+        lifecycle_stage: "VALIDATION"
+        mandatory: true
+        conditional: false
+        official_template_available: true
+        official_template_source: "GS4GG Safeguarding Principles Assessment Template"
+        official_template_version: "v2.2"
+        nexus_generation_supported: true
+        supported_formats: ["PDF", "JSON"]
+        required_inputs: ["social_safeguards_status", "environmental_safeguards_status", "economic_safeguards_status", "mitigation_action_plan"]
+        required_evidence: ["environmental_impact_assessment", "labor_rights_compliance"]
+        approval_authority: "SustainCERT VVB"
+        authorization_required: false
+        blocking_conditions:
+          - "ESG_SAFEGUARDS_MISSING"
+
+      - document_id: GS_SDG_IMPACT_REPORT
+        official_name: "Gold Standard SDG Impact Quantification Matrix (Minimum 3 SDGs: SDG 13 + 2 Others)"
+        nexus_name: "GS4GG SDG Impact Quantification Report"
+        document_class: "NEXUS_GENERATED_SUBMISSION_DRAFT"
+        lifecycle_stage: "VERIFICATION"
+        mandatory: true
+        conditional: false
+        official_template_available: true
+        nexus_generation_supported: true
+        supported_formats: ["PDF", "JSON"]
+        required_inputs: ["sdg_targets_monitored", "quantified_indicators", "monitoring_evidence_links"]
+        required_evidence: ["verified_telemetry", "household_survey_data"]
+        approval_authority: "SustainCERT / Gold Standard"
+        authorization_required: false
+        blocking_conditions:
+          - "ZERO_ACTIVITY_DATA"
+
+      - document_id: GS_MONITORING_REPORT
+        official_name: "Gold Standard Monitoring Report (GS-MR)"
+        nexus_name: "GS4GG Monitoring & Verification Report"
+        document_class: "NEXUS_GENERATED_SUBMISSION_DRAFT"
+        lifecycle_stage: "VERIFICATION"
+        mandatory: true
+        conditional: false
+        official_template_available: true
+        official_template_source: "GS4GG Monitoring Report Template"
+        official_template_version: "v2.2"
+        nexus_generation_supported: true
+        supported_formats: ["PDF", "DOCX", "JSON", "CSV"]
+        required_inputs: ["monitoring_period", "emission_reductions_tco2e", "sdg_metrics_achieved"]
+        required_evidence: ["telemetry_timeseries", "data_lineage_graph"]
+        approval_authority: "SustainCERT VVB"
+        authorization_required: false
+        blocking_conditions:
+          - "ZERO_ACTIVITY_DATA"
+          - "ZERO_ASSETS_ENROLLED"
+
+  # ---------------------------------------------------------------------------
+  # 6. VERIFIELD NEXUS INTERNAL & CRYPTOGRAPHIC ASSURANCE RECORDS
+  # ---------------------------------------------------------------------------
+  - id: VERIFIELD_NEXUS
+    name: "VeriField Nexus dMRV Engine"
+    jurisdiction: "Platform / Cryptographic Assurance"
+    enabling_framework: "VeriField Cryptographic CIOS & Tamper-Evident Lineage"
+    authority_type: "Automated dMRV System"
+    documents:
+      - document_id: NEXUS_DATA_LINEAGE_REPORT
+        official_name: "VeriField Nexus End-to-End Data Lineage & Provenance Graph"
+        nexus_name: "Data Lineage & IoT Provenance Certificate"
+        document_class: "NEXUS_INTERNAL_RECORD"
+        lifecycle_stage: "CONTINUOUS_MRV"
+        mandatory: true
+        conditional: false
+        official_template_available: false
+        nexus_generation_supported: true
+        supported_formats: ["PDF", "JSON"]
+        required_inputs: ["lineage_nodes", "sensor_hashes", "qa_qc_pass_rate"]
+        required_evidence: ["immutable_audit_trails", "sha256_digests"]
+        approval_authority: "VeriField Platform Security Attestation"
+        authorization_required: false
+        blocking_conditions: []
+
+      - document_id: NEXUS_CRYPTOGRAPHIC_MANIFEST
+        official_name: "VeriField Nexus Cryptographic Package Manifest & SHA-256 Checksum"
+        nexus_name: "Cryptographic Package Manifest & Attestation Seal"
+        document_class: "NEXUS_INTERNAL_RECORD"
+        lifecycle_stage: "SUBMISSION_PACKAGING"
+        mandatory: true
+        conditional: false
+        official_template_available: false
+        nexus_generation_supported: true
+        supported_formats: ["JSON", "PDF"]
+        required_inputs: ["file_manifest", "package_digest", "generated_timestamp"]
+        required_evidence: ["platform_rsa2048_signature", "sha256_hashes"]
+        approval_authority: "VeriField Cryptographic Seal Engine"
+        authorization_required: false
+        blocking_conditions: []

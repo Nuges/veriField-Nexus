@@ -37,24 +37,13 @@ class OrganizationCreate(BaseModel):
 
 
 class OrganizationUpdate(BaseModel):
-
     name: Optional[str] = None
-
     status: Optional[str] = None
-
     org_type: Optional[str] = None
-
     metadata_context: Optional[Dict[str, Any]] = None
-
-
-
-    # Legacy fields
-
     plan: Optional[str] = None
 
-    licensed_methodologies: Optional[List[str]] = None
 
-    licensed_sectors: Optional[List[str]] = None
 
 
 

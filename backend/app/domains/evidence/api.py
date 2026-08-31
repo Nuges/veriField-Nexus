@@ -99,18 +99,19 @@ async def verify_evidence(
     if current_user.role not in ["SUPER_ADMIN", "VERIFIER", "COMPLIANCE_ADMIN"]:
         raise HTTPException(status_code=403, detail="Not authorized to verify evidence")
 
-
-
-    evidence = await service.verify_evidence(
-
-        evidence_id, data, verifier_id=current_user.id, db=db
-
-    )
-
-    if not evidence:
-
+    existing_evidence = await service.get_evidence(evidence_id)
+    if not existing_evidence:
         raise HTTPException(status_code=404, detail="Evidence not found")
 
+    if current_user.role != "SUPER_ADMIN" and existing_evidence.uploaded_by and str(existing_evidence.uploaded_by).lower() == str(current_user.id).lower():
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Separation of Duties Violation: Evidence uploader cannot independently verify their own evidence submission."
+        )
 
-
+    evidence = await service.verify_evidence(
+        evidence_id, data, verifier_id=current_user.id, db=db
+    )
+    if not evidence:
+        raise HTTPException(status_code=404, detail="Evidence not found")
     return evidence

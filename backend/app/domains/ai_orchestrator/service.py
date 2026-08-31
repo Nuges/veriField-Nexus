@@ -531,92 +531,42 @@ class AIOrchestratorService:
 
 
             else:
-
-                # Portfolio-level metrics
-
-                q_portfolio = text(
-
-                    "SELECT count(DISTINCT p.id) as proj_count, "
-
-                    "count(a.id) as act_count "
-
-                    "FROM projects p LEFT JOIN assets ast ON ast.project_id = p.id LEFT JOIN activities a ON a.asset_id = ast.id"
-
-                )
-
-                res = await self.db.execute(q_portfolio)
-
-                row = res.mappings().first()
-
-                proj_count = row["proj_count"] if row else 0
-
-                act_count = row["act_count"] if row else 0
-
-
-
                 insights.append({
-
                     "module": "ProjectIntelligence",
-
-                    "message": f"Portfolio: {proj_count} projects with {act_count} total activities across all sectors.",
-
-                    "confidence": 0.99,
-
+                    "message": "Specify an active project context to view detailed activity breakdown and performance metrics.",
+                    "confidence": 0.95,
                 })
-
         except Exception as e:
-
             logger.warning(f"ProjectIntelligence query failed: {e}")
-
             insights.append({
-
                 "module": "ProjectIntelligence",
-
                 "message": "Project data is being synchronized. Partial metrics available.",
-
                 "confidence": 0.5,
-
             })
-
-
 
         return {"insights": insights, "recommendations": recommendations}
 
-
-
     async def _run_risk_intelligence(
-
         self, project_id: Optional[str]
-
     ) -> Dict[str, Any]:
-
         insights = []
-
         recommendations = []
 
-
-
         try:
+            if project_id:
+                # Low trust submissions for this project
+                q = text("SELECT count(*) FROM trust_logs WHERE trust_score < 70 AND project_id = :p")
+                low_trust_cnt = (await self.db.execute(q, {"p": project_id})).scalar() or 0
 
-            # Low trust submissions
+                q_recent = text(
+                    "SELECT count(*) FROM trust_logs "
+                    "WHERE trust_score < 70 AND project_id = :p AND created_at > NOW() - INTERVAL '7 days'"
+                )
+                recent_flags = (await self.db.execute(q_recent, {"p": project_id})).scalar() or 0
+            else:
+                low_trust_cnt = 0
+                recent_flags = 0
 
-            q = text("SELECT count(*) FROM trust_logs WHERE trust_score < 70")
-
-            low_trust_cnt = (await self.db.execute(q)).scalar() or 0
-
-
-
-            # Recent trend (last 7 days vs previous 7 days)
-
-            q_recent = text(
-
-                "SELECT count(*) FROM trust_logs "
-
-                "WHERE trust_score < 70 AND created_at > NOW() - INTERVAL '7 days'"
-
-            )
-
-            recent_flags = (await self.db.execute(q_recent)).scalar() or 0
 
 
 

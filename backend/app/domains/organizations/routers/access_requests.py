@@ -191,19 +191,18 @@ async def create_access_request(
 
 
 @router.get("/access-requests")
-
 async def get_access_requests(
-
     status: Optional[str] = None,
-
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
-
 ):
-
+    if current_user.role not in ("SUPER_ADMIN", "ADMIN", "ORG_ADMIN"):
+        raise HTTPException(
+            status_code=status_code.HTTP_403_FORBIDDEN if "status_code" in globals() else 403,
+            detail="Access Denied: Administrative role required to view access requests."
+        )
     try:
-
         query = "SELECT id, full_name, email, phone, organization_name, country, use_case, status, created_at, reviewed_by, reviewed_at FROM access_requests"
-
         params = {}
 
         if status:

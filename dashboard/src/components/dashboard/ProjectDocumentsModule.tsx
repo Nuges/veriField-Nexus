@@ -25,6 +25,7 @@ import {
   downloadDocument,
   generateAndDownloadReport,
   fetchRegistryPackage,
+  downloadArticle6PackageZip,
 } from "@/lib/api";
 import { useWorkspace } from "@/context/WorkspaceContext";
 
@@ -594,23 +595,38 @@ export const ProjectDocumentsModule: React.FC<ProjectDocumentsModuleProps> = ({
                 {/* Raw JSON Preview */}
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <p className="text-[11px] font-semibold text-gray-700 dark:text-gray-300">Raw Registry Payload</p>
-                    <button
-                      onClick={() => {
-                        const blob = new Blob([JSON.stringify(registryPackageData, null, 2)], { type: "application/json" });
-                        const url = window.URL.createObjectURL(blob);
-                        const a = document.createElement("a");
-                        a.href = url;
-                        a.download = `${registryPackageData.package_id || "registry_package"}.json`;
-                        document.body.appendChild(a);
-                        a.click();
-                        a.remove();
-                        window.URL.revokeObjectURL(url);
-                      }}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-md transition"
-                    >
-                      <Download className="w-3 h-3" /> Download JSON Bundle
-                    </button>
+                    <p className="text-[11px] font-semibold text-gray-700 dark:text-gray-300">Authoritative Submission Documents</p>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={async () => {
+                          try {
+                            const std = registryPackageData.registry_standard || "VERRA";
+                            await downloadArticle6PackageZip(std, projectId);
+                          } catch (err: any) {
+                            alert(err.message || "Failed to download ZIP package.");
+                          }
+                        }}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-md transition shadow-sm"
+                      >
+                        <Download className="w-3 h-3" /> Download Certified ZIP (PDF + DOCX + CSV)
+                      </button>
+                      <button
+                        onClick={() => {
+                          const blob = new Blob([JSON.stringify(registryPackageData, null, 2)], { type: "application/json" });
+                          const url = window.URL.createObjectURL(blob);
+                          const a = document.createElement("a");
+                          a.href = url;
+                          a.download = `${registryPackageData.package_id || "registry_package"}.json`;
+                          document.body.appendChild(a);
+                          a.click();
+                          a.remove();
+                          window.URL.revokeObjectURL(url);
+                        }}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-md transition"
+                      >
+                        <Download className="w-3 h-3" /> JSON Manifest
+                      </button>
+                    </div>
                   </div>
                   <pre className="p-3 bg-gray-950 text-emerald-400 rounded-xl text-[10px] overflow-x-auto max-h-60 font-mono">
                     {JSON.stringify(registryPackageData, null, 2)}

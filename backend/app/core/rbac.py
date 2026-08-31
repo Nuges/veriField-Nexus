@@ -1,13 +1,15 @@
 """
 =============================================================================
-VeriField Nexus — Role-Based Access Control (RBAC)
+VeriField Nexus — Role-Based Access Control (RBAC) & Separation of Duties
 =============================================================================
-Defines standard platform permissions and maps them to enterprise roles.
-Gates API requests dynamically to eliminate hardcoded role checks.
+Defines standard platform permissions, maps them to canonical enterprise roles,
+normalizes role aliases, enforces Separation of Duties (SoD), and provides
+FastAPI dependency injection for route-level authorization.
 =============================================================================
 """
 
-from typing import Dict, Set
+from typing import Dict, Set, Optional
+from uuid import UUID
 
 from fastapi import Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,100 +18,199 @@ from app.core.security import get_current_user
 from app.db.session import get_db
 from app.domains.authentication.models import User
 
-# Enterprise Platform Roles
-ROLE_PLATFORM_SUPER_ADMIN = "SUPER_ADMIN"  # Global superadmin
-ROLE_COMPLIANCE_ADMIN = "COMPLIANCE_ADMIN"  # Global compliance admin
-ROLE_PLATFORM_SUPPORT = "PLATFORM_SUPPORT"  # Global support
-ROLE_JURISDICTION_ADMIN = "JURISDICTION_ADMIN"  # Regulator / jurisdiction admin
-ROLE_REGISTRY_ADMIN = "REGISTRY_ADMIN"  # External registry admin
-ROLE_ORG_OWNER = "ORG_OWNER"  # Tenant owner (full control)
-ROLE_ORG_ADMIN = "ORG_ADMIN"  # Tenant admin (operational control)
-ROLE_PROJECT_MANAGER = "PROJECT_MANAGER"  # Project manager (write projects/assets)
-ROLE_FIELD_SUPERVISOR = "FIELD_SUPERVISOR"  # Team supervisor (manages agents)
-ROLE_FIELD_AGENT = "field_agent"  # Field mobile agent (submits activities)
-ROLE_QA_OFFICER = "QA_OFFICER"  # Quality assurance reviewer
-ROLE_VERIFIER = "VERIFIER"  # Independent verifier
-ROLE_AUDITOR = "AUDITOR"  # Independent auditor
-ROLE_INVESTOR = "INVESTOR"  # Read-only investor
-ROLE_OBSERVER = "OBSERVER"  # Observer
-ROLE_VIEWER = "VIEWER"  # Read-only viewer
+# ─── Canonical Enterprise Roles ──────────────────────────────────────────────
+ROLE_SUPER_ADMIN = "SUPER_ADMIN"
+ROLE_ORG_ADMIN = "ORG_ADMIN"
+ROLE_PROJECT_MANAGER = "PROJECT_MANAGER"
+ROLE_FIELD_SUPERVISOR = "FIELD_SUPERVISOR"
+ROLE_FIELD_AGENT = "FIELD_AGENT"
+ROLE_QA_OFFICER = "QA_OFFICER"
+ROLE_VERIFIER = "VERIFIER"
+ROLE_AUDITOR = "AUDITOR"
+ROLE_COMPLIANCE_ADMIN = "COMPLIANCE_ADMIN"
+ROLE_REGISTRY_ADMIN = "REGISTRY_ADMIN"
+ROLE_FINANCE = "FINANCE"
+ROLE_INVESTOR = "INVESTOR"
+ROLE_VIEWER = "VIEWER"
 
-# Role to Permissions Mapping
+# Legacy backward-compatibility constants
+ROLE_PLATFORM_SUPER_ADMIN = ROLE_SUPER_ADMIN
+ROLE_ORG_OWNER = ROLE_ORG_ADMIN
+ROLE_JURISDICTION_ADMIN = ROLE_COMPLIANCE_ADMIN
+ROLE_PLATFORM_SUPPORT = ROLE_VIEWER
+ROLE_OBSERVER = ROLE_VIEWER
+
+# ─── Canonical Role Aliases Mapping ──────────────────────────────────────────
+ROLE_ALIASES: Dict[str, str] = {
+    # Super Admin
+    "super_admin": ROLE_SUPER_ADMIN,
+    "superadmin": ROLE_SUPER_ADMIN,
+    "platform_super_admin": ROLE_SUPER_ADMIN,
+
+    # Org Admin
+    "admin": ROLE_ORG_ADMIN,
+    "org_owner": ROLE_ORG_ADMIN,
+    "tenant_admin": ROLE_ORG_ADMIN,
+    "organization_admin": ROLE_ORG_ADMIN,
+
+    # Project Manager
+    "project_developer": ROLE_PROJECT_MANAGER,
+    "developer": ROLE_PROJECT_MANAGER,
+    "portfolio_manager": ROLE_PROJECT_MANAGER,
+    "programme_manager": ROLE_PROJECT_MANAGER,
+
+    # Field Operations
+    "field_agent": ROLE_FIELD_AGENT,
+    "operator": ROLE_FIELD_AGENT,
+    "technician": ROLE_FIELD_AGENT,
+    "surveyor": ROLE_FIELD_AGENT,
+
+    # QA / MRV Officer
+    "mrv_officer": ROLE_QA_OFFICER,
+    "mrv_manager": ROLE_QA_OFFICER,
+    "iot_engineer": ROLE_QA_OFFICER,
+    "operations_engineer": ROLE_QA_OFFICER,
+
+    # Verifier & Auditor
+    "vvb": ROLE_VERIFIER,
+    "vvb_verifier": ROLE_VERIFIER,
+    "vvb_auditor": ROLE_AUDITOR,
+    "third_party_auditor": ROLE_AUDITOR,
+
+    # Compliance & Regulatory
+    "compliance_officer": ROLE_COMPLIANCE_ADMIN,
+    "regulator": ROLE_COMPLIANCE_ADMIN,
+    "jurisdiction_admin": ROLE_COMPLIANCE_ADMIN,
+
+    # Registry
+    "registry_manager": ROLE_REGISTRY_ADMIN,
+    "registry_officer": ROLE_REGISTRY_ADMIN,
+
+    # Finance
+    "finance_officer": ROLE_FINANCE,
+    "treasury": ROLE_FINANCE,
+    "billing_admin": ROLE_FINANCE,
+
+    # Read-Only / Observers
+    "observer": ROLE_VIEWER,
+    "client": ROLE_VIEWER,
+    "platform_support": ROLE_VIEWER,
+}
+
+
+def normalize_canonical_role(role_str: Optional[str]) -> str:
+    """Normalizes any incoming role string into a canonical system role."""
+    if not role_str:
+        return ROLE_VIEWER
+    cleaned = role_str.strip().upper().replace(" ", "_")
+    cleaned_lower = role_str.strip().lower().replace(" ", "_")
+
+    if cleaned_lower in ROLE_ALIASES:
+        return ROLE_ALIASES[cleaned_lower]
+    if cleaned in ROLE_ALIASES:
+        return ROLE_ALIASES[cleaned]
+    if cleaned in {
+        ROLE_SUPER_ADMIN,
+        ROLE_ORG_ADMIN,
+        ROLE_PROJECT_MANAGER,
+        ROLE_FIELD_SUPERVISOR,
+        ROLE_FIELD_AGENT,
+        ROLE_QA_OFFICER,
+        ROLE_VERIFIER,
+        ROLE_AUDITOR,
+        ROLE_COMPLIANCE_ADMIN,
+        ROLE_REGISTRY_ADMIN,
+        ROLE_FINANCE,
+        ROLE_INVESTOR,
+        ROLE_VIEWER,
+    }:
+        return cleaned
+
+    # Default unknown roles to least-privilege VIEWER
+    return ROLE_VIEWER
+
+
+# ─── Role to Permissions Mapping ──────────────────────────────────────────────
 ROLE_PERMISSIONS: Dict[str, Set[str]] = {
-    ROLE_PLATFORM_SUPER_ADMIN: {
+    ROLE_SUPER_ADMIN: {
         "admin:all",
         "support:all",
         "org:manage",
+        "org:read",
+        "org:update",
         "project:all",
+        "project:read",
+        "project:create",
+        "project:update",
         "asset:all",
+        "asset:read",
         "activity:all",
+        "activity:create",
+        "activity:read",
+        "activity:update",
         "activity:verify",
         "team:manage",
         "billing:manage",
         "report:all",
+        "report:read",
         "ledger:all",
+        "ledger:read",
+        "ledger:mint",
+        "ledger:manage",
         "audit:all",
+        "audit:read",
+        "audit:write",
+        "verification:sign",
         "jurisdiction:all",
-        "accreditation:all",
-    },
-    ROLE_COMPLIANCE_ADMIN: {
         "accreditation:all",
         "compliance:all",
-        "project:read",
-        "asset:read",
-        "activity:read",
-    },
-    ROLE_PLATFORM_SUPPORT: {
-        "support:all",
-        "org:read",
-        "project:read",
-        "asset:read",
-        "activity:read",
-        "report:read",
-        "ledger:read",
-        "audit:read",
-    },
-    ROLE_JURISDICTION_ADMIN: {
-        "jurisdiction:all",
-        "project:read",
-        "asset:read",
-        "activity:read",
-        "report:read",
         "compliance:read",
-    },
-    ROLE_REGISTRY_ADMIN: {"project:read", "ledger:read", "report:read"},
-    ROLE_ORG_OWNER: {
-        "org:manage",
-        "project:all",
-        "asset:all",
-        "activity:all",
-        "team:manage",
-        "billing:manage",
-        "report:all",
-        "ledger:all",
-        "audit:read",
+        "compliance:authorize",
+        "registry:all",
+        "registry:read",
+        "registry:prepare",
+        "registry:submit",
+        "registry:authorize",
+        "finance:all",
+        "finance:read",
+        "finance:manage",
     },
     ROLE_ORG_ADMIN: {
         "org:read",
         "org:update",
-        "project:all",
-        "asset:all",
-        "activity:all",
         "team:manage",
-        "billing:read",
+        "billing:manage",
+        "project:read",
+        "project:create",
+        "project:update",
+        "asset:all",
+        "asset:read",
+        "activity:all",
+        "activity:read",
         "report:all",
-        "ledger:all",
+        "report:read",
+        "ledger:read",
         "audit:read",
+        "compliance:read",
+        "registry:read",
+        "finance:read",
     },
     ROLE_PROJECT_MANAGER: {
         "project:read",
+        "project:create",
         "project:update",
         "asset:all",
-        "activity:all",
-        "team:manage",
+        "asset:read",
+        "activity:create",
+        "activity:read",
+        "activity:update",
         "report:all",
+        "report:read",
         "ledger:read",
         "audit:read",
+        "compliance:read",
+        "registry:read",
+        "registry:prepare",
     },
     ROLE_FIELD_SUPERVISOR: {
         "project:read",
@@ -117,14 +218,21 @@ ROLE_PERMISSIONS: Dict[str, Set[str]] = {
         "activity:create",
         "activity:read",
         "activity:update",
+        "activity:verify",
         "team:manage",
+        "report:read",
     },
-    ROLE_FIELD_AGENT: {"activity:create", "activity:read", "asset:read"},
+    ROLE_FIELD_AGENT: {
+        "activity:create",
+        "activity:read",
+        "asset:read",
+    },
     ROLE_QA_OFFICER: {
         "project:read",
         "asset:read",
         "activity:read",
         "activity:verify",
+        "report:all",
         "report:read",
         "ledger:read",
     },
@@ -135,7 +243,9 @@ ROLE_PERMISSIONS: Dict[str, Set[str]] = {
         "activity:verify",
         "report:read",
         "ledger:read",
+        "audit:read",
         "audit:write",
+        "verification:sign",
     },
     ROLE_AUDITOR: {
         "project:read",
@@ -144,43 +254,71 @@ ROLE_PERMISSIONS: Dict[str, Set[str]] = {
         "report:read",
         "ledger:read",
         "audit:read",
+        "audit:write",
     },
-    ROLE_INVESTOR: {"project:read", "asset:read", "report:read", "ledger:read"},
-    ROLE_OBSERVER: {"project:read", "asset:read"},
-    ROLE_VIEWER: {"project:read", "asset:read", "activity:read", "report:read"},
+    ROLE_COMPLIANCE_ADMIN: {
+        "compliance:all",
+        "compliance:read",
+        "compliance:authorize",
+        "accreditation:all",
+        "project:read",
+        "asset:read",
+        "activity:read",
+        "report:read",
+        "registry:read",
+        "registry:authorize",
+    },
+    ROLE_REGISTRY_ADMIN: {
+        "registry:all",
+        "registry:prepare",
+        "registry:submit",
+        "registry:read",
+        "project:read",
+        "ledger:read",
+        "report:read",
+    },
+    ROLE_FINANCE: {
+        "finance:all",
+        "finance:read",
+        "finance:manage",
+        "ledger:read",
+        "ledger:mint",
+        "ledger:manage",
+        "billing:manage",
+        "report:all",
+        "report:read",
+    },
+    ROLE_INVESTOR: {
+        "project:read",
+        "asset:read",
+        "report:read",
+        "ledger:read",
+    },
+    ROLE_VIEWER: {
+        "project:read",
+        "asset:read",
+        "activity:read",
+        "report:read",
+    },
 }
 
 
 def has_permission(user_role: str, permission: str) -> bool:
-    """
-    Check if a user role has the required permission.
-    Maps legacy 'admin' to ORG_ADMIN for backward compatibility.
-    """
+    """Check if a user role has the required permission."""
     if not user_role:
         return False
 
-    role_normalized = "ORG_ADMIN" if user_role.lower() == "admin" else user_role
+    canonical = normalize_canonical_role(user_role)
 
-    # Find the matching key in ROLE_PERMISSIONS case-insensitively
-    matched_role = None
-    for k in ROLE_PERMISSIONS.keys():
-        if k.lower() == role_normalized.lower():
-            matched_role = k
-            break
-
-    if not matched_role:
-        return False
-
-    # SUPER_ADMIN bypasses all checks
-    if matched_role == ROLE_PLATFORM_SUPER_ADMIN:
+    # SUPER_ADMIN bypasses standard permission checks
+    if canonical == ROLE_SUPER_ADMIN:
         return True
 
-    permissions = ROLE_PERMISSIONS.get(matched_role, set())
-
+    permissions = ROLE_PERMISSIONS.get(canonical, set())
     if permission in permissions:
         return True
 
-    # Check wildcard categories (e.g. 'project:all' satisfies 'project:read')
+    # Wildcard check (e.g. 'project:all' satisfies 'project:read')
     category = permission.split(":")[0]
     if f"{category}:all" in permissions:
         return True
@@ -189,23 +327,45 @@ def has_permission(user_role: str, permission: str) -> bool:
 
 
 def require_permission(permission: str, entity_type: str = None):
-    """
-    FastAPI dependency factory that returns a dependency function
-    gating routes based on the required permission.
-    In Level 5 CIOS, this also integrates with the ABAC Policy Engine if an entity_type is specified.
-    """
+    """FastAPI dependency factory that returns a dependency function gating routes based on permission."""
 
     async def dependency(
         user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
     ) -> User:
-        if not has_permission(user.role, permission):
+        canonical = normalize_canonical_role(user.role)
+        if not has_permission(canonical, permission):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Access Denied: Missing required permission '{permission}'",
+                detail=f"Access Denied: Role '{canonical}' lacks required permission '{permission}'.",
             )
-
-        # If an entity context is provided at the route level, ABAC is evaluated later in the endpoint logic
-        # Since we don't have entity_id at the dependency injection level easily, we pass the user.
         return user
 
     return dependency
+
+
+# ─── Separation of Duties (SoD) Verification Helpers ─────────────────────────
+def validate_separation_of_duties(actor: User, project_developer_id: Optional[UUID], action: str = "VERIFY"):
+    """
+    Enforces non-negotiable Separation of Duties:
+    - A Project Developer cannot independently verify or audit their own project.
+    - An actor verifying or signing off must hold accredited auditor/verifier credentials.
+    """
+    canonical_role = normalize_canonical_role(actor.role)
+
+    # Super Admin can override for emergency platform governance
+    if canonical_role == ROLE_SUPER_ADMIN:
+        return
+
+    # Verifier/Auditor credential check
+    if action in ("VERIFY", "AUDIT", "SIGN_OFF"):
+        if canonical_role not in (ROLE_VERIFIER, ROLE_AUDITOR):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Separation of Duties Violation: Action '{action}' requires accredited VVB auditor/verifier role, found '{canonical_role}'.",
+            )
+
+        if project_developer_id and str(actor.id).lower() == str(project_developer_id).lower():
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Separation of Duties Violation: Project developer cannot independently audit, verify, or sign off their own project.",
+            )

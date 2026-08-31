@@ -5,25 +5,15 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-
-
+from app.core.rbac import require_permission
 from app.core.security import get_current_user
-
 from app.db.session import get_db
-
 from app.domains.authentication.models import User
-
 from app.domains.methodologies.schemas.registry import (
-
     MethodologyCreate, MethodologySchema, MethodologyVersionCreate,
-
     MethodologyVersionSchema, MethodologyVersionStatusUpdate, MethodologyRecommendationResponse)
-
 from app.domains.methodologies.services.forms import FormGenerationService
-
 from app.domains.methodologies.services.methodology import MethodologyService
-
-
 
 router = APIRouter()
 
@@ -100,7 +90,7 @@ async def create_methodology(
 
     db: AsyncSession = Depends(get_db),
 
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_permission("compliance:all")),
 
 ):
 
@@ -124,7 +114,7 @@ async def create_methodology_version(
 
     db: AsyncSession = Depends(get_db),
 
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_permission("compliance:all")),
 
 ):
 
@@ -154,7 +144,7 @@ async def update_version_status(
 
     db: AsyncSession = Depends(get_db),
 
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_permission("compliance:all")),
 
 ):
 

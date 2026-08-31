@@ -410,18 +410,153 @@ async def download_registry_package_zip(
     )
 
 
+@router.get("/document-matrix")
+async def get_registry_document_matrix(
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Returns the authoritative registry document requirements matrix across NCCC, Article 6.2, Article 6.4, Verra, and Gold Standard.
+    """
+    from app.domains.registry_integrations.services.template_registry import TemplateRegistry
+    registry = TemplateRegistry.get_instance()
+    return registry.get_matrix()
+
+
+@router.get("/documents/{standard}/{project_id}/{document_id}")
+async def get_registry_document(
+    standard: str,
+    project_id: UUID,
+    document_id: str,
+    format: str = "pdf",
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Renders and streams a specific structured registry submission document in PDF, DOCX, or JSON format.
+    """
+    # 1. Tenant Verification
+    p_stmt = select(Project).where(Project.id == project_id)
+    p_res = await db.execute(p_stmt)
+    project = p_res.scalar_one_or_none()
+    if not project:
+        raise HTTPException(status_code=404, detail=f"Project with ID {project_id} not found.")
+
+    if current_user.role != "SUPER_ADMIN":
+        user_org = current_user.organization_id
+        if not user_org or str(project.organization_id).lower() != str(user_org).lower():
+            raise HTTPException(status_code=403, detail="Forbidden: Cannot access registry documents for another organization.")
+
+    from app.domains.registry_integrations.services.readiness_engine import RegistryReadinessEngine
+    from app.domains.reporting.services.lineage import DataLineageEngine
+    from app.domains.registry_integrations.services.document_renderer import RegistryDocumentRenderer
+    from app.domains.assets.models import Asset
+    from app.domains.activities.models import Activity
+    from app.domains.organizations.models import Organization
+    from app.domains.methodologies.models.base_registry import Methodology, MethodologyFamily
+
+    readiness_engine = RegistryReadinessEngine(db)
+    lineage_engine = DataLineageEngine(db)
+    renderer = RegistryDocumentRenderer()
+
+    readiness = await readiness_engine.evaluate_readiness(project_id=project_id, target_standard=standard)
+    lineage = await lineage_engine.get_project_data_lineage(project_id=project_id)
+
+    org = None
+    if project.organization_id:
+        org_stmt = select(Organization).where(Organization.id == project.organization_id)
+        org_res = await db.execute(org_stmt)
+        org = org_res.scalar_one_or_none()
+
+    meth = None
+    if project.methodology_id:
+        m_stmt = select(Methodology).where(Methodology.id == project.methodology_id)
+        m_res = await db.execute(m_stmt)
+        meth = m_res.scalar_one_or_none()
+
+    sector = None
+    if project.sector_id:
+        sec_stmt = select(MethodologyFamily).where(MethodologyFamily.id == project.sector_id)
+        sec_res = await db.execute(sec_stmt)
+        sector = sec_res.scalar_one_or_none()
+
+    asset_stmt = select(Asset).where(Asset.project_id == project_id)
+    a_res = await db.execute(asset_stmt)
+    assets = a_res.scalars().all()
+
+    asset_ids = [a.id for a in assets]
+    if asset_ids:
+        act_stmt = select(Activity).where(Activity.asset_id.in_(asset_ids))
+    elif project.organization_id:
+        act_stmt = select(Activity).where(Activity.organization_id == project.organization_id)
+    else:
+        act_stmt = select(Activity).where(Activity.id.is_(None))
+    act_res = await db.execute(act_stmt)
+    activities = act_res.scalars().all()
+
+    base_params = project.baseline_parameters if isinstance(project.baseline_parameters, dict) else {}
+    project_context = {
+        "id": str(project.id),
+        "name": project.name,
+        "project_code": lineage.get("project_code", f"PRJ-{str(project.id)[:8]}"),
+        "country": project.country or "Nigeria",
+        "registry_id": getattr(project, "registry_id", None),
+        "developer_name": org.name if org else "Authorized Developer",
+        "methodology_code": meth.code if meth else "Standard Methodology",
+        "sector_name": sector.name if sector else "Clean Energy / MRV",
+        "asset_count": len(assets),
+        "activity_count": len(activities),
+        "total_tco2e": lineage.get("summary_metrics", {}).get("total_emission_reductions_tco2e", 0.0),
+        "qa_qc_rate": lineage.get("summary_metrics", {}).get("lineage_integrity_score", 100.0),
+        "authorization_status": readiness.get("authorization_status", "NOT_STARTED"),
+        "authorization_reference": base_params.get("authorization_reference", "PENDING_OFFICIAL_FILING"),
+        "stakeholder_completed": bool(readiness.get("pillar_breakdown", {}).get("stakeholder_requirements", {}).get("score", 0) > 0),
+        "safeguards_cleared": bool(readiness.get("pillar_breakdown", {}).get("safeguards", {}).get("score", 0) > 0),
+        "submission_status": readiness.get("readiness_status", "DRAFT"),
+    }
+
+    if format.lower() == "json":
+        doc_spec = renderer.template_registry.get_document_spec(document_id)
+        if not doc_spec:
+            raise HTTPException(status_code=404, detail=f"Document specification {document_id} not found.")
+        return {
+            "document_metadata": doc_spec,
+            "project_context": project_context,
+            "readiness": readiness,
+        }
+
+    try:
+        file_bytes, filename, sha256_hash = renderer.render_document(
+            document_id=document_id, project_data=project_context, format_type=format
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    media_type = "application/pdf" if format.lower() == "pdf" else "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    return Response(
+        content=file_bytes,
+        media_type=media_type,
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "X-Document-SHA256": sha256_hash,
+        },
+    )
+
+
 class ITMOAuthorizationRequest(BaseModel):
     project_id: UUID
     acquiring_party: Optional[str] = "Bilateral Partner DNA"
     authorized_use_scope: Optional[str] = "NDC Achievement / Other International Mitigation Purposes (OIMP)"
     cooperative_approach_id: Optional[str] = None
+    authorization_reference: Optional[str] = None
 
+
+from app.core.rbac import require_permission
 
 @router.post("/itmo/authorize")
 async def submit_itmo_authorization(
     data: ITMOAuthorizationRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_permission("compliance:authorize")),
 ):
     """
     Formally records and seals an Article 6.2 ITMO authorization for a verified mitigation project.
@@ -448,6 +583,7 @@ async def submit_itmo_authorization(
     params["authorized_by"] = current_user.email
     params["acquiring_party"] = data.acquiring_party or "Bilateral Partner DNA"
     params["authorized_use_scope"] = data.authorized_use_scope or "NDC Achievement / Other International Mitigation Purposes (OIMP)"
+    params["authorization_reference"] = data.authorization_reference or f"DNA/A6/{str(project.country or 'NGA')[:3].upper()}/2026/{str(project.id)[:6].upper()}"
     if data.cooperative_approach_id:
         params["cooperative_approach_id"] = data.cooperative_approach_id
     elif not params.get("cooperative_approach_id"):

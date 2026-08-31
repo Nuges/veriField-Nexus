@@ -19,7 +19,8 @@
 
 
 import Sidebar from "@/components/DynamicSidebar";
-import { isDashboardRoleAllowed } from "@/lib/roles";
+import { isDashboardRoleAllowed, isRouteAuthorized, normalizeRole } from "@/lib/roles";
+
 
 import EnterpriseBreadcrumb from "@/components/EnterpriseBreadcrumb";
 
@@ -89,26 +90,46 @@ function DashboardLayoutContent({
 
 
   // SSR-safe hydration gate
-
   if (!isMounted || (isLoading && !user)) {
-
     return (
-
       <div className="flex flex-col items-center justify-center min-h-screen bg-[var(--color-background)] space-y-3">
-
         <div className="w-8 h-8 border-2 border-[#00B47A] border-t-transparent rounded-full animate-spin" />
-
         <p className="text-[var(--color-text-secondary)] text-xs font-semibold tracking-tight animate-pulse">
-
           Connecting to secure digital MRV ledger...
-
         </p>
-
       </div>
-
     );
-
   }
+
+  // Route-Level Least-Privilege Access Interceptor
+  if (user && !isRouteAuthorized(pathname, user.role)) {
+    const canonical = normalizeRole(user.role);
+    return (
+      <div className="flex min-h-screen bg-[var(--color-background)]">
+        <Sidebar />
+        <div className="flex-1 flex flex-col items-center justify-center p-8 text-center ml-64 min-h-screen">
+          <div className="w-16 h-16 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center mb-4">
+            <span className="text-2xl">🔒</span>
+          </div>
+          <h1 className="text-xl font-bold tracking-tight text-[var(--color-text-primary)] mb-2">
+            Access Denied: Least-Privilege Security Boundary
+          </h1>
+          <p className="text-xs text-[var(--color-text-secondary)] max-w-md mb-6 leading-relaxed">
+            Your active persona (<span className="font-mono text-emerald-500 font-bold">{canonical}</span>) does not have permission to access or operate the module at <code className="text-[11px] bg-slate-800/80 px-2 py-0.5 rounded text-rose-400 font-mono">{pathname}</code>.
+          </p>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/dashboard"
+              className="px-4 py-2 bg-[#00B47A] hover:bg-[#009664] text-white text-xs font-bold rounded-xl transition-all shadow-sm"
+            >
+              Return to Authorized Workspace
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
 
 
 
@@ -123,8 +144,8 @@ function DashboardLayoutContent({
 
 
       {/* Main content area */}
+      <div className="flex-1 flex flex-col min-w-0 pl-64 bg-[var(--color-background)] transition-colors duration-300">
 
-      <div className="flex-1 flex flex-col min-w-0 bg-[var(--color-background)] transition-colors duration-300">
 
         {/* Header Enterprise Contextual Breadcrumb */}
 

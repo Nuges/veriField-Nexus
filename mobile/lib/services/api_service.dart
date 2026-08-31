@@ -13,44 +13,30 @@
 
 
 import 'dart:convert';
-
 import 'package:http/http.dart' as http;
-
 import 'package:flutter/foundation.dart';
-
 import 'package:image_picker/image_picker.dart';
-
 import 'package:shared_preferences/shared_preferences.dart';
-
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../core/config/supabase_config.dart';
 
-
-
 /// Centralized API client for communicating with the FastAPI backend.
-
 class ApiService {
+  static const _secureStorage = FlutterSecureStorage(
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+    iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
+  );
 
   static String _customBaseUrl = 'http://127.0.0.1:8000';
 
-
-
   static String get apiBaseUrl {
-
     const envUrl = String.fromEnvironment('API_BASE_URL', defaultValue: '');
-
     if (envUrl.isNotEmpty) return envUrl;
-
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-
       return 'http://10.0.2.2:8000';
-
     }
-
     return _customBaseUrl;
-
   }
-
-
 
   static Future<void> setCustomServerUrl(String url) async {
     var cleaned = url.trim().replaceAll(RegExp(r'/+$'), '');
@@ -78,8 +64,33 @@ class ApiService {
 
   static Future<void> init() async {
     try {
+      // 1. Try to read from Keychain/Keystore secure storage
+      String? token;
+      try {
+        token = await _secureStorage.read(key: 'auth_token');
+      } catch (se) {
+        debugPrint('[ApiService] Secure storage read notice: $se');
+      }
+
+      // 2. Backward-compatible migration from legacy SharedPreferences
       final prefs = await SharedPreferences.getInstance();
-      _customToken = prefs.getString('auth_token');
+      if (token == null || token.isEmpty) {
+        final legacyToken = prefs.getString('auth_token');
+        if (legacyToken != null && legacyToken.isNotEmpty) {
+          debugPrint('[ApiService] Migrating legacy token from SharedPreferences to FlutterSecureStorage');
+          token = legacyToken;
+          try {
+            await _secureStorage.write(key: 'auth_token', value: legacyToken);
+            await prefs.remove('auth_token'); // Safely purge plaintext token after migration
+            debugPrint('[ApiService] Legacy token migration complete and plaintext purged.');
+          } catch (me) {
+            debugPrint('[ApiService] Secure storage migration warning: $me');
+          }
+        }
+      }
+
+      _customToken = token;
+
       final savedUrl = prefs.getString('custom_server_url');
       if (savedUrl != null && savedUrl.isNotEmpty) {
         _customBaseUrl = savedUrl;
@@ -91,36 +102,29 @@ class ApiService {
     }
   }
 
-
-
   static Future<void> setCustomToken(String? token) async {
-
     _customToken = token;
-
     try {
-
-      final prefs = await SharedPreferences.getInstance();
-
       if (token == null) {
-
+        try {
+          await _secureStorage.delete(key: 'auth_token');
+        } catch (_) {}
+        final prefs = await SharedPreferences.getInstance();
         await prefs.remove('auth_token');
-
-        debugPrint('[ApiService] customToken cleared from SharedPreferences');
-
+        debugPrint('[ApiService] customToken cleared from secure storage');
       } else {
-
-        await prefs.setString('auth_token', token);
-
-        debugPrint('[ApiService] customToken saved to SharedPreferences');
-
+        try {
+          await _secureStorage.write(key: 'auth_token', value: token);
+          debugPrint('[ApiService] customToken saved to FlutterSecureStorage (Keychain/Keystore)');
+        } catch (se) {
+          debugPrint('[ApiService] Secure storage write fallback: $se');
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('auth_token', token);
+        }
       }
-
     } catch (e) {
-
       debugPrint('[ApiService] Failed to save/clear customToken: $e');
-
     }
-
   }
 
 

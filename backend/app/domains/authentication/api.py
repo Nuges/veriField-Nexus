@@ -20,7 +20,7 @@ from app.domains.authentication.models import User
 from app.domains.authentication.repository import UserRepository
 from app.domains.authentication.schemas import (AuthResponse, UserCreate,
                                                 UserLogin, UserResponse,
-                                                UserUpdate)
+                                                UserUpdate, UserRoleUpdatePayload)
 from app.domains.authentication.service import AuthenticationService
 from app.domains.authentication.validators import validate_password_strength
 
@@ -301,10 +301,22 @@ async def update_user(
 
 
     updates = payload.model_dump(exclude_unset=True)
-
     updated = await service.update_user(user_id, updates, actor_id=str(current_user.id))
-
     return UserResponse.model_validate(updated)
+
+
+@router.post("/users/{user_id}/role", response_model=UserResponse)
+async def update_user_role_endpoint(
+    user_id: UUID,
+    payload: UserRoleUpdatePayload,
+    current_user: User = Depends(require_permission("team:manage")),
+    db: AsyncSession = Depends(get_db),
+):
+    repo = UserRepository(db)
+    service = AuthenticationService(repo)
+    updated = await service.update_user_role(user_id, payload.role, actor_user=current_user)
+    return UserResponse.model_validate(updated)
+
 
 
 

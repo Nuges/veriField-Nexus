@@ -69,6 +69,6 @@ class CameraService {
   static Future<String> generateImageHash(XFile xfile) async {
     final bytes = await xfile.readAsBytes();
     final digest = sha256.convert(bytes);
-    return digest.toString().substring(0, 16); // Use first 16 chars
+    return digest.toString(); // Full 64-character (256-bit) SHA-256 hex digest
   }
 }

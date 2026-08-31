@@ -154,29 +154,16 @@ class OrganizationService:
 
             updates["metadata_context"] = payload.metadata_context
 
-        if payload.plan is not None:
-
+        if getattr(payload, "plan", None) is not None:
             updates["plan"] = payload.plan
-
             if payload.plan == "ENTERPRISE":
-
                 updates["max_installations"] = 10000
-
                 updates["max_agents"] = 50
-
             elif payload.plan == "PROFESSIONAL":
-
                 updates["max_installations"] = 1000
-
                 updates["max_agents"] = 20
 
-        if getattr(payload, "licensed_methodologies", None) is not None:
 
-            updates["licensed_methodologies"] = payload.licensed_methodologies
-
-        if getattr(payload, "licensed_sectors", None) is not None:
-
-            updates["licensed_sectors"] = payload.licensed_sectors
 
 
 

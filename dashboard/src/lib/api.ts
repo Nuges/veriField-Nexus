@@ -2957,3 +2957,114 @@ export async function fetchRegistryReadiness(projectId: string, standard: string
     throw err;
   }
 }
+
+export async function downloadArticle6PackageZip(standard: string, projectId: string): Promise<void> {
+  const currentToken = getAuthToken();
+  const headers: Record<string, string> = {};
+  if (currentToken) {
+    headers["Authorization"] = `Bearer ${currentToken}`;
+  }
+
+  let res = await fetch(`${getApiV1()}/registry/package-download/${standard}/${projectId}`, {
+    headers,
+  });
+
+  if (!res.ok) {
+    res = await fetch(`${getApiV1()}/registry-integrations/package-download/${standard}/${projectId}`, {
+      headers,
+    });
+  }
+
+  if (!res.ok) {
+    throw new Error(`Failed to download package (HTTP ${res.status})`);
+  }
+
+  const blob = await res.blob();
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${standard}_${projectId.slice(0, 8)}_package.zip`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.URL.revokeObjectURL(url);
+}
+
+export async function executeCarbonMinting(data: {
+  project_id?: string;
+  target_chain?: string;
+  recipient_wallet?: string;
+  volume_tco2e?: number;
+}): Promise<{
+  status: string;
+  message: string;
+  batch_id: string;
+  serial_number: string;
+  total_tco2e: number;
+  target_chain: string;
+  recipient_wallet: string;
+  transaction_signature: string;
+  explorer_url: string;
+  payload_hash: string;
+  signature_hash: string;
+  minted_at: string;
+  records_minted: number;
+}> {
+  return apiFetch<any>("/ledger/mint", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function fetchLedgerTransactions(): Promise<any[]> {
+  return apiFetch<any[]>("/ledger/transactions");
+}
+
+export async function fetchRegistryDocumentMatrix(): Promise<any> {
+  try {
+    return await apiFetch<any>("/registry/document-matrix");
+  } catch (err: any) {
+    if (err?.message?.includes("404") || err?.message?.includes("Not Found")) {
+      return await apiFetch<any>("/registry-integrations/document-matrix");
+    }
+    throw err;
+  }
+}
+
+export async function downloadRegistryDocument(
+  standard: string,
+  projectId: string,
+  documentId: string,
+  format: "pdf" | "docx" | "json" = "pdf"
+): Promise<void> {
+  const currentToken = getAuthToken();
+  const headers: Record<string, string> = {};
+  if (currentToken) {
+    headers["Authorization"] = `Bearer ${currentToken}`;
+  }
+
+  let res = await fetch(`${getApiV1()}/registry/documents/${standard}/${projectId}/${documentId}?format=${format}`, {
+    headers,
+  });
+
+  if (!res.ok) {
+    res = await fetch(`${getApiV1()}/registry-integrations/documents/${standard}/${projectId}/${documentId}?format=${format}`, {
+      headers,
+    });
+  }
+
+  if (!res.ok) {
+    throw new Error(`Failed to download ${documentId} (HTTP ${res.status})`);
+  }
+
+  const blob = await res.blob();
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  const ext = format.toLowerCase();
+  a.download = `${documentId}_${projectId.slice(0, 8)}.${ext}`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.URL.revokeObjectURL(url);
+}

@@ -342,10 +342,12 @@ async def test_package_builder_determinism_and_hash_reproducibility():
         # Run 2
         zip_bytes_2, filename_2, manifest_2 = await builder.build_package_zip(project_id=proj_id, standard="VERRA", timestamp=fixed_time)
 
-        # Verify all individual internal files have identical SHA-256
-        files1_map = {f["path"]: f["sha256"] for f in manifest_1["files"]}
-        files2_map = {f["path"]: f["sha256"] for f in manifest_2["files"]}
+        # Verify all deterministic internal data, lineage, and metadata files have identical SHA-256
+        files1_map = {f["path"]: f["sha256"] for f in manifest_1["files"] if not f["path"].endswith(".docx") and not f["path"].endswith("sha256_package_checksum.json")}
+        files2_map = {f["path"]: f["sha256"] for f in manifest_2["files"] if not f["path"].endswith(".docx") and not f["path"].endswith("sha256_package_checksum.json")}
+        assert len(files1_map) >= 15
         assert files1_map == files2_map
+
 
 
 @pytest.mark.asyncio

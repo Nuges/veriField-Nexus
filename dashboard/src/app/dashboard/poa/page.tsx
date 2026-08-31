@@ -57,8 +57,8 @@ import {
 } from "@/lib/api";
 
 import type { User } from "@/lib/types";
-
 import { useWorkspace } from "@/context/WorkspaceContext";
+import { isRouteAuthorized } from "@/lib/roles";
 
 
 
@@ -132,11 +132,10 @@ export default function POAPortfolioPage() {
 
 
 
-      if (u.role !== "admin" && u.role !== "auditor" && u.role !== "ORG_ADMIN" && u.role !== "SUPER_ADMIN") {
-
+      if (!isRouteAuthorized("/dashboard/poa", u?.role)) {
         return; // UI handles permission block below
-
       }
+
 
 
 
@@ -316,9 +315,9 @@ export default function POAPortfolioPage() {
 
 
 
-  // Restricted Access view for non-admin/non-auditor users
+  // Restricted Access view for unauthorized roles
+  if (user && !isRouteAuthorized("/dashboard/poa", user?.role)) {
 
-  if (user && user.role !== "admin" && user.role !== "auditor" && user.role !== "ORG_ADMIN" && user.role !== "SUPER_ADMIN") {
 
     return (
 
@@ -349,70 +348,56 @@ export default function POAPortfolioPage() {
 
 
   // Active project sectors calculation dynamically from registry
-
   const activeSectorsList = Object.entries(sectorYields).filter(([, y]) => y > 0).map(([code, y]) => ({
-
     name: moduleRegistry[code]?.label || moduleRegistry[code]?.name || code,
-
-    yield: y
-
+    yield: y,
+    code
   }));
 
   const activeSectorsCount = activeSectorsList.length;
 
-
+  // Provide fallback default sectors if no emissions yielded yet
+  const defaultSectorKeys = ["cookstoves", "hybrid_energy", "biochar", "ev_mobility"];
+  const displaySectors = activeSectorsList.length > 0 
+    ? activeSectorsList 
+    : defaultSectorKeys.map(k => ({
+        name: moduleRegistry[k]?.label || moduleRegistry[k]?.name || k.replace("_", " ").toUpperCase(),
+        yield: 0,
+        code: k
+      }));
 
   // Sector mix data — labels from registry, not hardcoded
-
-  const pieData = activeSectorsList.map((item) => ({
-
+  const pieData = displaySectors.map((item) => ({
     name: item.name,
-
-    value: parseFloat(item.yield.toFixed(2))
-
+    value: parseFloat(item.yield.toFixed(2)),
+    code: item.code
   }));
 
-
-
   const rings = pieData.map((item, idx) => {
-
     const radius = 80 - idx * 14;
-
     const circumference = 2 * Math.PI * radius;
-
-    const percent = item.value / (totalYield || 1);
-
+    const percent = totalYield > 0 ? item.value / totalYield : 0;
     const strokeDashoffset = circumference - percent * circumference;
 
-
-
-    // Icon mapping from registry metadata
-
     let icon = Leaf;
+    if (item.code?.includes("cookstove")) icon = Flame;
+    else if (item.code?.includes("energy")) icon = Zap;
+    else if (item.code?.includes("biochar")) icon = Leaf;
+    else if (item.code?.includes("ev")) icon = Activity;
 
-    let color = MIX_COLORS[idx % MIX_COLORS.length];
-
-
+    const color = MIX_COLORS[idx % MIX_COLORS.length];
 
     return {
-
       ...item,
-
       radius,
-
       circumference,
-
       strokeDashoffset,
-
       color,
-
       icon,
-
       percentVal: percent * 100
-
     };
-
   });
+
 
 
 
@@ -693,122 +678,66 @@ export default function POAPortfolioPage() {
                     >
 
                       <circle
-
                         cx="100"
-
                         cy="100"
-
                         r={ring.radius}
-
                         fill="transparent"
-
-                        stroke="rgba(255,255,255,0.04)"
-
+                        stroke="currentColor"
                         strokeWidth="8"
-
+                        className="text-slate-200 dark:text-slate-800"
                       />
-
                       <circle
-
                         cx="100"
-
                         cy="100"
-
                         r={ring.radius}
-
                         fill="transparent"
-
                         stroke={ring.color}
-
                         strokeWidth={isHovered ? "10" : "8"}
-
                         strokeDasharray={ring.circumference}
-
-                        strokeDashoffset={ring.strokeDashoffset}
-
+                        strokeDashoffset={totalYield > 0 ? ring.strokeDashoffset : ring.circumference}
                         strokeLinecap="round"
-
                         filter={isHovered ? `url(#glow-${idx})` : undefined}
-
                         className="transition-all duration-500 ease-out"
-
                         style={{
-
                           transition: "stroke-width 0.2s, stroke-dashoffset 0.8s ease-in-out"
-
                         }}
-
                       />
-
                     </g>
-
                   );
-
                 })}
-
               </svg>
 
-
-
               <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none p-4">
-
                 {activeRing ? (
-
                   <div className="animate-fade-in space-y-0.5">
-
                     <p className="text-[7px] font-black uppercase tracking-wider text-[var(--color-text-muted)] truncate max-w-[100px]">
-
                       {activeRing.name.split(" ")[0]}
-
                     </p>
-
                     <p
-
                       className="text-sm font-black tracking-tight"
-
                       style={{ color: activeRing.color }}
-
                     >
-
                       {activeRing.value.toLocaleString(undefined, { maximumFractionDigits: 1 })}
-
                     </p>
-
                     <p className="text-[7px] text-[var(--color-text-secondary)] font-bold">
-
                       {activeRing.percentVal.toFixed(1)}%
-
                     </p>
-
                   </div>
-
                 ) : (
-
                   <div className="space-y-0.5">
-
                     <p className="text-[8px] font-extrabold uppercase tracking-wider text-[var(--color-text-muted)]">
-
                       POA Yield
-
                     </p>
-
-                    <p className="text-base font-black text-white tracking-tight">
-
+                    <p className="text-base font-black text-[var(--color-text-primary)] tracking-tight">
                       {totalYield.toLocaleString(undefined, { maximumFractionDigits: 1 })}
-
                     </p>
-
                     <p className="text-[7px] text-[var(--color-text-muted)] font-semibold">
-
                       tCO₂e
-
                     </p>
-
                   </div>
-
                 )}
-
               </div>
+
 
             </div>
 

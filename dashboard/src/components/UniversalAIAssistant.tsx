@@ -22,7 +22,7 @@ import React, { useState } from "react";
 import { usePathname } from "next/navigation";
 import { useWorkspace } from "@/context/WorkspaceContext";
 import { getContextualInsight } from "@/lib/aiOrchestrator";
-import { chatWithAI, AIChatResponse, fetchProjects, submitITMOAuthorization } from "@/lib/api";
+import { chatWithAI, AIChatResponse, fetchProjects, submitITMOAuthorization, downloadArticle6PackageZip, executeCarbonMinting, generateAndDownloadReport } from "@/lib/api";
 import {
   Bot,
   Sparkles,
@@ -40,6 +40,9 @@ import {
   Loader2,
   FileText,
   Globe,
+  Copy,
+  Coins,
+  ExternalLink,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -69,6 +72,26 @@ export default function UniversalAIAssistant() {
   const [isSubmittingITMO, setIsSubmittingITMO] = useState(false);
   const [itmoResult, setItmoResult] = useState<any>(null);
   const [itmoError, setItmoError] = useState<string | null>(null);
+  const [isDownloadingZip, setIsDownloadingZip] = useState(false);
+  const [showDossierModal, setShowDossierModal] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  // On-Chain Solana Minting Modal State
+  const [isMintModalOpen, setIsMintModalOpen] = useState(false);
+  const [targetChain, setTargetChain] = useState("solana-devnet");
+  const [recipientWallet, setRecipientWallet] = useState("VF_Treasury_9xQeWv7zP2kM1n4L6sT8");
+  const [isMinting, setIsMinting] = useState(false);
+  const [mintResult, setMintResult] = useState<any>(null);
+  const [mintError, setMintError] = useState<string | null>(null);
+
+  // Report Generation & Download Modal State
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [reportType, setReportType] = useState("MRV_CARBON_LEDGER");
+  const [reportStandard, setReportStandard] = useState("VERRA");
+  const [reportTitle, setReportTitle] = useState("");
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const [reportError, setReportError] = useState<string | null>(null);
+  const [reportSuccess, setReportSuccess] = useState<string | null>(null);
 
   const role = user?.role || "ADMIN";
   const insight = getContextualInsight(pathname, activeSector, role);
@@ -225,6 +248,52 @@ export default function UniversalAIAssistant() {
               }}
               className="px-3 py-1 rounded-md bg-[#008A5E] text-white font-semibold text-xs hover:bg-[#00734E] transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
             >
+              <span>{insight.nextActionLabel}</span>
+              <ArrowRight size={13} />
+            </button>
+          ) : insight.nextActionLabel === "Execute Minting" ? (
+            <button
+              onClick={() => {
+                setIsMintModalOpen(true);
+                setMintResult(null);
+                setMintError(null);
+                fetchProjects()
+                  .then((r) => {
+                    const items = r?.items || [];
+                    setProjects(items);
+                    if (items.length > 0) {
+                      setSelectedProjectId(items[0].id);
+                    }
+                  })
+                  .catch(() => {});
+              }}
+              className="px-3 py-1 rounded-md bg-[#008A5E] text-white font-semibold text-xs hover:bg-[#00734E] transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
+            >
+              <Coins size={13} />
+              <span>{insight.nextActionLabel}</span>
+              <ArrowRight size={13} />
+            </button>
+          ) : insight.nextActionLabel === "Download Report" ? (
+            <button
+              onClick={() => {
+                setIsReportModalOpen(true);
+                setReportError(null);
+                setReportSuccess(null);
+                const secLabel = (activeSector || "Sector").replace("_", " ").toUpperCase();
+                setReportTitle(`${secLabel} Verified Carbon Abatement & MRV Report`);
+                fetchProjects()
+                  .then((r) => {
+                    const items = r?.items || [];
+                    setProjects(items);
+                    if (items.length > 0) {
+                      setSelectedProjectId(items[0].id);
+                    }
+                  })
+                  .catch(() => {});
+              }}
+              className="px-3 py-1 rounded-md bg-[#008A5E] text-white font-semibold text-xs hover:bg-[#00734E] transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
+            >
+              <Download size={13} />
               <span>{insight.nextActionLabel}</span>
               <ArrowRight size={13} />
             </button>
@@ -512,23 +581,58 @@ export default function UniversalAIAssistant() {
                   </div>
 
                   <div className="flex gap-2 pt-2">
-                    <a
-                      href={`/api/v1/registry/dossier/ARTICLE6_2/${itmoResult.project_id}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-1 py-2.5 px-3 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] hover:border-emerald-500 text-xs font-semibold text-center text-[var(--color-text-primary)] flex items-center justify-center gap-1.5 transition-colors"
+                    <button
+                      type="button"
+                      onClick={() => setShowDossierModal(!showDossierModal)}
+                      className="flex-1 py-2.5 px-3 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] hover:border-emerald-500 text-xs font-semibold text-center text-[var(--color-text-primary)] flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                     >
                       <FileText size={14} className="text-emerald-400" />
-                      <span>View Structured Dossier</span>
-                    </a>
-                    <a
-                      href={`/api/v1/registry/package-download/ARTICLE6_2/${itmoResult.project_id}`}
-                      className="flex-1 py-2.5 px-3 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-xs font-semibold text-center text-white flex items-center justify-center gap-1.5 transition-colors shadow-md shadow-emerald-500/20"
+                      <span>{showDossierModal ? "Hide Dossier" : "View Structured Dossier"}</span>
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isDownloadingZip}
+                      onClick={async () => {
+                        try {
+                          setIsDownloadingZip(true);
+                          await downloadArticle6PackageZip("ARTICLE6_2", itmoResult.project_id);
+                        } catch (err: any) {
+                          alert("Download failed: " + (err?.message || "Unknown error"));
+                        } finally {
+                          setIsDownloadingZip(false);
+                        }
+                      }}
+                      className="flex-1 py-2.5 px-3 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-xs font-semibold text-center text-white flex items-center justify-center gap-1.5 transition-colors shadow-md shadow-emerald-500/20 cursor-pointer disabled:opacity-50"
                     >
-                      <Download size={14} />
-                      <span>Download Package ZIP</span>
-                    </a>
+                      {isDownloadingZip ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+                      <span>{isDownloadingZip ? "Downloading..." : "Download Package ZIP"}</span>
+                    </button>
                   </div>
+
+                  {showDossierModal && itmoResult.dossier && (
+                    <div className="mt-3 p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-mono text-emerald-400 font-bold">
+                          Article 6.2 Compliance Dossier (JSON)
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(JSON.stringify(itmoResult.dossier, null, 2));
+                            setCopied(true);
+                            setTimeout(() => setCopied(false), 2000);
+                          }}
+                          className="px-2 py-1 rounded bg-slate-800 text-slate-300 hover:text-white text-[10px] flex items-center gap-1 cursor-pointer transition-colors"
+                        >
+                          <Copy size={11} />
+                          <span>{copied ? "Copied!" : "Copy JSON"}</span>
+                        </button>
+                      </div>
+                      <pre className="text-[10px] font-mono text-slate-300 overflow-x-auto max-h-60 p-2 rounded bg-slate-900/80 border border-slate-800 leading-tight">
+                        {JSON.stringify(itmoResult.dossier, null, 2)}
+                      </pre>
+                    </div>
+                  )}
                 </div>
               ) : (
                 /* Form State */
@@ -667,6 +771,431 @@ export default function UniversalAIAssistant() {
                 </form>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* On-Chain Solana Carbon Credit Minting Modal */}
+      {isMintModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-xl rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            {/* Modal Header */}
+            <div className="p-5 border-b border-[var(--color-border)] flex items-center justify-between bg-gradient-to-r from-emerald-950/30 via-slate-900 to-transparent">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center">
+                  <Coins size={20} />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-[var(--color-text-primary)] flex items-center gap-2">
+                    <span>On-Chain Carbon Credit Minting</span>
+                    <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-mono">
+                      Solana / CIOS Ledger
+                    </span>
+                  </h3>
+                  <p className="text-xs text-[var(--color-text-secondary)]">
+                    Direct cryptographic token issuance & serial number allocation
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsMintModalOpen(false)}
+                className="p-2 rounded-lg hover:bg-slate-800 text-[var(--color-text-muted)] hover:text-white transition-colors cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-5 space-y-4 overflow-y-auto flex-1 text-xs">
+              {mintResult ? (
+                /* Success State */
+                <div className="space-y-4">
+                  <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 space-y-2">
+                    <div className="flex items-center gap-2 text-emerald-400 font-bold text-sm">
+                      <CheckCircle2 size={18} />
+                      <span>{mintResult.message}</span>
+                    </div>
+                    <p className="text-[var(--color-text-secondary)] leading-relaxed">
+                      Immutable carbon assets successfully issued on-chain and registered to the VeriField sovereign cryptographic ledger.
+                    </p>
+                  </div>
+
+                  <div className="p-4 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] space-y-2.5 font-mono text-[11px]">
+                    <div className="flex justify-between py-1 border-b border-[var(--color-border)]">
+                      <span className="text-[var(--color-text-secondary)]">Status:</span>
+                      <span className="text-emerald-400 font-bold">MINTED & VERIFIED</span>
+                    </div>
+                    <div className="flex justify-between py-1 border-b border-[var(--color-border)]">
+                      <span className="text-[var(--color-text-secondary)]">Serial Number:</span>
+                      <span className="text-[var(--color-text-primary)] font-bold">{mintResult.serial_number}</span>
+                    </div>
+                    <div className="flex justify-between py-1 border-b border-[var(--color-border)]">
+                      <span className="text-[var(--color-text-secondary)]">Volume Minted:</span>
+                      <span className="text-emerald-400 font-bold">{mintResult.total_tco2e} tCO2e</span>
+                    </div>
+                    <div className="flex justify-between py-1 border-b border-[var(--color-border)]">
+                      <span className="text-[var(--color-text-secondary)]">Target Chain:</span>
+                      <span className="text-[var(--color-text-primary)] uppercase">{mintResult.target_chain}</span>
+                    </div>
+                    <div className="flex justify-between py-1 border-b border-[var(--color-border)]">
+                      <span className="text-[var(--color-text-secondary)]">Recipient Wallet:</span>
+                      <span className="text-[var(--color-text-primary)] truncate max-w-[220px]">{mintResult.recipient_wallet}</span>
+                    </div>
+                    <div className="flex justify-between py-1 border-b border-[var(--color-border)]">
+                      <span className="text-[var(--color-text-secondary)]">Transaction Hash:</span>
+                      <span className="text-blue-400 truncate max-w-[220px]">{mintResult.transaction_signature}</span>
+                    </div>
+                    <div className="flex justify-between py-1">
+                      <span className="text-[var(--color-text-secondary)]">Signature Hash:</span>
+                      <span className="text-[var(--color-text-muted)] truncate max-w-[220px]">{mintResult.signature_hash}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2 pt-2">
+                    <a
+                      href={mintResult.explorer_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 py-2.5 px-3 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-xs font-semibold text-center text-white flex items-center justify-center gap-1.5 transition-colors shadow-md shadow-purple-500/20"
+                    >
+                      <ExternalLink size={14} />
+                      <span>View on Solana Explorer</span>
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => setIsMintModalOpen(false)}
+                      className="flex-1 py-2.5 px-3 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] hover:border-emerald-500 text-xs font-semibold text-center text-[var(--color-text-primary)] flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                    >
+                      <span>Close</span>
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* Mint Form State */
+                <form
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    const projIdToSubmit = selectedProjectId || (projects.length > 0 ? projects[0].id : "");
+                    setIsMinting(true);
+                    setMintError(null);
+                    try {
+                      const res = await executeCarbonMinting({
+                        project_id: projIdToSubmit || undefined,
+                        target_chain: targetChain,
+                        recipient_wallet: recipientWallet,
+                      });
+                      setMintResult(res);
+                    } catch (err: any) {
+                      setMintError(err?.message || "Failed to execute on-chain minting. Ensure carbon records are verified.");
+                    } finally {
+                      setIsMinting(false);
+                    }
+                  }}
+                  className="space-y-4"
+                >
+                  {mintError && (
+                    <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 flex items-center gap-2">
+                      <AlertTriangle size={15} className="shrink-0" />
+                      <span>{mintError}</span>
+                    </div>
+                  )}
+
+                  {/* Project Selector */}
+                  <div>
+                    <label className="block text-xs font-semibold text-[var(--color-text-secondary)] mb-1.5">
+                      Select Project to Mint Credits For
+                    </label>
+                    <select
+                      value={selectedProjectId}
+                      onChange={(e) => setSelectedProjectId(e.target.value)}
+                      className="w-full px-3 py-2.5 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] text-xs text-[var(--color-text-primary)] focus:outline-none focus:border-emerald-500"
+                    >
+                      {projects.length === 0 && <option value="">All Verified Activities in Organization</option>}
+                      {projects.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name} ({p.country || "Nigeria"}) — {p.sector || "Clean Energy / MRV"}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Target Blockchain & Recipient */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-[var(--color-text-secondary)] mb-1.5">
+                        Target Ledger / Chain
+                      </label>
+                      <select
+                        value={targetChain}
+                        onChange={(e) => setTargetChain(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] text-xs text-[var(--color-text-primary)] focus:outline-none focus:border-emerald-500"
+                      >
+                        <option value="solana-devnet">Solana Devnet (Direct)</option>
+                        <option value="solana-mainnet">Solana Mainnet (Beta)</option>
+                        <option value="polygon">Polygon PoS</option>
+                        <option value="internal-ledger">VeriField Private Ledger</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-[var(--color-text-secondary)] mb-1.5">
+                        Issuance Standard
+                      </label>
+                      <input
+                        type="text"
+                        value="VeriField SPL-Token (tCO2e)"
+                        disabled
+                        className="w-full px-3 py-2 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] text-xs text-[var(--color-text-muted)] cursor-not-allowed"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Recipient Wallet */}
+                  <div>
+                    <label className="block text-xs font-semibold text-[var(--color-text-secondary)] mb-1.5">
+                      Treasury / Recipient Wallet Address
+                    </label>
+                    <input
+                      type="text"
+                      value={recipientWallet}
+                      onChange={(e) => setRecipientWallet(e.target.value)}
+                      required
+                      placeholder="e.g. Solana / SPL Wallet Address"
+                      className="w-full px-3 py-2 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] text-xs text-[var(--color-text-primary)] focus:outline-none focus:border-emerald-500 font-mono text-[11px]"
+                    />
+                  </div>
+
+                  {/* Cryptographic Ledger Safeguards */}
+                  <div className="p-3 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] space-y-1.5">
+                    <p className="text-[11px] font-bold text-[var(--color-text-primary)] uppercase tracking-wider mb-1">
+                      Ledger Integrity Checklist
+                    </p>
+                    <div className="flex items-center gap-2 text-[11px] text-emerald-400">
+                      <Check size={13} />
+                      <span>AST-sandboxed baseline emission reduction verified</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-[11px] text-emerald-400">
+                      <Check size={13} />
+                      <span>RSA-2048 Digital Signature & Canonical SHA-256 Hash</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-[11px] text-emerald-400">
+                      <Check size={13} />
+                      <span>Immutable Audit Trail record written before broadcast</span>
+                    </div>
+                  </div>
+
+                  {/* Mint Button */}
+                  <button
+                    type="submit"
+                    disabled={isMinting}
+                    className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold text-xs disabled:opacity-50 flex items-center justify-center gap-2 transition-all cursor-pointer shadow-lg shadow-emerald-500/20"
+                  >
+                    {isMinting ? (
+                      <>
+                        <Loader2 size={16} className="animate-spin" />
+                        <span>Signing & Minting On-Chain...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Coins size={15} />
+                        <span>Execute Cryptographic Minting</span>
+                      </>
+                    )}
+                  </button>
+                </form>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Interactive Report Generation & Download Modal */}
+      {isReportModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-lg bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                  <FileText size={16} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-[var(--color-text-primary)]">
+                    Generate & Download Official Carbon Report
+                  </h3>
+                  <p className="text-[11px] text-[var(--color-text-secondary)]">
+                    VeriField Nexus dMRV • Tamper-Evident Report Engine
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsReportModalOpen(false)}
+                className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] p-1 rounded-lg transition-colors cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                setIsGeneratingReport(true);
+                setReportError(null);
+                setReportSuccess(null);
+
+                const orgIdToUse = user?.organization_id;
+                const projIdToUse = selectedProjectId || (projects.length > 0 ? projects[0].id : undefined);
+
+                try {
+                  if (reportType === "REGISTRY_ZIP") {
+                    if (!projIdToUse) {
+                      throw new Error("Please select a project to compile a certified registry submission ZIP package.");
+                    }
+                    await downloadArticle6PackageZip(reportStandard, projIdToUse);
+                    setReportSuccess(`Successfully compiled and downloaded ${reportStandard} submission package ZIP!`);
+                  } else {
+                    if (!orgIdToUse) {
+                      throw new Error("Organization context is required. Please ensure your account is assigned to an active organization.");
+                    }
+                    await generateAndDownloadReport(
+                      orgIdToUse,
+                      projIdToUse || undefined,
+                      reportTitle || "Verified Project Carbon Ledger & MRV Report"
+                    );
+                    setReportSuccess("ReportLab PDF report compiled and downloaded successfully!");
+                  }
+                  setTimeout(() => {
+                    setIsReportModalOpen(false);
+                  }, 2500);
+                } catch (err: any) {
+                  setReportError(err?.message || "Failed to generate report. Please verify project data.");
+                } finally {
+                  setIsGeneratingReport(false);
+                }
+              }}
+              className="space-y-4 text-xs"
+            >
+              {reportError && (
+                <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 flex items-center gap-2">
+                  <AlertTriangle size={15} className="shrink-0" />
+                  <span>{reportError}</span>
+                </div>
+              )}
+
+              {reportSuccess && (
+                <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center gap-2">
+                  <CheckCircle2 size={15} className="shrink-0" />
+                  <span>{reportSuccess}</span>
+                </div>
+              )}
+
+              {/* Report Format Selection */}
+              <div>
+                <label className="block text-xs font-semibold text-[var(--color-text-secondary)] mb-1.5">
+                  Report Type & Deliverable Format
+                </label>
+                <select
+                  value={reportType}
+                  onChange={(e) => setReportType(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] text-xs text-[var(--color-text-primary)] focus:outline-none focus:border-emerald-500"
+                >
+                  <option value="MRV_CARBON_LEDGER">Verified Carbon Ledger & Performance Report (PDF)</option>
+                  <option value="ESG_ABATEMENT_FORECAST">Executive ESG & Abatement Forecast Report (PDF)</option>
+                  <option value="REGISTRY_ZIP">Certified Registry Submission Package (Multi-Format ZIP: PDF + DOCX + CSV + JSON)</option>
+                </select>
+              </div>
+
+              {/* Registry Standard Selector (if ZIP) */}
+              {reportType === "REGISTRY_ZIP" && (
+                <div>
+                  <label className="block text-xs font-semibold text-[var(--color-text-secondary)] mb-1.5">
+                    Target Registry Standard
+                  </label>
+                  <select
+                    value={reportStandard}
+                    onChange={(e) => setReportStandard(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] text-xs text-[var(--color-text-primary)] focus:outline-none focus:border-emerald-500"
+                  >
+                    <option value="VERRA">Verra Verified Carbon Standard (VCS v4.4/v5.0)</option>
+                    <option value="GOLD_STANDARD">Gold Standard for the Global Goals (GS4GG v2.2)</option>
+                    <option value="ARTICLE6_2">UNFCCC Article 6.2 ITMO Cooperative Approach</option>
+                    <option value="NCCC">Nigeria National Council on Climate Change (NCCC/NCMAP)</option>
+                  </select>
+                </div>
+              )}
+
+              {/* Project Scope */}
+              <div>
+                <label className="block text-xs font-semibold text-[var(--color-text-secondary)] mb-1.5">
+                  Project Scope
+                </label>
+                <select
+                  value={selectedProjectId}
+                  onChange={(e) => setSelectedProjectId(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] text-xs text-[var(--color-text-primary)] focus:outline-none focus:border-emerald-500"
+                >
+                  <option value="">All Projects & Activities across Organization</option>
+                  {projects.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name} ({p.country || "Nigeria"}) — {p.sector || "Clean Sector"}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Report Title */}
+              <div>
+                <label className="block text-xs font-semibold text-[var(--color-text-secondary)] mb-1.5">
+                  Document Title & Header
+                </label>
+                <input
+                  type="text"
+                  value={reportTitle}
+                  onChange={(e) => setReportTitle(e.target.value)}
+                  required
+                  placeholder="e.g. Hybrid Energy Sector Verified Carbon Abatement Report"
+                  className="w-full px-3 py-2 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] text-xs text-[var(--color-text-primary)] focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+
+              {/* Attestation Box */}
+              <div className="p-3 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] space-y-1.5">
+                <p className="text-[11px] font-bold text-[var(--color-text-primary)] uppercase tracking-wider mb-1">
+                  Cryptographic Integrity Guarantees
+                </p>
+                <div className="flex items-center gap-2 text-[11px] text-emerald-400">
+                  <Check size={13} />
+                  <span>Compiled dynamically from real-time database telemetry</span>
+                </div>
+                <div className="flex items-center gap-2 text-[11px] text-emerald-400">
+                  <Check size={13} />
+                  <span>ReportLab publication styling with dynamic page numbering & headers</span>
+                </div>
+                <div className="flex items-center gap-2 text-[11px] text-emerald-400">
+                  <Check size={13} />
+                  <span>SHA-256 tamper-evident digital seal embedded in document trailer</span>
+                </div>
+              </div>
+
+              {/* Action Button */}
+              <button
+                type="submit"
+                disabled={isGeneratingReport}
+                className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold text-xs disabled:opacity-50 flex items-center justify-center gap-2 transition-all cursor-pointer shadow-lg shadow-emerald-500/20"
+              >
+                {isGeneratingReport ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    <span>Compiling & Attesting Document...</span>
+                  </>
+                ) : (
+                  <>
+                    <Download size={15} />
+                    <span>Compile & Download Document</span>
+                  </>
+                )}
+              </button>
+            </form>
           </div>
         </div>
       )}
