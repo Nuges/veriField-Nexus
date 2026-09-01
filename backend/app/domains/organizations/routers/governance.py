@@ -38,9 +38,8 @@ from sqlalchemy.orm import selectinload
 
 
 from app.core.event_bus import EventBus
-
+from app.core.rbac import ALL_ROLES, normalize_role
 from app.core.security import get_current_user, get_password_hash
-
 from app.db.session import get_db
 
 from app.domains.activities.models import Activity
@@ -166,30 +165,20 @@ async def provision_user_account(
 
 
 
-    # 2. Validate role catalogue
-
-    role_upper = role.strip().upper()
-
-    valid_roles = {
-        "SUPER_ADMIN", "ORG_ADMIN", "AUDITOR", "THIRD_PARTY_AUDITOR",
-        "COMPLIANCE_OFFICER", "PROJECT_MANAGER", "FIELD_AGENT", "REGULATOR", "ADMIN"
-    }
-
-    if role_upper not in valid_roles:
+    # 2. Validate role catalogue using canonical RBAC normalization
+    canonical_role = normalize_role(role)
+    if not canonical_role:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid role '{role}'. Must be one of {sorted(list(valid_roles))}"
+            detail=f"Invalid role '{role}'. Must be one of {sorted(list(ALL_ROLES))}"
         )
 
     # Invariant: Only segunoluwole22@gmail.com may hold the SUPER_ADMIN role
-    if role_upper == "SUPER_ADMIN" and normalized_email != "segunoluwole22@gmail.com":
+    if canonical_role == "SUPER_ADMIN" and normalized_email != "segunoluwole22@gmail.com":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Forbidden: Cannot provision unauthorized SUPER_ADMIN account."
         )
-
-
-
 
     # Coerce organization_id to UUID if string is passed
     target_org_id: Optional[uuid.UUID] = None
@@ -200,11 +189,11 @@ async def provision_user_account(
             try:
                 target_org_id = uuid.UUID(str(organization_id).strip())
             except ValueError:
-                # If invalid UUID string, treat target_org_id as None and resolve below
                 target_org_id = None
 
     # 3. RBAC / ABAC Boundary Checks for Org Admins
-    if actor_user.role in ("ORG_ADMIN", "admin"):
+    actor_canonical = normalize_role(actor_user.role)
+    if actor_canonical == "ORG_ADMIN":
         # Org Admins cannot create users in another organization
         if target_org_id and str(target_org_id) != str(actor_user.organization_id):
             audit_entry = SecurityAuditLog(
@@ -241,7 +230,7 @@ async def provision_user_account(
             )
 
         # Org Admins cannot create Super Admin or Org Admin accounts
-        if role_upper in ("SUPER_ADMIN", "ORG_ADMIN", "ADMIN"):
+        if canonical_role in ("SUPER_ADMIN", "ORG_ADMIN"):
             audit_entry = SecurityAuditLog(
                 id=uuid.uuid4(),
                 actor_user_id=actor_user.id,
@@ -305,14 +294,14 @@ async def provision_user_account(
         target_org_id = actor_user.organization_id
 
     # Fallback Step 3: If target_org_id is missing, query primary active organization in system
-    if not target_org_id and role_upper not in ("SUPER_ADMIN", "ADMIN", "REGULATOR"):
+    if not target_org_id and canonical_role != "SUPER_ADMIN":
         first_org_res = await db.execute(select(Organization).where(Organization.is_deleted == False).order_by(Organization.created_at.asc()).limit(1))
         first_org = first_org_res.scalars().first()
         if first_org:
             target_org_id = first_org.id
 
     # Fallback Step 4: If no organization exists in system at all, auto-provision default Primary Tenant Organization
-    if not target_org_id and role_upper not in ("SUPER_ADMIN", "ADMIN", "REGULATOR"):
+    if not target_org_id and canonical_role != "SUPER_ADMIN":
         default_org = Organization(
             id=uuid.uuid4(),
             name="VeriField Primary Tenant",
@@ -323,11 +312,11 @@ async def provision_user_account(
         await db.flush()
         target_org_id = default_org.id
 
-    # Non-Super Admin / Non-Regulator roles require an organization_id
-    if role_upper not in ("SUPER_ADMIN", "ADMIN", "REGULATOR") and not target_org_id:
+    # Non-Super Admin roles require an organization_id
+    if canonical_role != "SUPER_ADMIN" and not target_org_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Target organization_id is required for role '{role_upper}'."
+            detail=f"Target organization_id is required for role '{canonical_role}'."
         )
 
     # 4. Resolve Organization Name
@@ -339,40 +328,22 @@ async def provision_user_account(
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Target organization not found.")
         org_name = org.name
 
-
-
     # 5. Generate secure temporary password
-
     temp_pw = custom_password
-
     if not temp_pw:
-
         temp_pw = f"Temp-{uuid.uuid4().hex[:4].upper()}-{uuid.uuid4().hex[:4].upper()}!"
-
-
 
     password_hash = get_password_hash(temp_pw)
 
-
-
     # 6. Create User record
-
     new_user = User(
-
         id=uuid.uuid4(),
-
         email=normalized_email,
-
         phone=phone,
-
         full_name=full_name.strip(),
-
-        role=role_upper,
-
+        role=canonical_role,
         status="active",
-
         is_active=True,
-
         organization=org_name,
 
         organization_id=target_org_id,
@@ -1251,13 +1222,18 @@ async def update_user_account_governance(
         raise HTTPException(status_code=404, detail="User account not found.")
 
     if payload.role is not None and payload.role.strip():
-        new_role = payload.role.strip().upper()
-        if new_role == "SUPER_ADMIN" and target_user.email.lower() != "segunoluwole22@gmail.com":
+        canonical_new_role = normalize_role(payload.role)
+        if not canonical_new_role:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid role '{payload.role}'. Must be one of {sorted(list(ALL_ROLES))}"
+            )
+        if canonical_new_role == "SUPER_ADMIN" and target_user.email.lower() != "segunoluwole22@gmail.com":
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Forbidden: Cannot elevate non-designated user to SUPER_ADMIN."
             )
-        target_user.role = new_role
+        target_user.role = canonical_new_role
 
     if payload.organization_id is not None:
         if payload.organization_id == "" or payload.organization_id.lower() == "none":

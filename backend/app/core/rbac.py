@@ -33,6 +33,22 @@ ROLE_FINANCE = "FINANCE"
 ROLE_INVESTOR = "INVESTOR"
 ROLE_VIEWER = "VIEWER"
 
+CANONICAL_ROLES: Set[str] = {
+    ROLE_SUPER_ADMIN,
+    ROLE_ORG_ADMIN,
+    ROLE_PROJECT_MANAGER,
+    ROLE_FIELD_SUPERVISOR,
+    ROLE_FIELD_AGENT,
+    ROLE_QA_OFFICER,
+    ROLE_VERIFIER,
+    ROLE_AUDITOR,
+    ROLE_COMPLIANCE_ADMIN,
+    ROLE_REGISTRY_ADMIN,
+    ROLE_FINANCE,
+    ROLE_INVESTOR,
+    ROLE_VIEWER,
+}
+
 # Legacy backward-compatibility constants
 ROLE_PLATFORM_SUPER_ADMIN = ROLE_SUPER_ADMIN
 ROLE_ORG_OWNER = ROLE_ORG_ADMIN
@@ -128,6 +144,9 @@ def normalize_canonical_role(role_str: Optional[str]) -> str:
 
     # Default unknown roles to least-privilege VIEWER
     return ROLE_VIEWER
+
+ALL_ROLES: Set[str] = set(CANONICAL_ROLES) | {k.upper() for k in ROLE_ALIASES.keys()}
+normalize_role = normalize_canonical_role
 
 
 # ─── Role to Permissions Mapping ──────────────────────────────────────────────

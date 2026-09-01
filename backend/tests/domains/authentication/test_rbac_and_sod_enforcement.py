@@ -141,3 +141,65 @@ async def test_update_user_role_hierarchy_protection():
         await service.update_user_role(target_user.id, "PROJECT_MANAGER", actor_user=other_org_admin)
     assert excinfo.value.status_code == 403
     assert "outside your organization" in excinfo.value.detail
+
+
+@pytest.mark.asyncio
+async def test_provision_user_account_with_qa_officer_and_canonical_roles(db_session):
+    """Verify that provision_user_account accepts QA_OFFICER and all canonical roles."""
+    from app.domains.organizations.routers.governance import provision_user_account
+    from app.domains.organizations.models import Organization
+
+    org_id = uuid.uuid4()
+    org = Organization(
+        id=org_id,
+        name=f"Test Org {uuid.uuid4().hex[:6]}",
+        org_type="DEVELOPER",
+        status="ACTIVE",
+    )
+    db_session.add(org)
+    await db_session.commit()
+
+    admin_actor = User(
+        id=uuid.uuid4(),
+        email="admin@testorg.com",
+        role="ORG_ADMIN",
+        organization_id=org_id,
+        is_active=True,
+    )
+
+    # 1. Provision QA_OFFICER
+    res_qa = await provision_user_account(
+        db=db_session,
+        actor_user=admin_actor,
+        full_name="Seyi Ol",
+        email=f"seyi_{uuid.uuid4().hex[:6]}@testorg.com",
+        role="QA_OFFICER",
+        organization_id=org_id,
+        custom_password="ValidPassword123!",
+    )
+    assert res_qa["user"].role == "QA_OFFICER"
+    assert res_qa["user"].full_name == "Seyi Ol"
+
+    # 2. Provision VERIFIER
+    res_verifier = await provision_user_account(
+        db=db_session,
+        actor_user=admin_actor,
+        full_name="Verifier Jane",
+        email=f"jane_{uuid.uuid4().hex[:6]}@testorg.com",
+        role="VERIFIER",
+        organization_id=org_id,
+        custom_password="ValidPassword123!",
+    )
+    assert res_verifier["user"].role == "VERIFIER"
+
+    # 3. Provision PROJECT_MANAGER
+    res_pm = await provision_user_account(
+        db=db_session,
+        actor_user=admin_actor,
+        full_name="PM John",
+        email=f"john_{uuid.uuid4().hex[:6]}@testorg.com",
+        role="PROJECT_MANAGER",
+        organization_id=org_id,
+        custom_password="ValidPassword123!",
+    )
+    assert res_pm["user"].role == "PROJECT_MANAGER"
