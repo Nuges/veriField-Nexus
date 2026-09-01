@@ -147,7 +147,7 @@ export const ROUTE_ACCESS_RULES: RouteRule[] = [
   },
   {
     pathPrefix: "/dashboard/carbon",
-    allowedRoles: ["SUPER_ADMIN", "ORG_ADMIN", "FINANCE", "PROJECT_MANAGER", "REGISTRY_ADMIN", "INVESTOR", "VIEWER"],
+    allowedRoles: ["SUPER_ADMIN", "ORG_ADMIN", "FINANCE", "PROJECT_MANAGER", "REGISTRY_ADMIN", "VERIFIER", "INVESTOR", "VIEWER"],
     label: "Carbon Credit Ledger",
   },
   {
@@ -167,7 +167,7 @@ export const ROUTE_ACCESS_RULES: RouteRule[] = [
   },
   {
     pathPrefix: "/dashboard/projects",
-    allowedRoles: ["SUPER_ADMIN", "ORG_ADMIN", "PROJECT_MANAGER", "QA_OFFICER", "COMPLIANCE_ADMIN", "REGISTRY_ADMIN", "VERIFIER", "AUDITOR", "INVESTOR", "VIEWER"],
+    allowedRoles: ["SUPER_ADMIN", "ORG_ADMIN", "PROJECT_MANAGER", "FIELD_SUPERVISOR", "QA_OFFICER", "COMPLIANCE_ADMIN", "REGISTRY_ADMIN", "VERIFIER", "AUDITOR", "INVESTOR", "VIEWER"],
     label: "Projects & Mini-Grids",
   },
   {
@@ -187,7 +187,7 @@ export const ROUTE_ACCESS_RULES: RouteRule[] = [
   },
   {
     pathPrefix: "/dashboard/analytics",
-    allowedRoles: ["SUPER_ADMIN", "ORG_ADMIN", "PROJECT_MANAGER", "QA_OFFICER", "COMPLIANCE_ADMIN", "REGISTRY_ADMIN", "FINANCE", "INVESTOR", "VIEWER"],
+    allowedRoles: ["SUPER_ADMIN", "ORG_ADMIN", "PROJECT_MANAGER", "QA_OFFICER", "COMPLIANCE_ADMIN", "REGISTRY_ADMIN", "FINANCE", "VERIFIER", "AUDITOR", "FIELD_SUPERVISOR", "INVESTOR", "VIEWER"],
     label: "Sector Analytics & Reporting",
   },
 ];

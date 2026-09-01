@@ -121,15 +121,8 @@ export default function ProjectsPage() {
                 {orgAdmins.map((u) => {
                   const roleClean = (u.role || "USER").toUpperCase().replace(/_/g, " ");
                   const isSuspended = u.is_suspended || u.status === "suspended";
-                  return (
-                    <Link
-                      key={u.id}
-                      href="/dashboard/people?tab=access"
-                      className={`p-3.5 rounded-xl bg-[var(--color-background)] border transition-all flex items-start justify-between gap-2.5 shadow-xs cursor-pointer group active:scale-[0.98] ${
-                        isSuspended ? "border-red-300 dark:border-red-700 opacity-70" : "border-[var(--color-border)] hover:border-purple-500/50 hover:shadow-md"
-                      }`}
-                      title="Manage account in People & Access"
-                    >
+                  const cardContent = (
+                    <div className="flex items-start justify-between gap-2.5 w-full">
                       <div className="flex items-start gap-2.5 min-w-0">
                         <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-950/60 text-purple-800 dark:text-purple-300 shrink-0 mt-0.5">
                           <Shield size={16} />
@@ -151,10 +144,34 @@ export default function ProjectsPage() {
                           <p className="text-[9px] font-mono text-[var(--color-text-muted)] truncate">{u.email}</p>
                         </div>
                       </div>
-                      <div className="p-1.5 rounded bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text-secondary)] group-hover:text-purple-800 dark:group-hover:text-purple-300 shrink-0">
-                        <ChevronRight size={12} />
-                      </div>
+                      {isSuperAdminOrAdmin && (
+                        <div className="p-1.5 rounded bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text-secondary)] group-hover:text-purple-800 dark:group-hover:text-purple-300 shrink-0">
+                          <ChevronRight size={12} />
+                        </div>
+                      )}
+                    </div>
+                  );
+
+                  return isSuperAdminOrAdmin ? (
+                    <Link
+                      key={u.id}
+                      href="/dashboard/people?tab=access"
+                      className={`p-3.5 rounded-xl bg-[var(--color-background)] border transition-all flex items-start justify-between gap-2.5 shadow-xs cursor-pointer group active:scale-[0.98] ${
+                        isSuspended ? "border-red-300 dark:border-red-700 opacity-70" : "border-[var(--color-border)] hover:border-purple-500/50 hover:shadow-md"
+                      }`}
+                      title="Manage account in People & Access"
+                    >
+                      {cardContent}
                     </Link>
+                  ) : (
+                    <div
+                      key={u.id}
+                      className={`p-3.5 rounded-xl bg-[var(--color-background)] border transition-all flex items-start justify-between gap-2.5 shadow-xs ${
+                        isSuspended ? "border-red-300 dark:border-red-700 opacity-70" : "border-[var(--color-border)]"
+                      }`}
+                    >
+                      {cardContent}
+                    </div>
                   );
                 })}
               </div>
@@ -206,15 +223,8 @@ export default function ProjectsPage() {
                 {opUsers.map((u) => {
                   const roleClean = (u.role || "USER").toUpperCase().replace(/_/g, " ");
                   const isSuspended = u.is_suspended || u.status === "suspended";
-                  return (
-                    <Link
-                      key={u.id}
-                      href="/dashboard/people?tab=access"
-                      className={`p-3.5 rounded-xl bg-[var(--color-background)] border transition-all flex items-start justify-between gap-2.5 shadow-xs cursor-pointer group active:scale-[0.98] ${
-                        isSuspended ? "border-red-300 dark:border-red-700 opacity-70" : "border-[var(--color-border)] hover:border-emerald-500/50 hover:shadow-md"
-                      }`}
-                      title="Manage account in People & Access"
-                    >
+                  const cardContent = (
+                    <div className="flex items-start justify-between gap-2.5 w-full">
                       <div className="flex items-start gap-2.5 min-w-0">
                         <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 shrink-0 mt-0.5">
                           <Users size={16} />
@@ -236,10 +246,34 @@ export default function ProjectsPage() {
                           <p className="text-[9px] font-mono text-[var(--color-text-muted)] truncate">{u.email}</p>
                         </div>
                       </div>
-                      <div className="p-1.5 rounded bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text-secondary)] group-hover:text-emerald-800 dark:group-hover:text-emerald-300 shrink-0">
-                        <ChevronRight size={12} />
-                      </div>
+                      {isSuperAdminOrAdmin && (
+                        <div className="p-1.5 rounded bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text-secondary)] group-hover:text-emerald-800 dark:group-hover:text-emerald-300 shrink-0">
+                          <ChevronRight size={12} />
+                        </div>
+                      )}
+                    </div>
+                  );
+
+                  return isSuperAdminOrAdmin ? (
+                    <Link
+                      key={u.id}
+                      href="/dashboard/people?tab=access"
+                      className={`p-3.5 rounded-xl bg-[var(--color-background)] border transition-all flex items-start justify-between gap-2.5 shadow-xs cursor-pointer group active:scale-[0.98] ${
+                        isSuspended ? "border-red-300 dark:border-red-700 opacity-70" : "border-[var(--color-border)] hover:border-emerald-500/50 hover:shadow-md"
+                      }`}
+                      title="Manage account in People & Access"
+                    >
+                      {cardContent}
                     </Link>
+                  ) : (
+                    <div
+                      key={u.id}
+                      className={`p-3.5 rounded-xl bg-[var(--color-background)] border transition-all flex items-start justify-between gap-2.5 shadow-xs ${
+                        isSuspended ? "border-red-300 dark:border-red-700 opacity-70" : "border-[var(--color-border)]"
+                      }`}
+                    >
+                      {cardContent}
+                    </div>
                   );
                 })}
               </div>

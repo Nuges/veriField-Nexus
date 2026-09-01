@@ -215,6 +215,7 @@ ROLE_PERMISSIONS: Dict[str, Set[str]] = {
         "finance:read",
     },
     ROLE_PROJECT_MANAGER: {
+        "org:read",
         "project:read",
         "project:create",
         "project:update",
@@ -232,6 +233,7 @@ ROLE_PERMISSIONS: Dict[str, Set[str]] = {
         "registry:prepare",
     },
     ROLE_FIELD_SUPERVISOR: {
+        "org:read",
         "project:read",
         "asset:read",
         "activity:create",
@@ -242,11 +244,13 @@ ROLE_PERMISSIONS: Dict[str, Set[str]] = {
         "report:read",
     },
     ROLE_FIELD_AGENT: {
+        "org:read",
         "activity:create",
         "activity:read",
         "asset:read",
     },
     ROLE_QA_OFFICER: {
+        "org:read",
         "project:read",
         "asset:read",
         "activity:read",
@@ -256,6 +260,7 @@ ROLE_PERMISSIONS: Dict[str, Set[str]] = {
         "ledger:read",
     },
     ROLE_VERIFIER: {
+        "org:read",
         "project:read",
         "asset:read",
         "activity:read",
@@ -267,6 +272,7 @@ ROLE_PERMISSIONS: Dict[str, Set[str]] = {
         "verification:sign",
     },
     ROLE_AUDITOR: {
+        "org:read",
         "project:read",
         "asset:read",
         "activity:read",
@@ -276,6 +282,7 @@ ROLE_PERMISSIONS: Dict[str, Set[str]] = {
         "audit:write",
     },
     ROLE_COMPLIANCE_ADMIN: {
+        "org:read",
         "compliance:all",
         "compliance:read",
         "compliance:authorize",
@@ -288,6 +295,7 @@ ROLE_PERMISSIONS: Dict[str, Set[str]] = {
         "registry:authorize",
     },
     ROLE_REGISTRY_ADMIN: {
+        "org:read",
         "registry:all",
         "registry:prepare",
         "registry:submit",
@@ -297,6 +305,7 @@ ROLE_PERMISSIONS: Dict[str, Set[str]] = {
         "report:read",
     },
     ROLE_FINANCE: {
+        "org:read",
         "finance:all",
         "finance:read",
         "finance:manage",
@@ -308,12 +317,14 @@ ROLE_PERMISSIONS: Dict[str, Set[str]] = {
         "report:read",
     },
     ROLE_INVESTOR: {
+        "org:read",
         "project:read",
         "asset:read",
         "report:read",
         "ledger:read",
     },
     ROLE_VIEWER: {
+        "org:read",
         "project:read",
         "asset:read",
         "activity:read",
