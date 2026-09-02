@@ -143,7 +143,6 @@ export function DynamicSidebar() {
             title: "Administration",
             items: [
               { label: "Tenant & User Access", icon: "Users", href: "/dashboard/people" },
-              { label: "Platform Settings", icon: "Settings", href: "/dashboard/settings" },
             ],
           },
           {
@@ -183,7 +182,6 @@ export function DynamicSidebar() {
             title: "Administration & Security",
             items: [
               { label: "People & Access", icon: "Users", href: "/dashboard/people" },
-              { label: "Organization Settings", icon: "Settings", href: "/dashboard/settings" },
             ],
           },
           {
@@ -225,7 +223,6 @@ export function DynamicSidebar() {
             items: [
               { label: "AI Project Assistant", icon: "Bot", href: "/dashboard/ai", badge: "Live" },
               { label: "Project Guidelines", icon: "HelpCircle", href: "/dashboard/help" },
-              { label: "Settings & Profile", icon: "Settings", href: "/dashboard/settings" },
             ],
           },
         ];
@@ -252,7 +249,6 @@ export function DynamicSidebar() {
               { label: "Field Reports", icon: "FileText", href: "/dashboard/analytics" },
               { label: "Field AI Assistant", icon: "Bot", href: "/dashboard/ai" },
               { label: "Help & Guides", icon: "HelpCircle", href: "/dashboard/help" },
-              { label: "Account Settings", icon: "Settings", href: "/dashboard/settings" },
             ],
           },
         ];
@@ -277,7 +273,6 @@ export function DynamicSidebar() {
             items: [
               { label: "Field AI Assistant", icon: "Bot", href: "/dashboard/ai" },
               { label: "Help & Knowledge", icon: "HelpCircle", href: "/dashboard/help" },
-              { label: "Account Settings", icon: "Settings", href: "/dashboard/settings" },
             ],
           },
         ];
@@ -304,7 +299,6 @@ export function DynamicSidebar() {
               { label: "MRV Analytics", icon: "FileText", href: "/dashboard/analytics" },
               { label: "AI Quality Assistant", icon: "Bot", href: "/dashboard/ai" },
               { label: "Help & Guides", icon: "HelpCircle", href: "/dashboard/help" },
-              { label: "Account Settings", icon: "Settings", href: "/dashboard/settings" },
             ],
           },
         ];
@@ -338,7 +332,6 @@ export function DynamicSidebar() {
             items: [
               { label: "AI Audit Assistant", icon: "Bot", href: "/dashboard/ai" },
               { label: "VVB Guidelines", icon: "HelpCircle", href: "/dashboard/help" },
-              { label: "Verifier Settings", icon: "Settings", href: "/dashboard/settings" },
             ],
           },
         ];
@@ -371,7 +364,6 @@ export function DynamicSidebar() {
             items: [
               { label: "AI Audit Assistant", icon: "Bot", href: "/dashboard/ai" },
               { label: "Audit Standards", icon: "HelpCircle", href: "/dashboard/help" },
-              { label: "Audit Settings", icon: "Settings", href: "/dashboard/settings" },
             ],
           },
         ];
@@ -400,7 +392,6 @@ export function DynamicSidebar() {
             items: [
               { label: "AI Compliance Assistant", icon: "Bot", href: "/dashboard/ai" },
               { label: "Host Country Guidelines", icon: "HelpCircle", href: "/dashboard/help" },
-              { label: "Compliance Settings", icon: "Settings", href: "/dashboard/settings" },
             ],
           },
         ];
@@ -422,7 +413,6 @@ export function DynamicSidebar() {
               { label: "Issuance Reports", icon: "FileText", href: "/dashboard/analytics" },
               { label: "AI Registry Assistant", icon: "Bot", href: "/dashboard/ai" },
               { label: "Registry Standards", icon: "HelpCircle", href: "/dashboard/help" },
-              { label: "Registry Settings", icon: "Settings", href: "/dashboard/settings" },
             ],
           },
         ];
@@ -443,7 +433,6 @@ export function DynamicSidebar() {
               { label: "Financial & Yield Reports", icon: "FileText", href: "/dashboard/analytics" },
               { label: "AI Financial Assistant", icon: "Bot", href: "/dashboard/ai" },
               { label: "Help & Knowledge", icon: "HelpCircle", href: "/dashboard/help" },
-              { label: "Finance Settings", icon: "Settings", href: "/dashboard/settings" },
             ],
           },
         ];
@@ -464,7 +453,6 @@ export function DynamicSidebar() {
               { label: "Performance Reports", icon: "FileText", href: "/dashboard/analytics" },
               { label: "AI Portfolio Assistant", icon: "Bot", href: "/dashboard/ai" },
               { label: "Help & Knowledge", icon: "HelpCircle", href: "/dashboard/help" },
-              { label: "Account Settings", icon: "Settings", href: "/dashboard/settings" },
             ],
           },
         ];
@@ -485,7 +473,6 @@ export function DynamicSidebar() {
             title: "Knowledge & Guides",
             items: [
               { label: "Help & Knowledge", icon: "HelpCircle", href: "/dashboard/help" },
-              { label: "User Settings", icon: "Settings", href: "/dashboard/settings" },
             ],
           },
         ];
