@@ -49,9 +49,9 @@ export default function SettingsPage() {
 
 
   // --- Profile States ---
-
   const [user, setUser] = useState<User | null>(null);
-
+  const userRole = (user?.role || "").toUpperCase();
+  const isSuperAdminOrAdmin = userRole === "SUPER_ADMIN" || userRole === "ORG_ADMIN" || userRole === "ADMIN";
   const [fullName, setFullName] = useState("");
 
   const [avatarUrl, setAvatarUrl] = useState("");
@@ -403,53 +403,32 @@ export default function SettingsPage() {
 
 
       {/* Tabs Selector */}
-
       <div className="flex border-b border-[var(--color-border)] gap-2">
-
         <button
-
           onClick={() => setActiveTab("profile")}
-
-          className={`px-5 py-3 text-sm font-semibold border-b-2 transition-all flex items-center gap-2 ${
-
+          className={`px-5 py-3 text-sm font-semibold border-b-2 transition-all flex items-center gap-2 cursor-pointer ${
             activeTab === "profile"
-
               ? "border-emerald-500 text-emerald-400"
-
               : "border-transparent text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-border)]"
-
           }`}
-
         >
-
           <UserIcon size={16} />
-
           My Profile & Password
-
         </button>
 
-        <button
-
-          onClick={() => setActiveTab("system")}
-
-          className={`px-5 py-3 text-sm font-semibold border-b-2 transition-all flex items-center gap-2 ${
-
-            activeTab === "system"
-
-              ? "border-emerald-500 text-emerald-400"
-
-              : "border-transparent text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-border)]"
-
-          }`}
-
-        >
-
-          <SettingsIcon size={16} />
-
-          System Trust Parameters
-
-        </button>
-
+        {isSuperAdminOrAdmin && (
+          <button
+            onClick={() => setActiveTab("system")}
+            className={`px-5 py-3 text-sm font-semibold border-b-2 transition-all flex items-center gap-2 cursor-pointer ${
+              activeTab === "system"
+                ? "border-emerald-500 text-emerald-400"
+                : "border-transparent text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-border)]"
+            }`}
+          >
+            <SettingsIcon size={16} />
+            System Trust Parameters
+          </button>
+        )}
       </div>
 
 
@@ -1120,8 +1099,7 @@ export default function SettingsPage() {
 
           ======================================================================= */}
 
-      {activeTab === "system" && (
-
+      {isSuperAdminOrAdmin && activeTab === "system" && (
         <div className="grid grid-cols-1 gap-6 md:grid-cols-3 animate-fade-in">
 
           {/* Left Side: Sliders */}
