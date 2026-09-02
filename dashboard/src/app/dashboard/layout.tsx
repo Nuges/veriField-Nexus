@@ -34,7 +34,7 @@ import Link from "next/link";
 import { WorkspaceProvider, useWorkspace } from "@/context/WorkspaceContext";
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Bot } from "lucide-react";
+import { Bot, LogOut } from "lucide-react";
 
 export default function DashboardLayout({
   children,
@@ -229,6 +229,20 @@ function DashboardLayoutContent({
 
                 </Link>
 
+                {/* Sign Out Button */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    localStorage.removeItem("vf_token");
+                    localStorage.removeItem("vf_user");
+                    window.location.href = "/login";
+                  }}
+                  className="px-3.5 py-2 rounded-xl bg-[var(--color-surface)] hover:bg-rose-500/10 text-[var(--color-text-secondary)] hover:text-rose-400 border border-[var(--color-border)] hover:border-rose-500/20 transition-all shadow-xs cursor-pointer flex items-center gap-1.5"
+                  title="Sign Out Account"
+                >
+                  <LogOut size={15} />
+                  <span className="hidden sm:inline text-xs font-bold">Sign Out</span>
+                </button>
               </div>
 
             </div>

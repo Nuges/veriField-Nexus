@@ -31,6 +31,7 @@ import {
   TrendingUp,
   FileCheck,
   CheckCircle2,
+  LogOut,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useWorkspace } from "@/context/WorkspaceContext";
@@ -58,6 +59,7 @@ const ICON_MAP: Record<string, any> = {
   TrendingUp,
   FileCheck,
   CheckCircle2,
+  LogOut,
 };
 
 interface NavItem {
@@ -225,6 +227,7 @@ export function DynamicSidebar() {
             items: [
               { label: "AI Project Assistant", icon: "Bot", href: "/dashboard/ai", badge: "Live" },
               { label: "Project Guidelines", icon: "HelpCircle", href: "/dashboard/help" },
+              { label: "Settings & Profile", icon: "Settings", href: "/dashboard/settings" },
             ],
           },
         ];
@@ -251,6 +254,7 @@ export function DynamicSidebar() {
               { label: "Field Reports", icon: "FileText", href: "/dashboard/analytics" },
               { label: "Field AI Assistant", icon: "Bot", href: "/dashboard/ai" },
               { label: "Help & Guides", icon: "HelpCircle", href: "/dashboard/help" },
+              { label: "Account Settings", icon: "Settings", href: "/dashboard/settings" },
             ],
           },
         ];
@@ -275,6 +279,7 @@ export function DynamicSidebar() {
             items: [
               { label: "Field AI Assistant", icon: "Bot", href: "/dashboard/ai" },
               { label: "Help & Knowledge", icon: "HelpCircle", href: "/dashboard/help" },
+              { label: "Account Settings", icon: "Settings", href: "/dashboard/settings" },
             ],
           },
         ];
@@ -301,6 +306,7 @@ export function DynamicSidebar() {
               { label: "MRV Analytics", icon: "FileText", href: "/dashboard/analytics" },
               { label: "AI Quality Assistant", icon: "Bot", href: "/dashboard/ai" },
               { label: "Help & Guides", icon: "HelpCircle", href: "/dashboard/help" },
+              { label: "Account Settings", icon: "Settings", href: "/dashboard/settings" },
             ],
           },
         ];
@@ -334,6 +340,7 @@ export function DynamicSidebar() {
             items: [
               { label: "AI Audit Assistant", icon: "Bot", href: "/dashboard/ai" },
               { label: "VVB Guidelines", icon: "HelpCircle", href: "/dashboard/help" },
+              { label: "Verifier Settings", icon: "Settings", href: "/dashboard/settings" },
             ],
           },
         ];
@@ -366,6 +373,7 @@ export function DynamicSidebar() {
             items: [
               { label: "AI Audit Assistant", icon: "Bot", href: "/dashboard/ai" },
               { label: "Audit Standards", icon: "HelpCircle", href: "/dashboard/help" },
+              { label: "Audit Settings", icon: "Settings", href: "/dashboard/settings" },
             ],
           },
         ];
@@ -394,6 +402,7 @@ export function DynamicSidebar() {
             items: [
               { label: "AI Compliance Assistant", icon: "Bot", href: "/dashboard/ai" },
               { label: "Host Country Guidelines", icon: "HelpCircle", href: "/dashboard/help" },
+              { label: "Compliance Settings", icon: "Settings", href: "/dashboard/settings" },
             ],
           },
         ];
@@ -415,6 +424,7 @@ export function DynamicSidebar() {
               { label: "Issuance Reports", icon: "FileText", href: "/dashboard/analytics" },
               { label: "AI Registry Assistant", icon: "Bot", href: "/dashboard/ai" },
               { label: "Registry Standards", icon: "HelpCircle", href: "/dashboard/help" },
+              { label: "Registry Settings", icon: "Settings", href: "/dashboard/settings" },
             ],
           },
         ];
@@ -435,6 +445,7 @@ export function DynamicSidebar() {
               { label: "Financial & Yield Reports", icon: "FileText", href: "/dashboard/analytics" },
               { label: "AI Financial Assistant", icon: "Bot", href: "/dashboard/ai" },
               { label: "Help & Knowledge", icon: "HelpCircle", href: "/dashboard/help" },
+              { label: "Finance Settings", icon: "Settings", href: "/dashboard/settings" },
             ],
           },
         ];
@@ -455,6 +466,7 @@ export function DynamicSidebar() {
               { label: "Performance Reports", icon: "FileText", href: "/dashboard/analytics" },
               { label: "AI Portfolio Assistant", icon: "Bot", href: "/dashboard/ai" },
               { label: "Help & Knowledge", icon: "HelpCircle", href: "/dashboard/help" },
+              { label: "Account Settings", icon: "Settings", href: "/dashboard/settings" },
             ],
           },
         ];
@@ -475,6 +487,7 @@ export function DynamicSidebar() {
             title: "Knowledge & Guides",
             items: [
               { label: "Help & Knowledge", icon: "HelpCircle", href: "/dashboard/help" },
+              { label: "User Settings", icon: "Settings", href: "/dashboard/settings" },
             ],
           },
         ];
@@ -487,6 +500,12 @@ export function DynamicSidebar() {
     if (!pathname) return false;
     if (href === "/dashboard") return pathname === "/dashboard";
     return pathname.startsWith(href);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("vf_token");
+    localStorage.removeItem("vf_user");
+    window.location.href = "/login";
   };
 
   return (
@@ -550,6 +569,51 @@ export function DynamicSidebar() {
             })}
           </div>
         ))}
+      </div>
+
+      {/* User Account & Quick Session Actions */}
+      <div className="p-3 border-t border-[var(--color-border)] bg-[var(--color-surface)] flex items-center justify-between gap-2">
+        <Link
+          href="/dashboard/settings"
+          className="flex items-center gap-2.5 min-w-0 flex-1 p-1.5 rounded-lg hover:bg-[var(--color-background)] transition-colors group cursor-pointer"
+          title="Manage Profile & Security Settings"
+        >
+          <div className="w-7 h-7 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
+            {user?.avatar_url ? (
+              <img src={user.avatar_url} alt="Avatar" className="w-full h-full rounded-full object-cover" />
+            ) : (
+              <span className="text-[10px] font-black text-emerald-400">
+                {user?.full_name ? user.full_name.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2) : "US"}
+              </span>
+            )}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-bold text-[var(--color-text-primary)] truncate group-hover:text-[#008A5E] dark:group-hover:text-emerald-400 transition-colors">
+              {user?.full_name || "User Account"}
+            </p>
+            <p className="text-[9px] font-mono text-[var(--color-text-secondary)] uppercase truncate font-semibold">
+              {canonicalRole.replace(/_/g, " ")}
+            </p>
+          </div>
+        </Link>
+
+        <div className="flex items-center gap-1 shrink-0">
+          <Link
+            href="/dashboard/settings"
+            className="p-1.5 rounded-lg text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-background)] border border-transparent hover:border-[var(--color-border)] transition-all cursor-pointer"
+            title="Settings & Profile"
+          >
+            <Settings size={15} />
+          </Link>
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="p-1.5 rounded-lg text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20 transition-all cursor-pointer"
+            title="Sign Out Account"
+          >
+            <LogOut size={15} />
+          </button>
+        </div>
       </div>
 
       {/* Footer System Status */}
