@@ -65,12 +65,12 @@ class _AuditListScreenState extends State<AuditListScreen> {
           : '/audits?status=$_statusFilter&per_page=50';
       final response = await ApiService.get(endpoint);
       final List<dynamic> auditsList;
-      if (response is List) {
-        auditsList = response;
-      } else if (response is Map && response['audits'] is List) {
+      if (response['audits'] is List) {
         auditsList = response['audits'] as List;
-      } else if (response is Map && response['tasks'] is List) {
+      } else if (response['tasks'] is List) {
         auditsList = response['tasks'] as List;
+      } else if (response['items'] is List) {
+        auditsList = response['items'] as List;
       } else {
         auditsList = [];
       }
