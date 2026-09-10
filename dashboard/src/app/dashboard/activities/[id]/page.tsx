@@ -61,8 +61,8 @@ import { fetchActivity, fetchTrustScore } from "@/lib/api";
 import type { Activity, TrustScoreBreakdown } from "@/lib/types";
 
 import TrustBadge from "@/components/TrustBadge";
-
 import { useToast } from "@/components/Toast";
+import { useWorkspace } from "@/context/WorkspaceContext";
 
 
 
@@ -470,19 +470,40 @@ export default function ActivityDetailPage() {
 
 
 
+  const { user } = useWorkspace();
   const [activity, setActivity] = useState<Activity | null>(null);
-
   const [trustDetails, setTrustDetails] = useState<TrustScoreBreakdown | null>(null);
-
   const [isLoading, setIsLoading] = useState(true);
-
   const [searchQuery, setSearchQuery] = useState("");
-
   const [dateRange, setDateRange] = useState("all"); // 7d | 30d | all
-
   const [currentPage, setCurrentPage] = useState(1);
-
   const pageSize = 10;
+
+  // Separation of Duties (SoD) & Role validation
+  const userRole = useMemo(() => (user?.role || "").toUpperCase(), [user]);
+  const isSuperAdmin = userRole === "SUPER_ADMIN";
+  const canVerifyRole = useMemo(() => {
+    return ["SUPER_ADMIN", "ADMIN", "ORG_ADMIN", "QA_OFFICER", "FIELD_SUPERVISOR", "VERIFIER"].includes(userRole);
+  }, [userRole]);
+
+  const isOwnSubmission = useMemo(() => {
+    if (!user || !activity) return false;
+    const currentUserId = String(user.id || "").toLowerCase();
+    const actUserId = String(activity.user_id || "").toLowerCase();
+    const isMatchingUser = Boolean(currentUserId && actUserId && currentUserId === actUserId);
+    const isMatchingName = Boolean(user.full_name && activity.agent_name && user.full_name.toLowerCase() === activity.agent_name.toLowerCase());
+    return isMatchingUser || isMatchingName;
+  }, [user, activity]);
+
+  const sodBlocked = isOwnSubmission && !isSuperAdmin;
+
+  // Test / Demo data classification indicator
+  const isTestData = useMemo(() => {
+    if (!activity) return false;
+    const data = (activity.activity_data as Record<string, unknown>) || {};
+    const classification = String(data.data_classification || "").toUpperCase();
+    return Boolean(data.is_test || classification === "TEST" || classification === "DEMO");
+  }, [activity]);
 
 
 
@@ -907,26 +928,22 @@ export default function ActivityDetailPage() {
 
 
               <span className={`px-2 py-0.5 rounded text-[9px] font-extrabold uppercase border tracking-wider shrink-0 ${
-
                 isVerified
-
                   ? "bg-[#00B47A]/10 text-[#00B47A] border-[#00B47A]/20"
-
                   : isAudit
-
                   ? "bg-amber-500/20 text-amber-400 border-amber-500/30"
-
                   : isFlagged
-
                   ? "bg-red-500/10 text-red-500 border-red-500/20"
-
                   : "bg-amber-500/10 text-amber-500 border-amber-500/20"
-
               }`}>
-
                 {isVerified ? "Ledger Verified" : isAudit ? "Pending VVB Audit" : isFlagged ? "Risk Flagged" : "Under Review"}
-
               </span>
+
+              {isTestData && (
+                <span className="px-2 py-0.5 rounded text-[9px] font-extrabold uppercase border tracking-wider shrink-0 bg-amber-500/10 text-amber-500 border-amber-500/20">
+                  TEST RECORD
+                </span>
+              )}
 
             </div>
 
@@ -1580,51 +1597,53 @@ export default function ActivityDetailPage() {
 
             </h2>
 
-            <p className="text-[var(--color-text-secondary)] text-[10px] mb-4">Trigger immutable blockchain quantification, registry approval, or audit rejection.</p>
+            <p className="text-[var(--color-text-secondary)] text-[10px] mb-4">Trigger cryptographically verified quantification, registry approval, or audit rejection.</p>
 
 
 
             <div className="space-y-3">
 
               <button
-
+                disabled={sodBlocked || !canVerifyRole}
                 onClick={async () => {
-
                   try {
-
                     const api = await import("@/lib/api");
-
                     await api.updateActivityStatus(id, "verified");
 
-
-
                     try {
-
                       await api.quantifyActivity(id);
-
                     } catch (_) {}
 
-
-
                     toast.success("Activity Approved", "The activity has been successfully approved and carbon credits calculated.");
-
                     router.back();
-
-                  } catch (e) {
-
-                    toast.error("Approval Failed", "Could not approve activity. Please try again.");
-
+                  } catch (e: unknown) {
+                    const errObj = e as { response?: { data?: { detail?: string } } };
+                    const msg = errObj?.response?.data?.detail || "Could not approve activity. Please try again.";
+                    toast.error("Approval Failed", msg);
                   }
-
                 }}
-
-                className="w-full py-2.5 rounded-xl bg-[#00B47A] hover:bg-[#00B47A]/95 text-white font-extrabold text-xs flex items-center justify-center gap-2 transition-all shadow-md shadow-[#00B47A]/15 active:scale-95 border border-[#00B47A]/25"
-
+                className={`w-full py-2.5 rounded-xl font-extrabold text-xs flex items-center justify-center gap-2 transition-all border ${
+                  sodBlocked || !canVerifyRole
+                    ? "bg-slate-800 text-slate-500 border-slate-700/50 cursor-not-allowed opacity-60"
+                    : "bg-[#00B47A] hover:bg-[#00B47A]/95 text-white shadow-md shadow-[#00B47A]/15 active:scale-95 border-[#00B47A]/25"
+                }`}
               >
-
                 <CheckCircle size={15} /> Approve & Quantify Credit
-
               </button>
+
+              {sodBlocked && (
+                <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[11px] flex items-start gap-2">
+                  <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+                  <span><strong>Separation of Duties:</strong> You cannot verify or approve your own activity submission.</span>
+                </div>
+              )}
+
+              {!canVerifyRole && !sodBlocked && (
+                <div className="p-2.5 rounded-xl bg-slate-800/60 border border-slate-700/40 text-[var(--color-text-secondary)] text-[11px] flex items-start gap-2">
+                  <Lock size={14} className="shrink-0 mt-0.5" />
+                  <span>Role restricted: Only QA Officers, Supervisors, or Admins can approve activities.</span>
+                </div>
+              )}
 
 
 

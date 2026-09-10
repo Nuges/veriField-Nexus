@@ -2227,7 +2227,7 @@ export async function fetchGlobalAnalytics() {
 
       installations: data?.installations ?? 0,
 
-      avgTrust: data?.avgTrust ?? 98.4,
+      avgTrust: data?.avgTrust ?? null,
 
       tCO2: data?.tCO2 ?? 0.0,
 
@@ -2253,7 +2253,7 @@ export async function fetchGlobalAnalytics() {
 
       installations: 0,
 
-      avgTrust: 98.4,
+      avgTrust: null,
 
       tCO2: 0.0,
 

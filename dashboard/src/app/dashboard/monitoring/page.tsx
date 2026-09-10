@@ -36,72 +36,41 @@ function MonitoringWorkspaceContent() {
   };
 
   const tabs = [
-    { id: "trust", label: "AI Trust Engine", icon: ShieldCheck },
-    { id: "historian", label: "Historical Telemetry (Historian)", icon: Activity },
-    { id: "anomalies", label: "Anomaly Centre", icon: ShieldAlert },
-    { id: "pipeline", label: "Sync Pipeline & Validations", icon: FolderGit2 },
+    { id: "trust", label: "Trust & Integrity", icon: ShieldCheck },
+    { id: "historian", label: "Telemetry Historian", icon: Activity },
+    { id: "anomalies", label: "Anomaly Exceptions", icon: ShieldAlert },
+    { id: "pipeline", label: "Pipeline Validations", icon: FolderGit2 },
   ];
 
-
-
   return (
-
     <div className="min-h-screen bg-[var(--color-background)] space-y-6">
-
       {/* Workspace Header & Tab Bar */}
-
       <div className="border-b border-[var(--color-border)] pb-2">
-
         <div className="flex items-center justify-between mb-4">
-
           <div>
-
-            <span className="text-[10px] font-black uppercase tracking-widest text-[#00B47A]">
-
-              MONITORING WORKSPACE
-
-            </span>
-
-            <h1 className="text-2xl font-black text-[var(--color-text-primary)]">
-
-              AI Trust Engine & Real-Time Observability
-
+            <h1 className="text-xl font-bold tracking-tight text-[var(--color-text-primary)]">
+              System Health & Telemetry Observability
             </h1>
-
+            <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">
+              Real-time sensor telemetry streams, anomaly detections, and pipeline data integrity.
+            </p>
           </div>
-
         </div>
 
-
-
         {/* Workspace Tabs */}
-
-        <div className="flex items-center space-x-2 overflow-x-auto custom-scrollbar">
-
+        <div className="flex items-center space-x-1 overflow-x-auto custom-scrollbar border-b border-[var(--color-border)]">
           {tabs.map((tab) => {
-
             const Icon = tab.icon;
-
             const isActive = activeTab === tab.id;
-
             return (
-
               <button
-
                 key={tab.id}
-
                 onClick={() => handleTabChange(tab.id)}
-
-                className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-
+                className={`flex items-center space-x-2 px-3.5 py-2 text-xs font-semibold transition-all cursor-pointer whitespace-nowrap border-b-2 -mb-px ${
                   isActive
-
-                    ? "bg-[#00B47A] text-slate-950 shadow-md font-black"
-
-                    : "bg-[var(--color-surface)] text-[var(--color-text-secondary)] border border-[var(--color-border)] hover:text-[var(--color-text-primary)]"
-
+                    ? "border-[#008A5E] text-[#008A5E]"
+                    : "border-transparent text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-border)]"
                 }`}
-
               >
 
                 <Icon size={15} />

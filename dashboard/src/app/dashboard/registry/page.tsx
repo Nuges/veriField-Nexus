@@ -107,16 +107,11 @@ export default function RegistryExportPage() {
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-10 animate-fade-in-up text-[var(--color-text-primary)]">
       
-      {/* 👑 TITLE SECTION */}
+      {/* TITLE SECTION */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[var(--color-border)] pb-4">
         <div>
-          <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded bg-[#00B47A]/10 text-[#00B47A] text-[9px] font-extrabold tracking-wider uppercase border border-[#00B47A]/15">
-              Registry Export Center
-            </span>
-          </div>
-          <h1 className="text-xl font-bold tracking-tight text-[var(--color-text-primary)] mt-1 flex items-center gap-2">
-            <FileDown className="text-[#00B47A]" size={20} /> Official Registry Exports
+          <h1 className="text-xl font-bold tracking-tight text-[var(--color-text-primary)]">
+            Official Registry Exports
           </h1>
           <p className="text-[var(--color-text-secondary)] text-xs mt-0.5">
             Compile audit-ready carbon credit exports certified under Verra VCS and Gold Standard registries.
@@ -124,8 +119,8 @@ export default function RegistryExportPage() {
         </div>
       </div>
 
-      {/* 📊 TRUST RANGE FILTER */}
-      <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-5 shadow-sm">
+      {/* TRUST RANGE FILTER */}
+      <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-4">
         <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-primary)] mb-4">
           Export Configuration Parameters
         </h3>

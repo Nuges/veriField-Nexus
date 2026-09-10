@@ -17,8 +17,8 @@ export default function CarbonLedgerPage() {
   const [isMintModalOpen, setIsMintModalOpen] = useState(false);
   const [projects, setProjects] = useState<any[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
-  const [targetChain, setTargetChain] = useState("solana-devnet");
-  const [recipientWallet, setRecipientWallet] = useState("VF_Treasury_9xQeWv7zP2kM1n4L6sT8");
+  const [targetChain, setTargetChain] = useState("internal-ledger");
+  const [recipientWallet, setRecipientWallet] = useState("VF_Treasury_Custody_Account");
   const [isMinting, setIsMinting] = useState(false);
   const [mintResult, setMintResult] = useState<any>(null);
   const [mintError, setMintError] = useState<string | null>(null);
@@ -80,31 +80,12 @@ export default function CarbonLedgerPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[var(--color-border)] pb-4">
 
         <div>
-
-          <div className="flex items-center gap-2">
-
-            <span className="px-2.5 py-0.5 rounded bg-[#00B47A]/10 text-[#00B47A] text-[9px] font-extrabold tracking-wider uppercase border border-[#00B47A]/20">
-
-              MRV Carbon Ledger
-
-            </span>
-
-          </div>
-
-          <h1 className="text-xl font-bold tracking-tight text-[var(--color-text-primary)] mt-1 flex items-center gap-2">
-
-            <Leaf className="text-[#00B47A]" size={20} />
-
+          <h1 className="text-xl font-bold tracking-tight text-[var(--color-text-primary)]">
             Deterministic Issuance Ledger
-
           </h1>
-
           <p className="text-[var(--color-text-secondary)] text-xs mt-0.5">
-
-            Audit immutable carbon credit quantifications calculated under the active methodology.
-
+            Audit immutable carbon credit quantifications and cryptographic serial seals under the active methodology.
           </p>
-
         </div>
 
 
@@ -125,10 +106,10 @@ export default function CarbonLedgerPage() {
                 })
                 .catch(() => {});
             }}
-            className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-md shadow-emerald-500/20 active:scale-95 cursor-pointer"
+            className="px-3.5 py-2 rounded-lg bg-[#008A5E] hover:bg-[#00734E] text-white font-semibold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
           >
-            <Coins size={14} />
-            <span>Execute Minting</span>
+            <Shield size={14} />
+            <span>Issue & Seal Credits</span>
           </button>
           <button
             onClick={loadData}
@@ -301,33 +282,33 @@ export default function CarbonLedgerPage() {
 
       </div>
 
-      {/* On-Chain Solana Carbon Credit Minting Modal */}
+      {/* Cryptographic Ledger Issuance & Serial Allocation Modal */}
       {isMintModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
-          <div className="w-full max-w-xl rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-fade-in">
+          <div className="w-full max-w-xl rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-xl overflow-hidden flex flex-col max-h-[90vh]">
             {/* Modal Header */}
-            <div className="p-5 border-b border-[var(--color-border)] flex items-center justify-between bg-gradient-to-r from-emerald-950/30 via-slate-900 to-transparent">
+            <div className="p-4.5 border-b border-[var(--color-border)] flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center">
-                  <Coins size={20} />
+                <div className="w-9 h-9 rounded-lg bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 flex items-center justify-center">
+                  <Shield size={18} />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-[var(--color-text-primary)] flex items-center gap-2">
-                    <span>On-Chain Carbon Credit Minting</span>
+                  <h3 className="text-sm font-bold text-[var(--color-text-primary)] flex items-center gap-2">
+                    <span>Cryptographic Credit Issuance & Serial Sealing</span>
                     <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-mono">
-                      Solana / CIOS Ledger
+                      Sovereign CIOS Ledger
                     </span>
                   </h3>
                   <p className="text-xs text-[var(--color-text-secondary)]">
-                    Direct cryptographic token issuance & serial number allocation
+                    Deterministic cryptographic issuance, serial allocation & tamper-evident ledger sealing
                   </p>
                 </div>
               </div>
               <button
                 onClick={() => setIsMintModalOpen(false)}
-                className="p-2 rounded-lg hover:bg-slate-800 text-[var(--color-text-muted)] hover:text-white transition-colors cursor-pointer"
+                className="p-1.5 rounded-md hover:bg-slate-800 text-[var(--color-text-muted)] hover:text-white transition-colors cursor-pointer"
               >
-                <X size={18} />
+                <X size={16} />
               </button>
             </div>
 
@@ -336,35 +317,35 @@ export default function CarbonLedgerPage() {
               {mintResult ? (
                 /* Success State */
                 <div className="space-y-4">
-                  <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 space-y-2">
-                    <div className="flex items-center gap-2 text-emerald-400 font-bold text-sm">
-                      <CheckCircle2 size={18} />
+                  <div className="p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/30 space-y-1.5">
+                    <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs">
+                      <CheckCircle2 size={16} />
                       <span>{mintResult.message}</span>
                     </div>
-                    <p className="text-[var(--color-text-secondary)] leading-relaxed">
-                      Immutable carbon assets successfully issued on-chain and registered to the VeriField sovereign cryptographic ledger.
+                    <p className="text-[var(--color-text-secondary)] text-xs leading-relaxed">
+                      Immutable carbon assets successfully sealed and registered to the sovereign cryptographic ledger.
                     </p>
                   </div>
 
-                  <div className="p-4 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] space-y-2.5 font-mono text-[11px]">
+                  <div className="p-4 rounded-lg bg-[var(--color-background)] border border-[var(--color-border)] space-y-2 font-mono text-[11px]">
                     <div className="flex justify-between py-1 border-b border-[var(--color-border)]">
                       <span className="text-[var(--color-text-secondary)]">Status:</span>
-                      <span className="text-emerald-400 font-bold">MINTED & VERIFIED</span>
+                      <span className="text-emerald-400 font-bold">ISSUED & SEALED</span>
                     </div>
                     <div className="flex justify-between py-1 border-b border-[var(--color-border)]">
                       <span className="text-[var(--color-text-secondary)]">Serial Number:</span>
                       <span className="text-[var(--color-text-primary)] font-bold">{mintResult.serial_number}</span>
                     </div>
                     <div className="flex justify-between py-1 border-b border-[var(--color-border)]">
-                      <span className="text-[var(--color-text-secondary)]">Volume Minted:</span>
+                      <span className="text-[var(--color-text-secondary)]">Volume Issued:</span>
                       <span className="text-emerald-400 font-bold">{mintResult.total_tco2e} tCO2e</span>
                     </div>
                     <div className="flex justify-between py-1 border-b border-[var(--color-border)]">
-                      <span className="text-[var(--color-text-secondary)]">Target Chain:</span>
+                      <span className="text-[var(--color-text-secondary)]">Target Ledger:</span>
                       <span className="text-[var(--color-text-primary)] uppercase">{mintResult.target_chain}</span>
                     </div>
                     <div className="flex justify-between py-1 border-b border-[var(--color-border)]">
-                      <span className="text-[var(--color-text-secondary)]">Recipient Wallet:</span>
+                      <span className="text-[var(--color-text-secondary)]">Custody Account:</span>
                       <span className="text-[var(--color-text-primary)] truncate max-w-[220px]">{mintResult.recipient_wallet}</span>
                     </div>
                     <div className="flex justify-between py-1 border-b border-[var(--color-border)]">
@@ -372,7 +353,7 @@ export default function CarbonLedgerPage() {
                       <span className="text-blue-400 truncate max-w-[220px]">{mintResult.transaction_signature}</span>
                     </div>
                     <div className="flex justify-between py-1">
-                      <span className="text-[var(--color-text-secondary)]">Signature Hash:</span>
+                      <span className="text-[var(--color-text-secondary)]">Payload Hash:</span>
                       <span className="text-[var(--color-text-muted)] truncate max-w-[220px]">{mintResult.signature_hash}</span>
                     </div>
                   </div>
@@ -382,10 +363,10 @@ export default function CarbonLedgerPage() {
                       href={mintResult.explorer_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex-1 py-2.5 px-3 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-xs font-semibold text-center text-white flex items-center justify-center gap-1.5 transition-colors shadow-md shadow-purple-500/20"
+                      className="flex-1 py-2 px-3 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)] hover:border-emerald-500 text-xs font-semibold text-center text-[var(--color-text-primary)] flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                     >
-                      <ExternalLink size={14} />
-                      <span>View on Solana Explorer</span>
+                      <Shield size={13} className="text-[#008A5E]" />
+                      <span>View Ledger Record</span>
                     </a>
                     <button
                       type="button"
@@ -393,7 +374,7 @@ export default function CarbonLedgerPage() {
                         setIsMintModalOpen(false);
                         loadData();
                       }}
-                      className="flex-1 py-2.5 px-3 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] hover:border-emerald-500 text-xs font-semibold text-center text-[var(--color-text-primary)] flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                      className="flex-1 py-2 px-3 rounded-lg bg-[var(--color-background)] border border-[var(--color-border)] hover:border-emerald-500 text-xs font-semibold text-center text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                     >
                       <span>Close & Refresh</span>
                     </button>
@@ -416,7 +397,7 @@ export default function CarbonLedgerPage() {
                       setMintResult(res);
                       loadData();
                     } catch (err: any) {
-                      setMintError(err?.message || "Failed to execute on-chain minting. Ensure carbon records are verified.");
+                      setMintError(err?.message || "Failed to execute cryptographic issuance. Ensure carbon records are verified.");
                     } finally {
                       setIsMinting(false);
                     }
@@ -424,7 +405,7 @@ export default function CarbonLedgerPage() {
                   className="space-y-4"
                 >
                   {mintError && (
-                    <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 flex items-center gap-2">
+                    <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 flex items-center gap-2">
                       <AlertTriangle size={15} className="shrink-0" />
                       <span>{mintError}</span>
                     </div>
@@ -433,12 +414,12 @@ export default function CarbonLedgerPage() {
                   {/* Project Selector */}
                   <div>
                     <label className="block text-xs font-semibold text-[var(--color-text-secondary)] mb-1.5">
-                      Select Project to Mint Credits For
+                      Select Project for Credit Issuance
                     </label>
                     <select
                       value={selectedProjectId}
                       onChange={(e) => setSelectedProjectId(e.target.value)}
-                      className="w-full px-3 py-2.5 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] text-xs text-[var(--color-text-primary)] focus:outline-none focus:border-emerald-500"
+                      className="w-full px-3 py-2 rounded-lg bg-[var(--color-background)] border border-[var(--color-border)] text-xs text-[var(--color-text-primary)] focus:outline-none focus:border-emerald-500"
                     >
                       {projects.length === 0 && <option value="">All Verified Activities in Organization</option>}
                       {projects.map((p) => (
@@ -449,21 +430,20 @@ export default function CarbonLedgerPage() {
                     </select>
                   </div>
 
-                  {/* Target Blockchain & Recipient */}
+                  {/* Target Ledger & Recipient */}
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs font-semibold text-[var(--color-text-secondary)] mb-1.5">
-                        Target Ledger / Chain
+                        Target Ledger Architecture
                       </label>
                       <select
                         value={targetChain}
                         onChange={(e) => setTargetChain(e.target.value)}
-                        className="w-full px-3 py-2 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] text-xs text-[var(--color-text-primary)] focus:outline-none focus:border-emerald-500"
+                        className="w-full px-3 py-2 rounded-lg bg-[var(--color-background)] border border-[var(--color-border)] text-xs text-[var(--color-text-primary)] focus:outline-none focus:border-emerald-500"
                       >
-                        <option value="solana-devnet">Solana Devnet (Direct)</option>
-                        <option value="solana-mainnet">Solana Mainnet (Beta)</option>
-                        <option value="polygon">Polygon PoS</option>
-                        <option value="internal-ledger">VeriField Private Ledger</option>
+                        <option value="internal-ledger">VeriField Sovereign Ledger (Primary)</option>
+                        <option value="solana-devnet">Distributed Ledger Sync (Audit Bridge)</option>
+                        <option value="polygon">Enterprise Settlement Network</option>
                       </select>
                     </div>
                     <div>
@@ -472,44 +452,44 @@ export default function CarbonLedgerPage() {
                       </label>
                       <input
                         type="text"
-                        value="VeriField SPL-Token (tCO2e)"
+                        value="VeriField Compliance Standard (tCO2e)"
                         disabled
-                        className="w-full px-3 py-2 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] text-xs text-[var(--color-text-muted)] cursor-not-allowed"
+                        className="w-full px-3 py-2 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)] text-xs text-[var(--color-text-muted)] cursor-not-allowed"
                       />
                     </div>
                   </div>
 
-                  {/* Recipient Wallet */}
+                  {/* Custody Account / Recipient */}
                   <div>
                     <label className="block text-xs font-semibold text-[var(--color-text-secondary)] mb-1.5">
-                      Treasury / Recipient Wallet Address
+                      Treasury Account / Custody Identifier
                     </label>
                     <input
                       type="text"
                       value={recipientWallet}
                       onChange={(e) => setRecipientWallet(e.target.value)}
                       required
-                      placeholder="e.g. Solana / SPL Wallet Address"
-                      className="w-full px-3 py-2 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] text-xs text-[var(--color-text-primary)] focus:outline-none focus:border-emerald-500 font-mono text-[11px]"
+                      placeholder="e.g. VF_Treasury_Custody_Account"
+                      className="w-full px-3 py-2 rounded-lg bg-[var(--color-background)] border border-[var(--color-border)] text-xs text-[var(--color-text-primary)] focus:outline-none focus:border-emerald-500 font-mono text-[11px]"
                     />
                   </div>
 
                   {/* Cryptographic Ledger Safeguards */}
-                  <div className="p-3 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] space-y-1.5">
+                  <div className="p-3 rounded-lg bg-[var(--color-background)] border border-[var(--color-border)] space-y-1.5">
                     <p className="text-[11px] font-bold text-[var(--color-text-primary)] uppercase tracking-wider mb-1">
-                      Ledger Integrity Checklist
+                      Ledger Integrity Safeguards
                     </p>
-                    <div className="flex items-center gap-2 text-[11px] text-emerald-400">
+                    <div className="flex items-center gap-2 text-[11px] text-emerald-500">
                       <Check size={13} />
                       <span>AST-sandboxed baseline emission reduction verified</span>
                     </div>
-                    <div className="flex items-center gap-2 text-[11px] text-emerald-400">
+                    <div className="flex items-center gap-2 text-[11px] text-emerald-500">
                       <Check size={13} />
                       <span>RSA-2048 Digital Signature & Canonical SHA-256 Hash</span>
                     </div>
-                    <div className="flex items-center gap-2 text-[11px] text-emerald-400">
+                    <div className="flex items-center gap-2 text-[11px] text-emerald-500">
                       <Check size={13} />
-                      <span>Immutable Audit Trail record written before broadcast</span>
+                      <span>Immutable Audit Trail record sealed before broadcast</span>
                     </div>
                   </div>
 
@@ -517,17 +497,17 @@ export default function CarbonLedgerPage() {
                   <button
                     type="submit"
                     disabled={isMinting}
-                    className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold text-xs disabled:opacity-50 flex items-center justify-center gap-2 transition-all cursor-pointer shadow-lg shadow-emerald-500/20"
+                    className="w-full py-2.5 rounded-lg bg-[#008A5E] hover:bg-[#00734E] text-white font-semibold text-xs disabled:opacity-50 flex items-center justify-center gap-2 transition-colors cursor-pointer"
                   >
                     {isMinting ? (
                       <>
-                        <Loader2 size={16} className="animate-spin" />
-                        <span>Signing & Minting On-Chain...</span>
+                        <Loader2 size={15} className="animate-spin" />
+                        <span>Sealing Ledger & Generating Serial...</span>
                       </>
                     ) : (
                       <>
-                        <Coins size={15} />
-                        <span>Execute Cryptographic Minting</span>
+                        <Shield size={14} />
+                        <span>Sign & Execute Ledger Issuance</span>
                       </>
                     )}
                   </button>

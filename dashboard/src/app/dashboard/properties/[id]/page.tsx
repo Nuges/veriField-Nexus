@@ -92,20 +92,20 @@ export default function AssetDetailPage() {
       {/* 🧭 NAVIGATION */}
       <button
         onClick={() => router.back()}
-        className="p-2.5 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:text-[#00B47A] hover:border-[#00B47A]/30 transition-all shadow-sm active:scale-95 flex items-center justify-center gap-2 text-xs font-extrabold uppercase tracking-wider"
+        className="p-2 rounded-md bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors flex items-center justify-center gap-2 text-xs font-semibold cursor-pointer"
       >
         <ArrowLeft size={14} /> Return to Assets Directory
       </button>
 
-      {/* 👑 EXECUTIVE TITLE & REGIONAL CONTEXT */}
-      <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 border-b border-[var(--color-border)] pb-5">
+      {/* EXECUTIVE TITLE & REGIONAL CONTEXT */}
+      <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 border-b border-[var(--color-border)] pb-4">
         <div>
           <div className="flex items-center gap-2.5 mb-2 flex-wrap">
-            <span className="px-2.5 py-0.5 rounded bg-[#00B47A]/10 text-[#00B47A] text-[9px] font-extrabold tracking-wider uppercase border border-[#00B47A]/20">
+            <span className="px-2 py-0.5 rounded-md bg-[var(--color-surface-hover)] text-[var(--color-text-secondary)] text-[10px] font-mono font-medium tracking-wider uppercase border border-[var(--color-border)]">
               {asset.property_type.replace(/_/g, ' ')}
             </span>
-            <span className="text-[9px] text-[var(--color-text-muted)] font-semibold flex items-center gap-1">
-              <Clock size={11} className="text-[#00B47A]" /> Registered {new Date(asset.created_at || Date.now()).toLocaleDateString()}
+            <span className="text-[10px] text-[var(--color-text-muted)] font-normal flex items-center gap-1">
+              <Clock size={11} /> Registered {new Date(asset.created_at || Date.now()).toLocaleDateString()}
             </span>
           </div>
 
@@ -130,76 +130,57 @@ export default function AssetDetailPage() {
         </div>
       </div>
 
-      {/* 📊 CORE METRICS CARDS */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-
+      {/* CORE METRICS CARDS */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         {/* Total Check-ins */}
-        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-4 flex items-center justify-between shadow-sm relative overflow-hidden group hover:border-[#00B47A]/30 transition-all">
-          <div className="space-y-1">
-            <p className="text-[9px] font-extrabold text-[var(--color-text-muted)] uppercase tracking-wider">Registry Sync Logs</p>
-            <p className="text-2xl font-black text-[var(--color-text-primary)] tracking-tight">
-              {asset.total_activities || 0}
-            </p>
-            <p className="text-[9px] text-[var(--color-text-muted)] font-medium">Telemetry transmissions</p>
-          </div>
-          <div className="p-3 bg-blue-500/5 border border-blue-500/10 rounded-xl text-blue-400 shrink-0 group-hover:bg-blue-500 group-hover:text-white transition-all duration-300">
-            <ActivityIcon size={18} />
-          </div>
+        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-4">
+          <p className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider">Registry Sync Logs</p>
+          <p className="text-2xl font-bold text-[var(--color-text-primary)] tracking-tight mt-1">
+            {asset.total_activities || 0}
+          </p>
+          <p className="text-[11px] text-[var(--color-text-muted)] mt-1">Telemetry transmissions</p>
         </div>
 
         {/* Average Trust Score */}
-        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-4 flex items-center justify-between shadow-sm relative overflow-hidden group hover:border-purple-500/30 transition-all">
-          <div className="space-y-1">
-            <p className="text-[9px] font-extrabold text-[var(--color-text-muted)] uppercase tracking-wider">Telemetry Integrity</p>
-            <p className="text-2xl font-black text-[var(--color-text-primary)] tracking-tight">
-              {asset.avg_trust_score ? Math.round(asset.avg_trust_score) : 'N/A'}<span className="text-xs text-[var(--color-text-muted)]">/100</span>
-            </p>
-            <p className="text-[9px] text-[var(--color-text-muted)] font-medium">Average confidence index</p>
-          </div>
-          <div className="p-3 bg-purple-500/5 border border-purple-500/10 rounded-xl text-purple-400 shrink-0 group-hover:bg-purple-500 group-hover:text-white transition-all duration-300">
-            <ShieldCheck size={18} />
-          </div>
+        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-4">
+          <p className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider">Telemetry Integrity</p>
+          <p className="text-2xl font-bold text-[var(--color-text-primary)] tracking-tight mt-1">
+            {asset.avg_trust_score ? Math.round(asset.avg_trust_score) : 'N/A'}<span className="text-xs text-[var(--color-text-muted)]">/100</span>
+          </p>
+          <p className="text-[11px] text-[var(--color-text-muted)] mt-1">Average confidence index</p>
         </div>
 
         {/* Dynamic Carbon Offset */}
-        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-4 flex items-center justify-between shadow-sm relative overflow-hidden group hover:border-[#00B47A]/30 transition-all">
-          <div className="space-y-1">
-            <p className="text-[9px] font-extrabold text-[var(--color-text-muted)] uppercase tracking-wider">Calculated Avoided CO₂</p>
-            <p className="text-2xl font-black text-blue-400 tracking-tight">
-              {metrics?.carbon_offset_kg ? `${metrics.carbon_offset_kg.toLocaleString()} kg` : 'N/A'}
-            </p>
-            <p className="text-[9px] text-[var(--color-text-muted)] font-medium">Registry issued offset credits</p>
-          </div>
-          <div className="p-3 bg-[#00B47A]/5 border border-[#00B47A]/10 rounded-xl text-[#00B47A] shrink-0 group-hover:bg-[#00B47A] group-hover:text-white transition-all duration-300">
-            <Leaf size={18} />
-          </div>
+        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-4">
+          <p className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider">Calculated Avoided CO₂</p>
+          <p className="text-2xl font-bold text-blue-600 dark:text-blue-400 tracking-tight mt-1">
+            {metrics?.carbon_offset_kg ? `${metrics.carbon_offset_kg.toLocaleString()} kg` : 'N/A'}
+          </p>
+          <p className="text-[11px] text-[var(--color-text-muted)] mt-1">Registry issued offset credits</p>
         </div>
-
       </div>
 
-      {/* 🧭 TABS: Operational Activities vs Document Intelligence */}
+      {/* TABS: Operational Activities vs Document Intelligence */}
       <div className="space-y-4">
         <div className="flex items-center gap-2 border-b border-[var(--color-border)] pb-2">
           <button
             onClick={() => setActiveTab("activities")}
-            className={`px-4 py-2 text-xs font-bold rounded-xl transition-all flex items-center gap-2 ${
+            className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all flex items-center gap-2 cursor-pointer ${
               activeTab === "activities"
-                ? "bg-[#00B47A]/10 text-[#00B47A] border border-[#00B47A]/30 shadow-sm"
-                : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-background)]"
+                ? "bg-[var(--color-surface-hover)] text-[var(--color-text-primary)] border border-[var(--color-border)]"
+                : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
             }`}
           >
-            <Layers size={15} />
             Telemetry Verification Logs ({activities.length})
           </button>
           <button
             onClick={() => setActiveTab("documents")}
-            className={`px-4 py-2 text-xs font-bold rounded-xl transition-all flex items-center gap-2 ${
+            className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all flex items-center gap-2 cursor-pointer ${
               activeTab === "documents"
-                ? "bg-[#00B47A]/10 text-[#00B47A] border border-[#00B47A]/30 shadow-sm"
-                : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-background)]"
+                ? "bg-[var(--color-surface-hover)] text-[var(--color-text-primary)] border border-[var(--color-border)]"
+                : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
             }`}
           >
-            <FileText size={15} />
             Project Documentation & PDD
           </button>
         </div>
@@ -213,15 +194,11 @@ export default function AssetDetailPage() {
             methodologyName={typeof asset.property_type === "string" ? asset.property_type.replace(/_/g, " ") : "Methodology"}
           />
         ) : (
-          <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl overflow-hidden shadow-sm">
+          <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg overflow-hidden">
             <div className="p-4 border-b border-[var(--color-border)] flex items-center justify-between bg-[var(--color-background)]/50">
-              <div className="flex items-center gap-2">
-                <Layers size={16} className="text-[#00B47A]" />
-                <h2 className="text-xs font-bold uppercase tracking-wider">Telemetry Verification Logs</h2>
-              </div>
-              <span className="text-[9px] text-[#00B47A] font-extrabold tracking-wider bg-[#00B47A]/5 border border-[#00B47A]/15 px-2 py-0.5 rounded uppercase">
-                Live issuance history
-              </span>
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-primary)]">
+                Telemetry Verification Logs
+              </h2>
             </div>
 
             <div className="divide-y divide-[var(--color-border)]">

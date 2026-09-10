@@ -177,7 +177,7 @@ async def export_registry_data(
             detail="Forbidden: Insufficient privileges to export registry bundles."
         )
 
-    # Scoped strictly by tenant organization
+    # Scoped strictly by tenant organization and excluding TEST/DEMO data (Gate 3 & Gate 7)
     if current_user.role == "SUPER_ADMIN":
         query = text("""
             SELECT
@@ -193,6 +193,10 @@ async def export_registry_data(
             LEFT JOIN users u ON a.owner_id = u.id
             LEFT JOIN activities act ON act.asset_id = a.id
             WHERE act.trust_score >= :min_trust
+              AND COALESCE(a.attributes->>'is_test', 'false') != 'true'
+              AND UPPER(COALESCE(a.attributes->>'data_classification', 'PRODUCTION')) NOT IN ('TEST', 'DEMO')
+              AND COALESCE(act.activity_data->>'is_test', 'false') != 'true'
+              AND UPPER(COALESCE(act.activity_data->>'data_classification', 'PRODUCTION')) NOT IN ('TEST', 'DEMO')
         """)
         params = {"min_trust": min_trust_score}
     else:
@@ -210,6 +214,10 @@ async def export_registry_data(
             LEFT JOIN users u ON a.owner_id = u.id
             LEFT JOIN activities act ON act.asset_id = a.id
             WHERE act.trust_score >= :min_trust AND a.organization_id = :org_id
+              AND COALESCE(a.attributes->>'is_test', 'false') != 'true'
+              AND UPPER(COALESCE(a.attributes->>'data_classification', 'PRODUCTION')) NOT IN ('TEST', 'DEMO')
+              AND COALESCE(act.activity_data->>'is_test', 'false') != 'true'
+              AND UPPER(COALESCE(act.activity_data->>'data_classification', 'PRODUCTION')) NOT IN ('TEST', 'DEMO')
         """)
         params = {"min_trust": min_trust_score, "org_id": current_user.organization_id}
 

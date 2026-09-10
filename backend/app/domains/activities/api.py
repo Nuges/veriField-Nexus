@@ -32,6 +32,7 @@ from app.domains.activities.schemas import (ActivityCreate,
 
 from app.domains.activities.service import ActivityService
 
+from app.core.rbac import has_permission, normalize_canonical_role, ROLE_SUPER_ADMIN
 from app.domains.authentication.models import User
 
 from app.domains.projects.repository import ProjectRepository
@@ -363,25 +364,53 @@ async def update_activity(
 ):
 
     repo = ActivityRepository(db)
-
     service = ActivityService(repo)
-
-
 
     org_id = current_user.organization_id or current_user.id
 
+    # Check if activity exists and verify permissions
+    existing = None
+    if current_user.role == "SUPER_ADMIN":
+        from sqlalchemy import select
+        from app.domains.activities.models import Activity as ActivityModel
+        res = await db.execute(select(ActivityModel).where(ActivityModel.id == activity_id))
+        existing = res.scalar_one_or_none()
+        if existing:
+            org_id = existing.organization_id
+    else:
+        existing = await repo.get_by_id(activity_id, org_id)
 
-
-    updated = await service.update_activity_status(activity_id, payload, org_id)
-
-    if not updated:
-
+    if not existing:
         raise HTTPException(
-
             status_code=404, detail="Activity not found or unauthorized."
-
         )
 
+    # Separation of Duties & Role permission enforcement
+    is_approving = (payload.status == "verified" or payload.validation_status == "approved")
+    if is_approving:
+        can_verify = has_permission(current_user.role, "activity:verify") or current_user.role in ("SUPER_ADMIN", "admin", "ORG_ADMIN", "QA_OFFICER", "FIELD_SUPERVISOR", "VERIFIER")
+        if not can_verify:
+            raise HTTPException(
+                status_code=403, detail="Forbidden: Role lacks permission to verify or approve activities."
+            )
+        # SoD: Submitting field agent cannot approve or verify their own activity
+        if existing.user_id and str(existing.user_id).lower() == str(current_user.id).lower() and current_user.role != "SUPER_ADMIN":
+            raise HTTPException(
+                status_code=403,
+                detail="Separation of Duties Violation: Submitting field agent cannot approve or verify their own activity submission."
+            )
+    else:
+        can_update = has_permission(current_user.role, "activity:update") or has_permission(current_user.role, "activity:create") or current_user.role in ("SUPER_ADMIN", "admin", "ORG_ADMIN", "PROJECT_MANAGER", "FIELD_SUPERVISOR")
+        if not can_update:
+            raise HTTPException(
+                status_code=403, detail="Forbidden: Insufficient privileges to update activity."
+            )
+
+    updated = await service.update_activity_status(activity_id, payload, org_id)
+    if not updated:
+        raise HTTPException(
+            status_code=404, detail="Activity not found or unauthorized."
+        )
     return ActivityResponse.model_validate(updated)
 
 
@@ -757,59 +786,40 @@ async def update_activity_status_patch(
 
 
 
-    if current_user.role not in ("SUPER_ADMIN", "admin", "ORG_ADMIN"):
-
+    allowed_roles = ("SUPER_ADMIN", "admin", "ORG_ADMIN", "QA_OFFICER", "FIELD_SUPERVISOR", "VERIFIER")
+    if current_user.role not in allowed_roles and not has_permission(current_user.role, "activity:verify"):
         raise HTTPException(
-
-            status_code=403, detail="Only admins can update activity status"
-
+            status_code=403, detail="Only admins, QA officers, or supervisors can update activity status"
         )
-
-
 
     result = await db.execute(
-
         select(ActivityModel)
-
         .options(selectinload(ActivityModel.user))
-
         .where(ActivityModel.id == activity_id)
-
     )
-
     activity = result.scalar_one_or_none()
-
     if not activity:
-
         raise HTTPException(status_code=404, detail="Activity not found")
 
-
-
     if activity.is_locked:
-
         raise HTTPException(
-
             status_code=400,
-
             detail="CSI compliance lock: Locked audit records cannot be edited.",
-
         )
 
-
-
     if current_user.role != "SUPER_ADMIN":
-
         if activity.organization_id != current_user.organization_id:
-
             raise HTTPException(
-
                 status_code=403,
-
                 detail="Access denied. Activity belongs to another organization.",
-
             )
 
-
+    # Separation of Duties: Submitting field agent cannot approve or verify own activity
+    if payload.status == "verified" and activity.user_id and str(activity.user_id).lower() == str(current_user.id).lower() and current_user.role != "SUPER_ADMIN":
+        raise HTTPException(
+            status_code=403,
+            detail="Separation of Duties Violation: Submitting field agent cannot approve or verify their own activity submission."
+        )
 
     activity.status = payload.status
 

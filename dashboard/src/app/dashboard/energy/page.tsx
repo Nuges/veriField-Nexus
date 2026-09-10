@@ -224,13 +224,8 @@ export default function EnergyDashboardPage() {
             ═══════════════════════════════════════════════════════════════ */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[var(--color-border)] pb-4">
           <div>
-            <div className="flex items-center gap-2">
-              <span className="px-2.5 py-0.5 rounded bg-amber-400/10 text-amber-400 text-[9px] font-extrabold tracking-wider uppercase border border-amber-400/15 flex items-center gap-1">
-                <Zap size={10} /> Energy Displacement MRV
-              </span>
-            </div>
-            <h1 className="text-xl font-bold tracking-tight text-[var(--color-text-primary)] mt-1 flex items-center gap-2">
-              <Zap className="text-amber-400" size={20} /> Hybrid Energy Portfolio
+            <h1 className="text-xl font-bold tracking-tight text-[var(--color-text-primary)]">
+              Hybrid Energy Portfolio
             </h1>
             <p className="text-[var(--color-text-secondary)] text-xs mt-0.5">
               Monitor solar, diesel, and gas displacement metrics across all active energy MRV sites.
@@ -240,7 +235,7 @@ export default function EnergyDashboardPage() {
           <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={loadData}
-              className="p-2.5 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:text-[#00B47A] hover:border-[#00B47A]/30 transition-all shadow-sm active:scale-95"
+              className="p-2 rounded-md bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors cursor-pointer"
               title="Refresh energy data"
             >
               <RefreshCw size={15} className={isLoading ? "animate-spin text-[#00B47A]" : ""} />

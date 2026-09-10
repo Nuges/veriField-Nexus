@@ -21,21 +21,7 @@
 import { useEffect, useState } from "react";
 
 import {
-
-  Clock,
-
-  Sparkles,
-
-  AlertTriangle,
-
-  UserCheck,
-
-  CheckCircle2,
-
-  Layers,
-
   FilterX
-
 } from "lucide-react";
 
 import { fetchActivities } from "@/lib/api";
@@ -273,295 +259,138 @@ export default function VerificationPipelineStages({
     id: PipelineStage;
 
     label: string;
-
-    icon: any;
-
     color: string;
-
     bgActive: string;
-
     borderActive: string;
-
     textColor: string;
-
     badgeBg: string;
-
   }> = [
-
     {
-
       id: "pending",
-
       label: "Pending",
-
-      icon: Clock,
-
-      color: "text-amber-400",
-
-      bgActive: "bg-amber-500/15",
-
+      color: "text-amber-500 dark:text-amber-400",
+      bgActive: "bg-amber-500/10",
       borderActive: "border-amber-500/40",
-
-      textColor: "text-amber-400",
-
-      badgeBg: "bg-amber-500/10 border-amber-500/20 text-amber-300",
-
+      textColor: "text-amber-600 dark:text-amber-400",
+      badgeBg: "text-amber-600 dark:text-amber-300",
     },
-
     {
-
       id: "ai_verified",
-
       label: "AI Verified",
-
-      icon: Sparkles,
-
-      color: "text-emerald-400",
-
-      bgActive: "bg-emerald-500/15",
-
+      color: "text-emerald-500 dark:text-emerald-400",
+      bgActive: "bg-emerald-500/10",
       borderActive: "border-emerald-500/40",
-
-      textColor: "text-emerald-400",
-
-      badgeBg: "bg-emerald-500/10 border-emerald-500/20 text-emerald-300",
-
+      textColor: "text-[#008A5E] dark:text-emerald-400",
+      badgeBg: "text-[#008A5E] dark:text-emerald-300",
     },
-
     {
-
       id: "flagged",
-
       label: "Flagged",
-
-      icon: AlertTriangle,
-
-      color: "text-red-400",
-
-      bgActive: "bg-red-500/15",
-
+      color: "text-red-500 dark:text-red-400",
+      bgActive: "bg-red-500/10",
       borderActive: "border-red-500/40",
-
-      textColor: "text-red-400",
-
-      badgeBg: "bg-red-500/10 border-red-500/20 text-red-300",
-
+      textColor: "text-red-600 dark:text-red-400",
+      badgeBg: "text-red-600 dark:text-red-300",
     },
-
     {
-
       id: "manual_review",
-
       label: "Manual Review",
-
-      icon: UserCheck,
-
-      color: "text-blue-400",
-
-      bgActive: "bg-blue-500/15",
-
+      color: "text-blue-500 dark:text-blue-400",
+      bgActive: "bg-blue-500/10",
       borderActive: "border-blue-500/40",
-
-      textColor: "text-blue-400",
-
-      badgeBg: "bg-blue-500/10 border-blue-500/20 text-blue-300",
-
+      textColor: "text-blue-600 dark:text-blue-400",
+      badgeBg: "text-blue-600 dark:text-blue-300",
     },
-
     {
-
       id: "approved",
-
       label: "Approved",
-
-      icon: CheckCircle2,
-
-      color: "text-purple-400",
-
-      bgActive: "bg-purple-500/15",
-
+      color: "text-purple-500 dark:text-purple-400",
+      bgActive: "bg-purple-500/10",
       borderActive: "border-purple-500/40",
-
-      textColor: "text-purple-400",
-
-      badgeBg: "bg-purple-500/10 border-purple-500/20 text-purple-300",
-
+      textColor: "text-purple-600 dark:text-purple-400",
+      badgeBg: "text-purple-600 dark:text-purple-300",
     },
-
   ];
 
-
-
   return (
-
-    <div className={`p-5 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-xs space-y-3.5 ${className}`}>
-
+    <div className={`p-4 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)] space-y-3 ${className}`}>
       {/* Header */}
-
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[var(--color-border)] pb-3">
-
         <div className="space-y-0.5">
-
-          <div className="flex items-center gap-2">
-
-            <Layers size={16} className="text-[#00B47A]" />
-
-            <h3 className="font-extrabold text-xs uppercase tracking-wider text-[var(--color-text-primary)]">
-
-              VERIFICATION PIPELINE STAGES
-
-            </h3>
-
-          </div>
-
-          <p className="text-[11px] text-[var(--color-text-secondary)] font-medium">
-
+          <h3 className="font-bold text-xs uppercase tracking-wider text-[var(--color-text-primary)]">
+            Verification Pipeline Stages
+          </h3>
+          <p className="text-[11px] text-[var(--color-text-secondary)] font-normal">
             Click stage to filter the Field Map and Anomaly feeds dynamically (Click again to reset)
-
           </p>
-
         </div>
 
-
-
         {activeStage && (
-
           <button
-
             onClick={() => handleStageClick(activeStage)}
-
-            className="self-start sm:self-auto px-2.5 py-1 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 transition-all cursor-pointer"
-
+            className="self-start sm:self-auto px-2.5 py-1 rounded-md bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-500 dark:text-red-400 text-[10px] font-semibold uppercase tracking-wider flex items-center gap-1 transition-all cursor-pointer"
           >
-
             <FilterX size={12} />
-
             <span>Reset Stage Filter</span>
-
           </button>
-
         )}
-
       </div>
-
-
 
       {/* 5 Stage Cards Grid */}
-
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-
         {stages.map((st) => {
-
-          const Icon = st.icon;
-
           const cnt = counts[st.id];
-
           const pct = getPercentage(cnt);
-
           const isSelected = activeStage === st.id;
 
-
-
           return (
-
             <button
-
               key={st.id}
-
               onClick={() => handleStageClick(st.id)}
-
-              className={`p-3.5 rounded-xl border text-left transition-all duration-200 cursor-pointer flex flex-col justify-between space-y-2 relative overflow-hidden group ${
-
+              className={`p-3 rounded-lg border text-left transition-colors cursor-pointer flex flex-col justify-between space-y-2 relative overflow-hidden ${
                 isSelected
-
-                  ? `${st.bgActive} ${st.borderActive} ring-1 ring-emerald-500/30 shadow-md`
-
-                  : "bg-[var(--color-background)] border-[var(--color-border)] hover:border-emerald-500/30 hover:bg-[#141F20]/30"
-
+                  ? `${st.bgActive} ${st.borderActive} ring-1 ring-[var(--color-border)]`
+                  : "bg-[var(--color-background)] border-[var(--color-border)] hover:border-[var(--color-border-hover,rgba(0,180,122,0.3))]"
               }`}
-
             >
-
-              {/* Top Row: Icon & Label */}
-
+              {/* Top Row: Label & Active indicator */}
               <div className="flex items-center justify-between gap-1.5">
-
-                <div className="flex items-center gap-1.5 min-w-0">
-
-                  <Icon size={15} className={`${st.color} shrink-0`} />
-
-                  <span className="text-xs font-bold text-[var(--color-text-primary)] truncate">
-
-                    {st.label}
-
-                  </span>
-
-                </div>
-
+                <span className="text-xs font-semibold text-[var(--color-text-primary)] truncate">
+                  {st.label}
+                </span>
                 {isSelected && (
-
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping shrink-0" />
-
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
                 )}
-
               </div>
-
-
 
               {/* Middle Row: Percentage & Count */}
-
-              <div className="flex items-center justify-between gap-2.5 pt-1">
-
-                <span className={`text-xl sm:text-2xl font-black font-mono tracking-tight ${st.textColor}`}>
-
+              <div className="flex items-baseline justify-between gap-2 pt-0.5">
+                <span className={`text-xl font-bold font-mono tracking-tight ${st.textColor}`}>
                   {pct}%
-
                 </span>
-
-                <span className={`text-xs font-bold font-mono px-2 py-0.5 rounded-md border shrink-0 ${st.badgeBg}`}>
-
-                  {cnt}
-
+                <span className="text-xs font-mono text-[var(--color-text-secondary)] shrink-0">
+                  {cnt} {cnt === 1 ? "record" : "records"}
                 </span>
-
               </div>
 
-
-
-              {/* Bottom Progress Bar */}
-
-              <div className="w-full bg-[#141F20] h-1.5 rounded-full overflow-hidden">
-
-                <div
-
-                  className={`h-full rounded-full transition-all duration-500 ${
-
-                    st.id === "pending" ? "bg-amber-400" :
-
-                    st.id === "ai_verified" ? "bg-emerald-400" :
-
-                    st.id === "flagged" ? "bg-red-400" :
-
-                    st.id === "manual_review" ? "bg-blue-400" : "bg-purple-400"
-
-                  }`}
-
-                  style={{ width: `${Math.max(pct, cnt > 0 ? 5 : 0)}%` }}
-
-                />
-
+              {/* Bottom Progress Bar: Clean subtle track, only filled if count > 0 */}
+              <div className="w-full bg-[var(--color-border)] h-1 rounded-full overflow-hidden">
+                {cnt > 0 && (
+                  <div
+                    className={`h-full rounded-full transition-all duration-300 ${
+                      st.id === "pending" ? "bg-amber-500" :
+                      st.id === "ai_verified" ? "bg-emerald-500" :
+                      st.id === "flagged" ? "bg-red-500" :
+                      st.id === "manual_review" ? "bg-blue-500" : "bg-purple-500"
+                    }`}
+                    style={{ width: `${Math.max(pct, 5)}%` }}
+                  />
+                )}
               </div>
-
             </button>
-
           );
-
         })}
-
       </div>
-
     </div>
-
   );
-
 }

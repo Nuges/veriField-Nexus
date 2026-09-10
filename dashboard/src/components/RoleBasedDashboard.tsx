@@ -80,9 +80,9 @@ export default function RoleBasedDashboard({ dashboardData, sectorCode }: RoleBa
             <p className="text-[11px] text-[var(--color-text-muted)]">SuperAdmin Invariant Locked</p>
           </div>
           <div className="p-4 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)] space-y-1">
-            <span className="text-xs font-medium text-[var(--color-text-secondary)]">API Telemetry Rate</span>
-            <p className="text-2xl font-bold text-[var(--color-text-primary)]">240 req/s</p>
-            <p className="text-[11px] text-[var(--color-text-muted)]">Latency avg: 42ms</p>
+            <span className="text-xs font-medium text-[var(--color-text-secondary)]">Telemetry Stream</span>
+            <p className="text-2xl font-bold text-[#008A5E]">Active</p>
+            <p className="text-[11px] text-[var(--color-text-muted)]">Ingestion Service Online</p>
           </div>
           <div className="p-4 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)] space-y-1">
             <span className="text-xs font-medium text-[var(--color-text-secondary)]">Infrastructure Actions</span>
@@ -347,14 +347,14 @@ export default function RoleBasedDashboard({ dashboardData, sectorCode }: RoleBa
             <DollarSign size={18} className="text-[#008A5E] shrink-0" />
             <div>
               <h3 className="font-semibold text-sm text-[var(--color-text-primary)]">Carbon Asset Ledger & Settlement Hub</h3>
-              <p className="text-xs text-[var(--color-text-secondary)]">Execute on-chain cryptographic credit minting and transaction settlement</p>
+              <p className="text-xs text-[var(--color-text-secondary)]">Execute cryptographic credit issuance and serial sealing</p>
             </div>
           </div>
           <Link
             href="/dashboard/carbon"
             className="px-3.5 py-1.5 rounded-md bg-[#008A5E] hover:bg-[#00734E] text-white font-semibold text-xs transition-colors flex items-center gap-1.5 shrink-0"
           >
-            <span>Mint Credits</span>
+            <span>Issue & Seal Credits</span>
             <ArrowRight size={13} />
           </Link>
         </div>

@@ -58,6 +58,16 @@ async def execute_carbon_minting(
         p_res = await db.execute(p_stmt)
         project = p_res.scalars().first()
 
+    # Non-production / Test project minting rejection (Gate 3 & Gate 7)
+    if project and project.baseline_parameters:
+        classification = str(project.baseline_parameters.get("data_classification", "")).upper()
+        is_test = project.baseline_parameters.get("is_test") is True
+        if classification in ("TEST", "DEMO") or is_test:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Cannot mint carbon credits for non-production project (Classification: {classification or 'TEST'}).",
+            )
+
     org_id = project.organization_id if project else current_user.organization_id
     project_id = project.id if project else uuid.uuid4()
     project_name = project.name if project else "Verified Mitigation Activity"

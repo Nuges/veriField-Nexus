@@ -57,6 +57,13 @@ class RegistryPackagingService:
         docs = []
 
         if project:
+            # Check project data classification (Gate 3 & Gate 7)
+            if project.baseline_parameters:
+                proj_cls = str(project.baseline_parameters.get("data_classification", "")).upper()
+                is_test = project.baseline_parameters.get("is_test") is True
+                if proj_cls in ("TEST", "DEMO") or is_test:
+                    raise ValueError(f"Cannot generate official registry package for non-production project (classification: {proj_cls or 'TEST'}).")
+
             actual_project_id = project.id
             project_name = project.name
             org_id = project.organization_id
@@ -149,6 +156,11 @@ class RegistryPackagingService:
 
         for a in assets:
             attrs = a.attributes or {}
+            # Exclude test/demo assets (Gate 3 & Gate 7)
+            is_test_asset = attrs.get("is_test") is True or str(attrs.get("data_classification", "")).upper() in ("TEST", "DEMO")
+            if is_test_asset:
+                continue
+
             co2_offset = float(attrs.get("carbon_offset_kg", 3820)) / 1000.0
             trust = float(attrs.get("trust_score", 95.0))
             if trust >= min_trust_score:

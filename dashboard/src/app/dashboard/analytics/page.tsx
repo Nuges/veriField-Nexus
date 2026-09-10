@@ -109,20 +109,19 @@ export default function AnalyticsPage() {
       )}
 
       {/* Analytics Banner */}
-      <div className="bg-[var(--color-surface)] border border-[var(--color-border)] p-5 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm">
+      <div className="bg-[var(--color-surface)] border border-[var(--color-border)] p-5 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xs">
         <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="w-2 h-2 rounded-full bg-[#00B47A]" />
-            <span className="text-[10px] font-black text-[#00B47A] uppercase tracking-wider">
-              {secName} SECTOR ANALYTICS
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-[#008A5E] text-[10px] font-mono font-bold tracking-wider uppercase border border-emerald-500/20">
+              {secName}
             </span>
           </div>
-          <h2 className="text-xl font-bold text-[var(--color-text-primary)]">
-            Quantitative Performance & Emissions Reduction Ledger
-          </h2>
+          <h1 className="text-xl font-bold tracking-tight text-[var(--color-text-primary)]">
+            Sector Analytics & Emissions Performance
+          </h1>
           <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">
             Methodology:{" "}
-            <span className="font-mono font-bold text-[var(--color-text-primary)]">
+            <span className="font-mono font-semibold text-[var(--color-text-primary)]">
               {activeMethodology ||
                 (activeSector === "hybrid_energy"
                   ? "ACM0002"
@@ -132,7 +131,7 @@ export default function AnalyticsPage() {
                   ? "AMS-III.C"
                   : "AMS-II.G")}
             </span>{" "}
-            (Read-Only Certified)
+            (Certified MRV Engine)
           </p>
         </div>
 
@@ -140,7 +139,7 @@ export default function AnalyticsPage() {
           <button
             onClick={handleDownloadMRVPdf}
             disabled={isDownloadingPdf}
-            className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs transition flex items-center gap-1.5 shadow-sm disabled:opacity-50 cursor-pointer"
+            className="px-3 py-2 rounded-lg bg-[#008A5E] hover:bg-[#00734E] text-white font-semibold text-xs transition flex items-center gap-1.5 shadow-xs disabled:opacity-50 cursor-pointer"
           >
             {isDownloadingPdf ? <Loader2 size={13} className="animate-spin" /> : <FileText size={13} />}
             <span>{isDownloadingPdf ? "Compiling PDF..." : "Download MRV PDF"}</span>
@@ -149,15 +148,11 @@ export default function AnalyticsPage() {
           <button
             onClick={handleDownloadRegistryZip}
             disabled={isDownloadingZip}
-            className="px-3 py-1.5 rounded-xl bg-[var(--color-background)] hover:bg-slate-100 dark:hover:bg-slate-800 text-[var(--color-text-primary)] border border-[var(--color-border)] font-semibold text-xs transition flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+            className="px-3 py-2 rounded-lg bg-[var(--color-surface)] hover:bg-slate-100 dark:hover:bg-slate-800 text-[var(--color-text-primary)] border border-[var(--color-border)] font-semibold text-xs transition flex items-center gap-1.5 disabled:opacity-50 cursor-pointer shadow-xs"
           >
             {isDownloadingZip ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
             <span>{isDownloadingZip ? "Building ZIP..." : "Export Registry ZIP"}</span>
           </button>
-
-          <div className="px-3 py-1.5 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] text-xs font-mono font-bold text-emerald-400">
-            Trust Rating: 99.4%
-          </div>
         </div>
       </div>
 

@@ -22,7 +22,7 @@ import React, { useState, useMemo } from "react";
 
 import dynamic from "next/dynamic";
 
-import { ShieldCheck, MapPin, Filter, Layers, Navigation, List, Map as MapIcon } from "lucide-react";
+import { MapPin, Filter, Layers, Navigation, List, Map as MapIcon } from "lucide-react";
 
 
 
@@ -205,21 +205,12 @@ export default function SpatialModule({
       <div className="flex flex-wrap items-center justify-between gap-3">
 
         <div className="flex items-center gap-2">
-
-          <ShieldCheck size={16} className="text-[#00B47A]" />
-
-          <h3 className="text-sm font-extrabold text-[var(--color-text-primary)]">
-
+          <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-primary)]">
             Spatial Verification — {assetLabel}
-
           </h3>
-
-          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#00B47A]/10 text-[#00B47A] font-bold">
-
+          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[var(--color-surface-hover)] text-[var(--color-text-secondary)] border border-[var(--color-border)] font-semibold">
             {filteredAssets.length} {assetLabel}
-
           </span>
-
         </div>
 
 

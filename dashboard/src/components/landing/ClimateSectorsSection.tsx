@@ -129,31 +129,17 @@ export function ClimateSectorsSection() {
                   transition={{ duration: 0.5, delay: idx * 0.1 }}
 
                   className="group p-8 rounded-2xl bg-zinc-900/40 border border-zinc-800 hover:border-zinc-700 hover:bg-zinc-800/40 transition-colors"
-
                 >
-
                   <div className="flex items-center gap-4 mb-4">
-
-                    <div className="w-12 h-12 rounded-xl bg-[#0A0A0A] border border-zinc-800 flex items-center justify-center shadow-sm">
-
+                    <div className="w-12 h-12 rounded-xl bg-[#0A0A0A] border border-zinc-800 flex items-center justify-center">
                       <IconComp size={22} className="text-[#00B47A]" strokeWidth={1.5} />
-
                     </div>
-
                     <div>
-
                       <h3 className="text-xl font-semibold text-white tracking-tight">{sector.name}</h3>
-
-                      <span className="text-[10px] font-mono text-emerald-400 uppercase tracking-widest">{sector.code}</span>
-
                     </div>
-
                   </div>
-
                   <p className="text-zinc-400 leading-relaxed text-sm">
-
                     {sector.description || `${sector.name} digital MRV and operational methodology engine. Supports ${typesCount} project types.`}
-
                   </p>
 
                   {typesText ? (

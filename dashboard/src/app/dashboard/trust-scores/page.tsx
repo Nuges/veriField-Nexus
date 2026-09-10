@@ -9,15 +9,12 @@
 import { useEffect, useState } from "react";
 import { useToast } from "@/components/Toast";
 import { 
-  ShieldAlert, 
   CheckCircle, 
   AlertTriangle, 
   XCircle, 
-  Search,
-  RefreshCw,
-  Clock,
-  Layers,
-  ArrowRight
+  Search, 
+  RefreshCw, 
+  Clock
 } from "lucide-react";
 import { fetchActivities, updateActivityStatus } from "@/lib/api";
 import type { Activity } from "@/lib/types";
@@ -27,6 +24,7 @@ export default function TrustScoresPage() {
   const toast = useToast();
 
   const [flaggedActivities, setFlaggedActivities] = useState<Activity[]>([]);
+  const [totalCount, setTotalCount] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -46,9 +44,13 @@ export default function TrustScoresPage() {
   const loadData = async () => {
     setIsLoading(true);
     try {
-      // Load activities with flagged status
-      const res = await fetchActivities({ status: "flagged", per_page: 50 });
-      setFlaggedActivities(res.activities);
+      // Load activities with flagged status and total activity records
+      const [flaggedRes, allRes] = await Promise.all([
+        fetchActivities({ status: "flagged", per_page: 50 }),
+        fetchActivities({ per_page: 1 })
+      ]);
+      setFlaggedActivities(flaggedRes.activities);
+      setTotalCount(allRes.total);
     } catch (err) {
       console.error(err);
     } finally {
@@ -83,82 +85,60 @@ export default function TrustScoresPage() {
   return (
     <div className="space-y-6 animate-fade-in-up">
       
-      {/* 👑 TITLE SECTION */}
+      {/* TITLE SECTION */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[var(--color-border)] pb-4">
         <div>
-          <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded bg-red-500/10 text-red-500 text-[9px] font-extrabold tracking-wider uppercase border border-red-500/15">
-              AI Integrity Hub
-            </span>
-          </div>
-          <h1 className="text-xl font-bold tracking-tight text-[var(--color-text-primary)] mt-1 flex items-center gap-2">
-            <ShieldAlert className="text-red-500" size={20} /> Trust Verification Hub
+          <h1 className="text-xl font-bold tracking-tight text-[var(--color-text-primary)]">
+            Trust Verification Queue
           </h1>
           <p className="text-[var(--color-text-secondary)] text-xs mt-0.5">
-            Resolve integrity triggers, audit biometrics, and approve ledger quantifications.
+            Resolve integrity triggers, audit field evidence records, and approve quantifications.
           </p>
         </div>
         
         <div className="flex items-center gap-2">
           <button 
             onClick={loadData}
-            className="p-2.5 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:text-[#00B47A] hover:border-[#00B47A]/30 transition-all shadow-sm active:scale-95"
+            className="p-2.5 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:text-[#008A5E] hover:border-[#008A5E]/30 transition-all shadow-sm active:scale-95 cursor-pointer"
             title="Reload queue"
           >
-            <RefreshCw size={15} className={isLoading ? "animate-spin text-[#00B47A]" : ""} />
+            <RefreshCw size={15} className={isLoading ? "animate-spin text-[#008A5E]" : ""} />
           </button>
         </div>
       </div>
 
-      {/* 📊 DYNAMIC AI STATISTICS */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        
+      {/* STATISTICS */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         {/* Needs Review */}
-        <div className="bg-[var(--color-surface)] border border-red-500/20 rounded-2xl p-4 flex items-center justify-between shadow-sm relative overflow-hidden group hover:border-red-500/30 transition-all">
-          <div className="space-y-1">
-            <p className="text-[9px] font-extrabold text-[var(--color-text-muted)] uppercase tracking-wider">Verification Queue</p>
-            <p className="text-2xl font-black text-red-400 tracking-tight">
-              {isLoading ? "..." : flaggedActivities.length}
-            </p>
-            <p className="text-[9px] text-[var(--color-text-muted)] font-medium">Flagged telemetry signals</p>
-          </div>
-          <div className="p-3 bg-red-500/5 border border-red-500/10 rounded-xl text-red-500 shrink-0 group-hover:bg-red-500 group-hover:text-white transition-all duration-300">
-            <ShieldAlert size={18} />
-          </div>
+        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-4">
+          <p className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider">Verification Queue</p>
+          <p className="text-2xl font-bold text-amber-500 tracking-tight mt-1">
+            {isLoading ? "..." : flaggedActivities.length}
+          </p>
+          <p className="text-[10px] text-[var(--color-text-muted)] mt-1">Flagged evidence signals</p>
         </div>
 
-        {/* Avg Resolution Time */}
-        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-4 flex items-center justify-between shadow-sm relative overflow-hidden group hover:border-blue-500/30 transition-all">
-          <div className="space-y-1">
-            <p className="text-[9px] font-extrabold text-[var(--color-text-muted)] uppercase tracking-wider">Avg Override Speed</p>
-            <p className="text-2xl font-black text-blue-400 tracking-tight">
-              {flaggedActivities.length > 0 ? "2.4h" : "0.0h"}
-            </p>
-            <p className="text-[9px] text-[var(--color-text-muted)] font-medium">Mean duration to closure</p>
-          </div>
-          <div className="p-3 bg-blue-500/5 border border-blue-500/10 rounded-xl text-blue-400 shrink-0 group-hover:bg-blue-500 group-hover:text-white transition-all duration-300">
-            <Clock size={18} />
-          </div>
+        {/* Total Evaluated */}
+        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-4">
+          <p className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider">Total Evaluated Records</p>
+          <p className="text-2xl font-bold text-[var(--color-text-primary)] tracking-tight mt-1">
+            {isLoading ? "..." : totalCount}
+          </p>
+          <p className="text-[10px] text-[var(--color-text-muted)] mt-1">Active submissions</p>
         </div>
 
-        {/* AI Detection Rate */}
-        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-4 flex items-center justify-between shadow-sm relative overflow-hidden group hover:border-[#00B47A]/30 transition-all">
-          <div className="space-y-1">
-            <p className="text-[9px] font-extrabold text-[var(--color-text-muted)] uppercase tracking-wider">Model Precision</p>
-            <p className="text-2xl font-black text-[#00B47A] tracking-tight">
-              {flaggedActivities.length > 0 ? "98.2%" : "0.0%"}
-            </p>
-            <p className="text-[9px] text-[var(--color-text-muted)] font-medium">Algorithmic sorting accuracy</p>
-          </div>
-          <div className="p-3 bg-[#00B47A]/5 border border-[#00B47A]/10 rounded-xl text-[#00B47A] shrink-0 group-hover:bg-[#00B47A] group-hover:text-white transition-all duration-300">
-            <Layers size={18} />
-          </div>
+        {/* Evidence Verification Rate */}
+        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-4">
+          <p className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider">Verification Rate</p>
+          <p className="text-2xl font-bold text-[#008A5E] tracking-tight mt-1">
+            {isLoading ? "..." : totalCount > 0 ? `${(((totalCount - flaggedActivities.length) / totalCount) * 100).toFixed(1)}%` : "—"}
+          </p>
+          <p className="text-[10px] text-[var(--color-text-muted)] mt-1">Unflagged evidence ratio</p>
         </div>
-
       </div>
 
-      {/* 🧭 FLAGGED LIST LEDGER */}
-      <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl shadow-sm overflow-hidden">
+      {/* FLAGGED LIST LEDGER */}
+      <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg overflow-hidden">
         
         {/* Table Search Header */}
         <div className="p-4 border-b border-[var(--color-border)] flex flex-col sm:flex-row items-center justify-between bg-[var(--color-background)]/50 gap-4">
@@ -181,7 +161,7 @@ export default function TrustScoresPage() {
           {isLoading ? (
             <div className="p-12 text-center flex flex-col items-center justify-center space-y-2">
               <div className="w-6 h-6 border-2 border-[#00B47A] border-t-transparent rounded-full animate-spin" />
-              <p className="text-xs text-[var(--color-text-secondary)] font-semibold">Scanning biometrics...</p>
+              <p className="text-xs text-[var(--color-text-secondary)] font-semibold">Verifying field evidence records...</p>
             </div>
           ) : filteredActivities.length === 0 ? (
             <div className="p-16 text-center max-w-sm mx-auto flex flex-col items-center justify-center">

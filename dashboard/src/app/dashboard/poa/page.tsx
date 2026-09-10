@@ -438,31 +438,12 @@ export default function POAPortfolioPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[var(--color-border)] pb-4 animate-fade-in-up">
 
         <div>
-
-          <div className="flex items-center gap-2">
-
-            <span className="px-2.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[9px] font-extrabold tracking-wider uppercase border border-emerald-500/15 flex items-center gap-1">
-
-              <Database size={10} /> Registry Aggregation Layer
-
-            </span>
-
-            <span className="text-[10px] text-[var(--color-text-secondary)] font-medium">Programme of Activities (POA)</span>
-
-          </div>
-
-          <h1 className="text-xl font-bold tracking-tight text-[var(--color-text-primary)] mt-1">
-
+          <h1 className="text-xl font-bold tracking-tight text-[var(--color-text-primary)]">
             POA Portfolio Performance
-
           </h1>
-
           <p className="text-[var(--color-text-secondary)] text-xs mt-0.5">
-
             Consolidated analytics across all methodologies and sectors.
-
           </p>
-
         </div>
 
       </div>

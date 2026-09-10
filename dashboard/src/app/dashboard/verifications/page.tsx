@@ -413,27 +413,14 @@ export default function VerificationsPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[var(--color-border)] pb-4">
 
         <div>
-
-          <div className="flex items-center gap-2">
-
-            <span className="px-2.5 py-0.5 rounded bg-[var(--color-primary-light)] text-[var(--color-primary)] text-[9px] font-extrabold tracking-wider uppercase border border-[var(--color-primary)]/20">
-
-              {activeMethodology || "All"}
-
+          <div className="flex items-center gap-2 mb-1">
+            <span className="px-2 py-0.5 rounded-md bg-[var(--color-surface-hover)] text-[var(--color-text-secondary)] text-[10px] font-mono font-medium tracking-wider uppercase border border-[var(--color-border)]">
+              {activeMethodology || "All Methodologies"}
             </span>
-
-            <span className="text-[10px] text-[var(--color-text-secondary)] font-semibold flex items-center gap-1">
-
-              Ground Truth Ledger
-
-            </span>
-
           </div>
 
-          <h1 className="text-xl font-bold tracking-tight text-[var(--color-text-primary)] mt-1">
-
+          <h1 className="text-xl font-bold tracking-tight text-[var(--color-text-primary)]">
             Verification & Audits Hub
-
           </h1>
 
           <p className="text-[var(--color-text-secondary)] text-xs mt-0.5">

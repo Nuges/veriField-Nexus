@@ -174,48 +174,22 @@ export default function AnomaliesPage() {
 
 
 
-      {/* 👑 TITLE SECTION */}
-
+      {/* TITLE SECTION */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[var(--color-border)] pb-4">
-
         <div>
-
-          <div className="flex items-center gap-2">
-
-            <span className="px-2.5 py-0.5 rounded bg-red-500/10 text-red-500 text-[9px] font-extrabold tracking-wider uppercase border border-red-500/15">
-
-              Threat Analytics Center
-
-            </span>
-
-          </div>
-
-          <h1 className="text-xl font-bold tracking-tight text-[var(--color-text-primary)] mt-1 flex items-center gap-2">
-
-            <ShieldAlert className="text-red-500" size={20} /> AI Anomaly Detection Logs
-
+          <h1 className="text-xl font-bold tracking-tight text-[var(--color-text-primary)]">
+            Telemetry Anomaly Logs
           </h1>
-
           <p className="text-[var(--color-text-secondary)] text-xs mt-0.5">
-
-            Audit AI-flagged suspicious uploads, review biometric inconsistencies, and execute manual overrides.
-
+            Audit flagged suspicious uploads, review evidence inconsistencies, and execute manual overrides.
           </p>
-
         </div>
 
-
-
         <div className="flex items-center gap-2">
-
           <button
-
             onClick={loadData}
-
-            className="p-2.5 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:text-[#00B47A] hover:border-[#00B47A]/30 transition-all shadow-sm active:scale-95"
-
+            className="p-2 rounded-md bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors cursor-pointer"
             title="Reload ledger"
-
           >
 
             <RefreshCw size={15} className={isLoading ? "animate-spin text-[#00B47A]" : ""} />

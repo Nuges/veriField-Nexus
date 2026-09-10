@@ -1008,7 +1008,7 @@ export function getSectorLifecycleStages(sectorCode?: string): string[] {
 
     "5. VVB Verification",
 
-    "6. Credit Minting",
+    "6. Credit Issuance & Sealing",
 
   ];
 

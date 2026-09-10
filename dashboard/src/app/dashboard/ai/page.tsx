@@ -36,7 +36,9 @@ import {
 
   Layers,
 
-  FileCheck
+  FileCheck,
+
+  HelpCircle
 
 } from "lucide-react";
 
@@ -255,269 +257,142 @@ export default function AIWorkspacePage() {
     <div className="p-6 space-y-6 max-w-[1600px] mx-auto text-[var(--color-text-primary)]">
 
       {/* Header */}
-
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[var(--color-border)] pb-5">
-
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[var(--color-border)] pb-4">
         <div>
-
-          <div className="flex items-center gap-2.5">
-
-            <div className="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-[#00B47A]">
-
-              <BrainCircuit size={18} />
-
-            </div>
-
-            <div>
-
-              <h1 className="text-xl font-bold tracking-tight">AI Intelligence & Autonomous Decision Workspace</h1>
-
-              <p className="text-xs text-[var(--color-text-secondary)]">
-
-                Autonomous event-driven intelligence layer • 27 domain agents • Verifiable Decision Engine & Transparent AI Rationale
-
-              </p>
-
-            </div>
-
-          </div>
-
+          <h1 className="text-xl font-bold tracking-tight text-[var(--color-text-primary)]">
+            Decision Support & Operational Analytics
+          </h1>
+          <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">
+            Contextual evidence analysis, anomaly investigation, and automated operational recommendations.
+          </p>
         </div>
 
-        <div className="flex items-center gap-3">
-
-          <span className="text-xs px-3 py-1.5 rounded-lg bg-emerald-500/10 text-[#00B47A] border border-emerald-500/20 font-mono font-bold flex items-center gap-1.5">
-
-            <span className="w-2 h-2 rounded-full bg-[#00B47A] animate-pulse" />
-
-            27/27 DOMAIN AGENTS ACTIVE
-
+        <div className="flex items-center gap-2.5">
+          <span className="text-xs px-2.5 py-1 rounded-md bg-emerald-500/10 text-[#008A5E] border border-emerald-500/20 font-medium flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#008A5E]" />
+            Engine Online
           </span>
 
           <button
-
             onClick={() => setLoading(true)}
-
-            className="px-3.5 py-1.5 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)] text-xs font-semibold hover:border-[#00B47A] transition-all flex items-center gap-2"
-
+            className="px-3 py-1.5 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)] text-xs font-semibold hover:border-[#008A5E] transition-all flex items-center gap-1.5 cursor-pointer"
           >
-
-            <RefreshCw size={14} className={loading ? "animate-spin text-[#00B47A]" : ""} />
-
-            Re-evaluate All
-
+            <RefreshCw size={13} className={loading ? "animate-spin text-[#008A5E]" : ""} />
+            <span>Refresh Analysis</span>
           </button>
-
         </div>
-
       </div>
 
-
-
-      {/* Top Intelligence KPI Cards */}
-
+      {/* Top Decision Support KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="p-4 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-xs">
+          <div className="text-xs text-[var(--color-text-secondary)] font-medium mb-1">
+            Average Model Confidence
+          </div>
+          <div className="text-2xl font-bold text-[#008A5E] tracking-tight">
+            {(() => {
+              const validRecs = recommendations.filter((r) => typeof r.confidence === "number" && r.confidence > 0);
+              if (validRecs.length === 0) return "—";
+              return `${(validRecs.reduce((acc, r) => acc + r.confidence, 0) / validRecs.length).toFixed(1)}%`;
+            })()}
+          </div>
+          <div className="text-[10px] text-[var(--color-text-muted)] mt-1">
+            {recommendations.length > 0 ? "Real-time stream evaluation" : "Awaiting active evaluations"}
+          </div>
+        </div>
 
         <div className="p-4 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-xs">
-
-          <div className="flex items-center justify-between text-xs text-[var(--color-text-secondary)] mb-1">
-
-            <span>Overall AI Health Index</span>
-
-            <Sparkles size={14} className="text-[#00B47A]" />
-
+          <div className="text-xs text-[var(--color-text-secondary)] font-medium mb-1">
+            Active Analysis Modules
           </div>
+          <div className="text-2xl font-bold text-[var(--color-text-primary)] tracking-tight">
+            {agents.length}
+          </div>
+          <div className="text-[10px] text-[var(--color-text-muted)] mt-1">
+            Domain verification services
+          </div>
+        </div>
 
-          <div className="text-2xl font-black text-[#00B47A] font-mono">
-
+        <div className="p-4 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-xs">
+          <div className="text-xs text-[var(--color-text-secondary)] font-medium mb-1">
+            Actionable Recommendations
+          </div>
+          <div className="text-2xl font-bold text-amber-500 tracking-tight">
+            {recommendations.length}
+          </div>
+          <div className="text-[10px] text-[var(--color-text-muted)] mt-1">
             {recommendations.length > 0
-
-              ? `${(recommendations.reduce((acc, r) => acc + r.confidence, 0) / recommendations.length).toFixed(1)}%`
-
-              : "100.0%"}
-
+              ? `${recommendations.filter((r) => r.accepted).length} accepted (${((recommendations.filter((r) => r.accepted).length / recommendations.length) * 100).toFixed(0)}% rate)`
+              : "0 in review queue"}
           </div>
-
-          <div className="text-[10px] text-emerald-400 mt-1 font-semibold">
-
-            {recommendations.length > 0 ? "↑ Real-time event stream evaluation" : "System operational • 0 active alerts"}
-
-          </div>
-
         </div>
-
-
 
         <div className="p-4 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-xs">
-
-          <div className="flex items-center justify-between text-xs text-[var(--color-text-secondary)] mb-1">
-
-            <span>Active Domain Agents</span>
-
-            <Bot size={14} className="text-blue-400" />
-
+          <div className="text-xs text-[var(--color-text-secondary)] font-medium mb-1">
+            Validation Alignment
           </div>
-
-          <div className="text-2xl font-black text-blue-400 font-mono">27 / 27</div>
-
-          <div className="text-[10px] text-blue-300 mt-1 font-semibold">
-
-            100% domain event stream coverage
-
+          <div className="text-2xl font-bold text-blue-500 tracking-tight">
+            {(() => {
+              const validRecs = recommendations.filter((r) => typeof r.confidence === "number" && r.confidence > 0);
+              if (validRecs.length === 0) return "—";
+              return `${(validRecs.reduce((acc, r) => acc + r.confidence, 0) / validRecs.length).toFixed(1)}%`;
+            })()}
           </div>
-
+          <div className="text-[10px] text-[var(--color-text-muted)] mt-1">
+            {recommendations.length > 0 ? "Evaluated across active records" : "No evaluations pending"}
+          </div>
         </div>
-
-
-
-        <div className="p-4 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-xs">
-
-          <div className="flex items-center justify-between text-xs text-[var(--color-text-secondary)] mb-1">
-
-            <span>Recommendations Generated Today</span>
-
-            <Zap size={14} className="text-amber-400" />
-
-          </div>
-
-          <div className="text-2xl font-black text-amber-400 font-mono">{recommendations.length}</div>
-
-          <div className="text-[10px] text-amber-300 mt-1 font-semibold">
-
-            {recommendations.length > 0
-
-              ? `${recommendations.filter((r) => r.accepted).length} accepted (${((recommendations.filter((r) => r.accepted).length / recommendations.length) * 100).toFixed(1)}% acceptance rate)`
-
-              : "0 accepted (100% queue clear)"}
-
-          </div>
-
-        </div>
-
-
-
-        <div className="p-4 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-xs">
-
-          <div className="flex items-center justify-between text-xs text-[var(--color-text-secondary)] mb-1">
-
-            <span>Decision Verification Rating</span>
-
-            <FileCheck size={14} className="text-purple-400" />
-
-          </div>
-
-          <div className="text-2xl font-black text-purple-400 font-mono">
-
-            {recommendations.length > 0
-
-              ? `${(recommendations.reduce((acc, r) => acc + (r.priority === "HIGH" ? 98.4 : 95.2), 0) / recommendations.length).toFixed(1)}%`
-
-              : "99.8%"}
-
-          </div>
-
-          <div className="text-[10px] text-purple-300 mt-1 font-semibold">
-
-            Deterministic AST & evidence verified
-
-          </div>
-
-        </div>
-
       </div>
 
 
 
-      {/* Enterprise Diagnostic Query Engine Console */}
-
-      <div className="p-5 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-sm space-y-3">
-
+      {/* Operational Query Console */}
+      <div className="p-4 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-xs space-y-3">
         <div className="flex items-center gap-2">
-
-          <Sparkles size={16} className="text-[#00B47A]" />
-
-          <h2 className="text-sm font-bold tracking-wide uppercase text-[var(--color-text-secondary)]">
-
-            Enterprise Diagnostic Query Engine
-
+          <HelpCircle size={16} className="text-[#008A5E]" />
+          <h2 className="text-xs font-bold tracking-wider uppercase text-[var(--color-text-secondary)]">
+            Investigate Telemetry & Evidence
           </h2>
-
         </div>
 
-        <div className="flex items-center gap-3">
-
+        <div className="flex items-center gap-2.5">
           <input
-
             type="text"
-
             value={naturalQuery}
-
             onChange={(e) => setNaturalQuery(e.target.value)}
-
             onKeyDown={(e) => e.key === "Enter" && handleRunQuery()}
-
-            placeholder="Query system metadata & intelligence (e.g. 'Why has Kano Solar project delayed?' or 'Show highest risk assets')..."
-
-            className="flex-1 px-4 py-2.5 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] text-xs focus:outline-none focus:border-[#00B47A] font-medium shadow-xs"
-
+            placeholder="Query telemetry exceptions, evidence anomalies, or verification criteria..."
+            className="flex-1 px-3.5 py-2 rounded-lg bg-[var(--color-background)] border border-[var(--color-border)] text-xs focus:outline-none focus:border-[#008A5E] font-medium shadow-xs"
           />
-
           <button
-
             onClick={handleRunQuery}
-
             disabled={loading}
-
-            className="px-5 py-2.5 rounded-xl bg-[#00B47A] text-white text-xs font-bold hover:bg-[#00B47A]/90 transition-all flex items-center gap-2 shadow-xs"
-
+            className="px-4 py-2 rounded-lg bg-[#008A5E] text-white text-xs font-semibold hover:bg-[#00734E] transition-all flex items-center gap-1.5 shadow-xs cursor-pointer disabled:opacity-50"
           >
-
-            <Play size={14} />
-
-            Run Intelligence Query
-
+            <Play size={13} />
+            <span>Run Query</span>
           </button>
-
         </div>
 
         {queryResponse && (
-
-          <div className="p-4 rounded-xl bg-black/40 border border-emerald-500/20 font-mono text-xs text-emerald-300 leading-relaxed whitespace-pre-wrap">
-
+          <div className="p-3.5 rounded-lg bg-[var(--color-background)] border border-[var(--color-border)] text-xs text-[var(--color-text-primary)] leading-relaxed whitespace-pre-wrap font-mono">
             {queryResponse}
-
           </div>
-
         )}
-
       </div>
 
-
-
-      {/* Main Grid: Active Recommendations & Autonomous Agent Roster */}
-
+      {/* Main Grid: Operational Recommendations & Domain Modules */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-        {/* Left Column: Actionable AI Recommendations */}
-
-        <div className="lg:col-span-2 space-y-4">
-
+        {/* Left Column: Operational Recommendations */}
+        <div className="lg:col-span-2 space-y-3">
           <div className="flex items-center justify-between">
-
-            <h2 className="text-sm font-bold tracking-wide uppercase text-[var(--color-text-secondary)] flex items-center gap-2">
-
-              <Zap size={16} className="text-[#00B47A]" />
-
-              Actionable AI Recommendations Feed
-
+            <h2 className="text-xs font-bold tracking-wider uppercase text-[var(--color-text-secondary)] flex items-center gap-1.5">
+              <Zap size={14} className="text-[#008A5E]" />
+              Operational Recommendations
             </h2>
-
-            <span className="text-xs text-[var(--color-text-secondary)] font-mono font-medium">
-
-              Real-time Prescriptive Suggestions
-
+            <span className="text-xs text-[var(--color-text-secondary)] font-medium">
+              {recommendations.length} items in review
             </span>
-
           </div>
 
 
@@ -630,22 +505,14 @@ export default function AIWorkspacePage() {
 
 
 
-        {/* Right Column: 10 Autonomous Background Agents Roster */}
-
-        <div className="space-y-4">
-
+        {/* Right Column: Domain Modules */}
+        <div className="space-y-3">
           <div className="flex items-center justify-between">
-
-            <h2 className="text-sm font-bold tracking-wide uppercase text-[var(--color-text-secondary)] flex items-center gap-2">
-
-              <Bot size={16} className="text-blue-400" />
-
-              Autonomous Agents Roster
-
+            <h2 className="text-xs font-bold tracking-wider uppercase text-[var(--color-text-secondary)] flex items-center gap-1.5">
+              <Layers size={14} className="text-[#008A5E]" />
+              Domain Verification Modules
             </h2>
-
-            <span className="text-xs font-mono text-blue-400 font-bold">10 Active</span>
-
+            <span className="text-xs font-medium text-[var(--color-text-secondary)]">{agents.length} active</span>
           </div>
 
 

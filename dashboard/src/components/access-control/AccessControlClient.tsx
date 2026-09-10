@@ -180,16 +180,11 @@ export default function AccessControlClient() {
   return (
     <div className="space-y-6">
       {/* Top Header & Actions */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-[var(--color-surface)] border border-[var(--color-border)] p-5 rounded-2xl shadow-xs">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-[var(--color-surface)] border border-[var(--color-border)] p-5 rounded-xl shadow-xs">
         <div>
-          <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 text-[10px] font-mono font-bold uppercase">
-              IAM & RBAC Directory
-            </span>
-          </div>
-          <h1 className="text-xl font-black text-[var(--color-text-primary)] mt-1">Team & Access Governance</h1>
+          <h1 className="text-xl font-bold tracking-tight text-[var(--color-text-primary)]">Team & Access Governance</h1>
           <p className="text-[var(--color-text-secondary)] text-xs mt-0.5">
-            Single point of administration for enterprise user accounts, roles, privileges, and authentication credentials.
+            Enterprise administration for user accounts, assigned roles, privileges, and access credentials.
           </p>
         </div>
         <div className="flex items-center gap-2.5">

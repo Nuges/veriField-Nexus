@@ -116,13 +116,11 @@ export default function AINotificationCenter({ isOpen, onClose }: AINotification
 
                 title: `Manual Audit Flagged: ${name}`,
 
-                summary: `Activity ID ${act.id.substring(0, 12)}... (${name}) scored ${act.trust_score || 68} Trust Score and was flagged for manual VVB audit verification.`,
+                summary: `Activity ID ${act.id.substring(0, 12)}... (${name}) scored ${act.trust_score != null ? act.trust_score : "low"} Trust Score and was flagged for manual VVB audit verification.`,
 
-                rationale: `Automated AI quality score (${act.trust_score || 68}/100) below 80 threshold due to missing camera EXIF signature; manual audit requested.`,
+                rationale: `Automated AI quality score ${act.trust_score != null ? `(${act.trust_score}/100)` : ""} below 80 threshold due to missing camera EXIF signature; manual audit requested.`,
 
                 impact: "Routes submission to VVB Auditor Queue for WebAuthn cryptographic attestation sign-off.",
-
-                confidenceScore: 98.4,
 
                 targetRole: ["AUDITOR", "VVB", "QA_OFFICER", "PROJECT_MANAGER", "ADMIN"],
 
@@ -156,13 +154,11 @@ export default function AINotificationCenter({ isOpen, onClose }: AINotification
 
               title: `Verified Ledger Proof: ${name}`,
 
-              summary: `Activity ${name} achieved ${act.trust_score || 98}% Trust Score and was verified on-chain.`,
+              summary: `Activity ${name} achieved ${act.trust_score != null ? `${act.trust_score}%` : "passing"} Trust Score and was cryptographically verified.`,
 
               rationale: "Geospatial bounds and submission frequency matched baseline rules.",
 
-              impact: "Carbon abatement calculated and approved for credit minting.",
-
-              confidenceScore: 99.2,
+              impact: "Carbon abatement calculated and approved for credit issuance.",
 
               targetRole: ["REGISTRY_MANAGER", "PROJECT_MANAGER", "ADMIN"],
 
@@ -272,32 +268,20 @@ export default function AINotificationCenter({ isOpen, onClose }: AINotification
 
           <div className="flex items-center gap-2.5">
 
-            <div className="w-8 h-8 rounded-xl bg-[#00B47A]/20 border border-[#00B47A]/40 flex items-center justify-center text-[#00B47A]">
-
-              <Bot size={18} />
-
+            <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-[#008A5E]">
+              <Bell size={16} />
             </div>
 
             <div>
-
-              <h2 className="text-sm font-extrabold text-[var(--color-text-primary)] flex items-center gap-2">
-
-                <span>AI Notification Center</span>
-
+              <h2 className="text-sm font-bold text-[var(--color-text-primary)] flex items-center gap-2">
+                <span>Notification Center</span>
                 {unreadCount > 0 && (
-
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500 text-white font-bold">
-
-                    {unreadCount} Live DB
-
+                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#008A5E] text-white">
+                    {unreadCount} new
                   </span>
-
                 )}
-
               </h2>
-
-              <p className="text-[10px] text-[var(--color-text-secondary)] font-mono">Live PostgreSQL Activity Telemetry</p>
-
+              <p className="text-[11px] text-[var(--color-text-secondary)]">Operational alerts & system events</p>
             </div>
 
           </div>
@@ -466,7 +450,7 @@ export default function AINotificationCenter({ isOpen, onClose }: AINotification
 
                   <span className="text-[9px] font-mono text-emerald-400 font-bold">
 
-                    {evt.confidenceScore}% Confidence • {evt.modelReference}
+                    {evt.confidenceScore != null ? `${evt.confidenceScore}% Confidence • ` : ""}{evt.modelReference}
 
                   </span>
 

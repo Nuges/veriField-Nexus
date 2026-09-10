@@ -175,20 +175,13 @@ function DashboardLayoutContent({
 
               <div className="flex items-center gap-3">
 
-                {/* AI Notification Center Trigger */}
-
+                {/* Notification Center Trigger */}
                 <button
-
                   onClick={() => setIsAINotificationsOpen(true)}
-
-                  className="relative px-3.5 py-2 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:text-[#00B47A] transition-all shadow-xs cursor-pointer flex items-center gap-1.5"
-
-                  title="Open AI Notification Center"
-
+                  className="relative px-3 py-1.5 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:text-[#008A5E] hover:border-[#008A5E]/30 transition-all shadow-xs cursor-pointer flex items-center gap-1.5"
+                  title="Open Notification Center"
                 >
-
-                  <span className="text-xs font-bold text-[var(--color-text-primary)]">AI Alerts</span>
-
+                  <span className="text-xs font-semibold text-[var(--color-text-primary)]">Alerts</span>
                 </button>
 
 

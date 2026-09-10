@@ -73,122 +73,67 @@ export default function RegistryModule({ sectorCode }: { sectorCode?: string }) 
 
 
   return (
-
-    <div className="rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] p-6 backdrop-blur-md shadow-xl flex flex-col justify-between h-full transition-colors duration-300">
-
+    <div className="rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)] p-5 flex flex-col justify-between h-full transition-colors duration-300">
       {/* Header */}
-
-      <div className="flex items-center justify-between mb-4 pb-4 border-b border-[var(--color-border)]">
-
+      <div className="flex items-center justify-between mb-4 pb-3 border-b border-[var(--color-border)]">
         <div>
-
           <h3 className="text-xs font-bold tracking-wider text-[var(--color-text-primary)] uppercase font-sans">
             REGISTRY EXPORTS & REPORTING
           </h3>
           <p className="text-[11px] text-[var(--color-text-secondary)] mt-0.5 font-sans">
             Export compliant dataset packages to Verra VCS & Gold Standard registries.
           </p>
-
         </div>
 
         <button
-
           onClick={handleVerraExport}
-
           className="text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors cursor-pointer"
-
           title="Download Manifests"
-
         >
-
           <Download size={16} />
-
         </button>
-
       </div>
 
-
-
       {/* Manifest Cards */}
-
       <div className="space-y-3 mb-4 flex-1">
-
         {/* Verra Card */}
-
         <button
-
           onClick={handleVerraExport}
-
           disabled={isExportingVerra}
-
-          className="w-full text-left p-3.5 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] hover:border-emerald-500/50 hover:bg-[var(--color-surface)] transition-all flex items-center justify-between group cursor-pointer shadow-sm"
-
+          className="w-full text-left p-3 rounded-lg bg-[var(--color-surface-hover)] border border-[var(--color-border)] hover:border-[var(--color-border-hover,rgba(0,180,122,0.3))] transition-colors flex items-center justify-between group cursor-pointer"
         >
-
           <div className="flex items-center space-x-3">
-
-            <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-500 group-hover:scale-105 transition-transform">
-
+            <div className="p-2 rounded-md bg-[var(--color-background)] text-[var(--color-text-secondary)]">
               <FileText size={18} />
-
             </div>
-
             <div>
-
-              <h4 className="text-xs font-bold text-[var(--color-text-primary)] group-hover:text-emerald-500 transition-colors font-sans">
-
+              <h4 className="text-xs font-semibold text-[var(--color-text-primary)] group-hover:text-[#008A5E] dark:group-hover:text-emerald-400 transition-colors font-sans">
                 Verra Manifest Export
-
               </h4>
-
               <p className="text-[10px] text-[var(--color-text-secondary)] font-sans">MRV Compliant CSV Manifest</p>
-
             </div>
-
           </div>
-
-          <Download size={14} className="text-[var(--color-text-secondary)] group-hover:text-emerald-500 transition-colors" />
-
+          <Download size={14} className="text-[var(--color-text-secondary)] group-hover:text-[#008A5E] dark:group-hover:text-emerald-400 transition-colors" />
         </button>
 
-
-
         {/* Gold Standard Card */}
-
         <button
-
           onClick={handleGSExport}
-
           disabled={isExportingGS}
-
-          className="w-full text-left p-3.5 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] hover:border-emerald-500/50 hover:bg-[var(--color-surface)] transition-all flex items-center justify-between group cursor-pointer shadow-sm"
-
+          className="w-full text-left p-3 rounded-lg bg-[var(--color-surface-hover)] border border-[var(--color-border)] hover:border-[var(--color-border-hover,rgba(0,180,122,0.3))] transition-colors flex items-center justify-between group cursor-pointer"
         >
-
           <div className="flex items-center space-x-3">
-
-            <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-500 group-hover:scale-105 transition-transform">
-
+            <div className="p-2 rounded-md bg-[var(--color-background)] text-[var(--color-text-secondary)]">
               <FileText size={18} />
-
             </div>
-
             <div>
-
-              <h4 className="text-xs font-bold text-[var(--color-text-primary)] group-hover:text-emerald-500 transition-colors font-sans">
-
+              <h4 className="text-xs font-semibold text-[var(--color-text-primary)] group-hover:text-[#008A5E] dark:group-hover:text-emerald-400 transition-colors font-sans">
                 Gold Standard Export
-
               </h4>
-
               <p className="text-[10px] text-[var(--color-text-secondary)] font-sans">TPDDTEC / MECD JSON Portfolio</p>
-
             </div>
-
           </div>
-
-          <Download size={14} className="text-[var(--color-text-secondary)] group-hover:text-emerald-500 transition-colors" />
-
+          <Download size={14} className="text-[var(--color-text-secondary)] group-hover:text-[#008A5E] dark:group-hover:text-emerald-400 transition-colors" />
         </button>
 
 

@@ -365,19 +365,9 @@ export default function ActivitiesPage() {
         <div>
 
           <div className="flex items-center gap-2">
-
-            <span className="px-2.5 py-0.5 rounded bg-[#00B47A]/10 text-[#00B47A] text-[9px] font-extrabold tracking-wider uppercase">
-
-              {activeMethodology || "All"}
-
+            <span className="px-2.5 py-0.5 rounded bg-[#008A5E]/10 text-[#008A5E] text-[10px] font-mono font-bold tracking-wider uppercase border border-[#008A5E]/20">
+              {activeMethodology || "All Methodologies"}
             </span>
-
-            <span className="text-[10px] text-[var(--color-text-secondary)] font-semibold flex items-center gap-1">
-
-              <Sparkles size={11} className="text-[#00B47A]" /> Digital MRV Capture Ledger
-
-            </span>
-
           </div>
 
           <h1 className="text-xl font-bold tracking-tight text-[var(--color-text-primary)] mt-1">

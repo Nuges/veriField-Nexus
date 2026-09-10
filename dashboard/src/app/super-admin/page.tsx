@@ -178,7 +178,7 @@ function SuperAdminDashboard() {
 
     installations: 0,
 
-    avgTrust: 0.0,
+    avgTrust: null,
 
     tCO2: 0.0,
 
@@ -1582,8 +1582,12 @@ function SuperAdminDashboard() {
                     </div>
                   </div>
                   <div className="mt-3">
-                    <div className="text-2xl font-bold text-[#008A5E] dark:text-emerald-400">{mrvStats.avgTrust}%</div>
-                    <p className="text-xs text-[var(--color-text-muted)] mt-1 font-medium">High-fidelity metrics lock</p>
+                    <div className="text-2xl font-bold text-[#008A5E] dark:text-emerald-400">
+                      {mrvStats.avgTrust != null ? `${mrvStats.avgTrust}%` : "Not calculated"}
+                    </div>
+                    <p className="text-xs text-[var(--color-text-muted)] mt-1 font-medium">
+                      {mrvStats.avgTrust != null ? "High-fidelity metrics lock" : "Awaiting calculation"}
+                    </p>
                   </div>
                 </div>
 

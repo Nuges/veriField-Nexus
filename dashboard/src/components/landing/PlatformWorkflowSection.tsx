@@ -108,7 +108,7 @@ export function PlatformWorkflowSection() {
 
               >
 
-                <div className="w-14 h-14 rounded-full bg-white border border-zinc-200 flex items-center justify-center font-semibold text-zinc-900 shadow-sm mb-6 z-10">
+                <div className="w-14 h-14 rounded-full bg-white border border-zinc-200 flex items-center justify-center font-semibold text-zinc-900 mb-6 z-10">
 
                   {step.id}
 
@@ -142,7 +142,7 @@ export function PlatformWorkflowSection() {
 
             </p>
 
-            <div className="p-1 rounded-2xl bg-white border border-zinc-200 shadow-sm">
+            <div className="p-1 rounded-2xl bg-white border border-zinc-200">
 
               <img
 
@@ -161,19 +161,12 @@ export function PlatformWorkflowSection() {
 
 
           <div className="lg:col-span-7 flex flex-col gap-6">
-
-            {/* Featured Module: AI-Powered Verification */}
-
-            <div className="p-6 rounded-xl bg-white border border-zinc-200 shadow-sm">
-
-              <h3 className="text-base font-semibold text-zinc-900 mb-2">AI-Powered Verification</h3>
-
+            {/* Core Verification Module */}
+            <div className="p-6 rounded-xl bg-zinc-50/70 border border-zinc-200">
+              <h3 className="text-base font-semibold text-zinc-900 mb-2">Automated Evidence Verification</h3>
               <p className="text-xs text-zinc-600 leading-relaxed">
-
-                AI-assisted validation of field evidence, telemetry, and project data to identify anomalies, assess trust signals, and accelerate verification workflows.
-
+                Continuous validation of field evidence, telemetry feeds, and project records to detect anomalies, reconcile trust signals, and accelerate verification sign-offs.
               </p>
-
             </div>
 
 

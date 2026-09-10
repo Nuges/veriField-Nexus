@@ -161,14 +161,14 @@ function getGuidanceForRole(
     });
 
   } else if (r.includes("ADMIN") || r === "admin") {
-    const userCount = data?.activeUsers !== undefined ? data.activeUsers : 1;
-    const userText = `${userCount} active user${userCount === 1 ? "" : "s"}`;
-    items.push({
-      message: `System running. ${userText}.${data?.pendingApprovals ? ` ${data.pendingApprovals} pending approval${data.pendingApprovals === 1 ? "" : "s"}.` : ""}`,
-      actionLabel: "System Settings",
-      actionHref: "/dashboard/settings",
-      priority: "info",
-    });
+    if (data?.pendingApprovals && data.pendingApprovals > 0) {
+      items.push({
+        message: `${data.pendingApprovals} pending approval${data.pendingApprovals === 1 ? "" : "s"} require administrative review.`,
+        actionLabel: "Review Approvals",
+        actionHref: "/dashboard/settings",
+        priority: "action",
+      });
+    }
 
   } else if (r === "VVB_AUDITOR" || r === "vvb_auditor") {
 
@@ -235,54 +235,21 @@ export default function InlineGuidance({ role, page, sectorCode, data }: InlineG
 
 
   const guidance = getGuidanceForRole(role || "admin", page || "dashboard", data);
-
-  if (guidance.length === 0) return null;
-
-
+  const actionItems = guidance.filter((g) => g.priority === "action");
+  if (actionItems.length === 0) return null;
 
   const handleDismiss = () => {
-
     setDismissed(true);
-
     const key = `vf_guidance_dismissed_${role}_${page}`;
-
     if (typeof window !== "undefined") {
-
       localStorage.setItem(key, "1");
-
     }
-
   };
 
-
-
-  const item = guidance[0]; // Show the most important one
-
-
-
-  const bgClass =
-
-    item.priority === "action"
-
-      ? "from-yellow-500/10 to-transparent border-yellow-500/30"
-
-      : item.priority === "success"
-
-      ? "from-emerald-500/10 to-transparent border-emerald-500/30"
-
-      : "from-blue-500/10 to-transparent border-blue-500/30";
-
-
-
-  const iconColor =
-
-    item.priority === "action" ? "text-yellow-400" : item.priority === "success" ? "text-emerald-400" : "text-blue-400";
-
-
+  const item = actionItems[0]; // Show the most important action item
 
   return (
-
-    <div className={`mb-4 rounded-xl bg-gradient-to-r ${bgClass} border px-4 py-3 flex items-center justify-between gap-3`}>
+    <div className="mb-3 rounded-lg bg-amber-500/5 dark:bg-amber-950/20 border border-amber-500/30 px-3.5 py-2.5 flex items-center justify-between gap-3">
 
       <div className="flex items-center gap-3 min-w-0">
 

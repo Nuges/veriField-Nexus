@@ -76,11 +76,11 @@ export default function UniversalEntityHeader({
 
   ownerName,
 
-  slaText = "18h SLA Remaining",
+  slaText,
 
   status,
 
-  aiConfidence = 98.4,
+  aiConfidence,
 
   aiRecommendation,
 
@@ -134,53 +134,30 @@ export default function UniversalEntityHeader({
 
 
   return (
-
-    <div className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-5 mb-6 shadow-xs space-y-4">
-
+    <div className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-4 mb-6 space-y-4">
       {/* 1. Top Entity Metadata & Status Ribbon */}
-
       <div className="flex flex-wrap items-center justify-between gap-4 pb-3 border-b border-[var(--color-border)]">
-
         <div className="flex items-center gap-3">
-
-          <span className="text-[10px] font-mono font-bold uppercase tracking-widest px-2.5 py-1 rounded bg-[#00B47A]/10 text-[#00B47A] border border-[#00B47A]/20">
-
-            {entityType} #{entityId.slice(0, 8)}
-
+          <span className="text-xs font-mono font-medium text-[var(--color-text-secondary)] uppercase">
+            {entityType} #{entityId}
           </span>
-
-          <h1 className="text-base font-extrabold text-[var(--color-text-primary)] truncate">
-
+          <h1 className="text-base font-bold text-[var(--color-text-primary)] truncate">
             {entityName}
-
           </h1>
-
         </div>
 
-
-
         <div className="flex items-center gap-3 text-xs">
-
           {status ? (
-
-            <span className={`px-2.5 py-1 rounded-full font-mono font-bold uppercase border text-[11px] ${getStatusColor(status)}`}>
-
+            <span className={`px-2 py-0.5 rounded-md font-mono font-semibold uppercase border text-[10px] ${getStatusColor(status)}`}>
               {status}
-
             </span>
-
           ) : null}
 
           {ownerName ? (
-
             <div className="flex items-center gap-1.5 font-medium text-[var(--color-text-secondary)]">
-
-              <User size={14} className="text-[#00B47A]" />
-
+              <User size={14} className="text-[var(--color-text-secondary)]" />
               <span>Owner: <strong className="text-[var(--color-text-primary)]">{ownerName} {ownerRole ? `(${ownerRole})` : ""}</strong></span>
-
             </div>
-
           ) : null}
 
           {slaText ? (
@@ -322,38 +299,22 @@ export default function UniversalEntityHeader({
 
               onClick={sec.onClick}
 
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
-
+              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors border cursor-pointer ${
                 sec.variant === "danger"
-
                   ? "bg-rose-500/10 text-rose-400 border-rose-500/20 hover:bg-rose-500/20"
-
-                  : "bg-[var(--color-background)] text-[var(--color-text-secondary)] border-[var(--color-border)] hover:text-[var(--color-text-primary)]"
-
+                  : "bg-[var(--color-surface-hover)] text-[var(--color-text-secondary)] border-[var(--color-border)] hover:text-[var(--color-text-primary)]"
               }`}
-
             >
-
               {sec.label}
-
             </button>
-
           ))}
 
-
-
           <button
-
             onClick={onPrimaryNextAction}
-
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#00B47A] hover:bg-[#009b68] text-white font-bold text-xs shadow-md transition-all cursor-pointer"
-
+            className="flex items-center gap-2 px-3.5 py-1.5 rounded-md bg-[#008A5E] hover:bg-[#00734E] text-white font-semibold text-xs transition-colors cursor-pointer"
           >
-
             <span>{primaryNextActionLabel}</span>
-
             <ArrowRight size={14} />
-
           </button>
 
         </div>

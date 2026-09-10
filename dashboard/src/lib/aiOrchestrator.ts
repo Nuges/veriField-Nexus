@@ -32,7 +32,7 @@ export interface AIObservableEvent {
 
   impact: string;
 
-  confidenceScore: number;
+  confidenceScore?: number | null;
 
   targetRole: string[];
 
@@ -64,7 +64,7 @@ export interface ContextualPageInsight {
 
   aiRecommendation: string;
 
-  confidenceScore: number;
+  confidenceScore?: number | null;
 
   nextActionLabel: string;
 
@@ -143,7 +143,6 @@ const PAGE_INSIGHTS: Record<string, (sector: string, role: string) => Contextual
       whyItMatters: "Enables immediate identification of SLA risks, evidence bottlenecks, and carbon yield progress.",
       whatToDoNext: role === "AUDITOR" || role === "VVB" ? "Review activities flagged for manual audit." : `Review active ${ctx.sectorName} activities in database.`,
       aiRecommendation: ctx.missionRec,
-      confidenceScore: 98.4,
       nextActionLabel: "View Audit Queue",
       nextActionHref: "/dashboard/verifications"
     };
@@ -157,7 +156,6 @@ const PAGE_INSIGHTS: Record<string, (sector: string, role: string) => Contextual
       whyItMatters: "Establishes legal and methodological eligibility required before field deployment and credit issuance.",
       whatToDoNext: "Review active project team assignments and verify PDD documentation completeness.",
       aiRecommendation: ctx.projectsRec,
-      confidenceScore: 98.2,
       nextActionLabel: "Inspect Project DNA",
       nextActionHref: "/dashboard/methodologies"
     };
@@ -176,7 +174,6 @@ const PAGE_INSIGHTS: Record<string, (sector: string, role: string) => Contextual
       whyItMatters: "Ensures compliance with international carbon standards (Verra, Gold Standard, Article 6, ISO 14064).",
       whatToDoNext: "Verify emission factor formulas and baseline non-renewable biomass/grid parameters.",
       aiRecommendation: ctx.methodologyRec,
-      confidenceScore: 99.8,
       nextActionLabel: actionLabel,
       nextActionHref: "/dashboard/assets"
     };
@@ -190,7 +187,6 @@ const PAGE_INSIGHTS: Record<string, (sector: string, role: string) => Contextual
       whyItMatters: "Provides the underlying asset telemetry and chain-of-custody required to calculate real-world carbon abatement.",
       whatToDoNext: `Monitor real-time sensor pings for active ${ctx.sectorName} assets.`,
       aiRecommendation: ctx.assetsRec,
-      confidenceScore: 99.5,
       nextActionLabel: "Monitor Telemetry",
       nextActionHref: "/dashboard/monitoring"
     };
@@ -204,7 +200,6 @@ const PAGE_INSIGHTS: Record<string, (sector: string, role: string) => Contextual
       whyItMatters: "Protects credit integrity by filtering out fraudulent, duplicated, or mis-located field evidence.",
       whatToDoNext: "Review pending field activity submissions assigned to audit queue.",
       aiRecommendation: ctx.operationsRec,
-      confidenceScore: 98.4,
       nextActionLabel: "Review Operations",
       nextActionHref: "/dashboard/operations"
     };
@@ -218,7 +213,6 @@ const PAGE_INSIGHTS: Record<string, (sector: string, role: string) => Contextual
       whyItMatters: "Replaces manual periodic surveys with continuous, tamper-proof digital MRV data feeds.",
       whatToDoNext: "Inspect daily telemetry curves and verify sensor ping intervals.",
       aiRecommendation: ctx.monitoringRec,
-      confidenceScore: 99.1,
       nextActionLabel: "View Verifications",
       nextActionHref: "/dashboard/verifications"
     };
@@ -229,10 +223,9 @@ const PAGE_INSIGHTS: Record<string, (sector: string, role: string) => Contextual
     return {
       pageTitle: "Verification",
       purpose: "Independent VVB audit hub, SHA-256 hash attestation, digital signatures, and audit sampling plans.",
-      whyItMatters: "Provides immutable verification required by accredited auditors before carbon credit minting.",
+      whyItMatters: "Provides immutable verification required by accredited auditors before carbon credit issuance.",
       whatToDoNext: "Execute WebAuthn cryptographic sign-off on flagged submissions in queue.",
       aiRecommendation: ctx.verificationRec,
-      confidenceScore: 99.9,
       nextActionLabel: "Proceed to Credit Sign-Off",
       nextActionHref: "/dashboard/verifications"
     };
@@ -240,12 +233,11 @@ const PAGE_INSIGHTS: Record<string, (sector: string, role: string) => Contextual
 
   "/dashboard/carbon": (sector, role) => ({
     pageTitle: "Carbon Credits",
-    purpose: "Credit ledger, on-chain Solana minting, serial number allocation, registry exports, and marketplace settlement.",
+    purpose: "Deterministic credit ledger, serial allocation, cryptographic verification sealing, and registry issuance settlement.",
     whyItMatters: "Transforms verified emission reductions into tradable, sovereign-compliant carbon assets.",
-    whatToDoNext: "Execute on-chain minting for verified carbon credit batches.",
-    aiRecommendation: "Verified carbon credit ledger synchronized. Ready for instant Solana minting with serial tracking.",
-    confidenceScore: 99.7,
-    nextActionLabel: "Execute Minting",
+    whatToDoNext: "Execute cryptographic credit issuance and serial sealing for verified batches.",
+    aiRecommendation: "Verified carbon credit ledger synchronized. Ready for cryptographic serial sealing and registry allocation.",
+    nextActionLabel: "Issue & Seal Credits",
     nextActionHref: "/dashboard/carbon"
   }),
 
@@ -255,19 +247,17 @@ const PAGE_INSIGHTS: Record<string, (sector: string, role: string) => Contextual
     whyItMatters: "Ensures compliance with Paris Agreement host country legal framework and Article 6.2/6.4 rules.",
     whatToDoNext: "Verify Article 6 corresponding adjustment authorization status with national regulator.",
     aiRecommendation: "Article 6.2 authorization payload pre-validated against host country NDC registry.",
-    confidenceScore: 98.9,
     nextActionLabel: "Submit ITMO Authorization",
     nextActionHref: "/dashboard/command-center"
   }),
 
   "/dashboard/ai": (sector, role) => ({
-    pageTitle: "AI Assistant",
-    purpose: "Autonomous operational AI assistant providing natural language query resolution and predictive insights.",
-    whyItMatters: "Empowers operational roles with instant predictive guidance and automated task execution.",
-    whatToDoNext: "Ask the AI assistant for custom project forecasts, risk analyses, or audit queries.",
-    aiRecommendation: "AI operational memory synchronized with live database activities and project telemetry.",
-    confidenceScore: 99.5,
-    nextActionLabel: "Explore AI Memory",
+    pageTitle: "Decision Support",
+    purpose: "Operational decision support providing natural language query resolution and predictive insights.",
+    whyItMatters: "Empowers operational roles with verification guidance, risk evaluation, and telemetry analysis.",
+    whatToDoNext: "Investigate project telemetry, anomaly patterns, or verification exceptions.",
+    aiRecommendation: "Operational telemetry and evidence records are indexed for contextual analysis.",
+    nextActionLabel: "Investigate Evidence",
     nextActionHref: "/dashboard/ai"
   }),
 
@@ -277,7 +267,6 @@ const PAGE_INSIGHTS: Record<string, (sector: string, role: string) => Contextual
     whyItMatters: "Delivers executive-ready impact and financial performance reports to investors and regulators.",
     whatToDoNext: "Export Carbon Impact & Abatement Forecast Report.",
     aiRecommendation: "Abatement forecast calculated from real-time database activities indicates verified carbon yield growth.",
-    confidenceScore: 97.8,
     nextActionLabel: "Download Report",
     nextActionHref: "/dashboard/analytics"
   }),
@@ -288,7 +277,6 @@ const PAGE_INSIGHTS: Record<string, (sector: string, role: string) => Contextual
     whyItMatters: "Ensures strict enterprise RBAC/ABAC security and multi-tenant isolation.",
     whatToDoNext: "Review user role assignments and API access token expiration dates.",
     aiRecommendation: "Security audit passed. Active organization linked with 0 permission leaks.",
-    confidenceScore: 100,
     nextActionLabel: "Manage Users",
     nextActionHref: "/dashboard/settings"
   })
@@ -322,7 +310,6 @@ export const INITIAL_AI_EVENTS: AIObservableEvent[] = [
     summary: "Activity payload scored below 80 Trust Score threshold and was flagged for manual VVB audit review.",
     rationale: "Automated Trust Engine flagged submission due to camera EXIF anomaly; manual audit required.",
     impact: "Routes submission to VVB Auditor Queue for cryptographic attestation sign-off.",
-    confidenceScore: 98.4,
     targetRole: ["AUDITOR", "VVB", "QA_OFFICER", "PROJECT_MANAGER", "ADMIN"],
     targetStage: "Verification",
     deepLink: "/dashboard/verifications",
@@ -338,8 +325,7 @@ export const INITIAL_AI_EVENTS: AIObservableEvent[] = [
     title: "VVB Verification SLA Active",
     summary: "Audit task is assigned to VVB Verification Queue for compliance sign-off.",
     rationale: "Contractual VVB audit SLA requires sign-off within 48 hours of evidence batch locking.",
-    impact: "Unlocks on-chain carbon credit issuance upon attestation.",
-    confidenceScore: 99.1,
+    impact: "Unlocks cryptographic carbon credit issuance upon attestation.",
     targetRole: ["AUDITOR", "VVB", "PROJECT_MANAGER"],
     targetStage: "Verification",
     deepLink: "/dashboard/verifications",

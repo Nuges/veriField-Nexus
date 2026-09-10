@@ -281,45 +281,25 @@ export default function AnalyticsTabs({
 
 
       {activeTab === "trust" && (
-
-        <div className="rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] p-6 backdrop-blur-md shadow-xl transition-colors duration-300">
-
-          <h4 className="text-xs font-black tracking-widest text-[var(--color-text-primary)] uppercase font-sans mb-4">
-
-            TRUST ENGINE WEIGHTED VARIABLES & GEOMETRY VALIDATION
-
+        <div className="rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] p-5 transition-colors duration-300">
+          <h4 className="text-xs font-bold tracking-wider text-[var(--color-text-primary)] uppercase font-sans mb-4">
+            Trust Engine Weighted Variables & Geometry Validation
           </h4>
-
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 font-sans text-xs">
-
-            <div className="p-4 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] shadow-sm">
-
-              <p className="text-[var(--color-text-secondary)] text-[10px] font-bold">GPS RADIUS ACCURACY</p>
-
-              <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400 mt-1">Verified</p>
-
+            <div className="p-4 rounded-lg bg-[var(--color-background)] border border-[var(--color-border)]">
+              <p className="text-[var(--color-text-secondary)] text-[10px] font-semibold uppercase tracking-wider">GPS Radius Accuracy</p>
+              <p className="text-base font-bold text-emerald-600 dark:text-emerald-400 mt-1">Geofence Verified</p>
             </div>
-
-            <div className="p-4 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] shadow-sm">
-
-              <p className="text-[var(--color-text-secondary)] text-[10px] font-bold">IOT TELEMETRY SYNC</p>
-
-              <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400 mt-1">0.12s Latency</p>
-
+            <div className="p-4 rounded-lg bg-[var(--color-background)] border border-[var(--color-border)]">
+              <p className="text-[var(--color-text-secondary)] text-[10px] font-semibold uppercase tracking-wider">IoT Telemetry Ingestion</p>
+              <p className="text-base font-bold text-emerald-600 dark:text-emerald-400 mt-1">Streaming Active</p>
             </div>
-
-            <div className="p-4 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] shadow-sm">
-
-              <p className="text-[var(--color-text-secondary)] text-[10px] font-bold">EVIDENCE SHA-256 HASH</p>
-
-              <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400 mt-1">100% Cryptographic</p>
-
+            <div className="p-4 rounded-lg bg-[var(--color-background)] border border-[var(--color-border)]">
+              <p className="text-[var(--color-text-secondary)] text-[10px] font-semibold uppercase tracking-wider">Evidence SHA-256 Provenance</p>
+              <p className="text-base font-bold text-emerald-600 dark:text-emerald-400 mt-1">Immutable & Sealed</p>
             </div>
-
           </div>
-
         </div>
-
       )}
 
 

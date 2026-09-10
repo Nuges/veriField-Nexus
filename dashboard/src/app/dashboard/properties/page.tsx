@@ -35,15 +35,7 @@ import {
   Sparkles,
 
   ArrowRight,
-
-  ShieldCheck,
-
-  TreePine,
-
   CloudLightning,
-
-  Layers,
-
   X,
 
   Loader2
@@ -271,117 +263,79 @@ export default function PropertiesPage() {
 
 
 
-      {/* 👑 EXECUTIVE TITLE & ACTION BUTTON */}
-
+      {/* EXECUTIVE TITLE */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[var(--color-border)] pb-4">
-
         <div>
-
-          <div className="flex items-center gap-2">
-
-            <span className="px-2.5 py-0.5 rounded bg-[#00B47A]/10 text-[#00B47A] text-[9px] font-extrabold tracking-wider uppercase border border-[#00B47A]/15">
-
-              MRV Registry
-
-            </span>
-
-          </div>
-
-          <h1 className="text-xl font-bold tracking-tight text-[var(--color-text-primary)] mt-1">
-
+          <h1 className="text-xl font-bold tracking-tight text-[var(--color-text-primary)]">
             Registered Carbon Assets & Projects
-
           </h1>
-
           <p className="text-[var(--color-text-secondary)] text-xs mt-0.5">
             Audit energy efficiency scores, inspect geographical placements, and onboard new climate projects.
           </p>
         </div>
       </div>
 
-
-
-      {/* 📊 DYNAMIC METRICS SUMMARY CARDS */}
+      {/* DYNAMIC METRICS SUMMARY CARDS */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         {/* Total Assets Summary */}
-        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-4 flex items-center justify-between">
-          <div className="space-y-1">
-            <p className="text-[11px] font-medium text-[var(--color-text-secondary)]">
-              {activeSector === "ev_mobility" ? "Registered EV Fleets & Stations" :
-               activeSector === "hybrid_energy" ? "Registered Solar Mini-grids" :
-               activeSector === "biochar" ? "Registered Biochar Pyrolyzers" :
-               activeSector === "cookstoves" ? "Monitored Stove Devices" : "Monitored Carbon Assets"}
-            </p>
-            <p className="text-2xl font-bold text-[var(--color-text-primary)] tracking-tight">
-              {isLoading ? "..." : totalAssetsCount}
-            </p>
-            <p className="text-[11px] text-[var(--color-text-muted)]">
-              {realProjects.length} Active Project{realProjects.length === 1 ? "" : "s"}
-            </p>
-          </div>
-          <div className="w-9 h-9 bg-emerald-50 dark:bg-emerald-950/40 rounded-md text-[#008A5E] flex items-center justify-center shrink-0">
-            <Layers size={18} />
-          </div>
+        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-4">
+          <p className="text-[11px] font-medium text-[var(--color-text-secondary)]">
+            {activeSector === "ev_mobility" ? "Registered EV Fleets & Stations" :
+             activeSector === "hybrid_energy" ? "Registered Solar Mini-grids" :
+             activeSector === "biochar" ? "Registered Biochar Pyrolyzers" :
+             activeSector === "cookstoves" ? "Monitored Stove Devices" : "Monitored Carbon Assets"}
+          </p>
+          <p className="text-2xl font-bold text-[var(--color-text-primary)] tracking-tight mt-1">
+            {isLoading ? "..." : totalAssetsCount}
+          </p>
+          <p className="text-[11px] text-[var(--color-text-muted)] mt-1">
+            {realProjects.length} Active Project{realProjects.length === 1 ? "" : "s"}
+          </p>
         </div>
 
         {/* Total Carbon Offsets Dynamic Sum */}
-        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-4 flex items-center justify-between">
-          <div className="space-y-1">
-            <p className="text-[11px] font-medium text-[var(--color-text-secondary)]">Verified Emissions Offsets</p>
-            <p className="text-2xl font-bold text-blue-600 dark:text-blue-400 tracking-tight">
-              {isLoading ? "..." : `${totalCarbonOffset.toLocaleString()} kg`}
-            </p>
-            <p className="text-[11px] text-[var(--color-text-muted)]">Avoided CO₂ output</p>
-          </div>
-          <div className="w-9 h-9 bg-blue-50 dark:bg-blue-950/40 rounded-md text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
-            <TreePine size={18} />
-          </div>
+        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-4">
+          <p className="text-[11px] font-medium text-[var(--color-text-secondary)]">Verified Emissions Offsets</p>
+          <p className="text-2xl font-bold text-blue-600 dark:text-blue-400 tracking-tight mt-1">
+            {isLoading ? "..." : `${totalCarbonOffset.toLocaleString()} kg`}
+          </p>
+          <p className="text-[11px] text-[var(--color-text-muted)] mt-1">Avoided CO₂ output</p>
         </div>
 
         {/* Verified Gold Status Counts */}
-        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-4 flex items-center justify-between">
-          <div className="space-y-1">
-            <p className="text-[11px] font-medium text-[var(--color-text-secondary)]">Certified Gold Standard</p>
-            <p className="text-2xl font-bold text-[#008A5E] tracking-tight">
-              {isLoading ? "..." : verifiedAssetsCount}
-            </p>
-            <p className="text-[11px] text-[var(--color-text-muted)]">Fully verified MRV status</p>
-          </div>
-          <div className="w-9 h-9 bg-emerald-50 dark:bg-emerald-950/40 rounded-md text-[#008A5E] flex items-center justify-center shrink-0">
-            <ShieldCheck size={18} />
-          </div>
+        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-4">
+          <p className="text-[11px] font-medium text-[var(--color-text-secondary)]">Certified Gold Standard</p>
+          <p className="text-2xl font-bold text-[#008A5E] tracking-tight mt-1">
+            {isLoading ? "..." : verifiedAssetsCount}
+          </p>
+          <p className="text-[11px] text-[var(--color-text-muted)] mt-1">Fully verified MRV status</p>
         </div>
       </div>
 
-      {/* 📁 REGISTERED CLIMATE PROJECTS ROSTER */}
+      {/* REGISTERED CLIMATE PROJECTS ROSTER */}
       <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-4 space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[var(--color-border)] pb-3">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-md bg-emerald-50 dark:bg-emerald-950/40 text-[#008A5E]">
-              <Building2 size={18} />
-            </div>
-            <div>
-              <h2 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-primary)]">
-                Registered Climate Projects ({realProjects.length})
-              </h2>
-              <p className="text-[11px] text-[var(--color-text-secondary)]">
-                All onboarded climate projects, methodologies, and spatial boundaries for your organization.
-              </p>
-            </div>
+          <div>
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-primary)]">
+              Registered Climate Projects ({realProjects.length})
+            </h2>
+            <p className="text-[11px] text-[var(--color-text-secondary)]">
+              All onboarded climate projects, methodologies, and spatial boundaries for your organization.
+            </p>
           </div>
           <button
             onClick={() => setShowModal(true)}
             className="px-3 py-1.5 rounded-md bg-[#008A5E] hover:bg-[#00734E] text-white font-semibold text-xs transition-colors flex items-center gap-1.5 cursor-pointer shrink-0"
           >
             <Plus size={13} />
-            <span>+ Create New Project</span>
+            <span>Create New Project</span>
           </button>
         </div>
 
         {realProjects.length === 0 ? (
           <div className="p-6 text-center bg-[var(--color-background)] rounded-md border border-[var(--color-border)] space-y-1.5">
             <p className="text-xs font-semibold text-[var(--color-text-primary)]">No Projects Registered Yet</p>
-            <p className="text-[11px] text-[var(--color-text-muted)]">Click "+ Create New Project" to onboard your first project.</p>
+            <p className="text-[11px] text-[var(--color-text-muted)]">Click "Create New Project" to onboard your first project.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">

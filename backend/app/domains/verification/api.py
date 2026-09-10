@@ -103,6 +103,24 @@ async def get_audit_by_id(
     task = await service.get_task(task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Audit task not found")
+
+    # Scoping / BOLA / IDOR protection
+    if current_user.role != "SUPER_ADMIN":
+        is_assigned_verifier = task.verifier_id and str(task.verifier_id).lower() == str(current_user.id).lower()
+        has_org_access = False
+        if task.project_id:
+            proj_stmt = select(Project.organization_id).where(Project.id == task.project_id)
+            proj_res = await db.execute(proj_stmt)
+            proj_org = proj_res.scalar_one_or_none()
+            if proj_org and current_user.organization_id and str(proj_org).lower() == str(current_user.organization_id).lower():
+                has_org_access = True
+
+        if not is_assigned_verifier and not has_org_access:
+            raise HTTPException(
+                status_code=403,
+                detail="Forbidden: Cannot access verification task belonging to another organization or verifier."
+            )
+
     return {
         "id": str(task.id),
         "status": task.status or "pending",
@@ -133,13 +151,34 @@ async def update_verification_task(
     current_user: User = Depends(require_permission("audit:write")),
     service: VerificationService = Depends(get_verification_service),
 ):
+    task = await service.get_task(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    # Scoping / BOLA / IDOR protection
+    if current_user.role != "SUPER_ADMIN":
+        is_assigned_verifier = task.verifier_id and str(task.verifier_id).lower() == str(current_user.id).lower()
+        has_org_admin_access = False
+        if task.project_id and current_user.role in ("ORG_ADMIN", "admin"):
+            proj_stmt = select(Project.organization_id).where(Project.id == task.project_id)
+            proj_res = await db.execute(proj_stmt)
+            proj_org = proj_res.scalar_one_or_none()
+            if proj_org and current_user.organization_id and str(proj_org).lower() == str(current_user.organization_id).lower():
+                has_org_admin_access = True
+
+        if not is_assigned_verifier and not has_org_admin_access:
+            raise HTTPException(
+                status_code=403,
+                detail="Forbidden: Cannot update verification task belonging to another organization or verifier."
+            )
+
     if data.status:
         updated = await service.repository.update_task_status(task_id, data.status, {})
         if not updated:
             raise HTTPException(status_code=404, detail="Task not found")
         return updated
     
-    return await service.get_task(task_id)
+    return task
 
 
 @router.post(

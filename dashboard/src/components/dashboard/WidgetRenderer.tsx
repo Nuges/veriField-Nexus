@@ -118,91 +118,31 @@ export default function WidgetRenderer({ kpis, sectorCode }: { kpis?: KPI[]; sec
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
 
       {activeKpis.map((kpi, idx) => {
-
-        const Icon = ICON_MAP[kpi.iconName || ""] || Activity;
-
-        const color = kpi.colorTheme || "emerald";
-
-        const cardStyle = color === "blue"
-
-          ? "border-blue-500/30 bg-[var(--color-surface)] shadow-sm hover:border-blue-500/50"
-
-          : color === "amber"
-
-          ? "border-amber-500/30 bg-[var(--color-surface)] shadow-sm hover:border-amber-500/50"
-
-          : "border-[#00B47A]/30 bg-[var(--color-surface)] shadow-sm hover:border-[#00B47A]/50";
-
-
-
-        const iconBg = color === "blue"
-
-          ? "bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20"
-
-          : color === "amber"
-
-          ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
-
-          : "bg-emerald-500/10 text-[#00B47A] border border-emerald-500/20";
-
-
-
         const valStr = typeof kpi.value === "number" ? kpi.value.toLocaleString() : kpi.value;
 
-
-
         return (
-
           <div
-
             key={idx}
-
-            className={`relative overflow-hidden rounded-2xl border ${cardStyle} p-5 transition-all duration-300 shadow-md hover:shadow-lg group flex flex-col justify-between min-h-[140px] h-auto`}
-
+            className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-4 transition-all hover:border-[var(--color-border-hover,rgba(0,180,122,0.3))] flex flex-col justify-between min-h-[110px]"
           >
-
-            <div className="flex justify-between items-start gap-2 mb-3">
-
-              <span className="text-[11px] font-black tracking-widest text-[var(--color-text-secondary)] uppercase font-sans leading-snug">
-
-                {kpi.label}
-
-              </span>
-
-              <div className={`p-2 rounded-full ${iconBg} group-hover:scale-110 transition-transform shrink-0`}>
-
-                <Icon size={16} />
-
-              </div>
-
-            </div>
-
-
-
             <div>
-
-              <h3 className="text-2xl sm:text-3xl font-black text-[var(--color-text-primary)] font-sans tracking-tight">
-
-                {valStr}
-
-              </h3>
-
-              {(kpi.subtext || (kpi.unit && valStr !== "No data yet")) && (
-
-                <p className="text-[11px] font-semibold text-[var(--color-text-secondary)] font-sans leading-tight mt-1">
-
-                  {kpi.subtext || kpi.unit}
-
-                </p>
-
-              )}
-
+              <span className="text-xs font-semibold tracking-wide text-[var(--color-text-secondary)] uppercase leading-snug">
+                {kpi.label}
+              </span>
             </div>
 
+            <div className="mt-2">
+              <h3 className="text-2xl font-bold text-[var(--color-text-primary)] tracking-tight">
+                {valStr}
+              </h3>
+              {(kpi.subtext || (kpi.unit && valStr !== "No data yet")) && (
+                <p className="text-xs text-[var(--color-text-secondary)] leading-normal mt-1">
+                  {kpi.subtext || kpi.unit}
+                </p>
+              )}
+            </div>
           </div>
-
         );
-
       })}
 
     </div>

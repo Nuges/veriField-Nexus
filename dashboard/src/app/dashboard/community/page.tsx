@@ -126,34 +126,26 @@ export default function CommunityPage() {
   return (
     <div className="space-y-6 animate-fade-in-up pb-10 text-[var(--color-text-primary)]">
       
-      {/* 👑 TITLE SECTION */}
+      {/* TITLE SECTION */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[var(--color-border)] pb-4">
         <div>
-          <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded bg-[#00B47A]/10 text-[#00B47A] text-[9px] font-extrabold tracking-wider uppercase border border-[#00B47A]/15">
-              Social MRV Attribution
-            </span>
-            <span className="text-[10px] text-[var(--color-text-secondary)] font-semibold flex items-center gap-1">
-              <CheckCircle2 size={11} className="text-[#00B47A]" /> Near Real-time Verification Feed
-            </span>
-          </div>
-          <h1 className="text-xl font-bold tracking-tight text-[var(--color-text-primary)] mt-1 flex items-center gap-2">
-            <UsersRound className="text-[#00B47A]" size={20} /> Community Peer Validation
+          <h1 className="text-xl font-bold tracking-tight text-[var(--color-text-primary)]">
+            Community Peer Validation
           </h1>
           <p className="text-[var(--color-text-secondary)] text-xs mt-0.5">
-            Audit peer-to-peer verification protocols, live validation responses, and agent reviews recorded on-chain.
+            Audit peer-to-peer verification protocols, live validation responses, and cryptographically sealed agent reviews.
           </p>
         </div>
 
         <div className="flex items-center gap-3">
           {lastUpdated && (
-            <span className="text-[10px] text-[var(--color-text-muted)] hidden sm:inline-flex items-center gap-1 bg-[var(--color-surface)] border border-[var(--color-border)] px-2.5 py-1 rounded-lg">
+            <span className="text-[10px] text-[var(--color-text-muted)] hidden sm:inline-flex items-center gap-1 bg-[var(--color-surface)] border border-[var(--color-border)] px-2.5 py-1 rounded-md">
               <Clock size={11} className="text-[#00B47A]" /> Updated {lastUpdated.toLocaleTimeString()}
             </span>
           )}
           <button 
             onClick={() => loadFeed(true)} 
-            className="p-2 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:text-[#00B47A] hover:border-[#00B47A]/30 transition-all shadow-sm active:scale-95"
+            className="p-2 rounded-md bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:text-[#00B47A] hover:border-[#00B47A]/30 transition-colors cursor-pointer"
             title="Refresh Feed"
           >
             <RefreshCw size={16} className={isLoading ? "animate-spin text-[#00B47A]" : ""} />
