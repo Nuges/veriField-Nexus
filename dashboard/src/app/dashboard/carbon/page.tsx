@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { Leaf, RefreshCw, Send, Layers, Coins, CheckCircle2, Shield, X, Check, Loader2, ExternalLink, AlertTriangle } from "lucide-react";
-import { fetchCarbonLedger, fetchProjects, executeCarbonMinting } from "@/lib/api";
+import { fetchCarbonLedger, fetchProjects, executeCarbonMinting, CarbonMintResponse } from "@/lib/api";
+import type { Project } from "@/lib/types";
 import { useToast } from "@/components/Toast";
 import { useWorkspace } from "@/context/WorkspaceContext";
 
@@ -15,12 +16,12 @@ export default function CarbonLedgerPage() {
 
   // Minting state
   const [isMintModalOpen, setIsMintModalOpen] = useState(false);
-  const [projects, setProjects] = useState<any[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
   const [targetChain, setTargetChain] = useState("internal-ledger");
   const [recipientWallet, setRecipientWallet] = useState("VF_Treasury_Custody_Account");
   const [isMinting, setIsMinting] = useState(false);
-  const [mintResult, setMintResult] = useState<any>(null);
+  const [mintResult, setMintResult] = useState<CarbonMintResponse | null>(null);
   const [mintError, setMintError] = useState<string | null>(null);
 
 
@@ -396,8 +397,9 @@ export default function CarbonLedgerPage() {
                       });
                       setMintResult(res);
                       loadData();
-                    } catch (err: any) {
-                      setMintError(err?.message || "Failed to execute cryptographic issuance. Ensure carbon records are verified.");
+                    } catch (err: unknown) {
+                      const message = err instanceof Error ? err.message : (typeof err === "object" && err !== null && "message" in err ? String((err as { message: unknown }).message) : "Failed to execute cryptographic issuance. Ensure carbon records are verified.");
+                      setMintError(message);
                     } finally {
                       setIsMinting(false);
                     }

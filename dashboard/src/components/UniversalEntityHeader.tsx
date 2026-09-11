@@ -8,7 +8,7 @@
 
 
 
-import { ShieldCheck, Clock, User, AlertTriangle, ArrowRight, Bot, CheckCircle2 } from "lucide-react";
+import { ShieldCheck, Clock, User, ArrowRight, Bot, CheckCircle2 } from "lucide-react";
 import { useWorkspace } from "@/context/WorkspaceContext";
 import { getSectorLifecycleStages, getSectorTerminology } from "@/lib/moduleRegistry";
 

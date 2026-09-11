@@ -4,8 +4,6 @@
 
 import { useEffect, useState } from "react";
 
-import { motion } from "framer-motion";
-
 import { fetchPublicOverview } from "@/lib/api";
 
 import { Building, Layers, MapPin, ShieldCheck } from "lucide-react";

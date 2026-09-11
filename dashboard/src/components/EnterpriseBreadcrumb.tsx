@@ -83,9 +83,9 @@ export default function EnterpriseBreadcrumb() {
   const currentStage = getStageFromPath(pathname);
 
   return (
-    <header className="w-full bg-[var(--color-surface)] border-b border-[var(--color-border)] px-4 py-2 flex items-center justify-between gap-4 text-xs shrink-0 select-none">
+    <header className="w-full max-w-full bg-[var(--color-surface)] border-b border-[var(--color-border)] px-3 sm:px-4 py-2 flex items-center justify-between gap-2 sm:gap-4 text-xs select-none overflow-x-auto">
       {/* Left: Context Breadcrumb & Sector Selector */}
-      <div className="flex items-center gap-2 min-w-0">
+      <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
         {/* Organization label */}
         <div className="hidden lg:flex items-center gap-1.5 font-semibold text-[var(--color-text-primary)] shrink-0">
           <Building size={14} className="text-[#008A5E]" />
@@ -100,7 +100,7 @@ export default function EnterpriseBreadcrumb() {
           <select
             value={activeSector}
             onChange={(e) => changeSector(e.target.value)}
-            className="bg-transparent text-[11px] font-semibold text-[var(--color-text-primary)] focus:outline-none cursor-pointer pr-1"
+            className="bg-transparent text-[11px] font-semibold text-[var(--color-text-primary)] focus:outline-none cursor-pointer pr-1 max-w-[105px] sm:max-w-none truncate"
           >
             {allowedSectors.map((sec) => (
               <option key={sec} value={sec}>

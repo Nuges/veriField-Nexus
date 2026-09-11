@@ -264,7 +264,7 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
               width: 48,
               height: 48,
               decoration: BoxDecoration(
-                color: (typeInfo['color'] as Color).withOpacity(0.15),
+                color: (typeInfo['color'] as Color).withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(typeInfo['icon'] as IconData, color: typeInfo['color'] as Color, size: 24),

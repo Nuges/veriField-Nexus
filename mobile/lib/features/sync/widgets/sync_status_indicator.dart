@@ -108,17 +108,12 @@ class _SyncStatusIndicatorState extends State<SyncStatusIndicator> {
 
           decoration: BoxDecoration(
 
-            color: const Color(0xFF064E3B).withOpacity(0.15),
-
-            border: Border.all(color: const Color(0xFF059669).withOpacity(0.3)),
-
+            color: const Color(0xFF064E3B).withValues(alpha: 0.15),
+            border: Border.all(color: const Color(0xFF059669).withValues(alpha: 0.3)),
             borderRadius: BorderRadius.circular(20),
-
             boxShadow: [
-
               BoxShadow(
-
-                color: const Color(0xFF10B981).withOpacity(0.08),
+                color: const Color(0xFF10B981).withValues(alpha: 0.08),
 
                 blurRadius: 8,
 
@@ -223,18 +218,12 @@ class _SyncStatusIndicatorState extends State<SyncStatusIndicator> {
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
 
         decoration: BoxDecoration(
-
-          color: const Color(0xFF78350F).withOpacity(0.15),
-
-          border: Border.all(color: const Color(0xFFD97706).withOpacity(0.3)),
-
+          color: const Color(0xFF78350F).withValues(alpha: 0.15),
+          border: Border.all(color: const Color(0xFFD97706).withValues(alpha: 0.3)),
           borderRadius: BorderRadius.circular(20),
-
           boxShadow: [
-
             BoxShadow(
-
-              color: const Color(0xFFF59E0B).withOpacity(0.08),
+              color: const Color(0xFFF59E0B).withValues(alpha: 0.08),
 
               blurRadius: 8,
 

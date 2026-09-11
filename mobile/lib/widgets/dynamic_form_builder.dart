@@ -490,7 +490,7 @@ class _DynamicFormBuilderState extends State<DynamicFormBuilder> {
                     setState(() => _formData[field.key] = value);
                     _notifyChanged();
                   },
-            activeColor: AppColors.primary,
+            activeTrackColor: AppColors.primary,
           ),
         ],
       ),
@@ -509,7 +509,7 @@ class _DynamicFormBuilderState extends State<DynamicFormBuilder> {
         _fieldLabel(field),
         const SizedBox(height: AppSpacing.sm),
         DropdownButtonFormField<String>(
-          value: field.enumValues?.contains(currentValue) == true
+          initialValue: field.enumValues?.contains(currentValue) == true
               ? currentValue
               : null,
           isExpanded: true,

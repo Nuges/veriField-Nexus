@@ -20,8 +20,6 @@
 
 import 'dart:io';
 
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
 
 import 'package:flutter/foundation.dart';
@@ -1920,8 +1918,7 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
 
             style: AppTypography.bodySmall.copyWith(fontWeight: FontWeight.w600)),
 
-        Switch.adaptive(value: val, activeColor: AppColors.primary,
-
+        Switch.adaptive(value: val, activeTrackColor: AppColors.primary,
             onChanged: (v) => setState(() => _fieldValues[field.key] = v)),
 
       ],

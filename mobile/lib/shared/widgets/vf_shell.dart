@@ -133,10 +133,15 @@ class _VFShellState extends State<VFShell> {
     // Determine current tab index from route
     final location = GoRouterState.of(context).matchedLocation;
     int currentIndex = 0;
-    if (location.startsWith('/audits')) currentIndex = 1;
-    else if (location.startsWith('/sensors')) currentIndex = 2;
-    else if (location.startsWith('/community')) currentIndex = 3;
-    else if (location.startsWith('/profile')) currentIndex = 4;
+    if (location.startsWith('/audits')) {
+      currentIndex = 1;
+    } else if (location.startsWith('/sensors')) {
+      currentIndex = 2;
+    } else if (location.startsWith('/community')) {
+      currentIndex = 3;
+    } else if (location.startsWith('/profile')) {
+      currentIndex = 4;
+    }
 
     return Container(
       decoration: const BoxDecoration(

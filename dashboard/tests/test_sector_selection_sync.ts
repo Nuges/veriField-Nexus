@@ -28,7 +28,7 @@ function runTests() {
     "ams-iii.c": "ev_mobility"
   };
 
-  const mockRegistry: any = {
+  const mockRegistry: Record<string, { methodologyCodes: string[] }> = {
     hybrid_energy: { methodologyCodes: ["ACM0002", "AMS-I.F"] },
     ev_mobility: { methodologyCodes: ["AMS-III.C"] },
     biochar: { methodologyCodes: ["VM0042"] },

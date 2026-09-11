@@ -4,37 +4,15 @@
 
 import React from "react";
 
-import { Leaf, Home, Flame, DollarSign, Zap, Layers, Globe, Fuel, Activity, ShieldCheck } from "lucide-react";
-
-
-
 interface KPI {
-
   code: string;
-
   label: string;
-
   value: number | string;
-
   unit?: string;
-
   subtext?: string;
-
   iconName?: string;
-
   colorTheme?: string;
-
 }
-
-
-
-const ICON_MAP: Record<string, any> = {
-
-  Leaf, Home, Flame, DollarSign, Zap, Layers, Globe, Fuel, Activity, ShieldCheck
-
-};
-
-
 
 export default function WidgetRenderer({ kpis, sectorCode }: { kpis?: KPI[]; sectorCode?: string }) {
 

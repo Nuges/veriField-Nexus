@@ -193,7 +193,7 @@ class _LoginScreenState extends State<LoginScreen> {
           ElevatedButton(
             onPressed: () async {
               await ApiService.setCustomServerUrl(controller.text);
-              if (mounted) Navigator.pop(ctx);
+              if (mounted && ctx.mounted) Navigator.pop(ctx);
               await _checkServerConnection();
             },
             child: const Text('Save & Connect'),

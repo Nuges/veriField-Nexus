@@ -140,54 +140,24 @@ export default function VerificationPipelineStages({
 
   const [activities, setActivities] = useState<any[]>(externalActivities || []);
 
-  const [isLoading, setIsLoading] = useState(!externalActivities);
-
-
-
   const activeStage = externalSelectedStage !== undefined ? externalSelectedStage : internalSelectedStage;
 
-
-
   useEffect(() => {
-
     if (externalActivities) {
-
       setActivities(externalActivities);
-
-      setIsLoading(false);
-
       return;
-
     }
-
-
 
     async function loadPipelineMetrics() {
-
-      setIsLoading(true);
-
       try {
-
         const res = await fetchActivities({ per_page: 500 });
-
         const list = Array.isArray(res) ? res : (res?.activities || []);
-
         setActivities(list);
-
       } catch (err) {
-
         console.warn("Pipeline stages fetch notice:", err);
-
-      } finally {
-
-        setIsLoading(false);
-
       }
-
     }
-
     loadPipelineMetrics();
-
   }, [externalActivities]);
 
 

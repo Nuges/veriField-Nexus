@@ -8,7 +8,7 @@
 
 import { motion } from "framer-motion";
 
-import { Layers, Zap, Search, Shield, BarChart3, Cloud, CheckCircle2 } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 
 
 

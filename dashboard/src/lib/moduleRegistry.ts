@@ -189,37 +189,38 @@ export interface APIFamily {
   id: string;
 
   code: string;
-
   name: string;
-
   description?: string;
-
-  project_types?: any[];
-
+  project_types?: unknown[];
 }
 
+export interface APIMethodologyUIConfig {
+  kpis?: KPICardDef[];
+  charts?: ChartDef[];
+  filterOptions?: FilterOption[];
+  default_price_usd?: number;
+  [key: string]: unknown;
+}
 
+export interface ClassifiableRecord {
+  sector?: string | null;
+  methodology_code?: string | null;
+  property_type?: string | null;
+  activity_type?: string | null;
+  type?: string | null;
+  asset_type?: string | null;
+}
 
 export interface APIMethodology {
-
   id: string;
-
   code: string;
-
   name: string;
-
   description?: string;
-
   family?: APIFamily;
-
   family_id?: string; // Some endpoints may return flat ID
-
-  ui_config?: Record<string, any>;
-
-  form_schema?: Record<string, any>;
-
-  recommendation_rules?: Record<string, any>;
-
+  ui_config?: APIMethodologyUIConfig;
+  form_schema?: Record<string, unknown>;
+  recommendation_rules?: Record<string, unknown>;
 }
 
 
@@ -250,7 +251,7 @@ export interface WorkspaceConfig {
 
   filterOptions: FilterOption[];
 
-  form_schema?: Record<string, any>;
+  form_schema?: Record<string, unknown>;
 
   default_price_usd?: number;
 
@@ -512,7 +513,7 @@ export function resolveUserWorkspace(
   licensedSectors: string[],
   licensedMethodologies: string[],
   methToFamily: Record<string, string>,
-  registry: Record<string, WorkspaceConfig>,
+  registry: Record<string, Partial<WorkspaceConfig> | { methodologyCodes: string[] }>,
   orgName?: string
 ): { activeWorkspace: string; allowedWorkspaces: string[] } {
   const resolved = new Set<string>();
@@ -574,7 +575,7 @@ export function validateCachedWorkspace(
 ): string | null {
 
   if (!cached) return null;
-  let normalized = canonicalSectorCode(cached);
+  const normalized = canonicalSectorCode(cached);
 
 
 
@@ -621,8 +622,7 @@ export function validateCachedWorkspace(
  */
 
 export function classifyRecord(
-
-  record: any,
+  record: ClassifiableRecord | null | undefined,
 
   methToFamily: Record<string, string>,
 
@@ -667,8 +667,7 @@ export function classifyRecord(
 
 
   // Check property_type, activity_type, type, asset_type
-
-  const typeFields = ['property_type', 'activity_type', 'type', 'asset_type'];
+  const typeFields = ['property_type', 'activity_type', 'type', 'asset_type'] as const;
 
   for (const field of typeFields) {
 
@@ -737,41 +736,25 @@ export function normalizeSector(sec: string): string {
 
 
 /** @deprecated Use classifyRecord instead */
-
-export function mapToWorkspace(record: any): string | null {
-
+export function mapToWorkspace(record: ClassifiableRecord | null | undefined): string | null {
   if (!record) return null;
 
-  const normalizeVal = (value?: any) => {
-
+  const normalizeVal = (value?: unknown) => {
     if (typeof value !== "string") return "";
-
     return value.toLowerCase().trim();
-
   };
 
   const type = normalizeVal(record.property_type || record.activity_type || record.type || record.asset_type || record.sector);
-
   if (!type) return null;
-
   return type;
-
 }
 
-
-
 /** @deprecated Use classifyRecord instead */
-
-export function getRecordSector(record: any): string {
-
+export function getRecordSector(record: ClassifiableRecord | null | undefined): string {
   if (record && record.sector) {
-
     return normalizeSector(record.sector);
-
   }
-
   return mapToWorkspace(record) || "generic";
-
 }
 
 

@@ -22,7 +22,7 @@ import React, { useState, useMemo } from "react";
 
 import dynamic from "next/dynamic";
 
-import { MapPin, Filter, Layers, Navigation, List, Map as MapIcon } from "lucide-react";
+import { MapPin, List, Map as MapIcon } from "lucide-react";
 
 
 

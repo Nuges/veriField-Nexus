@@ -11,26 +11,24 @@
 
 
 import type {
-
   Activity,
-
   ActivityListResponse,
-
   AnalyticsOverview,
-
   AnalyticsTrends,
-
   DailySubmission,
-
   Property,
-
   TrustDistribution,
-
   TrustScoreBreakdown,
-
   User,
-
+  Project,
+  Organization,
+  AuditFinding,
+  LedgerTransaction,
+  CarbonMintResponse,
+  StandardApiResponse,
 } from "./types";
+
+export type { CarbonMintResponse, LedgerTransaction };
 
 import { safeStorage } from "./storage";
 
@@ -186,91 +184,40 @@ function cleanImageUrl(url: string): string {
 
 
 
-function recursiveCleanImageUrls(obj: any): any {
-
+function recursiveCleanImageUrls<T>(obj: T): T {
   if (obj === null || obj === undefined) return obj;
-
   if (typeof obj === "string") {
-
-    return cleanImageUrl(obj);
-
+    return cleanImageUrl(obj) as unknown as T;
   }
-
   if (Array.isArray(obj)) {
-
-    return obj.map(recursiveCleanImageUrls);
-
+    return obj.map((item) => recursiveCleanImageUrls(item)) as unknown as T;
   }
-
   if (typeof obj === "object") {
-
-    const cleaned: any = {};
-
-    for (const key in obj) {
-
-      if (Object.prototype.hasOwnProperty.call(obj, key)) {
-
-        cleaned[key] = recursiveCleanImageUrls(obj[key]);
-
+    const record = obj as Record<string, unknown>;
+    const cleaned: Record<string, unknown> = {};
+    for (const key in record) {
+      if (Object.prototype.hasOwnProperty.call(record, key)) {
+        cleaned[key] = recursiveCleanImageUrls(record[key]);
       }
-
     }
-
-    return cleaned;
-
+    return cleaned as unknown as T;
   }
-
   return obj;
-
 }
 
-
-
-
-
 // ---------------------------------------------------------------------------
-
 // Interceptors & Config
-
 // ---------------------------------------------------------------------------
-
 export const apiConfig = {
-
   timeout: 60000,
-
   maxRetries: 2,
-
 };
-
-
 
 export const interceptors = {
-
   request: (options: CustomRequestInit) => options,
-
   response: (response: Response) => response,
-
-  error: (error: any) => { throw error; }
-
+  error: (error: unknown) => { throw error; }
 };
-
-
-
-interface StandardApiResponse<T = any> {
-
-  success: boolean;
-
-  data: T;
-
-  message?: string;
-
-  errors?: any[];
-
-  pagination?: any;
-
-  metadata?: any;
-
-}
 
 
 
@@ -1364,79 +1311,45 @@ export async function updateCsiParameter(paramId: string, val: number): Promise<
 
 
 
-export async function fetchUsers(): Promise<any[]> {
-
-  return apiFetch<any[]>("/auth/users");
-
+export async function fetchUsers(): Promise<User[]> {
+  return apiFetch<User[]>("/auth/users");
 }
 
-
-
-export async function updateAgentStatus(userId: string, status: "active" | "suspended" | "revoked"): Promise<any> {
-
-  return apiFetch<any>(`/auth/users/${userId}`, {
-
+export async function updateAgentStatus(userId: string, status: "active" | "suspended" | "revoked"): Promise<User> {
+  return apiFetch<User>(`/auth/users/${userId}`, {
     method: "PUT",
-
     body: JSON.stringify({ status }),
-
   });
-
 }
-
-
 
 export async function updateUserAccount(
-
   userId: string,
-
   data: { full_name?: string; role?: string; status?: string; organization_id?: string }
-
-): Promise<any> {
-
-  return apiFetch<any>(`/auth/users/${userId}`, {
-
+): Promise<User> {
+  return apiFetch<User>(`/auth/users/${userId}`, {
     method: "PUT",
-
     body: JSON.stringify(data),
-
   });
-
 }
 
-
-
-export async function resetAgentPassword(userId: string, newPassword: string): Promise<any> {
-  return apiFetch<any>(`/auth/users/${userId}/reset-password`, {
+export async function resetAgentPassword(userId: string, newPassword: string): Promise<{ status: string; message: string }> {
+  return apiFetch<{ status: string; message: string }>(`/auth/users/${userId}/reset-password`, {
     method: "POST",
     body: JSON.stringify({ password: newPassword, new_password: newPassword }),
   });
 }
 
-
-
 export async function createUserAccount(payload: {
-
   full_name: string;
-
   email: string;
-
   role: string;
-
   password?: string;
-
   organization_id?: string;
-
-}): Promise<any> {
-
-  return apiFetch<any>("/auth/users", {
-
+}): Promise<User> {
+  return apiFetch<User>("/auth/users", {
     method: "POST",
-
     body: JSON.stringify(payload),
-
   });
-
 }
 
 
@@ -1673,40 +1586,24 @@ export async function fetchSensorDevices(): Promise<{ devices: any[]; total: num
 
 
 
-export async function fetchProjectTotal(projectId: string): Promise<any> {
-  return apiFetch<any>(`/projects/${projectId}`);
+export async function fetchProjectTotal(projectId: string): Promise<Project> {
+  return apiFetch<Project>(`/projects/${projectId}`);
 }
 
-
-
-export async function fetchProjects(sector_id?: string): Promise<{ items: any[], total: number }> {
-
-  return apiFetch<{ items: any[], total: number }>(`/projects${sector_id ? `?sector_id=${sector_id}` : ""}`);
-
+export async function fetchProjects(sector_id?: string): Promise<{ items: Project[], total: number }> {
+  return apiFetch<{ items: Project[], total: number }>(`/projects${sector_id ? `?sector_id=${sector_id}` : ""}`);
 }
-
-
 
 export async function createCarbonProject(data: {
-
   name: string;
-
   methodology_id: string;
-
-  baseline_parameters: Record<string, any>;
-
-  [key: string]: any;
-
-}): Promise<any> {
-
-  return apiFetch<any>("/projects", {
-
+  baseline_parameters: Record<string, unknown>;
+  [key: string]: unknown;
+}): Promise<Project> {
+  return apiFetch<Project>("/projects", {
     method: "POST",
-
     body: JSON.stringify(data),
-
   });
-
 }
 
 
@@ -2067,21 +1964,15 @@ export async function rejectAccessRequest(id: string) {
 
 
 
-export async function deleteAccessRequest(id: string) {
-
-  return apiFetch<any>(`/admin/access-requests/${id}`, {
-
+export async function deleteAccessRequest(id: string): Promise<{ status: string; message: string }> {
+  return apiFetch<{ status: string; message: string }>(`/admin/access-requests/${id}`, {
     method: "DELETE",
-
   });
-
 }
 
-
-
-export async function fetchAllOrganizations() {
+export async function fetchAllOrganizations(): Promise<Organization[]> {
   try {
-    const result = await apiFetch<any[]>("/organizations");
+    const result = await apiFetch<Organization[]>("/organizations");
     return Array.isArray(result) ? result : [];
   } catch (e) {
     console.error("Failed to fetch organizations:", e);
@@ -2089,15 +1980,9 @@ export async function fetchAllOrganizations() {
   }
 }
 
-
-
-export async function fetchAllUsersGlobal() {
-
-  return apiFetch<any[]>("/auth/users");
-
+export async function fetchAllUsersGlobal(): Promise<User[]> {
+  return apiFetch<User[]>("/auth/users");
 }
-
-
 
 export async function toggleUserSuspension(id: string, isActive: boolean) {
   if (isActive) {
@@ -2107,86 +1992,50 @@ export async function toggleUserSuspension(id: string, isActive: boolean) {
   }
 }
 
-
-
-export async function fetchAuditLogs() {
-
+export async function fetchAuditLogs(): Promise<Record<string, unknown>[]> {
   try {
-
-    const logs = await apiFetch<any[]>("/ai-trust-engine/logs");
-
+    const logs = await apiFetch<Record<string, unknown>[]>("/ai-trust-engine/logs");
     return Array.isArray(logs) ? logs : [];
-
-  } catch (e) {
-
+  } catch {
     return [];
-
   }
-
 }
 
-
-
-export async function deleteOrganization(id: string) {
-
+export async function deleteOrganization(id: string): Promise<void> {
   return apiFetch<void>(`/organizations/${id}`, {
-
     method: "DELETE",
-
   });
-
 }
 
-
-
-export async function fetchOrganizationAnalytics(id: string) {
-
-  return apiFetch<any>(`/admin/organizations/${id}/analytics`);
-
+export async function fetchOrganizationAnalytics(id: string): Promise<Record<string, unknown>> {
+  return apiFetch<Record<string, unknown>>(`/admin/organizations/${id}/analytics`);
 }
-
-
 
 export async function createAdminUserAccount(payload: {
-
   full_name: string;
-
   email: string;
-
   phone?: string;
-
   job_title?: string;
-
   role: string;
-
   organization_id?: string;
-
   password?: string;
-
   project_memberships?: Array<{ project_id: string; role: string }>;
-
-  meta_data?: Record<string, any>;
-
+  meta_data?: Record<string, unknown>;
 }): Promise<{
-
-  user: any;
-
+  user: User;
   temporary_password?: string;
-
   assigned_memberships_count: number;
-
   message: string;
-
 }> {
-
-  return apiFetch<any>("/admin/users", {
-
+  return apiFetch<{
+    user: User;
+    temporary_password?: string;
+    assigned_memberships_count: number;
+    message: string;
+  }>("/admin/users", {
     method: "POST",
-
     body: JSON.stringify(payload),
-
   });
-
 }
 
 
@@ -2788,118 +2637,93 @@ export async function adminResetUserPassword(userId: string, newPassword: string
 
 
 export async function adminSuspendUser(userId: string, reason?: string): Promise<{ status: string; message: string; user_status: string; is_active: boolean }> {
-
-  return apiFetch<any>(`/admin/users/${userId}/suspend`, {
-
+  return apiFetch<{ status: string; message: string; user_status: string; is_active: boolean }>(`/admin/users/${userId}/suspend`, {
     method: "POST",
-
     body: JSON.stringify({ reason: reason || "Suspended by Super Admin" }),
-
   });
-
 }
-
-
 
 export async function adminReactivateUser(userId: string): Promise<{ status: string; message: string; user_status: string; is_active: boolean }> {
-
-  return apiFetch<any>(`/admin/users/${userId}/reactivate`, {
-
+  return apiFetch<{ status: string; message: string; user_status: string; is_active: boolean }>(`/admin/users/${userId}/reactivate`, {
     method: "POST",
-
+    body: JSON.stringify({}),
   });
-
 }
-
-
 
 export async function adminDeleteUser(userId: string): Promise<{ status: string; message: string }> {
-
   return apiFetch<{ status: string; message: string }>(`/admin/users/${userId}`, {
-
     method: "DELETE",
-
   });
-
 }
 
-
-
-export async function fetchAdminRoles(): Promise<any[]> {
-
-  return apiFetch<any[]>("/admin/roles");
-
+export interface AdminRole {
+  id: string;
+  name: string;
+  code: string;
+  description?: string;
+  permissions?: string[];
 }
 
-
-
-export async function fetchAdminPermissions(): Promise<any[]> {
-
-  return apiFetch<any[]>("/admin/permissions");
-
+export interface AdminPermission {
+  id: string;
+  code: string;
+  name: string;
+  module?: string;
 }
 
+export interface ProjectMember {
+  user_id: string;
+  full_name?: string;
+  email?: string | null;
+  role?: string;
+  role_code?: string;
+  joined_at?: string;
+}
 
+export async function fetchAdminRoles(): Promise<AdminRole[]> {
+  return apiFetch<AdminRole[]>("/admin/roles");
+}
+
+export async function fetchAdminPermissions(): Promise<AdminPermission[]> {
+  return apiFetch<AdminPermission[]>("/admin/permissions");
+}
 
 export async function fetchProjectMemberships(projectId: string): Promise<{
-
   project_id: string;
-
   project_name: string;
-
   member_count: number;
-
-  members: any[];
-
+  members: ProjectMember[];
 }> {
-
-  return apiFetch<any>(`/admin/projects/${projectId}/members`);
-
+  return apiFetch<{
+    project_id: string;
+    project_name: string;
+    member_count: number;
+    members: ProjectMember[];
+  }>(`/admin/projects/${projectId}/members`);
 }
-
-
 
 export async function assignProjectMembership(projectId: string, userId: string, roleCode: string): Promise<{ status: string; message: string }> {
-
-  return apiFetch<any>(`/admin/projects/${projectId}/members`, {
-
+  return apiFetch<{ status: string; message: string }>(`/admin/projects/${projectId}/members`, {
     method: "POST",
-
     body: JSON.stringify({ user_id: userId, role_code: roleCode }),
-
   });
-
 }
-
-
 
 export async function revokeProjectMembership(projectId: string, userId: string): Promise<{ status: string; message: string }> {
-
-  return apiFetch<any>(`/admin/projects/${projectId}/members/${userId}`, {
-
+  return apiFetch<{ status: string; message: string }>(`/admin/projects/${projectId}/members/${userId}`, {
     method: "DELETE",
-
   });
-
 }
-
-
 
 export async function adminRevokeUserSessions(userId: string): Promise<{ status: string; message: string }> {
-
-  return apiFetch<any>(`/admin/users/${userId}/revoke-sessions`, {
-
+  return apiFetch<{ status: string; message: string }>(`/admin/users/${userId}/revoke-sessions`, {
     method: "POST",
-
   });
-
 }
 
-
-
-export async function fetchGovernanceAuditLogs(action?: string): Promise<any[]> {
+export async function fetchGovernanceAuditLogs(action?: string): Promise<Record<string, unknown>[]> {
   const query = action ? `?action=${encodeURIComponent(action)}` : "";
-  return apiFetch<any[]>(`/admin/audit-logs${query}`);
+  return apiFetch<Record<string, unknown>[]>(`/admin/audit-logs${query}`);
 }
 
 export async function submitITMOAuthorization(data: {
@@ -2918,16 +2742,41 @@ export async function submitITMOAuthorization(data: {
   acquiring_party: string;
   dossier_sha256: string;
   authorized_at: string;
-  dossier: any;
+  dossier: Record<string, unknown>;
 }> {
   try {
-    return await apiFetch<any>("/registry/itmo/authorize", {
+    return await apiFetch<{
+      status: string;
+      message: string;
+      project_id: string;
+      project_name: string;
+      serial_number: string;
+      cumulative_itmos_tco2e: number;
+      cooperative_approach_id: string;
+      acquiring_party: string;
+      dossier_sha256: string;
+      authorized_at: string;
+      dossier: Record<string, unknown>;
+    }>("/registry/itmo/authorize", {
       method: "POST",
       body: JSON.stringify(data),
     });
-  } catch (err: any) {
-    if (err?.message?.includes("404") || err?.message?.includes("Not Found")) {
-      return await apiFetch<any>("/registry-integrations/itmo/authorize", {
+  } catch (err: unknown) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    if (errorMsg.includes("404") || errorMsg.includes("Not Found")) {
+      return await apiFetch<{
+        status: string;
+        message: string;
+        project_id: string;
+        project_name: string;
+        serial_number: string;
+        cumulative_itmos_tco2e: number;
+        cooperative_approach_id: string;
+        acquiring_party: string;
+        dossier_sha256: string;
+        authorized_at: string;
+        dossier: Record<string, unknown>;
+      }>("/registry-integrations/itmo/authorize", {
         method: "POST",
         body: JSON.stringify(data),
       });
@@ -2936,23 +2785,25 @@ export async function submitITMOAuthorization(data: {
   }
 }
 
-export async function fetchComplianceDossier(standard: string, projectId: string): Promise<any> {
+export async function fetchComplianceDossier(standard: string, projectId: string): Promise<Record<string, unknown>> {
   try {
-    return await apiFetch<any>(`/registry/dossier/${standard}/${projectId}`);
-  } catch (err: any) {
-    if (err?.message?.includes("404") || err?.message?.includes("Not Found")) {
-      return await apiFetch<any>(`/registry-integrations/dossier/${standard}/${projectId}`);
+    return await apiFetch<Record<string, unknown>>(`/registry/dossier/${standard}/${projectId}`);
+  } catch (err: unknown) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    if (errorMsg.includes("404") || errorMsg.includes("Not Found")) {
+      return await apiFetch<Record<string, unknown>>(`/registry-integrations/dossier/${standard}/${projectId}`);
     }
     throw err;
   }
 }
 
-export async function fetchRegistryReadiness(projectId: string, standard: string = "VERRA"): Promise<any> {
+export async function fetchRegistryReadiness(projectId: string, standard: string = "VERRA"): Promise<Record<string, unknown>> {
   try {
-    return await apiFetch<any>(`/registry/readiness/${projectId}?target_standard=${standard}`);
-  } catch (err: any) {
-    if (err?.message?.includes("404") || err?.message?.includes("Not Found")) {
-      return await apiFetch<any>(`/registry-integrations/readiness/${projectId}?target_standard=${standard}`);
+    return await apiFetch<Record<string, unknown>>(`/registry/readiness/${projectId}?target_standard=${standard}`);
+  } catch (err: unknown) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    if (errorMsg.includes("404") || errorMsg.includes("Not Found")) {
+      return await apiFetch<Record<string, unknown>>(`/registry-integrations/readiness/${projectId}?target_standard=${standard}`);
     }
     throw err;
   }
@@ -2995,37 +2846,24 @@ export async function executeCarbonMinting(data: {
   target_chain?: string;
   recipient_wallet?: string;
   volume_tco2e?: number;
-}): Promise<{
-  status: string;
-  message: string;
-  batch_id: string;
-  serial_number: string;
-  total_tco2e: number;
-  target_chain: string;
-  recipient_wallet: string;
-  transaction_signature: string;
-  explorer_url: string;
-  payload_hash: string;
-  signature_hash: string;
-  minted_at: string;
-  records_minted: number;
-}> {
-  return apiFetch<any>("/ledger/mint", {
+}): Promise<CarbonMintResponse> {
+  return apiFetch<CarbonMintResponse>("/ledger/mint", {
     method: "POST",
     body: JSON.stringify(data),
   });
 }
 
-export async function fetchLedgerTransactions(): Promise<any[]> {
-  return apiFetch<any[]>("/ledger/transactions");
+export async function fetchLedgerTransactions(): Promise<LedgerTransaction[]> {
+  return apiFetch<LedgerTransaction[]>("/ledger/transactions");
 }
 
-export async function fetchRegistryDocumentMatrix(): Promise<any> {
+export async function fetchRegistryDocumentMatrix(): Promise<Record<string, unknown>> {
   try {
-    return await apiFetch<any>("/registry/document-matrix");
-  } catch (err: any) {
-    if (err?.message?.includes("404") || err?.message?.includes("Not Found")) {
-      return await apiFetch<any>("/registry-integrations/document-matrix");
+    return await apiFetch<Record<string, unknown>>("/registry/document-matrix");
+  } catch (err: unknown) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    if (errorMsg.includes("404") || errorMsg.includes("Not Found")) {
+      return await apiFetch<Record<string, unknown>>("/registry-integrations/document-matrix");
     }
     throw err;
   }

@@ -92,7 +92,7 @@ export function normalizeRole(role?: string | null): CanonicalRole {
 
   if (ROLE_ALIASES[cleanedLower]) return ROLE_ALIASES[cleanedLower];
   if (ROLE_ALIASES[cleaned]) return ROLE_ALIASES[cleaned];
-  if (Object.values(CANONICAL_ROLES).includes(cleaned as any)) {
+  if ((Object.values(CANONICAL_ROLES) as string[]).includes(cleaned)) {
     return cleaned as CanonicalRole;
   }
 
@@ -302,13 +302,13 @@ export const DATE_FILTER_PRESETS = [
 
 export function getRolePriority(role?: string | null): number {
   const norm = normalizeRole(role);
-  const idx = ROLE_ORDER.indexOf(norm as any);
+  const idx = (ROLE_ORDER as readonly string[]).indexOf(norm);
   return idx !== -1 ? idx : 999;
 }
 
 export function getStatusPriority(status?: string | null): number {
   const norm = (status || "").trim().toUpperCase();
-  const idx = STATUS_ORDER.indexOf(norm as any);
+  const idx = (STATUS_ORDER as readonly string[]).indexOf(norm);
   return idx !== -1 ? idx : 999;
 }
 
