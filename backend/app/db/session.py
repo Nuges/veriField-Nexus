@@ -265,13 +265,14 @@ async def _init_fallback_db():
 
             seed_password = os.environ.get("SUPER_ADMIN_PASSWORD", os.environ.get("SEED_ADMIN_PASSWORD", "VeriField_Dev_2026!"))
             pw_hash = get_password_hash(seed_password)
-            # Seed the SINGLE authorized platform Super Admin: segunoluwole22@gmail.com
+            seed_admin_email = settings.authorized_bootstrap_admin_email
+            # Seed the SINGLE authorized platform Super Admin
             await session.execute(text("""
                 INSERT OR REPLACE INTO users (id, email, full_name, role, status, is_active, password_hash, requires_password_change, version, is_deleted, created_at, updated_at)
                 VALUES (
                     '00000000-0000-0000-0000-000000000001',
-                    'segunoluwole22@gmail.com',
-                    'Segun Oluwole',
+                    :admin_email,
+                    'Platform Super Admin',
                     'SUPER_ADMIN',
                     'active',
                     1,
@@ -282,7 +283,7 @@ async def _init_fallback_db():
                     CURRENT_TIMESTAMP,
                     CURRENT_TIMESTAMP
                 )
-            """), {"pw_hash": pw_hash})
+            """), {"admin_email": seed_admin_email, "pw_hash": pw_hash})
 
             # Ensure legacy test super admins are decommissioned
             await session.execute(text("""

@@ -86,9 +86,12 @@ async def init_test_database():
             VALUES ('00000000-0000-0000-0000-000000000001', 5.0, 10, 12, 2, 5)
         """))
 
+        from app.core.config import settings
+        admin_email = settings.authorized_bootstrap_admin_email
+
         await session.execute(text("""
-            DELETE FROM users WHERE email != 'segunoluwole22@gmail.com' AND role = 'SUPER_ADMIN'
-        """))
+            DELETE FROM users WHERE email != :admin_email AND role = 'SUPER_ADMIN'
+        """), {"admin_email": admin_email})
 
         pw_hash = get_password_hash("Lovelyday1")
         await session.execute(text("""
@@ -96,8 +99,8 @@ async def init_test_database():
 
             VALUES (
                 '00000000-0000-0000-0000-000000000001',
-                'segunoluwole22@gmail.com',
-                'Segun Oluwole',
+                :admin_email,
+                'Platform Super Admin',
                 'SUPER_ADMIN',
                 'active',
                 1,
@@ -108,7 +111,7 @@ async def init_test_database():
                 CURRENT_TIMESTAMP,
                 CURRENT_TIMESTAMP
             )
-        """), {"pw_hash": pw_hash})
+        """), {"admin_email": admin_email, "pw_hash": pw_hash})
 
         try:
             from app.domains.methodologies.metadata.seed_phase_1 import seed_data
@@ -136,12 +139,13 @@ async def db_session() -> AsyncSession:
 @pytest_asyncio.fixture
 async def admin_token_headers():
     from app.core.security import get_current_user
+    from app.core.config import settings
 
     async def override_get_current_user():
         return User(
             id=UUID("00000000-0000-0000-0000-000000000001"),
-            email="segunoluwole22@gmail.com",
-            full_name="Segun Oluwole",
+            email=settings.authorized_bootstrap_admin_email,
+            full_name="Platform Super Admin",
             role="SUPER_ADMIN",
             status="active",
             is_active=True,

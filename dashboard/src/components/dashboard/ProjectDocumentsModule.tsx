@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   FileText,
   Upload,
@@ -15,7 +15,6 @@ import {
   RefreshCw,
   X,
   FileCode,
-  FileSpreadsheet,
   AlertOctagon,
   Sparkles,
 } from "lucide-react";
@@ -28,6 +27,69 @@ import {
   downloadArticle6PackageZip,
 } from "@/lib/api";
 import { useWorkspace } from "@/context/WorkspaceContext";
+
+export interface DocumentReconciliationReason {
+  status: "PASS" | "WARN" | "FAIL" | string;
+  label: string;
+  message: string;
+}
+
+export interface DocumentTrustBreakdown {
+  score?: number;
+  reasons?: DocumentReconciliationReason[];
+}
+
+export interface DocumentExtractedField {
+  value?: string | number | boolean | null;
+  confidence?: number;
+  source?: string;
+}
+
+export interface DocumentExtractedData {
+  fields?: Record<string, DocumentExtractedField | undefined>;
+}
+
+export interface ProjectDocument {
+  id: string;
+  project_id: string;
+  document_type: string;
+  title?: string;
+  version?: string | number;
+  original_filename: string;
+  file_size?: number;
+  mime_type?: string;
+  sha256?: string;
+  status: string;
+  trust_score?: number;
+  trust_breakdown?: DocumentTrustBreakdown;
+  extracted_data?: DocumentExtractedData;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface RegistryPackageManifest {
+  package_id?: string;
+  registry_standard?: string;
+  project_id?: string;
+  package_hash?: string;
+  created_at?: string;
+  readiness_matrix?: {
+    data_manifest?: string;
+    document_package?: string;
+    external_submission?: string;
+  };
+  mrv_quantification?: {
+    total_reductions_tco2e?: number;
+    total_verified_assets?: number;
+  };
+  documents?: Array<{
+    id: string;
+    title: string;
+    type: string;
+    status: string;
+  }>;
+  [key: string]: unknown;
+}
 
 interface ProjectDocumentsModuleProps {
   projectId: string;
@@ -47,12 +109,12 @@ export const ProjectDocumentsModule: React.FC<ProjectDocumentsModuleProps> = ({
   const { user } = useWorkspace();
   const effectiveOrgId = organizationId || user?.organization_id || undefined;
 
-  const [documents, setDocuments] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [documents, setDocuments] = useState<ProjectDocument[]>([]);
+  const [loading, setLoading] = useState(Boolean(projectId));
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
-  const [selectedDocForBreakdown, setSelectedDocForBreakdown] = useState<any | null>(null);
+  const [selectedDocForBreakdown, setSelectedDocForBreakdown] = useState<ProjectDocument | null>(null);
   const [registryPackageModalOpen, setRegistryPackageModalOpen] = useState(false);
-  const [registryPackageData, setRegistryPackageData] = useState<any | null>(null);
+  const [registryPackageData, setRegistryPackageData] = useState<RegistryPackageManifest | null>(null);
   const [loadingPackage, setLoadingPackage] = useState(false);
 
   // Upload Form State
@@ -64,22 +126,32 @@ export const ProjectDocumentsModule: React.FC<ProjectDocumentsModuleProps> = ({
   const [uploadError, setUploadError] = useState("");
   const [generatingReport, setGeneratingReport] = useState(false);
 
-  const loadDocs = async () => {
-    setLoading(true);
+  const loadDocs = useCallback(async () => {
     try {
       const data = await fetchProjectDocuments(projectId);
       setDocuments(data || []);
     } catch (err) {
       console.error("Failed to load project documents:", err);
-    } finally {
-      setLoading(false);
     }
-  };
+  }, [projectId]);
 
   useEffect(() => {
+    let isMounted = true;
     if (projectId) {
-      loadDocs();
+      fetchProjectDocuments(projectId)
+        .then((data) => {
+          if (isMounted) setDocuments(data || []);
+        })
+        .catch((err) => {
+          console.error("Failed to load project documents:", err);
+        })
+        .finally(() => {
+          if (isMounted) setLoading(false);
+        });
     }
+    return () => {
+      isMounted = false;
+    };
   }, [projectId]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -106,26 +178,26 @@ export const ProjectDocumentsModule: React.FC<ProjectDocumentsModuleProps> = ({
       if (customTitle) formData.append("title", customTitle);
 
       setUploadStage("Uploading & Parsing Document Structure...");
-      const result = await uploadProjectDocument(projectId, formData);
+      await uploadProjectDocument(projectId, formData);
 
       setUploadStage("Reconciling MRV Invariants & Indexing Knowledge...");
       await loadDocs();
       setUploadModalOpen(false);
       setSelectedFile(null);
       setCustomTitle("");
-    } catch (err: any) {
-      setUploadError(err.message || "Document upload failed");
+    } catch (err: unknown) {
+      setUploadError(err instanceof Error ? err.message : "Document upload failed");
     } finally {
       setUploading(false);
       setUploadStage("");
     }
   };
 
-  const handleDownload = async (doc: any) => {
+  const handleDownload = async (doc: ProjectDocument) => {
     try {
       await downloadDocument(doc.id, doc.original_filename);
-    } catch (err: any) {
-      alert(err.message || "Failed to download document.");
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Failed to download document.");
     }
   };
 
@@ -138,8 +210,8 @@ export const ProjectDocumentsModule: React.FC<ProjectDocumentsModuleProps> = ({
     setGeneratingReport(true);
     try {
       await generateAndDownloadReport(orgIdToUse, projectId, `${projectName} MRV Carbon Ledger Certificate`);
-    } catch (err: any) {
-      alert(err.message || "Failed to generate and download MRV report.");
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Failed to generate and download MRV report.");
     } finally {
       setGeneratingReport(false);
     }
@@ -152,8 +224,8 @@ export const ProjectDocumentsModule: React.FC<ProjectDocumentsModuleProps> = ({
     try {
       const data = await fetchRegistryPackage(registry, projectId);
       setRegistryPackageData(data);
-    } catch (err: any) {
-      alert(err.message || "Failed to build registry package.");
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Failed to build registry package.");
       setRegistryPackageModalOpen(false);
     } finally {
       setLoadingPackage(false);
@@ -291,7 +363,7 @@ export const ProjectDocumentsModule: React.FC<ProjectDocumentsModuleProps> = ({
                         {getDocIcon(doc.document_type)}
                         <div>
                           <p className="font-medium text-gray-900 dark:text-gray-100">{doc.title}</p>
-                          <p className="text-[11px] text-gray-500">{doc.original_filename} · {(doc.file_size / 1024).toFixed(0)} KB</p>
+                          <p className="text-[11px] text-gray-500">{doc.original_filename} · {(((doc.file_size || 0) / 1024)).toFixed(0)} KB</p>
                         </div>
                       </div>
                     </td>
@@ -310,9 +382,9 @@ export const ProjectDocumentsModule: React.FC<ProjectDocumentsModuleProps> = ({
                       <button
                         onClick={() => setSelectedDocForBreakdown(doc)}
                         className={`inline-flex items-center gap-1 font-bold px-2 py-0.5 rounded text-xs transition ${
-                          doc.trust_score >= 90
+                          (doc.trust_score ?? 100) >= 90
                             ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                            : doc.trust_score >= 70
+                            : (doc.trust_score ?? 100) >= 70
                             ? "bg-amber-50 text-amber-700 hover:bg-amber-100"
                             : "bg-red-50 text-red-700 hover:bg-red-100"
                         }`}
@@ -485,7 +557,7 @@ export const ProjectDocumentsModule: React.FC<ProjectDocumentsModuleProps> = ({
               <h5 className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
                 Reconciliation Audit Checks
               </h5>
-              {selectedDocForBreakdown.trust_breakdown?.reasons?.map((item: any, idx: number) => (
+              {selectedDocForBreakdown.trust_breakdown?.reasons?.map((item, idx: number) => (
                 <div
                   key={idx}
                   className={`p-3 rounded-lg border text-xs flex items-start gap-2.5 ${
@@ -519,7 +591,7 @@ export const ProjectDocumentsModule: React.FC<ProjectDocumentsModuleProps> = ({
                   Extracted PDD Metadata
                 </h5>
                 <div className="grid grid-cols-2 gap-2 text-xs">
-                  {Object.entries(selectedDocForBreakdown.extracted_data.fields).map(([k, v]: [string, any]) => (
+                  {Object.entries(selectedDocForBreakdown.extracted_data.fields).map(([k, v]) => (
                     <div key={k} className="p-2 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700">
                       <p className="text-[10px] text-gray-500 uppercase font-semibold">{k.replace(/_/g, " ")}</p>
                       <p className="font-medium text-gray-900 dark:text-gray-100 mt-0.5">
@@ -602,8 +674,8 @@ export const ProjectDocumentsModule: React.FC<ProjectDocumentsModuleProps> = ({
                           try {
                             const std = registryPackageData.registry_standard || "VERRA";
                             await downloadArticle6PackageZip(std, projectId);
-                          } catch (err: any) {
-                            alert(err.message || "Failed to download ZIP package.");
+                          } catch (err: unknown) {
+                            alert(err instanceof Error ? err.message : "Failed to download ZIP package.");
                           }
                         }}
                         className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-md transition shadow-sm"

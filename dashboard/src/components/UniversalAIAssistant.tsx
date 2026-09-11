@@ -23,13 +23,10 @@ import { usePathname } from "next/navigation";
 import { useWorkspace } from "@/context/WorkspaceContext";
 import { getContextualInsight } from "@/lib/aiOrchestrator";
 import { chatWithAI, AIChatResponse, fetchProjects, submitITMOAuthorization, downloadArticle6PackageZip, executeCarbonMinting, generateAndDownloadReport } from "@/lib/api";
+import { Project, CarbonMintResponse } from "@/lib/types";
 import {
-  Bot,
-  Sparkles,
   ArrowRight,
   HelpCircle,
-  ChevronDown,
-  ChevronUp,
   Send,
   AlertTriangle,
   CheckCircle2,
@@ -41,8 +38,6 @@ import {
   FileText,
   Globe,
   Copy,
-  Coins,
-  ExternalLink,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -54,10 +49,23 @@ interface ChatMessage {
   recommendations?: Array<{ type: string; action: string; priority: string }>;
 }
 
+interface ITMOResult {
+  project_id: string;
+  authorization_id?: string;
+  status?: string;
+  message?: string;
+  serial_number?: string;
+  cooperative_approach_id?: string;
+  acquiring_party?: string;
+  authorized_use_scope?: string;
+  cumulative_itmos_tco2e?: number;
+  dossier_sha256?: string;
+  dossier?: Record<string, unknown>;
+}
+
 export default function UniversalAIAssistant() {
   const pathname = usePathname();
   const { activeSector, user } = useWorkspace();
-  const [isExpanded, setIsExpanded] = useState(true);
   const [isDismissed, setIsDismissed] = useState(true);
   const [query, setQuery] = useState("");
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
@@ -66,12 +74,12 @@ export default function UniversalAIAssistant() {
 
   // ITMO Authorization Modal State
   const [isITMOModalOpen, setIsITMOModalOpen] = useState(false);
-  const [projects, setProjects] = useState<any[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
   const [acquiringParty, setAcquiringParty] = useState("Swiss Federal Office for the Environment (FOEN)");
   const [authorizedUseScope, setAuthorizedUseScope] = useState("NDC Achievement");
   const [isSubmittingITMO, setIsSubmittingITMO] = useState(false);
-  const [itmoResult, setItmoResult] = useState<any>(null);
+  const [itmoResult, setItmoResult] = useState<ITMOResult | null>(null);
   const [itmoError, setItmoError] = useState<string | null>(null);
   const [isDownloadingZip, setIsDownloadingZip] = useState(false);
   const [showDossierModal, setShowDossierModal] = useState(false);
@@ -82,7 +90,7 @@ export default function UniversalAIAssistant() {
   const [targetChain, setTargetChain] = useState("internal-ledger");
   const [recipientWallet, setRecipientWallet] = useState("VF_Treasury_Custody_Account");
   const [isMinting, setIsMinting] = useState(false);
-  const [mintResult, setMintResult] = useState<any>(null);
+  const [mintResult, setMintResult] = useState<CarbonMintResponse | null>(null);
   const [mintError, setMintError] = useState<string | null>(null);
 
   // Report Generation & Download Modal State
@@ -151,10 +159,8 @@ export default function UniversalAIAssistant() {
 
       ]);
 
-    } catch (err: any) {
-
-      const errorMsg = err?.message || "Unable to reach the AI service. Please try again.";
-
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : "Unable to reach the AI service. Please try again.";
       setError(errorMsg);
 
       setChatHistory((prev) => [
@@ -536,8 +542,8 @@ export default function UniversalAIAssistant() {
                         try {
                           setIsDownloadingZip(true);
                           await downloadArticle6PackageZip("ARTICLE6_2", itmoResult.project_id);
-                        } catch (err: any) {
-                          alert("Download failed: " + (err?.message || "Unknown error"));
+                        } catch (err: unknown) {
+                          alert("Download failed: " + (err instanceof Error ? err.message : "Unknown error"));
                         } finally {
                           setIsDownloadingZip(false);
                         }
@@ -593,8 +599,8 @@ export default function UniversalAIAssistant() {
                         authorized_use_scope: authorizedUseScope,
                       });
                       setItmoResult(res);
-                    } catch (err: any) {
-                      setItmoError(err?.message || "Failed to authorize ITMO. Ensure the project is approved and you have ORG_ADMIN permissions.");
+                    } catch (err: unknown) {
+                      setItmoError(err instanceof Error ? err.message : "Failed to authorize ITMO. Ensure the project is approved and you have ORG_ADMIN permissions.");
                     } finally {
                       setIsSubmittingITMO(false);
                     }
@@ -827,8 +833,8 @@ export default function UniversalAIAssistant() {
                         recipient_wallet: recipientWallet,
                       });
                       setMintResult(res);
-                    } catch (err: any) {
-                      setMintError(err?.message || "Failed to execute cryptographic issuance. Ensure carbon records are verified.");
+                    } catch (err: unknown) {
+                      setMintError(err instanceof Error ? err.message : "Failed to execute cryptographic issuance. Ensure carbon records are verified.");
                     } finally {
                       setIsMinting(false);
                     }
@@ -1008,8 +1014,8 @@ export default function UniversalAIAssistant() {
                   setTimeout(() => {
                     setIsReportModalOpen(false);
                   }, 2500);
-                } catch (err: any) {
-                  setReportError(err?.message || "Failed to generate report. Please verify project data.");
+                } catch (err: unknown) {
+                  setReportError(err instanceof Error ? err.message : "Failed to generate report. Please verify project data.");
                 } finally {
                   setIsGeneratingReport(false);
                 }

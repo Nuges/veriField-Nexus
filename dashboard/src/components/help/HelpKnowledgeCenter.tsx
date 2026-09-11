@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import {
   BookOpen,
   GitMerge,
@@ -26,19 +26,12 @@ import {
   ChevronRight,
   Copy,
   Printer,
-  ExternalLink,
-  CheckCircle2,
-  Info,
-  Lock,
   Zap,
   Flame,
   TreeDeciduous,
   Car,
   ArrowUp,
-  Sliders,
-  Filter,
   Sparkles,
-  RefreshCw,
   Mail,
   LifeBuoy
 } from "lucide-react";
@@ -50,11 +43,9 @@ import {
   GLOSSARY_TERMS,
   FAQS_LIST,
   KEYBOARD_SHORTCUTS,
-  NavSection,
-  FAQItem
 } from "./HelpData";
 
-const ICON_MAP: Record<string, any> = {
+const ICON_MAP: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
   BookOpen,
   GitMerge,
   Building2,
@@ -79,11 +70,10 @@ const ICON_MAP: Record<string, any> = {
 export default function HelpKnowledgeCenter() {
   const toast = useToast();
   const searchParams = useSearchParams();
-  const router = useRouter();
 
   // Search & Navigation States
   const [globalSearch, setGlobalSearch] = useState("");
-  const [activeSectionId, setActiveSectionId] = useState<string>("introduction");
+  const [activeSectionId, setActiveSectionId] = useState<string>(() => searchParams?.get("section") || "introduction");
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     introduction: true,
     workflow: true
@@ -98,19 +88,24 @@ export default function HelpKnowledgeCenter() {
   useEffect(() => {
     const sectionParam = searchParams?.get("section");
     if (sectionParam) {
-      setActiveSectionId(sectionParam);
-      setExpandedSections(prev => ({ ...prev, [sectionParam]: true }));
-      setTimeout(() => {
+      const timer = setTimeout(() => {
+        setActiveSectionId(sectionParam);
+        setExpandedSections(prev => ({ ...prev, [sectionParam]: true }));
         const el = document.getElementById(`section-${sectionParam}`);
         if (el) el.scrollIntoView({ behavior: "smooth" });
-      }, 300);
+      }, 50);
+      return () => clearTimeout(timer);
     } else {
       try {
         const saved = localStorage.getItem("verifield_help_expanded");
         if (saved) {
-          setExpandedSections(JSON.parse(saved));
+          const parsed = JSON.parse(saved);
+          const timer = setTimeout(() => {
+            setExpandedSections(parsed);
+          }, 0);
+          return () => clearTimeout(timer);
         }
-      } catch (e) {}
+      } catch {}
     }
   }, [searchParams]);
 
@@ -120,7 +115,7 @@ export default function HelpKnowledgeCenter() {
       const next = { ...prev, [id]: !prev[id] };
       try {
         localStorage.setItem("verifield_help_expanded", JSON.stringify(next));
-      } catch (e) {}
+      } catch {}
       return next;
     });
   };
@@ -300,7 +295,6 @@ export default function HelpKnowledgeCenter() {
             {NAV_SECTIONS.map(s => {
               const IconComp = ICON_MAP[s.icon] || BookOpen;
               const isActive = activeSectionId === s.id;
-              const isExpanded = expandedSections[s.id];
 
               return (
                 <button
@@ -352,7 +346,7 @@ export default function HelpKnowledgeCenter() {
             <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-6 space-y-4 animate-fade-in">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-2">
-                  <Sparkles size={16} /> Instant Search Results for "{globalSearch}"
+                  <Sparkles size={16} /> Instant Search Results for &ldquo;{globalSearch}&rdquo;
                 </h3>
                 <button
                   onClick={() => setGlobalSearch("")}
@@ -981,7 +975,7 @@ export default function HelpKnowledgeCenter() {
             {expandedSections["reports"] && (
               <div className="p-6 space-y-4 text-xs text-[var(--color-text-primary)] leading-relaxed animate-fade-in">
                 <p>
-                  Reports can be filtered by date preset, project scope, and verification status. Click 'Export Report' in the Reports module to trigger asynchronous compilation into PDF, CSV, or Excel formats.
+                  Reports can be filtered by date preset, project scope, and verification status. Click &lsquo;Export Report&rsquo; in the Reports module to trigger asynchronous compilation into PDF, CSV, or Excel formats.
                 </p>
               </div>
             )}
@@ -1036,8 +1030,8 @@ export default function HelpKnowledgeCenter() {
               <div className="p-6 space-y-4 text-xs text-[var(--color-text-primary)] animate-fade-in">
                 <div className="space-y-3">
                   <div className="p-4 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] space-y-1">
-                    <h4 className="font-bold text-white">Why can't I see my project?</h4>
-                    <p className="text-[11px] text-[var(--color-text-secondary)]">Ensure your user account is assigned to the project or holds an Organization Admin / Portfolio Manager role within the project's owning organization.</p>
+                    <h4 className="font-bold text-white">Why can&apos;t I see my project?</h4>
+                    <p className="text-[11px] text-[var(--color-text-secondary)]">Ensure your user account is assigned to the project or holds an Organization Admin / Portfolio Manager role within the project&apos;s owning organization.</p>
                   </div>
 
                   <div className="p-4 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] space-y-1">
@@ -1046,13 +1040,13 @@ export default function HelpKnowledgeCenter() {
                   </div>
 
                   <div className="p-4 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] space-y-1">
-                    <h4 className="font-bold text-white">Why am I seeing 'Permission Denied'?</h4>
+                    <h4 className="font-bold text-white">Why am I seeing &lsquo;Permission Denied&rsquo;?</h4>
                     <p className="text-[11px] text-[var(--color-text-secondary)]">You are attempting an action outside your role scope. Contact your Organization Admin to adjust your role assignments.</p>
                   </div>
 
                   <div className="p-4 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] space-y-1">
                     <h4 className="font-bold text-white">Why is my dashboard empty?</h4>
-                    <p className="text-[11px] text-[var(--color-text-secondary)]">Dashboards automatically filter by licensed sectors and date presets. Click 'Reset Filters' in the dashboard header to restore default views.</p>
+                    <p className="text-[11px] text-[var(--color-text-secondary)]">Dashboards automatically filter by licensed sectors and date presets. Click &lsquo;Reset Filters&rsquo; in the dashboard header to restore default views.</p>
                   </div>
                 </div>
               </div>

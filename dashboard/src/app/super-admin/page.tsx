@@ -16,298 +16,280 @@
 
 
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useToast } from "@/components/Toast";
-import { RolePermissionConsole } from "@/components/access-control/RolePermissionConsole";
+import { RolePermissionConsole, type RoleDetail, type UserItem, type OrganizationItem } from "@/components/access-control/RolePermissionConsole";
 import { ThemeLogo } from "@/components/common/ThemeLogo";
 import { useRouter } from "next/navigation";
 
 import {
-
   ShieldCheck,
-
   Users,
-
   Building2,
-
   FileCheck2,
-
   Activity,
-
   History,
-
-  Power,
-
   CheckCircle2,
-
   XCircle,
-
   Loader2,
-
   Globe,
-
   Mail,
-
   Phone,
-
   MapPin,
-
   Sparkles,
-
   Copy,
-
   Check,
-
-  TrendingUp,
-
-  Cpu,
-
   Database,
-
   Trash2,
-
   Eye,
-
   Settings,
-
-  RotateCw,
-
   Key,
-
+  RotateCw,
   User as UserIcon
-
 } from "lucide-react";
 
 import { WorkspaceProvider, useWorkspace } from "@/context/WorkspaceContext";
-
 import { safeStorage } from "@/lib/storage";
 
 import {
-
   fetchAccessRequests,
-
   approveAccessRequest,
-
   rejectAccessRequest,
-
   deleteAccessRequest,
-
   fetchAllOrganizations,
-
   fetchAllUsersGlobal,
-
-  toggleUserSuspension,
-
-  fetchAuditLogs,
-
-  deleteOrganization,
-
-  fetchOrganizationAnalytics,
-
-  changePassword,
-
-  forceResetUserPassword,
-
-  fetchGlobalAnalytics,
-
   fetchAdminUsers,
-
   fetchAdminUserDetail,
-
   adminResetUserPassword,
-
   adminSuspendUser,
-
   adminReactivateUser,
-
   adminDeleteUser,
-
-  fetchProjectUsers,
-
   fetchAdminRoles,
-
   fetchAdminPermissions,
-
-  fetchProjectMemberships,
-
-  assignProjectMembership,
-
-  revokeProjectMembership,
-
-  adminRevokeUserSessions,
-
   fetchGovernanceAuditLogs,
-
   createAdminUserAccount,
-
-  fetchOrganizationProjects
-
+  fetchOrganizationProjects,
+  fetchGlobalAnalytics,
+  deleteOrganization,
+  fetchOrganizationAnalytics,
+  changePassword,
+  type AdminUserDetailResponse
 } from "@/lib/api";
 
+export interface AccessRequest {
+  id: string;
+  full_name: string;
+  email: string;
+  phone?: string;
+  organization_name: string;
+  country?: string;
+  notes?: string;
+  status: string;
+  created_at: string;
+  sector?: string;
+  sector_name?: string;
+  sector_code?: string;
+  methodology_code?: string;
+  use_case?: string;
+}
 
+export interface TenantOrganization {
+  id: string;
+  name: string;
+  org_type?: string;
+  country?: string | null;
+  status?: string;
+  created_at?: string;
+  user_count?: number;
+  project_count?: number;
+  licensed_sectors?: string[] | null;
+  licensed_methodologies?: string[] | null;
+  parent_id?: string | null;
+  metadata_context?: Record<string, unknown>;
+  version?: number;
+  plan?: string;
+  max_installations?: number;
+  max_agents?: number;
+  updated_at?: string;
+}
+
+export interface PlatformUser {
+  id: string;
+  full_name: string;
+  email: string | null;
+  role: string;
+  status?: string;
+  is_active: boolean | number | string;
+  organization?: string | null;
+  organization_id?: string | null;
+  created_at?: string;
+  phone?: string | null;
+  requires_password_change?: boolean;
+  sector?: string;
+  licensed_sectors?: string[] | null;
+  licensed_methodologies?: string[] | null;
+  projects_count?: number;
+  activities_count?: number;
+  assets_count?: number;
+  evidence_count?: number;
+  avatar_url?: string | null;
+  country?: string | null;
+  updated_at?: string;
+  mfa_enabled?: boolean;
+}
+
+export interface AuditLogEntry {
+  id: string;
+  actor_user_id?: string;
+  target_user_id?: string;
+  organization_id?: string;
+  action: string;
+  result: string;
+  created_at: string;
+  metadata_json?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+export interface MrvStats {
+  installations: number;
+  avgTrust: number | null;
+  tCO2: number;
+  activeOrgs: number;
+  methodologies?: Record<string, number>;
+}
+
+export interface RoleItem {
+  id?: string;
+  name: string;
+  description?: string;
+  permissions?: string[];
+}
+
+export interface PermissionItem {
+  id?: string;
+  code: string;
+  name?: string;
+  description?: string;
+  category?: string;
+}
+
+export type Account360Data = AdminUserDetailResponse;
+
+export interface OrgProjectItem {
+  id: string;
+  name: string;
+  status?: string;
+  project_type?: string;
+  project_code?: string;
+}
+
+export interface ProvisionResult {
+  user: PlatformUser;
+  temp_password?: string;
+  temporary_password?: string;
+  assigned_projects?: number;
+  assigned_memberships_count?: number;
+  message?: string;
+}
+
+export interface OrgAnalyticsData {
+  metrics?: {
+    installations_count?: number;
+    activities_count?: number;
+    average_trust_score?: number;
+    avg_trust_score?: number;
+    total_co2_offset?: number;
+    users_count?: number;
+    sector_mix?: Record<string, number>;
+    roles?: Record<string, number>;
+    total_credits_minted?: number;
+  };
+  organization?: TenantOrganization;
+  status?: string;
+  created_at?: string;
+}
 
 type Tab = "leads" | "organizations" | "users" | "roles" | "projects" | "analytics" | "audit";
 
-
-
 function SuperAdminDashboard() {
-
   const { user, isLoading } = useWorkspace();
-
   const router = useRouter();
 
-
-
   // Navigation
-
   const [activeTab, setActiveTab] = useState<Tab>("leads");
 
-
-
   // Data States
-
-  const [requests, setRequests] = useState<any[]>([]);
-
-  const [orgs, setOrgs] = useState<any[]>([]);
-
-  const [users, setUsers] = useState<any[]>([]);
-
-  const [auditLogs, setAuditLogs] = useState<any[]>([]);
-
-  const [mrvStats, setMrvStats] = useState<any>({
-
+  const [requests, setRequests] = useState<AccessRequest[]>([]);
+  const [orgs, setOrgs] = useState<TenantOrganization[]>([]);
+  const [users, setUsers] = useState<PlatformUser[]>([]);
+  const [mrvStats, setMrvStats] = useState<MrvStats>({
     installations: 0,
-
     avgTrust: null,
-
     tCO2: 0.0,
-
     activeOrgs: 0,
-
     methodologies: {
-
       "AMS-II.G": 0,
-
       "AMS-I.F": 0,
-
       "BIOCHAR-V1": 0,
-
       "EV-MOBILITY": 0
-
     }
-
   });
-
-
 
   const toast = useToast();
 
-
-
   // Action states
-
   const [loadingData, setLoadingData] = useState(false);
-
   const [processingId, setProcessingId] = useState<string | null>(null);
-
   const [copiedText, setCopiedText] = useState(false);
 
-
-
   // Approval Credentials Popup State
-
   const [approvedCredentials, setApprovedCredentials] = useState<{
-
     orgName: string;
-
     email: string;
-
     tempPw: string;
-
   } | null>(null);
 
-
-
   // New features states
-
-  const [selectedUserForDetails, setSelectedUserForDetails] = useState<any | null>(null);
-
-  const [selectedOrgForAnalytics, setSelectedOrgForAnalytics] = useState<any | null>(null);
-
+  const [selectedUserForDetails, setSelectedUserForDetails] = useState<PlatformUser | null>(null);
+  const [selectedOrgForAnalytics, setSelectedOrgForAnalytics] = useState<TenantOrganization | null>(null);
   const [loadingOrgAnalytics, setLoadingOrgAnalytics] = useState(false);
-
-  const [orgAnalyticsData, setOrgAnalyticsData] = useState<any | null>(null);
-
-
+  const [orgAnalyticsData, setOrgAnalyticsData] = useState<OrgAnalyticsData | null>(null);
 
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
 
-
-
   // Password reset for tenant users
-
-  const [selectedOrgForPasswordReset, setSelectedOrgForPasswordReset] = useState<any | null>(null);
-
+  const [selectedOrgForPasswordReset, setSelectedOrgForPasswordReset] = useState<TenantOrganization | null>(null);
   const [resetPasswordUserId, setResetPasswordUserId] = useState<string>("");
-
   const [resetNewPassword, setResetNewPassword] = useState<string>("");
-
   const [isResettingPassword, setIsResettingPassword] = useState(false);
-
   const [resetPasswordError, setResetPasswordError] = useState("");
-
   const [resetPasswordSuccess, setResetPasswordSuccess] = useState("");
 
   const [passwordForm, setPasswordForm] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
-
   const [passwordError, setPasswordError] = useState("");
-
   const [passwordSuccess, setPasswordSuccess] = useState("");
-
   const [isChangingPassword, setIsChangingPassword] = useState(false);
 
-
-
   // Authenticate user is SUPER_ADMIN or Admin
-
   useEffect(() => {
-
     if (isLoading) return;
-
     const userRoleStr = (user?.role || "").toUpperCase().replace(" ", "_");
-
     const allowed = ["SUPER_ADMIN", "ADMIN", "ORG_ADMIN"];
-
     if (!user || !allowed.includes(userRoleStr)) {
-
       router.push("/login?error=unauthorized");
-
     }
-
   }, [user, isLoading, router]);
 
-
-
   // Governance State
-
-  const [rolesList, setRolesList] = useState<any[]>([]);
-
-  const [permissionsList, setPermissionsList] = useState<any[]>([]);
-
-  const [govAuditLogs, setGovAuditLogs] = useState<any[]>([]);
-
-  const [account360Data, setAccount360Data] = useState<any | null>(null);
-
+  const [rolesList, setRolesList] = useState<RoleItem[]>([]);
+  const [permissionsList, setPermissionsList] = useState<PermissionItem[]>([]);
+  const [govAuditLogs, setGovAuditLogs] = useState<AuditLogEntry[]>([]);
+  const [account360Data, setAccount360Data] = useState<Account360Data | null>(null);
   const [loadingAccount360, setLoadingAccount360] = useState(false);
 
-
-
   // Enterprise Account Provisioning Wizard State
-
   const [isCreateUserModalOpen, setIsCreateUserModalOpen] = useState(false);
-
-  const [createStep, setCreateStep] = useState<1 | 2 | 3 | 4 | 5>(1);
-
+  const [createStep, setCreateStep] = useState<number>(1);
   const [createForm, setCreateForm] = useState<{
     fullName: string;
     email: string;
@@ -331,18 +313,11 @@ function SuperAdminDashboard() {
   });
 
   const [createProjectMemberships, setCreateProjectMemberships] = useState<Array<{ project_id: string; role: string }>>([]);
-
-  const [orgProjects, setOrgProjects] = useState<any[]>([]);
-
+  const [orgProjects, setOrgProjects] = useState<OrgProjectItem[]>([]);
   const [loadingOrgProjects, setLoadingOrgProjects] = useState(false);
-
   const [isProvisioning, setIsProvisioning] = useState(false);
-
   const [provisionError, setProvisionError] = useState("");
-
-  const [provisionResult, setProvisionResult] = useState<any | null>(null);
-
-
+  const [provisionResult, setProvisionResult] = useState<ProvisionResult | null>(null);
 
   const handleOpenCreateUserModal = async () => {
 
@@ -374,15 +349,17 @@ function SuperAdminDashboard() {
     try {
       const o = await fetchAllOrganizations();
       setOrgs(o);
-      const valid = (o || []).filter((item: any) => !item.name.startsWith("Test ") && !item.name.startsWith("Hardening ") && !item.name.startsWith("Attack "));
+      const valid = (o || []).filter((item) => !item.name.startsWith("Test ") && !item.name.startsWith("Hardening ") && !item.name.startsWith("Attack "));
       if (valid.length > 0) {
         setCreateForm(prev => ({ ...prev, organizationId: valid[0].id }));
         try {
           const projs = await fetchOrganizationProjects(valid[0].id);
           setOrgProjects(projs || []);
-        } catch (e) {}
+        } catch {
+          // Ignore
+        }
       }
-    } catch (e) {
+    } catch (e: unknown) {
       console.error("Failed to load organizations for wizard:", e);
     }
 
@@ -390,46 +367,28 @@ function SuperAdminDashboard() {
       try {
         const r = await fetchAdminRoles();
         setRolesList(r);
-      } catch (e) {
+      } catch (e: unknown) {
         console.error("Failed to load roles for wizard:", e);
       }
     }
   };
 
-
-
   const handleOrgChangeInWizard = async (orgId: string) => {
-
     setCreateForm(prev => ({ ...prev, organizationId: orgId }));
-
     setCreateProjectMemberships([]);
-
     if (!orgId) {
-
       setOrgProjects([]);
-
       return;
-
     }
-
     setLoadingOrgProjects(true);
-
     try {
-
       const projs = await fetchOrganizationProjects(orgId);
-
       setOrgProjects(projs || []);
-
-    } catch (e) {
-
+    } catch {
       setOrgProjects([]);
-
     } finally {
-
       setLoadingOrgProjects(false);
-
     }
-
   };
 
 
@@ -501,154 +460,82 @@ function SuperAdminDashboard() {
 
 
       setProvisionResult(res);
-
       toast.success("Account Provisioned", res.message || "User account created successfully.");
-
       await loadData();
-
-    } catch (err: any) {
-
-      setProvisionError(err.message || "Failed to provision user account.");
-
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to provision user account.";
+      setProvisionError(msg);
     } finally {
-
       setIsProvisioning(false);
-
     }
-
   };
-
-
 
   // Load Data based on active tab
-
-  const loadData = async () => {
-
+  const loadData = useCallback(async () => {
     setLoadingData(true);
-
     try {
-
       if (activeTab === "leads") {
-
         const [res, o] = await Promise.all([fetchAccessRequests(), fetchAllOrganizations()]);
-
         setRequests(res);
-
         setOrgs(o);
-
       } else if (activeTab === "organizations") {
-
         const res = await fetchAllOrganizations();
-
         setOrgs(res);
-
       } else if (activeTab === "users") {
-
         const [res, o] = await Promise.all([fetchAllUsersGlobal(), fetchAllOrganizations()]);
-
         setUsers(res);
-
         setOrgs(o);
-
       } else if (activeTab === "roles") {
-
         const [r, p] = await Promise.all([fetchAdminRoles(), fetchAdminPermissions()]);
-
         setRolesList(r);
-
         setPermissionsList(p);
-
       } else if (activeTab === "projects") {
-
         const o = await fetchAllOrganizations();
-
         setOrgs(o);
-
       } else if (activeTab === "analytics") {
-
         const [o, u, globalStats] = await Promise.all([
-
           fetchAllOrganizations(),
-
           fetchAllUsersGlobal(),
-
           fetchGlobalAnalytics()
-
         ]);
-
         setMrvStats(globalStats);
-
         setOrgs(o);
-
         setUsers(u);
-
       } else if (activeTab === "audit") {
-
         const logs = await fetchGovernanceAuditLogs();
-
-        setGovAuditLogs(logs);
-
+        setGovAuditLogs(logs as unknown as AuditLogEntry[]);
       }
-
-    } catch (err) {
-
+    } catch (err: unknown) {
       console.error("Error loading admin data:", err);
-
     } finally {
-
       setLoadingData(false);
-
     }
-
-  };
-
-
+  }, [activeTab]);
 
   const openAccount360 = async (userId: string) => {
-
     setLoadingAccount360(true);
-
     try {
-
       const data = await fetchAdminUserDetail(userId);
-
       setAccount360Data(data);
-
-    } catch (err: any) {
-
-      toast.error("Account 360 Error", err.message || "Failed to inspect user account.");
-
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to inspect user account.";
+      toast.error("Account 360 Error", msg);
     } finally {
-
       setLoadingAccount360(false);
-
     }
-
   };
 
-
-
   useEffect(() => {
-
     const userRoleStr = (user?.role || "").toUpperCase().replace(" ", "_");
-
     const isAllowed = ["SUPER_ADMIN", "ADMIN", "ORG_ADMIN"].includes(userRoleStr);
-
     if (user && isAllowed) {
-
       loadData();
-
       const interval = setInterval(() => {
-
         loadData();
-
       }, 10000);
-
       return () => clearInterval(interval);
-
     }
-
-  }, [activeTab, user]);
+  }, [user, loadData]);
 
 
 
@@ -673,221 +560,113 @@ function SuperAdminDashboard() {
       });
 
       // Reload active queue
-
       await loadData();
-
-    } catch (err: any) {
-
-      toast.error('Operation Failed', err.message || "Failed to approve access request.");
-
+    } catch (err: unknown) {
+      toast.error('Operation Failed', err instanceof Error ? err.message : "Failed to approve access request.");
     } finally {
-
       setProcessingId(null);
-
     }
-
   };
-
-
 
   const handleReject = async (id: string) => {
-
     if (!confirm("Are you sure you want to reject this request?")) return;
-
     setProcessingId(id);
-
     try {
-
       await rejectAccessRequest(id);
-
       await loadData();
-
-    } catch (err: any) {
-
-      toast.error('Operation Failed', err.message || "Failed to reject request.");
-
+    } catch (err: unknown) {
+      toast.error('Operation Failed', err instanceof Error ? err.message : "Failed to reject request.");
     } finally {
-
       setProcessingId(null);
-
     }
-
   };
-
-
 
   const handleDeleteAccessRequest = async (id: string) => {
-
     if (!confirm("Are you sure you want to permanently delete this access request?")) return;
-
     setProcessingId(id);
-
     try {
-
       await deleteAccessRequest(id);
-
       await loadData();
-
-    } catch (err: any) {
-
-      toast.error('Operation Failed', err.message || "Failed to delete request.");
-
+    } catch (err: unknown) {
+      toast.error('Operation Failed', err instanceof Error ? err.message : "Failed to delete request.");
     } finally {
-
       setProcessingId(null);
-
     }
-
   };
 
-
-
-  const isUserActive = (u: any) => {
-
+  const isUserActive = (u: PlatformUser | null | undefined) => {
     if (!u) return false;
-
     if (u.status) {
-
       return u.status.toLowerCase() === "active";
-
     }
-
     return u.is_active === true || u.is_active === 1 || u.is_active === "true";
-
   };
 
-
-
-  const handleToggleSuspension = async (userObj: any) => {
-
+  const handleToggleSuspension = async (userObj: PlatformUser) => {
     const activeState = isUserActive(userObj);
-
     const actionText = activeState ? "suspend" : "activate";
-
     if (!confirm(`Are you sure you want to ${actionText} this user's access?`)) return;
 
-
-
     setProcessingId(userObj.id);
-
     try {
-
       if (activeState) {
-
         await adminSuspendUser(userObj.id);
-
         toast.success("Account Suspended", "User account access has been suspended.");
-
       } else {
-
         await adminReactivateUser(userObj.id);
-
         toast.success("Account Reactivated", "User account access has been restored.");
-
       }
-
       await loadData();
-
-    } catch (err: any) {
-
-      toast.error('Operation Failed', err.message || "Failed to update user status.");
-
+    } catch (err: unknown) {
+      toast.error('Operation Failed', err instanceof Error ? err.message : "Failed to update user status.");
     } finally {
-
       setProcessingId(null);
-
     }
-
   };
-
-
 
   const handleDeleteUserAccount = async (userId: string, userEmail: string) => {
-
     if (!confirm(`Are you sure you want to permanently delete/deactivate user account "${userEmail}"? Operational records will be safely archived.`)) return;
 
-
-
     setProcessingId(userId);
-
     try {
-
       await adminDeleteUser(userId);
-
       toast.success("Account Deleted", `User account "${userEmail}" has been deactivated.`);
-
       await loadData();
-
-    } catch (err: any) {
-
-      toast.error('Operation Failed', err.message || "Failed to delete user account.");
-
+    } catch (err: unknown) {
+      toast.error('Operation Failed', err instanceof Error ? err.message : "Failed to delete user account.");
     } finally {
-
       setProcessingId(null);
-
     }
-
   };
-
-
 
   const handleDeleteOrg = async (orgId: string, orgName: string) => {
-
     if (!confirm(`Are you sure you want to delete the organization "${orgName}"? Associated users will be suspended.`)) return;
 
-
-
     setProcessingId(orgId);
-
     try {
-
       await deleteOrganization(orgId);
-
       toast.success("Organization Deleted", `Organization "${orgName}" has been successfully deleted.`);
-
       await loadData();
-
-    } catch (err: any) {
-
-      toast.error('Operation Failed', err.message || `Failed to delete organization "${orgName}".`);
-
+    } catch (err: unknown) {
+      toast.error('Operation Failed', err instanceof Error ? err.message : `Failed to delete organization "${orgName}".`);
     } finally {
-
       setProcessingId(null);
-
     }
-
   };
 
-
-
   const handleViewOrgAnalytics = async (orgId: string, orgName: string) => {
-
     setSelectedOrgForAnalytics({ id: orgId, name: orgName });
-
     setLoadingOrgAnalytics(true);
-
     setOrgAnalyticsData(null);
-
     try {
-
       const data = await fetchOrganizationAnalytics(orgId);
-
       setOrgAnalyticsData(data);
-
-    } catch (err: any) {
-
-      toast.error('Operation Failed', err.message || `Failed to fetch analytics for "${orgName}".`);
-
+    } catch (err: unknown) {
+      toast.error('Operation Failed', err instanceof Error ? err.message : `Failed to fetch analytics for "${orgName}".`);
       setSelectedOrgForAnalytics(null);
-
     } finally {
-
       setLoadingOrgAnalytics(false);
-
     }
-
   };
 
 
@@ -939,87 +718,46 @@ function SuperAdminDashboard() {
       setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
 
       setTimeout(() => {
-
         setIsPasswordModalOpen(false);
-
         setPasswordSuccess("");
-
       }, 1500);
-
-    } catch (err: any) {
-
-      setPasswordError(err.message || "Failed to change password. Please check your current password.");
-
+    } catch (err: unknown) {
+      setPasswordError(err instanceof Error ? err.message : "Failed to change password. Please check your current password.");
     } finally {
-
       setIsChangingPassword(false);
-
     }
-
   };
 
-
-
   const handleResetUserPasswordSubmit = async (e: React.FormEvent) => {
-
     e.preventDefault();
-
     setResetPasswordError("");
-
     setResetPasswordSuccess("");
 
-
-
     if (!resetPasswordUserId) {
-
       setResetPasswordError("Please select a user.");
-
       return;
-
     }
-
-
 
     if (resetNewPassword.length < 8) {
-
       setResetPasswordError("New password must be at least 8 characters long.");
-
       return;
-
     }
-
-
 
     setIsResettingPassword(true);
-
     try {
-
       await adminResetUserPassword(resetPasswordUserId, resetNewPassword);
-
       setResetPasswordSuccess("Password successfully updated!");
-
       setResetNewPassword("");
-
       setTimeout(() => {
-
         setSelectedOrgForPasswordReset(null);
-
         setResetPasswordUserId("");
-
         setResetPasswordSuccess("");
-
       }, 1500);
-
-    } catch (err: any) {
-
-      setResetPasswordError(err.message || "Failed to reset password.");
-
+    } catch (err: unknown) {
+      setResetPasswordError(err instanceof Error ? err.message : "Failed to reset password.");
     } finally {
-
       setIsResettingPassword(false);
-
     }
-
   };
 
 
@@ -1251,7 +989,7 @@ function SuperAdminDashboard() {
                                       if (sid === "e6db7fbe-9430-4ff5-9904-6caed0b94cce" || sid === "e6db7fbe94304ff599046caed0b94cce") return "Biochar Removal";
                                       if (sid === "867f684f-722c-4d2f-8734-113f4976840e" || sid === "867f684f722c4d2f8734113f4976840e") return "EV Mobility";
                                     }
-                                  } catch (e) {}
+                                  } catch {}
                                 }
                                 return req.use_case?.split(" - ")[0] || "Clean Cookstoves";
                               })()}
@@ -1355,7 +1093,7 @@ function SuperAdminDashboard() {
                       <div className="space-y-1">
                         <h4 className="font-bold text-[var(--color-text-primary)] text-sm leading-snug group-hover:text-[#008A5E] transition-colors">{org.name}</h4>
                         <p className="text-[11px] text-[var(--color-text-muted)]">
-                          Workspace Created: {new Date(org.created_at).toLocaleDateString()}
+                          Workspace Created: {org.created_at ? new Date(org.created_at).toLocaleDateString() : "N/A"}
                         </p>
                       </div>
 
@@ -1367,7 +1105,7 @@ function SuperAdminDashboard() {
                         ) : (
                           <div className="flex flex-wrap gap-1 pt-0.5 max-h-[60px] overflow-y-auto scrollbar">
                             {users.filter(u => u.organization === org.name && u.role === "field_agent").map(agent => (
-                              <span key={agent.id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-[10px] font-medium text-slate-700 dark:text-slate-300" title={agent.email}>
+                              <span key={agent.id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-[10px] font-medium text-slate-700 dark:text-slate-300" title={agent.email || undefined}>
                                 <span className="w-1.5 h-1.5 rounded-full bg-[#008A5E]" />
                                 {agent.full_name}
                               </span>
@@ -1434,7 +1172,7 @@ function SuperAdminDashboard() {
                             </div>
                           </td>
                           <td className="py-3.5 px-4 text-[var(--color-text-secondary)]">
-                            <div className="truncate max-w-[170px]" title={u.email}>{u.email}</div>
+                            <div className="truncate max-w-[170px]" title={u.email || undefined}>{u.email}</div>
                           </td>
                           <td className="py-3.5 px-4">
                             <span className={`inline-block whitespace-nowrap text-[10px] font-mono font-bold uppercase px-2.5 py-0.5 rounded-md border ${
@@ -1510,7 +1248,7 @@ function SuperAdminDashboard() {
                                 <>
                                   <button
                                     onClick={() => {
-                                      const userOrg = orgs.find(o => o.name === u.organization || o.id === u.organization_id) || { id: u.organization_id, name: u.organization || "System Default" };
+                                      const userOrg = orgs.find(o => o.name === u.organization || o.id === u.organization_id) || { id: u.organization_id || "default", name: u.organization || "System Default" };
                                       setSelectedOrgForPasswordReset(userOrg);
                                       setResetPasswordUserId(u.id);
                                     }}
@@ -1520,7 +1258,7 @@ function SuperAdminDashboard() {
                                     <Key size={14} />
                                   </button>
                                   <button
-                                    onClick={() => handleDeleteUserAccount(u.id, u.email)}
+                                    onClick={() => handleDeleteUserAccount(u.id, u.email || "")}
                                     disabled={processingId === u.id}
                                     className="p-1.5 bg-red-50 dark:bg-red-950/50 hover:bg-red-100 rounded-md border border-red-300 dark:border-red-700 text-red-600 dark:text-red-300 transition-all shadow-xs cursor-pointer"
                                     title="Delete / Deactivate User Account"
@@ -1647,7 +1385,7 @@ function SuperAdminDashboard() {
                         ...methodologies
                       };
 
-                      return Object.entries(allSectors).map(([code, count]: [string, any], idx) => {
+                      return Object.entries(allSectors).map(([code, count]: [string, number], idx) => {
                         const label = sectorLabels[code] || `${code.replace(/_/g, ' ')} Orgs`;
                         const numCount = typeof count === "number" ? count : 0;
                         const pct = totalOrgs > 0 ? Math.round((numCount / totalOrgs) * 100) : 0;
@@ -1712,17 +1450,17 @@ function SuperAdminDashboard() {
             <div className="flex-1">
 
               <RolePermissionConsole
-                roles={rolesList}
-                permissionsList={permissionsList}
-                users={users}
-                organizations={orgs}
+                roles={rolesList as unknown as RoleDetail[]}
+                permissionsList={permissionsList as unknown as { code: string; category: string }[]}
+                users={users as unknown as UserItem[]}
+                organizations={orgs as unknown as OrganizationItem[]}
                 onRefresh={async () => {
                   try {
                     const r = await fetchAdminRoles();
-                    setRolesList(r);
+                    setRolesList(r as unknown as RoleItem[]);
                     const u = await fetchAdminUsers();
-                    setUsers(u);
-                  } catch (e) {}
+                    setUsers(u as unknown as PlatformUser[]);
+                  } catch {}
                 }}
               />
 
@@ -1982,7 +1720,7 @@ function SuperAdminDashboard() {
                   <div className="space-y-2">
                     <h4 className="font-bold text-xs text-[var(--color-text-secondary)] uppercase tracking-wider">Assigned Projects Roster</h4>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {account360Data.assigned_projects.map((p: any) => (
+                      {account360Data.assigned_projects.map((p) => (
                         <div key={p.id} className="p-3 rounded-xl bg-[var(--color-surface-subtle)] border border-[var(--color-border)] space-y-1">
                           <div className="flex justify-between items-center text-xs">
                             <span className="font-bold text-[var(--color-text-primary)] truncate">{p.name}</span>
@@ -2020,7 +1758,7 @@ function SuperAdminDashboard() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-[var(--color-border)]">
-                          {account360Data.activity_summary.recent.map((act: any) => (
+                          {account360Data.activity_summary.recent.map((act) => (
                             <tr key={act.id} className="hover:bg-[var(--color-surface-subtle)]">
                               <td className="p-2.5 text-[var(--color-text-primary)] font-semibold capitalize">{act.activity_type.replace(/_/g, " ")}</td>
                               <td className="p-2.5 text-[var(--color-text-secondary)] text-[11px] font-mono">{new Date(act.captured_at).toLocaleString()}</td>
@@ -2049,7 +1787,7 @@ function SuperAdminDashboard() {
                       <>
                         <button
                           onClick={() => {
-                            const userOrg = orgs.find(o => o.name === selectedUserForDetails.organization || o.id === selectedUserForDetails.organization_id) || { id: selectedUserForDetails.organization_id, name: selectedUserForDetails.organization || "System Default" };
+                            const userOrg = orgs.find(o => o.name === selectedUserForDetails.organization || o.id === selectedUserForDetails.organization_id) || { id: selectedUserForDetails.organization_id || "default", name: selectedUserForDetails.organization || "System Default" };
                             setSelectedUserForDetails(null);
                             setSelectedOrgForPasswordReset(userOrg);
                             setResetPasswordUserId(selectedUserForDetails.id);
@@ -2073,7 +1811,7 @@ function SuperAdminDashboard() {
                         </button>
 
                         <button
-                          onClick={() => handleDeleteUserAccount(selectedUserForDetails.id, selectedUserForDetails.email)}
+                          onClick={() => handleDeleteUserAccount(selectedUserForDetails.id, selectedUserForDetails.email || "")}
                           disabled={processingId !== null}
                           className="px-3.5 py-2 bg-red-50 hover:bg-red-600 hover:text-white dark:bg-red-950/50 border border-red-300 dark:border-red-700 text-red-700 dark:text-red-300 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
                         >
@@ -2223,7 +1961,7 @@ function SuperAdminDashboard() {
                   const sectorMix = metrics.sector_mix || {};
                   const rolesMap = metrics.roles || {};
                   const sectorMixEntries = Object.entries(sectorMix);
-                  const sectorTotal = Object.values(sectorMix).reduce((a: any, b: any) => Number(a) + Number(b), 0) as number;
+                  const sectorTotal = Object.values(sectorMix).reduce((a: number, b) => a + Number(b), 0);
 
                   return (
                     <>
@@ -2454,7 +2192,7 @@ function SuperAdminDashboard() {
                   <div
                     key={s}
                     onClick={() => {
-                      if (s < createStep) setCreateStep(s as any);
+                      if (s < createStep) setCreateStep(s);
                     }}
                     className={`flex-1 py-1.5 rounded-md text-center transition-all cursor-pointer border ${
                       createStep === s ? "bg-[#008A5E] text-white border-[#008A5E] font-bold shadow-xs" :
@@ -2906,7 +2644,7 @@ function SuperAdminDashboard() {
                   <button
                     type="button"
                     disabled={createStep === 1 || isProvisioning}
-                    onClick={() => setCreateStep((s) => Math.max(1, s - 1) as any)}
+                    onClick={() => setCreateStep((s) => Math.max(1, s - 1))}
                     className="px-4 py-2 bg-[var(--color-surface)] hover:bg-[var(--color-surface-subtle)] border border-[var(--color-border)] text-[var(--color-text-primary)] text-xs font-bold rounded-lg disabled:opacity-30 cursor-pointer shadow-xs"
                   >
                     Back
@@ -2931,7 +2669,7 @@ function SuperAdminDashboard() {
                                 return;
                               }
                             } else if (!createForm.organizationId) {
-                              const valid = (orgs || []).filter((item: any) => !item.name.startsWith("Test ") && !item.name.startsWith("Hardening ") && !item.name.startsWith("Attack "));
+                              const valid = (orgs || []).filter((item: TenantOrganization) => !item.name.startsWith("Test ") && !item.name.startsWith("Hardening ") && !item.name.startsWith("Attack "));
                               if (valid.length > 0) {
                                 handleOrgChangeInWizard(valid[0].id);
                               } else {
@@ -2943,7 +2681,7 @@ function SuperAdminDashboard() {
                         }
 
                         setProvisionError("");
-                        setCreateStep((s) => Math.min(5, s + 1) as any);
+                        setCreateStep((s) => Math.min(5, s + 1));
                       }}
                       className="px-4 py-2 bg-[#008A5E] hover:bg-[#00734E] text-white text-xs font-bold rounded-lg flex items-center gap-1.5 cursor-pointer shadow-xs"
                     >

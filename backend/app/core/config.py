@@ -98,6 +98,25 @@ class Settings(BaseSettings):
 
     jwt_algorithm: str = "HS256"
 
+    # --- Bootstrap Super Admin Configuration ---
+
+    bootstrap_super_admin_email: str = ""
+
+    @property
+    def authorized_bootstrap_admin_email(self) -> str:
+        """
+        Return the email address authorized to bootstrap the platform Super Admin.
+        Configurable via VERIFIELD_BOOTSTRAP_ADMIN_EMAIL or SUPER_ADMIN_EMAIL env vars.
+        Defaults to the development administrator identity when not explicitly configured.
+        """
+        import os
+        return (
+            os.environ.get("VERIFIELD_BOOTSTRAP_ADMIN_EMAIL")
+            or os.environ.get("SUPER_ADMIN_EMAIL")
+            or self.bootstrap_super_admin_email
+            or "segunoluwole22@gmail.com"
+        ).strip().lower()
+
 
 
     # --- CORS ---

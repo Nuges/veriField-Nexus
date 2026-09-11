@@ -68,7 +68,7 @@ async def test_super_admin_absolute_invariants(async_client: AsyncClient):
         )
         supers = res.fetchall()
         assert len(supers) == 1, f"Expected exactly 1 active SUPER_ADMIN, found {len(supers)}: {supers}"
-        assert supers[0][1].lower() == "segunoluwole22@gmail.com"
+        assert supers[0][1].lower() == settings.authorized_bootstrap_admin_email
         super_admin_id = supers[0][0]
 
         # Create Org Admin user
@@ -88,7 +88,7 @@ async def test_super_admin_absolute_invariants(async_client: AsyncClient):
         await session.commit()
 
     org_admin_token = _create_token(org_admin_id, org_admin.email, "ORG_ADMIN", org_id)
-    super_admin_token = _create_token(UUID(str(super_admin_id)), "segunoluwole22@gmail.com", "SUPER_ADMIN", None)
+    super_admin_token = _create_token(UUID(str(super_admin_id)), settings.authorized_bootstrap_admin_email, "SUPER_ADMIN", None)
 
     # 1. ORG_ADMIN attempts to provision a SUPER_ADMIN -> Must be rejected with 403
     resp1 = await async_client.post(

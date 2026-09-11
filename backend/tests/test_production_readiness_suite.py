@@ -29,7 +29,7 @@ async def test_01_single_active_super_admin_census():
         """))
         active_supers = res.fetchall()
         assert len(active_supers) == 1, f"Expected exactly 1 active SUPER_ADMIN, found {len(active_supers)}: {active_supers}"
-        assert active_supers[0][1].lower() == "segunoluwole22@gmail.com"
+        assert active_supers[0][1].lower() == settings.authorized_bootstrap_admin_email
 
         # Verify all other active non-superadmin users have an organization_id
         res_orphans = await session.execute(text("""

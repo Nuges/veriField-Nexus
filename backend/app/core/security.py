@@ -252,7 +252,7 @@ async def get_current_user(
     db: AsyncSession = Depends(get_db),
 ) -> User:
     """Extracts and validates current user from Bearer token or token query param."""
-    raw_token = credentials.credentials if credentials else token
+    raw_token = credentials.credentials if isinstance(credentials, HTTPAuthorizationCredentials) else token
     if not raw_token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -386,10 +386,11 @@ async def get_current_user(
 
 
 
-        if not user.status or str(user.status).lower() != "active":
+        if getattr(user, "is_deleted", False) or not getattr(user, "is_active", True) or not user.status or str(user.status).lower() != "active":
+            status_desc = "deleted" if getattr(user, "is_deleted", False) else ("inactive" if not getattr(user, "is_active", True) else user.status)
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Account is {user.status}. Please contact the administrator.",
+                detail=f"Account is {status_desc}. Please contact the administrator.",
             )
 
 

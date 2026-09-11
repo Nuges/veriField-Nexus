@@ -148,7 +148,7 @@ const PAGE_INSIGHTS: Record<string, (sector: string, role: string) => Contextual
     };
   },
 
-  "/dashboard/projects": (sector, role) => {
+  "/dashboard/projects": (sector) => {
     const ctx = getSectorContext(sector);
     return {
       pageTitle: "Projects",
@@ -161,7 +161,7 @@ const PAGE_INSIGHTS: Record<string, (sector: string, role: string) => Contextual
     };
   },
 
-  "/dashboard/methodologies": (sector, role) => {
+  "/dashboard/methodologies": (sector) => {
     const ctx = getSectorContext(sector);
     const actionLabel = sector === "ev_mobility" ? "View Assets Fleet" :
                         sector === "cookstoves" ? "View Deployed Devices" :
@@ -179,7 +179,7 @@ const PAGE_INSIGHTS: Record<string, (sector: string, role: string) => Contextual
     };
   },
 
-  "/dashboard/assets": (sector, role) => {
+  "/dashboard/assets": (sector) => {
     const ctx = getSectorContext(sector);
     return {
       pageTitle: "Assets",
@@ -192,7 +192,7 @@ const PAGE_INSIGHTS: Record<string, (sector: string, role: string) => Contextual
     };
   },
 
-  "/dashboard/operations": (sector, role) => {
+  "/dashboard/operations": (sector) => {
     const ctx = getSectorContext(sector);
     return {
       pageTitle: "Field Operations",
@@ -205,7 +205,7 @@ const PAGE_INSIGHTS: Record<string, (sector: string, role: string) => Contextual
     };
   },
 
-  "/dashboard/monitoring": (sector, role) => {
+  "/dashboard/monitoring": (sector) => {
     const ctx = getSectorContext(sector);
     return {
       pageTitle: "Monitoring",
@@ -218,7 +218,7 @@ const PAGE_INSIGHTS: Record<string, (sector: string, role: string) => Contextual
     };
   },
 
-  "/dashboard/verifications": (sector, role) => {
+  "/dashboard/verifications": (sector) => {
     const ctx = getSectorContext(sector);
     return {
       pageTitle: "Verification",
@@ -231,7 +231,7 @@ const PAGE_INSIGHTS: Record<string, (sector: string, role: string) => Contextual
     };
   },
 
-  "/dashboard/carbon": (sector, role) => ({
+  "/dashboard/carbon": () => ({
     pageTitle: "Carbon Credits",
     purpose: "Deterministic credit ledger, serial allocation, cryptographic verification sealing, and registry issuance settlement.",
     whyItMatters: "Transforms verified emission reductions into tradable, sovereign-compliant carbon assets.",
@@ -241,7 +241,7 @@ const PAGE_INSIGHTS: Record<string, (sector: string, role: string) => Contextual
     nextActionHref: "/dashboard/carbon"
   }),
 
-  "/dashboard/command-center": (sector, role) => ({
+  "/dashboard/command-center": () => ({
     pageTitle: "Compliance",
     purpose: "Sovereign Article 6 corresponding adjustments, national inventory compliance, and ITMO authorization.",
     whyItMatters: "Ensures compliance with Paris Agreement host country legal framework and Article 6.2/6.4 rules.",
@@ -251,7 +251,7 @@ const PAGE_INSIGHTS: Record<string, (sector: string, role: string) => Contextual
     nextActionHref: "/dashboard/command-center"
   }),
 
-  "/dashboard/ai": (sector, role) => ({
+  "/dashboard/ai": () => ({
     pageTitle: "Decision Support",
     purpose: "Operational decision support providing natural language query resolution and predictive insights.",
     whyItMatters: "Empowers operational roles with verification guidance, risk evaluation, and telemetry analysis.",
@@ -261,7 +261,7 @@ const PAGE_INSIGHTS: Record<string, (sector: string, role: string) => Contextual
     nextActionHref: "/dashboard/ai"
   }),
 
-  "/dashboard/analytics": (sector, role) => ({
+  "/dashboard/analytics": () => ({
     pageTitle: "Reports",
     purpose: "Platform analytics, custom reporting, carbon yield forecasting, and financial ROC modeling.",
     whyItMatters: "Delivers executive-ready impact and financial performance reports to investors and regulators.",
@@ -271,7 +271,7 @@ const PAGE_INSIGHTS: Record<string, (sector: string, role: string) => Contextual
     nextActionHref: "/dashboard/analytics"
   }),
 
-  "/dashboard/settings": (sector, role) => ({
+  "/dashboard/settings": () => ({
     pageTitle: "Settings",
     purpose: "Platform governance, user access control, role permissions, API key generation, and organization settings.",
     whyItMatters: "Ensures strict enterprise RBAC/ABAC security and multi-tenant isolation.",

@@ -37,6 +37,7 @@ from sqlalchemy.orm import selectinload
 
 
 
+from app.core.config import settings
 from app.core.event_bus import EventBus
 from app.core.rbac import ALL_ROLES, normalize_role
 from app.core.security import get_current_user, get_password_hash
@@ -173,8 +174,8 @@ async def provision_user_account(
             detail=f"Invalid role '{role}'. Must be one of {sorted(list(ALL_ROLES))}"
         )
 
-    # Invariant: Only segunoluwole22@gmail.com may hold the SUPER_ADMIN role
-    if canonical_role == "SUPER_ADMIN" and normalized_email != "segunoluwole22@gmail.com":
+    # Invariant: Only authorized bootstrap admin email may hold the SUPER_ADMIN role
+    if canonical_role == "SUPER_ADMIN" and normalized_email != settings.authorized_bootstrap_admin_email:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Forbidden: Cannot provision unauthorized SUPER_ADMIN account."
@@ -1228,7 +1229,7 @@ async def update_user_account_governance(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Invalid role '{payload.role}'. Must be one of {sorted(list(ALL_ROLES))}"
             )
-        if canonical_new_role == "SUPER_ADMIN" and target_user.email.lower() != "segunoluwole22@gmail.com":
+        if canonical_new_role == "SUPER_ADMIN" and target_user.email.lower() != settings.authorized_bootstrap_admin_email:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Forbidden: Cannot elevate non-designated user to SUPER_ADMIN."

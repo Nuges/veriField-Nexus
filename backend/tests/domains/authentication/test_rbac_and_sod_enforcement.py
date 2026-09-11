@@ -203,3 +203,159 @@ async def test_provision_user_account_with_qa_officer_and_canonical_roles(db_ses
         custom_password="ValidPassword123!",
     )
     assert res_pm["user"].role == "PROJECT_MANAGER"
+
+
+@pytest.mark.asyncio
+async def test_role_escalation_negative_controls():
+    """Verify negative authorization controls across roles and tenant boundaries."""
+    from app.domains.authentication.service import AuthenticationService
+    from app.core.config import settings
+    from unittest.mock import AsyncMock
+
+    mock_repo = AsyncMock()
+    org_a = uuid.uuid4()
+    org_b = uuid.uuid4()
+
+    user_field_agent = User(
+        id=uuid.uuid4(),
+        email="agent@testorg.com",
+        role="FIELD_AGENT",
+        organization_id=org_a,
+    )
+    user_target = User(
+        id=uuid.uuid4(),
+        email="target@testorg.com",
+        role="VIEWER",
+        organization_id=org_a,
+    )
+    user_other_tenant = User(
+        id=uuid.uuid4(),
+        email="other@tenantb.com",
+        role="VIEWER",
+        organization_id=org_b,
+    )
+
+    mock_repo.get_by_id.side_effect = lambda uid: (
+        user_target if uid == user_target.id else (user_other_tenant if uid == user_other_tenant.id else None)
+    )
+    mock_repo.update.side_effect = lambda u: u
+    service = AuthenticationService(mock_repo)
+
+    # 1. FIELD_AGENT cannot modify any user's role
+    with pytest.raises(HTTPException) as excinfo:
+        await service.update_user_role(user_target.id, "PROJECT_MANAGER", actor_user=user_field_agent)
+    assert excinfo.value.status_code == 403
+
+    # 2. ORG_ADMIN cannot escalate to SUPER_ADMIN
+    org_admin = User(
+        id=uuid.uuid4(),
+        email="admin@testorg.com",
+        role="ORG_ADMIN",
+        organization_id=org_a,
+    )
+    with pytest.raises(HTTPException) as excinfo:
+        await service.update_user_role(user_target.id, "SUPER_ADMIN", actor_user=org_admin)
+    assert excinfo.value.status_code == 403
+    assert "Only Super Admin can assign the Super Admin role" in excinfo.value.detail
+
+    # 3. SUPER_ADMIN cannot promote an unauthorized email to SUPER_ADMIN
+    super_admin_actor = User(
+        id=uuid.uuid4(),
+        email=settings.authorized_bootstrap_admin_email,
+        role="SUPER_ADMIN",
+    )
+    with pytest.raises(HTTPException) as excinfo:
+        await service.update_user_role(user_target.id, "SUPER_ADMIN", actor_user=super_admin_actor)
+    assert excinfo.value.status_code == 403
+    assert "restricted to designated administrator email" in excinfo.value.detail
+
+    # 4. Cross-tenant role modification denied for ORG_ADMIN
+    with pytest.raises(HTTPException) as excinfo:
+        await service.update_user_role(user_other_tenant.id, "PROJECT_MANAGER", actor_user=org_admin)
+    assert excinfo.value.status_code == 403
+    assert "outside your organization" in excinfo.value.detail
+
+
+@pytest.mark.asyncio
+async def test_inactive_suspended_deleted_user_token_rejections(db_session):
+    """Verify that get_current_user rejects inactive, suspended, or deleted users."""
+    from app.core.security import get_current_user
+    import jwt as pyjwt
+    from app.core.config import settings
+
+    uid_suffix = uuid.uuid4().hex[:8]
+    test_org_id = uuid.uuid4()
+    # 1. User with is_active = False
+    inactive_user = User(
+        id=uuid.uuid4(),
+        email=f"inactive_{uid_suffix}@example.com",
+        full_name="Inactive User",
+        role="FIELD_AGENT",
+        status="active",
+        is_active=False,
+        organization_id=test_org_id,
+    )
+    db_session.add(inactive_user)
+
+    # 2. User with status = "suspended"
+    suspended_user = User(
+        id=uuid.uuid4(),
+        email=f"suspended_{uid_suffix}@example.com",
+        full_name="Suspended User",
+        role="FIELD_AGENT",
+        status="suspended",
+        is_active=True,
+        organization_id=test_org_id,
+    )
+    db_session.add(suspended_user)
+
+    # 3. User with is_deleted = True
+    deleted_user = User(
+        id=uuid.uuid4(),
+        email=f"deleted_{uid_suffix}@example.com",
+        full_name="Deleted User",
+        role="SUPER_ADMIN",
+        status="active",
+        is_active=False,
+        is_deleted=True,
+        organization_id=test_org_id,
+    )
+    db_session.add(deleted_user)
+    await db_session.commit()
+
+    def make_token(uid: uuid.UUID, email: str, role: str):
+        payload = {
+            "sub": str(uid),
+            "email": email,
+            "role": role,
+            "exp": 9999999999,
+        }
+        return pyjwt.encode(payload, settings.effective_jwt_secret, algorithm="HS256")
+
+    try:
+        # Inactive user token must raise 403
+        token_inactive = make_token(inactive_user.id, inactive_user.email, inactive_user.role)
+        with pytest.raises(HTTPException) as exc1:
+            await get_current_user(token=token_inactive, db=db_session)
+        assert exc1.value.status_code == 403
+        assert "inactive" in exc1.value.detail
+
+        # Suspended user token must raise 403
+        token_suspended = make_token(suspended_user.id, suspended_user.email, suspended_user.role)
+        with pytest.raises(HTTPException) as exc2:
+            await get_current_user(token=token_suspended, db=db_session)
+        assert exc2.value.status_code == 403
+        assert "suspended" in exc2.value.detail
+
+        # Deleted user token must raise 403 even if claimed role is SUPER_ADMIN
+        token_deleted = make_token(deleted_user.id, deleted_user.email, deleted_user.role)
+        with pytest.raises(HTTPException) as exc3:
+            await get_current_user(token=token_deleted, db=db_session)
+        assert exc3.value.status_code == 403
+        assert "deleted" in exc3.value.detail
+    finally:
+        await db_session.delete(inactive_user)
+        await db_session.delete(suspended_user)
+        await db_session.delete(deleted_user)
+        await db_session.commit()
+

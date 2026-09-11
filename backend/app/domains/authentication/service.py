@@ -274,13 +274,20 @@ class AuthenticationService:
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="Forbidden: Only Super Admin can assign the Super Admin role."
                 )
-            if target_user.email != "segunoluwole22@gmail.com":
+            if target_user.email != settings.authorized_bootstrap_admin_email:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="Forbidden: Super Admin role is restricted to designated administrator email."
                 )
 
-        # 2. Org admin hierarchy: Org Admin cannot promote users to SUPER_ADMIN or modify users in other orgs
+        # 2. Administrative privilege check: Only SUPER_ADMIN or ORG_ADMIN may modify user roles
+        if actor_canonical not in [ROLE_SUPER_ADMIN, ROLE_ORG_ADMIN]:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Forbidden: Only administrators can modify user roles."
+            )
+
+        # 3. Org admin hierarchy: Org Admin cannot promote users to SUPER_ADMIN or modify users in other orgs
         if actor_canonical != ROLE_SUPER_ADMIN:
             if not actor_user.organization_id or target_user.organization_id != actor_user.organization_id:
                 raise HTTPException(

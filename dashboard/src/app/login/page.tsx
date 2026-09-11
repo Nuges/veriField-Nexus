@@ -452,7 +452,7 @@ export default function LoginPage() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="segunoluwole22@gmail.com"
+                  placeholder="admin@verifield.com"
                   required
                   className="w-full pl-10 pr-4 py-3 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)]
                     text-[var(--color-text-primary)] placeholder:text-slate-500 text-sm
