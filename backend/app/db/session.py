@@ -265,25 +265,44 @@ async def _init_fallback_db():
 
             seed_password = os.environ.get("SUPER_ADMIN_PASSWORD", os.environ.get("SEED_ADMIN_PASSWORD", "VeriField_Dev_2026!"))
             pw_hash = get_password_hash(seed_password)
-            seed_admin_email = settings.authorized_bootstrap_admin_email
-            # Seed the SINGLE authorized platform Super Admin
-            await session.execute(text("""
-                INSERT OR REPLACE INTO users (id, email, full_name, role, status, is_active, password_hash, requires_password_change, version, is_deleted, created_at, updated_at)
-                VALUES (
-                    '00000000-0000-0000-0000-000000000001',
-                    :admin_email,
-                    'Platform Super Admin',
-                    'SUPER_ADMIN',
-                    'active',
-                    1,
-                    :pw_hash,
-                    0,
-                    1,
-                    0,
-                    CURRENT_TIMESTAMP,
-                    CURRENT_TIMESTAMP
-                )
-            """), {"admin_email": seed_admin_email, "pw_hash": pw_hash})
+
+            # One-Time Bootstrap Provisioning Semantics:
+            # Check if an active SUPER_ADMIN already exists in the database.
+            existing_super = await session.execute(text("""
+                SELECT id, email, role, is_deleted FROM users WHERE role = 'SUPER_ADMIN' AND (is_deleted = 0 OR is_deleted IS NULL) LIMIT 1
+            """))
+            super_row = existing_super.fetchone()
+
+            # Check if the designated bootstrap account ID already exists (even if downgraded or soft-deleted)
+            designated_user = await session.execute(text("""
+                SELECT id, email, role, is_deleted FROM users WHERE id = '00000000-0000-0000-0000-000000000001'
+            """))
+            designated_row = designated_user.fetchone()
+
+            if super_row is not None or designated_row is not None:
+                # Invariant: Never overwrite, re-elevate a downgraded user, or resurrect a deleted user on startup.
+                pass
+            else:
+                seed_admin_email = settings.authorized_bootstrap_admin_email
+                if seed_admin_email:
+                    # One-time seed for initial administrator
+                    await session.execute(text("""
+                        INSERT INTO users (id, email, full_name, role, status, is_active, password_hash, requires_password_change, version, is_deleted, created_at, updated_at)
+                        VALUES (
+                            '00000000-0000-0000-0000-000000000001',
+                            :admin_email,
+                            'Platform Super Admin',
+                            'SUPER_ADMIN',
+                            'active',
+                            1,
+                            :pw_hash,
+                            0,
+                            1,
+                            0,
+                            CURRENT_TIMESTAMP,
+                            CURRENT_TIMESTAMP
+                        )
+                    """), {"admin_email": seed_admin_email, "pw_hash": pw_hash})
 
             # Ensure legacy test super admins are decommissioned
             await session.execute(text("""

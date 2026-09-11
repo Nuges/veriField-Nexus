@@ -114,33 +114,55 @@ ROLE_ALIASES: Dict[str, str] = {
 }
 
 
-def normalize_canonical_role(role_str: Optional[str]) -> str:
-    """Normalizes any incoming role string into a canonical system role."""
-    if not role_str:
-        return ROLE_VIEWER
-    cleaned = role_str.strip().upper().replace(" ", "_")
-    cleaned_lower = role_str.strip().lower().replace(" ", "_")
+def is_canonical_or_alias(role_str: Optional[str]) -> bool:
+    """Returns True if the role string is a recognized canonical role or authorized alias."""
+    if not role_str or not role_str.strip():
+        return False
+    cleaned = role_str.strip().upper().replace(" ", "_").replace("-", "_")
+    cleaned_lower = role_str.strip().lower().replace(" ", "_").replace("-", "_")
+    return cleaned in CANONICAL_ROLES or cleaned_lower in ROLE_ALIASES or cleaned in ROLE_ALIASES
 
+
+def validate_assignable_role(role_str: Optional[str]) -> str:
+    """
+    Validates that a role string represents a recognized canonical role or legacy alias.
+    Returns the canonical role string.
+    Raises HTTPException(400) if invalid or unknown (fails closed).
+    """
+    if not role_str or not role_str.strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Role cannot be empty. Must be one of canonical roles: " + str(sorted(list(CANONICAL_ROLES)))
+        )
+    cleaned = role_str.strip().upper().replace(" ", "_").replace("-", "_")
+    cleaned_lower = role_str.strip().lower().replace(" ", "_").replace("-", "_")
+
+    if cleaned in CANONICAL_ROLES:
+        return cleaned
     if cleaned_lower in ROLE_ALIASES:
         return ROLE_ALIASES[cleaned_lower]
     if cleaned in ROLE_ALIASES:
         return ROLE_ALIASES[cleaned]
-    if cleaned in {
-        ROLE_SUPER_ADMIN,
-        ROLE_ORG_ADMIN,
-        ROLE_PROJECT_MANAGER,
-        ROLE_FIELD_SUPERVISOR,
-        ROLE_FIELD_AGENT,
-        ROLE_QA_OFFICER,
-        ROLE_VERIFIER,
-        ROLE_AUDITOR,
-        ROLE_COMPLIANCE_ADMIN,
-        ROLE_REGISTRY_ADMIN,
-        ROLE_FINANCE,
-        ROLE_INVESTOR,
-        ROLE_VIEWER,
-    }:
+
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail=f"Invalid role '{role_str}'. Unknown role. Must be one of canonical roles: {sorted(list(CANONICAL_ROLES))}"
+    )
+
+
+def normalize_canonical_role(role_str: Optional[str]) -> str:
+    """Normalizes any incoming role string into a canonical system role for permission evaluation."""
+    if not role_str:
+        return ROLE_VIEWER
+    cleaned = role_str.strip().upper().replace(" ", "_").replace("-", "_")
+    cleaned_lower = role_str.strip().lower().replace(" ", "_").replace("-", "_")
+
+    if cleaned in CANONICAL_ROLES:
         return cleaned
+    if cleaned_lower in ROLE_ALIASES:
+        return ROLE_ALIASES[cleaned_lower]
+    if cleaned in ROLE_ALIASES:
+        return ROLE_ALIASES[cleaned]
 
     # Default unknown roles to least-privilege VIEWER
     return ROLE_VIEWER

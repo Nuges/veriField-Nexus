@@ -92,6 +92,8 @@ class Settings(BaseSettings):
 
 
 
+    app_env: str = "development"  # development, test, staging, production
+
     # --- JWT Authentication ---
 
     jwt_secret: str = ""
@@ -101,21 +103,56 @@ class Settings(BaseSettings):
     # --- Bootstrap Super Admin Configuration ---
 
     bootstrap_super_admin_email: str = ""
+    verifield_bootstrap_admin_email: str = ""
+
+    @property
+    def is_production(self) -> bool:
+        """
+        Return True if operating in a production environment.
+        Checks APP_ENV, ENVIRONMENT, or default when debug=False and dev_mode=False.
+        """
+        import os
+        env = (
+            os.environ.get("APP_ENV")
+            or os.environ.get("ENVIRONMENT")
+            or self.app_env
+        ).strip().lower()
+        if env in ("prod", "production"):
+            return True
+        if env in ("dev", "development", "test", "testing", "local"):
+            return False
+        return not self.debug and not self.dev_mode
 
     @property
     def authorized_bootstrap_admin_email(self) -> str:
         """
         Return the email address authorized to bootstrap the platform Super Admin.
         Configurable via VERIFIELD_BOOTSTRAP_ADMIN_EMAIL or SUPER_ADMIN_EMAIL env vars.
-        Defaults to the development administrator identity when not explicitly configured.
+
+        In production:
+        - Must be explicitly configured via VERIFIELD_BOOTSTRAP_ADMIN_EMAIL or SUPER_ADMIN_EMAIL.
+        - If not configured, returns empty string "" (bootstrap disabled, no default privilege).
+
+        In development / test:
+        - If configured via env vars, uses that.
+        - Otherwise, falls back to development administrator identity (DEV_ADMIN_EMAIL or dev identity).
         """
         import os
-        return (
+        configured = (
             os.environ.get("VERIFIELD_BOOTSTRAP_ADMIN_EMAIL")
             or os.environ.get("SUPER_ADMIN_EMAIL")
+            or self.verifield_bootstrap_admin_email
             or self.bootstrap_super_admin_email
-            or "segunoluwole22@gmail.com"
-        ).strip().lower()
+        )
+        if configured and configured.strip():
+            return configured.strip().lower()
+
+        if self.is_production:
+            # In production, NEVER use a fallback. Bootstrap is disabled if not explicitly configured.
+            return ""
+
+        # Development / Test environment fallback
+        return (os.environ.get("DEV_ADMIN_EMAIL") or "segunoluwole22@gmail.com").strip().lower()
 
 
 

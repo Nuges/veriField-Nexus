@@ -1,3 +1,4 @@
+import inspect
 import uuid
 
 from datetime import datetime, timedelta, timezone
@@ -259,22 +260,67 @@ class AuthenticationService:
         self, user_id: uuid.UUID, new_role: str, actor_user: User
     ) -> User:
         """Updates user role enforcing strict hierarchy and super admin invariants."""
-        from app.core.rbac import normalize_canonical_role, ROLE_SUPER_ADMIN, ROLE_ORG_ADMIN
+        from app.core.rbac import (
+            normalize_canonical_role,
+            validate_assignable_role,
+            ROLE_SUPER_ADMIN,
+            ROLE_ORG_ADMIN,
+        )
         target_user = await self.repository.get_by_id(user_id)
         if not target_user:
             raise HTTPException(status_code=404, detail="User not found")
 
-        canonical_new_role = normalize_canonical_role(new_role)
+        canonical_new_role = validate_assignable_role(new_role)
         actor_canonical = normalize_canonical_role(actor_user.role)
+        old_role = target_user.role
+
+        # Helper to log security audit
+        async def _log_security_audit(action: str, result: str, meta: dict):
+            try:
+                from app.domains.authentication.models import SecurityAuditLog
+                audit_entry = SecurityAuditLog(
+                    id=uuid.uuid4(),
+                    actor_user_id=getattr(actor_user, "id", None),
+                    target_user_id=target_user.id,
+                    organization_id=target_user.organization_id,
+                    action=action,
+                    result=result,
+                    metadata_json=meta,
+                )
+                db_session = getattr(self.repository, "db", None) or getattr(self.repository, "session", None)
+                if db_session:
+                    res = db_session.add(audit_entry)
+                    if inspect.isawaitable(res):
+                        await res
+                    commit_fn = getattr(db_session, "commit", None)
+                    if commit_fn:
+                        commit_res = commit_fn()
+                        if inspect.isawaitable(commit_res):
+                            await commit_res
+            except Exception:
+                pass
 
         # 1. Super admin invariant: SUPER_ADMIN role cannot be assigned by non-super-admin
         if canonical_new_role == ROLE_SUPER_ADMIN:
             if actor_canonical != ROLE_SUPER_ADMIN:
+                await _log_security_audit("UNAUTHORIZED_ROLE_ESCALATION_ATTEMPT", "FORBIDDEN", {
+                    "attempted_role": canonical_new_role,
+                    "actor_role": actor_canonical,
+                    "target_email": target_user.email,
+                    "reason": "Non-super-admin attempted SUPER_ADMIN assignment"
+                })
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="Forbidden: Only Super Admin can assign the Super Admin role."
                 )
-            if target_user.email != settings.authorized_bootstrap_admin_email:
+            bootstrap_email = settings.authorized_bootstrap_admin_email
+            if not bootstrap_email or (target_user.email or "").strip().lower() != bootstrap_email.lower():
+                await _log_security_audit("UNAUTHORIZED_ROLE_ESCALATION_ATTEMPT", "FORBIDDEN", {
+                    "attempted_role": canonical_new_role,
+                    "actor_role": actor_canonical,
+                    "target_email": target_user.email,
+                    "reason": "Target email does not match authorized bootstrap email"
+                })
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="Forbidden: Super Admin role is restricted to designated administrator email."
@@ -282,6 +328,11 @@ class AuthenticationService:
 
         # 2. Administrative privilege check: Only SUPER_ADMIN or ORG_ADMIN may modify user roles
         if actor_canonical not in [ROLE_SUPER_ADMIN, ROLE_ORG_ADMIN]:
+            await _log_security_audit("UNAUTHORIZED_ROLE_MODIFICATION_ATTEMPT", "FORBIDDEN", {
+                "attempted_role": canonical_new_role,
+                "actor_role": actor_canonical,
+                "target_email": target_user.email,
+            })
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Forbidden: Only administrators can modify user roles."
@@ -290,6 +341,13 @@ class AuthenticationService:
         # 3. Org admin hierarchy: Org Admin cannot promote users to SUPER_ADMIN or modify users in other orgs
         if actor_canonical != ROLE_SUPER_ADMIN:
             if not actor_user.organization_id or target_user.organization_id != actor_user.organization_id:
+                await _log_security_audit("CROSS_TENANT_ROLE_MODIFICATION_ATTEMPT", "FORBIDDEN", {
+                    "attempted_role": canonical_new_role,
+                    "actor_role": actor_canonical,
+                    "target_email": target_user.email,
+                    "actor_org": str(actor_user.organization_id),
+                    "target_org": str(target_user.organization_id),
+                })
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="Forbidden: Cannot modify roles for users outside your organization."
@@ -302,22 +360,51 @@ class AuthenticationService:
 
         target_user.role = canonical_new_role
         updated_user = await self.repository.update(target_user)
+
+        # Audit log successful role modification
+        action_name = "ROLE_PROMOTED" if canonical_new_role == ROLE_SUPER_ADMIN else ("ROLE_DOWNGRADED" if old_role == ROLE_SUPER_ADMIN else "ROLE_UPDATED")
+        await _log_security_audit(action_name, "SUCCESS", {
+            "previous_role": old_role,
+            "new_role": canonical_new_role,
+            "target_email": target_user.email,
+        })
         return updated_user
 
     async def delete_user(self, user_id: uuid.UUID, actor_id: str) -> User:
-
-
         """Soft deletes a user."""
-
         user = await self.repository.get_by_id(user_id)
-
         if not user:
-
             raise HTTPException(status_code=404, detail="User not found")
-
-
-
         user = await self.repository.soft_delete(user)
+        try:
+            from app.domains.authentication.models import SecurityAuditLog
+            actor_uuid = None
+            try:
+                actor_uuid = uuid.UUID(str(actor_id))
+            except Exception:
+                pass
+            audit_entry = SecurityAuditLog(
+                id=uuid.uuid4(),
+                actor_user_id=actor_uuid,
+                target_user_id=user.id,
+                organization_id=user.organization_id,
+                action="ACCOUNT_DELETED",
+                result="SUCCESS",
+                metadata_json={"email": user.email, "role": user.role},
+            )
+            db_session = getattr(self.repository, "db", None) or getattr(self.repository, "session", None)
+            if db_session:
+                res = db_session.add(audit_entry)
+                if inspect.isawaitable(res):
+                    await res
+                commit_fn = getattr(db_session, "commit", None)
+                if commit_fn:
+                    commit_res = commit_fn()
+                    if inspect.isawaitable(commit_res):
+                        await commit_res
+        except Exception:
+            pass
+        return user
 
 
 

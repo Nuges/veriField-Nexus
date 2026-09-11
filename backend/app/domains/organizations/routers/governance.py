@@ -39,7 +39,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
 from app.core.event_bus import EventBus
-from app.core.rbac import ALL_ROLES, normalize_role
+from app.core.rbac import ALL_ROLES, normalize_role, validate_assignable_role
 from app.core.security import get_current_user, get_password_hash
 from app.db.session import get_db
 
@@ -167,19 +167,16 @@ async def provision_user_account(
 
 
     # 2. Validate role catalogue using canonical RBAC normalization
-    canonical_role = normalize_role(role)
-    if not canonical_role:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid role '{role}'. Must be one of {sorted(list(ALL_ROLES))}"
-        )
+    canonical_role = validate_assignable_role(role)
 
     # Invariant: Only authorized bootstrap admin email may hold the SUPER_ADMIN role
-    if canonical_role == "SUPER_ADMIN" and normalized_email != settings.authorized_bootstrap_admin_email:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Forbidden: Cannot provision unauthorized SUPER_ADMIN account."
-        )
+    bootstrap_email = settings.authorized_bootstrap_admin_email
+    if canonical_role == "SUPER_ADMIN":
+        if not bootstrap_email or normalized_email != bootstrap_email.lower():
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Forbidden: Cannot provision unauthorized SUPER_ADMIN account."
+            )
 
     # Coerce organization_id to UUID if string is passed
     target_org_id: Optional[uuid.UUID] = None
@@ -1223,18 +1220,47 @@ async def update_user_account_governance(
         raise HTTPException(status_code=404, detail="User account not found.")
 
     if payload.role is not None and payload.role.strip():
-        canonical_new_role = normalize_role(payload.role)
-        if not canonical_new_role:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Invalid role '{payload.role}'. Must be one of {sorted(list(ALL_ROLES))}"
-            )
-        if canonical_new_role == "SUPER_ADMIN" and target_user.email.lower() != settings.authorized_bootstrap_admin_email:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Forbidden: Cannot elevate non-designated user to SUPER_ADMIN."
-            )
+        canonical_new_role = validate_assignable_role(payload.role)
+        bootstrap_email = settings.authorized_bootstrap_admin_email
+        if canonical_new_role == "SUPER_ADMIN":
+            if not bootstrap_email or (target_user.email or "").strip().lower() != bootstrap_email.lower():
+                audit_entry = SecurityAuditLog(
+                    id=uuid.uuid4(),
+                    actor_user_id=current_user.id,
+                    target_user_id=target_user.id,
+                    organization_id=target_user.organization_id,
+                    action="UNAUTHORIZED_ROLE_ESCALATION_ATTEMPT",
+                    result="FORBIDDEN",
+                    metadata_json={
+                        "attempted_role": canonical_new_role,
+                        "target_email": target_user.email,
+                        "reason": "Non-matching bootstrap admin email",
+                    },
+                )
+                db.add(audit_entry)
+                await db.commit()
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Forbidden: Cannot elevate non-designated user to SUPER_ADMIN.",
+                )
+        old_role = target_user.role
         target_user.role = canonical_new_role
+        if old_role != canonical_new_role:
+            action_name = "ROLE_PROMOTED" if canonical_new_role == "SUPER_ADMIN" else ("ROLE_DOWNGRADED" if old_role == "SUPER_ADMIN" else "ROLE_UPDATED")
+            audit_entry = SecurityAuditLog(
+                id=uuid.uuid4(),
+                actor_user_id=current_user.id,
+                target_user_id=target_user.id,
+                organization_id=target_user.organization_id,
+                action=action_name,
+                result="SUCCESS",
+                metadata_json={
+                    "previous_role": old_role,
+                    "new_role": canonical_new_role,
+                    "target_email": target_user.email,
+                },
+            )
+            db.add(audit_entry)
 
     if payload.organization_id is not None:
         if payload.organization_id == "" or payload.organization_id.lower() == "none":
