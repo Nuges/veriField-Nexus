@@ -44,7 +44,6 @@ import Link from "next/link";
 interface ChatMessage {
   role: "user" | "ai";
   text: string;
-  confidence?: number;
   sourceModule?: string;
   recommendations?: Array<{ type: string; action: string; priority: string }>;
 }
@@ -65,7 +64,7 @@ interface ITMOResult {
 
 export default function UniversalAIAssistant() {
   const pathname = usePathname();
-  const { activeSector, user } = useWorkspace();
+  const { activeSector, activeProject, user } = useWorkspace();
   const [isDismissed, setIsDismissed] = useState(true);
   const [query, setQuery] = useState("");
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
@@ -103,88 +102,49 @@ export default function UniversalAIAssistant() {
   const [reportSuccess, setReportSuccess] = useState<string | null>(null);
 
   const role = user?.role || "ADMIN";
-  const insight = getContextualInsight(pathname, activeSector, role);
-
-
+  const projectId = typeof activeProject === "string" ? activeProject : (activeProject as any)?.id || undefined;
+  const insight = getContextualInsight(pathname, activeSector, role, projectId);
 
   const handleSend = async (e: React.FormEvent) => {
-
     e.preventDefault();
-
     if (!query.trim() || isThinking) return;
 
-
-
     const userMsg = query.trim();
-
     setQuery("");
-
     setError(null);
-
     setChatHistory((prev) => [...prev, { role: "user", text: userMsg }]);
-
     setIsThinking(true);
 
-
-
     try {
-
       const result: AIChatResponse = await chatWithAI(userMsg, {
-
         page: pathname,
-
-        sector: activeSector,
-
+        sector: activeSector || undefined,
+        project_id: projectId,
+        user_role: role,
       });
 
-
-
       setChatHistory((prev) => [
-
         ...prev,
-
         {
-
           role: "ai",
-
           text: result.response,
-
-          confidence: result.confidence,
-
           sourceModule: result.source_module,
-
           recommendations: result.recommendations,
-
         },
-
       ]);
-
     } catch (err: unknown) {
-      const errorMsg = err instanceof Error ? err.message : "Unable to reach the AI service. Please try again.";
+      const errorMsg = err instanceof Error ? err.message : "Decision support is currently unavailable.";
       setError(errorMsg);
-
       setChatHistory((prev) => [
-
         ...prev,
-
         {
-
           role: "ai",
-
-          text: "I'm having trouble connecting to the intelligence service. Please check your connection and try again.",
-
-          confidence: 0,
-
+          text: errorMsg,
         },
-
       ]);
-
     } finally {
-
       setIsThinking(false);
-
     }
-
   };
 
 
@@ -335,7 +295,7 @@ export default function UniversalAIAssistant() {
                       <span>{insight.nextActionLabel}</span>
                       <ArrowRight size={13} />
                     </button>
-                  ) : (
+                  ) : (insight.nextActionLabel && insight.nextActionHref) ? (
                     <Link
                       href={insight.nextActionHref}
                       className="px-3 py-1.5 rounded-md bg-[#008A5E] text-white font-semibold text-xs hover:bg-[#00734E] transition-colors flex items-center gap-1.5"
@@ -343,7 +303,7 @@ export default function UniversalAIAssistant() {
                       <span>{insight.nextActionLabel}</span>
                       <ArrowRight size={13} />
                     </Link>
-                  )}
+                  ) : null}
                 </div>
               </div>
 
@@ -363,11 +323,7 @@ export default function UniversalAIAssistant() {
               {/* Interactive Chat Stream */}
               <div className="space-y-2 pt-2 border-t border-[var(--color-border)]">
                 <div className="flex items-center justify-between text-[11px] font-bold text-[var(--color-text-secondary)]">
-                  <span>Decision Support Query</span>
-                  <span className="font-mono text-[10px] text-[#008A5E]">
-                    <Shield size={10} className="inline mr-1" />
-                    Operational Reasoning
-                  </span>
+                  <span>Decision Support</span>
                 </div>
 
                 {chatHistory.length > 0 && (
@@ -384,16 +340,11 @@ export default function UniversalAIAssistant() {
                           {msg.text}
                         </div>
 
-                        {msg.role === "ai" && msg.confidence !== undefined && msg.confidence > 0 && (
+                        {msg.role === "ai" && msg.sourceModule && (
                           <div className="flex items-center gap-2 mt-1 ml-1">
-                            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/10 text-[#008A5E]">
-                              {(msg.confidence * 100).toFixed(0)}% confidence
+                            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400">
+                              {msg.sourceModule}
                             </span>
-                            {msg.sourceModule && (
-                              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400">
-                                {msg.sourceModule}
-                              </span>
-                            )}
                           </div>
                         )}
 
@@ -436,7 +387,7 @@ export default function UniversalAIAssistant() {
                     type="text"
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
-                    placeholder="Ask about project status, risk levels, verification..."
+                    placeholder={insight.queryPlaceholder || "Ask about operational status, evidence, or verification..."}
                     className="flex-1 bg-[var(--color-background)] border border-[var(--color-border)] rounded-lg px-3 py-2 text-xs text-[var(--color-text-primary)] focus:outline-none focus:border-[#008A5E]"
                     disabled={isThinking}
                   />

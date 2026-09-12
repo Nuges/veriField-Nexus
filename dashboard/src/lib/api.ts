@@ -2388,16 +2388,14 @@ export interface AIChatResponse {
 
 
 
-export async function chatWithAI(query: string, context?: { page?: string; sector?: string; project_id?: string }): Promise<AIChatResponse> {
-
+export async function chatWithAI(
+  query: string,
+  context?: { page?: string; sector?: string; project_id?: string; user_role?: string; [key: string]: unknown }
+): Promise<AIChatResponse> {
   return apiFetch<AIChatResponse>("/ai/chat", {
-
     method: "POST",
-
     body: JSON.stringify({ query, context }),
-
   });
-
 }
 
 

@@ -16,17 +16,12 @@ import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { useWorkspace } from "@/context/WorkspaceContext";
 import { fetchProperties } from "@/lib/api";
+import { Property } from "@/lib/types";
 import {
   ChevronRight,
-  Globe,
-  Layers,
-  MapPin,
-  Building,
   ShieldCheck,
   Search,
-  Bell,
   HelpCircle,
-  CheckCircle2
 } from "lucide-react";
 import Link from "next/link";
 
@@ -35,7 +30,6 @@ export default function EnterpriseBreadcrumb() {
   const {
     user,
     activeSector,
-    activeMethodology,
     activeProject,
     allowedSectors,
     changeSector,
@@ -43,7 +37,7 @@ export default function EnterpriseBreadcrumb() {
     moduleRegistry
   } = useWorkspace();
 
-  const [projects, setProjects] = useState<any[]>([]);
+  const [projects, setProjects] = useState<Property[]>([]);
 
   useEffect(() => {
     async function loadProjects() {
@@ -88,7 +82,6 @@ export default function EnterpriseBreadcrumb() {
       <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
         {/* Organization label */}
         <div className="hidden lg:flex items-center gap-1.5 font-semibold text-[var(--color-text-primary)] shrink-0">
-          <Building size={14} className="text-[#008A5E]" />
           <span className="truncate max-w-[140px]">{user?.organization_id ? "Enterprise Org" : "VeriField Global"}</span>
         </div>
 
@@ -96,7 +89,6 @@ export default function EnterpriseBreadcrumb() {
 
         {/* Sector Selector */}
         <div className="flex items-center gap-1 bg-[var(--color-background)] border border-[var(--color-border)] rounded-md px-2 py-1 shrink-0">
-          <Layers size={13} className="text-[#008A5E] shrink-0" />
           <select
             value={activeSector}
             onChange={(e) => changeSector(e.target.value)}
@@ -112,14 +104,13 @@ export default function EnterpriseBreadcrumb() {
 
         {/* Project Selector (Desktop) */}
         <div className="hidden sm:flex items-center gap-1 bg-[var(--color-background)] border border-[var(--color-border)] rounded-md px-2 py-1 shrink-0">
-          <MapPin size={13} className="text-[#008A5E] shrink-0" />
           <select
             value={activeProject || ""}
             onChange={(e) => changeProject(e.target.value || null)}
             className="bg-transparent text-[11px] font-medium text-[var(--color-text-primary)] focus:outline-none cursor-pointer max-w-[140px] truncate pr-1"
           >
             <option value="">All Projects</option>
-            {projects.map((proj: any) => (
+            {projects.map((proj: Property) => (
               <option key={proj.id} value={proj.id}>
                 {proj.name}
               </option>
@@ -131,7 +122,6 @@ export default function EnterpriseBreadcrumb() {
 
         {/* Operational Stage Badge */}
         <div className="hidden md:flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-[#008A5E] dark:text-emerald-400 font-semibold text-[11px] border border-emerald-200 dark:border-emerald-800 shrink-0">
-          <CheckCircle2 size={12} className="shrink-0 text-[#008A5E]" />
           <span>{currentStage}</span>
         </div>
       </div>

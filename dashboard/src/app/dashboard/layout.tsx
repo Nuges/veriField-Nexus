@@ -165,7 +165,7 @@ function DashboardLayoutContent({
 
                 <h2 className="text-lg font-extrabold text-[var(--color-text-primary)]">
 
-                  Welcome, <span className="text-[#00B47A]">{user.full_name || "User"}</span> 👋
+                  Welcome, <span className="text-[#00B47A]">{user.full_name || "User"}</span>
 
                 </h2>
 

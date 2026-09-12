@@ -804,21 +804,14 @@ function SuperAdminDashboard() {
       {/* SUPER ADMIN NAVBAR */}
       <header className="sticky top-0 w-full bg-[var(--color-surface)] border-b border-[var(--color-border)] z-40 shadow-xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center">
-              <ThemeLogo className="h-8 w-auto object-contain" />
-            </div>
-            <span className="text-[10px] font-mono font-bold uppercase px-2.5 py-1 rounded-md bg-purple-100 dark:bg-purple-950/60 text-purple-800 dark:text-purple-200 border border-purple-300 dark:border-purple-700">
-              Super Admin Governance
-            </span>
+          <div className="flex items-center">
+            <ThemeLogo className="h-8 w-auto object-contain" />
           </div>
 
           <div className="flex items-center gap-2.5">
-            <div className="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-950/50 px-3 py-1.5 rounded-lg border border-emerald-300 dark:border-emerald-700">
-              <span className="w-2 h-2 rounded-full bg-[#008A5E]" />
-              <span className="text-xs font-bold text-emerald-800 dark:text-emerald-300">
-                Super Admin
-              </span>
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-[var(--color-text-secondary)]">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#008A5E]" />
+              <span>Super Admin</span>
             </div>
 
             <button
