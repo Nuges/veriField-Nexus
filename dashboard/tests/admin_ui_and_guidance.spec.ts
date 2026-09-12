@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, Page, Route } from '@playwright/test';
 import { resolveGuidance } from '../src/lib/guidance/resolveGuidance';
 import { BASE_PAGE_METADATA } from '../src/lib/guidance/pageMetadata';
 
@@ -150,7 +150,7 @@ test.describe('Part 1: Guidance Resolver Unit & Architectural Invariants', () =>
 });
 
 test.describe('Part 2: Visual Runtime & Header Invariants', () => {
-  const setupAuth = async (page: any, role: string = 'SUPER_ADMIN') => {
+  const setupAuth = async (page: Page, role: string = 'SUPER_ADMIN') => {
     const user = {
       id: '00000000-0000-0000-0000-000000000001',
       email: 'segunoluwole22@gmail.com',
@@ -166,7 +166,7 @@ test.describe('Part 2: Visual Runtime & Header Invariants', () => {
       is_deleted: false,
     };
 
-    await page.route('**/api/v1/auth/me', async (route: any) => {
+    await page.route('**/api/v1/auth/me', async (route: Route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -239,5 +239,87 @@ test.describe('Part 2: Visual Runtime & Header Invariants', () => {
     const sidebarIcons = sidebar.locator('svg');
     const iconCount = await sidebarIcons.count();
     expect(iconCount).toBeGreaterThan(5);
+  });
+
+  test('4. Sidebar Chrome: Absence of ORG ADMIN / LEVEL 5 row under logo and SECURE in footer', async ({ page }) => {
+    await setupAuth(page, 'ORG_ADMIN');
+    await page.goto(`${BASE_URL}/dashboard`, { waitUntil: 'domcontentloaded' });
+
+    const sidebar = page.locator('aside');
+    await expect(sidebar).toBeVisible();
+
+    // Verify "LEVEL 5" text and container are absent
+    await expect(sidebar.getByText('LEVEL 5', { exact: true })).toHaveCount(0);
+
+    // Verify "ORG ADMIN" tag under the logo is absent
+    await expect(sidebar.getByText('ORG ADMIN', { exact: true })).toHaveCount(0);
+
+    // Verify "SECURE" status tag in footer is absent
+    await expect(sidebar.getByText('SECURE', { exact: true })).toHaveCount(0);
+
+    // Verify "CIOS v5.4-PROD" remains visible in footer
+    await expect(sidebar.getByText('CIOS v5.4-PROD')).toBeVisible();
+
+    // Verify sidebar navigation sections follow the logo naturally
+    await expect(sidebar.getByText('Governance & Operations')).toBeVisible();
+  });
+
+  test('5. Top Header Chrome: Breadcrumb ends at All Projects, Mission Control removed, neutral Audit Queue', async ({ page }) => {
+    await setupAuth(page, 'ORG_ADMIN');
+    await page.goto(`${BASE_URL}/dashboard`, { waitUntil: 'domcontentloaded' });
+
+    const header = page.locator('header').first();
+    await expect(header).toBeVisible();
+
+    // Verify "Mission Control" label/badge is absent from the breadcrumb header
+    await expect(header.getByText('Mission Control', { exact: true })).toHaveCount(0);
+
+    // Verify breadcrumb ends at "All Projects"
+    await expect(header.getByRole('combobox').filter({ hasText: 'All Projects' })).toBeVisible();
+
+    // Verify standalone question mark help button in top header is absent
+    await expect(header.locator('a[href="/dashboard/help"]')).toHaveCount(0);
+
+    // Verify Audit Queue button is present with neutral styling (no emerald background/text)
+    const auditQueueLink = header.locator('a[href="/dashboard/verifications"]');
+    await expect(auditQueueLink).toBeVisible();
+    await expect(auditQueueLink).toHaveAttribute('aria-label', 'Audit Queue');
+
+    const className = await auditQueueLink.getAttribute('class');
+    expect(className).not.toContain('bg-emerald-50');
+    expect(className).not.toContain('text-[#008A5E]');
+    expect(className).not.toContain('border-emerald-200');
+    expect(className).toContain('bg-[var(--color-background)]');
+    expect(className).toContain('border-[var(--color-border)]');
+  });
+
+  test('6. Navigation & Help Resilience: Help remains accessible via sidebar', async ({ page }) => {
+    await setupAuth(page, 'ORG_ADMIN');
+    await page.goto(`${BASE_URL}/dashboard`, { waitUntil: 'domcontentloaded' });
+
+    // Help & Knowledge must still be available in the sidebar
+    const sidebar = page.locator('aside');
+    const helpSidebarLink = sidebar.locator('a[href="/dashboard/help"]');
+    await expect(helpSidebarLink).toBeVisible();
+    await expect(helpSidebarLink).toContainText('Help & Knowledge');
+  });
+
+  test('7. Responsive Viewport Check: 1440px, 1280px, 1024px headers render cleanly', async ({ page }) => {
+    await setupAuth(page, 'ORG_ADMIN');
+
+    for (const width of [1440, 1280, 1024]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto(`${BASE_URL}/dashboard`, { waitUntil: 'domcontentloaded' });
+
+      const header = page.locator('header').first();
+      await expect(header).toBeVisible();
+
+      // Ensure Audit Queue remains visible without collision
+      const auditQueueLink = header.locator('a[href="/dashboard/verifications"]');
+      await expect(auditQueueLink).toBeVisible();
+
+      // Ensure no Mission Control badge appears
+      await expect(header.getByText('Mission Control', { exact: true })).toHaveCount(0);
+    }
   });
 });

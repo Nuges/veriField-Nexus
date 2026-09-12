@@ -13,7 +13,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { usePathname } from "next/navigation";
 import { useWorkspace } from "@/context/WorkspaceContext";
 import { fetchProperties } from "@/lib/api";
 import { Property } from "@/lib/types";
@@ -21,12 +20,10 @@ import {
   ChevronRight,
   ShieldCheck,
   Search,
-  HelpCircle,
 } from "lucide-react";
 import Link from "next/link";
 
 export default function EnterpriseBreadcrumb() {
-  const pathname = usePathname();
   const {
     user,
     activeSector,
@@ -52,29 +49,6 @@ export default function EnterpriseBreadcrumb() {
     }
     loadProjects();
   }, []);
-
-  const getStageFromPath = (path: string | null) => {
-    if (!path || path === "/dashboard") return "Mission Control";
-    if (path.startsWith("/dashboard/poa")) return "Programmes (PoA)";
-    if (path.startsWith("/dashboard/portfolio")) return "PoA & Portfolio";
-    if (path.startsWith("/dashboard/projects")) return "Projects";
-    if (path.startsWith("/dashboard/methodologies")) return "Methodology";
-    if (path.startsWith("/dashboard/assets")) return "Assets";
-    if (path.startsWith("/dashboard/operations")) return "Field Operations";
-    if (path.startsWith("/dashboard/monitoring")) return "Monitoring";
-    if (path.startsWith("/dashboard/verifications")) return "Verification";
-    if (path.startsWith("/dashboard/carbon")) return "Carbon Credits";
-    if (path.startsWith("/dashboard/command-center")) return "Compliance";
-    if (path.startsWith("/dashboard/ai")) return "AI Assistant";
-    if (path.startsWith("/dashboard/analytics")) return "Reports";
-    if (path.startsWith("/dashboard/settings")) return "Settings";
-    if (path.startsWith("/dashboard/people")) return "People & Access";
-    if (path.startsWith("/dashboard/access-control")) return "People & Access";
-    if (path.startsWith("/dashboard/agents")) return "People & Access";
-    return "Operations";
-  };
-
-  const currentStage = getStageFromPath(pathname);
 
   return (
     <header className="w-full max-w-full bg-[var(--color-surface)] border-b border-[var(--color-border)] px-3 sm:px-4 py-2 flex items-center justify-between gap-2 sm:gap-4 text-xs select-none overflow-x-auto">
@@ -117,13 +91,6 @@ export default function EnterpriseBreadcrumb() {
             ))}
           </select>
         </div>
-
-        <ChevronRight size={12} className="hidden md:block text-[var(--color-text-muted)] shrink-0" />
-
-        {/* Operational Stage Badge */}
-        <div className="hidden md:flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-[#008A5E] dark:text-emerald-400 font-semibold text-[11px] border border-emerald-200 dark:border-emerald-800 shrink-0">
-          <span>{currentStage}</span>
-        </div>
       </div>
 
       {/* Right: Search bar & Quick Utilities */}
@@ -138,21 +105,14 @@ export default function EnterpriseBreadcrumb() {
           <kbd className="text-[9px] font-mono font-semibold bg-white dark:bg-slate-900 border border-[var(--color-border)] px-1 py-0.2 rounded text-[var(--color-text-muted)]">⌘K</kbd>
         </Link>
 
-        {/* Quick Links */}
-        <Link
-          href="/dashboard/help"
-          title="Help & Guides"
-          className="p-1.5 rounded-md text-[var(--color-text-secondary)] hover:bg-[var(--color-background)] hover:text-[var(--color-text-primary)] transition-colors"
-        >
-          <HelpCircle size={15} />
-        </Link>
-
+        {/* Audit Queue Link (Neutral styling) */}
         <Link
           href="/dashboard/verifications"
           title="Audit Queue"
-          className="flex items-center gap-1 text-[11px] font-semibold text-[#008A5E] bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 border border-emerald-200 dark:border-emerald-800 px-2 py-1 rounded-md transition-colors"
+          aria-label="Audit Queue"
+          className="flex items-center gap-1.5 text-[11px] font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] bg-[var(--color-background)] hover:bg-slate-100 dark:hover:bg-slate-800 border border-[var(--color-border)] px-2.5 py-1 rounded-md transition-colors shrink-0"
         >
-          <ShieldCheck size={13} />
+          <ShieldCheck size={13} className="text-[var(--color-text-muted)]" />
           <span className="hidden sm:inline">Audit Queue</span>
         </Link>
       </div>

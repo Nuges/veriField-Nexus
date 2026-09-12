@@ -31,14 +31,22 @@ import {
   TrendingUp,
   FileCheck,
   CheckCircle2,
+  LucideIcon,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useWorkspace } from "@/context/WorkspaceContext";
 import { fetchActivities } from "@/lib/api";
 import { getSectorTerminology } from "@/lib/moduleRegistry";
-import { normalizeRole, CANONICAL_ROLES, CanonicalRole } from "@/lib/roles";
+import { normalizeRole } from "@/lib/roles";
 
-const ICON_MAP: Record<string, any> = {
+interface ActivityBadgeItem {
+  trust_status?: string;
+  trust_score?: number;
+  verification_status?: string;
+  status?: string;
+}
+
+const ICON_MAP: Record<string, LucideIcon> = {
   LayoutDashboard,
   Radio,
   Briefcase,
@@ -89,13 +97,13 @@ export function DynamicSidebar() {
         const activities = Array.isArray(res) ? res : res?.activities || [];
         if (activities.length > 0) {
           const flagged = activities.filter(
-            (a: any) =>
+            (a: ActivityBadgeItem) =>
               a.trust_status === "REVIEW" ||
               a.trust_status === "FLAGGED" ||
               (a.trust_score !== undefined && a.trust_score < 80)
           ).length;
           const pending = activities.filter(
-            (a: any) =>
+            (a: ActivityBadgeItem) =>
               a.verification_status === "PENDING" ||
               a.trust_status === "REVIEW" ||
               a.status === "audit"
@@ -494,19 +502,6 @@ export function DynamicSidebar() {
         <ThemeLogo className="h-8 w-auto" />
       </div>
 
-      {/* Role Persona Tag */}
-      <div className="px-5 py-2 bg-[var(--color-background)] border-b border-[var(--color-border)] flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-          <span className="text-[10px] font-mono tracking-wider font-bold text-[var(--color-text-primary)] uppercase">
-            {canonicalRole.replace("_", " ")}
-          </span>
-        </div>
-        <span className="text-[9px] font-mono text-[var(--color-text-secondary)] uppercase tracking-widest font-semibold">
-          LEVEL 5
-        </span>
-      </div>
-
       {/* Scrollable Navigation Groups */}
       <div className="flex-1 overflow-y-auto px-3 py-4 space-y-5 scrollbar-thin scrollbar-thumb-[var(--color-border)]">
         {navGroups.map((group, gIdx) => (
@@ -551,12 +546,8 @@ export function DynamicSidebar() {
       </div>
 
       {/* Footer System Status */}
-      <div className="p-3 border-t border-[var(--color-border)] bg-[var(--color-background)] text-[10px] font-mono text-[var(--color-text-secondary)] flex items-center justify-between">
+      <div className="p-3 border-t border-[var(--color-border)] bg-[var(--color-background)] text-[10px] font-mono text-[var(--color-text-secondary)]">
         <span>CIOS v5.4-PROD</span>
-        <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-semibold">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
-          SECURE
-        </span>
       </div>
     </aside>
   );
