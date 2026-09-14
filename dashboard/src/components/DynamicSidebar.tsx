@@ -195,7 +195,7 @@ export function DynamicSidebar() {
           {
             title: "Intelligence & Guides",
             items: [
-              { label: "AI Assistant", icon: "Bot", href: "/dashboard/ai", badge: "Live" },
+              { label: "AI Assistant", icon: "Bot", href: "/dashboard/ai" },
               { label: "Help & Knowledge", icon: "HelpCircle", href: "/dashboard/help" },
             ],
           },

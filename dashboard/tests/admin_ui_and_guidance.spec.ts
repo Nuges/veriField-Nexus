@@ -174,6 +174,37 @@ test.describe('Part 2: Visual Runtime & Header Invariants', () => {
       });
     });
 
+    await page.route('**/properties/current/dashboard*', async (route: Route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          kpis: [{ id: 'installations', label: 'Installations', value: 12 }],
+          activeOrgs: 1,
+        }),
+      });
+    });
+
+    await page.route('**/api/v1/settings*', async (route: Route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          gps_weight: 30,
+          image_weight: 40,
+          frequency_weight: 30,
+        }),
+      });
+    });
+
+    await page.route('**/api/v1/methodologies*', async (route: Route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([]),
+      });
+    });
+
     await page.addInitScript(
       ({ userData }: { userData: Record<string, unknown> }) => {
         window.localStorage.setItem('vf_token', 'test-token-invariant');
@@ -321,5 +352,56 @@ test.describe('Part 2: Visual Runtime & Header Invariants', () => {
       // Ensure no Mission Control badge appears
       await expect(header.getByText('Mission Control', { exact: true })).toHaveCount(0);
     }
+  });
+
+  test('8. Organization Overview: AI Assistant has no Live badge and governance cards are removed', async ({ page }) => {
+    await setupAuth(page, 'ORG_ADMIN');
+    await page.goto(`${BASE_URL}/dashboard`, { waitUntil: 'domcontentloaded' });
+
+    const sidebar = page.locator('aside');
+    await expect(sidebar).toBeVisible();
+
+    // 1. AI Assistant link exists without "Live" badge
+    const aiAssistantLink = sidebar.locator('a[href="/dashboard/ai"]');
+    await expect(aiAssistantLink).toBeVisible();
+    await expect(aiAssistantLink).toContainText('AI Assistant');
+    await expect(aiAssistantLink.getByText('Live')).toHaveCount(0);
+
+    // 2. Prohibited Governance strings completely removed from Organization Overview
+    const mainContent = page.locator('main, .min-h-screen').first();
+    await expect(mainContent).toBeVisible();
+
+    const prohibitedStrings = [
+      'Tenant Administration & Governance',
+      'Organization workspace active',
+      'Team Access Control',
+      'Roster & Roles',
+      'Manage Team & Invites',
+      'Organization Settings',
+      'API Keys & Security',
+      'Configure Settings',
+      'Audit Log Activity',
+      'Tamper-Proof',
+      'Signed Immutable Ledger',
+    ];
+
+    for (const text of prohibitedStrings) {
+      await expect(page.getByText(text, { exact: false })).toHaveCount(0);
+    }
+
+    // 3. Operational Summary still renders cleanly
+    await expect(page.getByText('Operational Status & Summary')).toBeVisible();
+  });
+
+  test('9. Independent Route Functionality: /dashboard/people and /dashboard/settings load successfully', async ({ page }) => {
+    await setupAuth(page, 'ORG_ADMIN');
+
+    // Verify /dashboard/people
+    await page.goto(`${BASE_URL}/dashboard/people`, { waitUntil: 'domcontentloaded' });
+    await expect(page.getByText('Team & Access (IAM / RBAC)')).toBeVisible();
+
+    // Verify /dashboard/settings
+    await page.goto(`${BASE_URL}/dashboard/settings`, { waitUntil: 'domcontentloaded' });
+    await expect(page.getByText('My Profile & Password')).toBeVisible();
   });
 });

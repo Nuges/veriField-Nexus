@@ -11,34 +11,36 @@ import React from "react";
 import { useWorkspace } from "@/context/WorkspaceContext";
 import {
   ShieldCheck,
-  Activity,
   AlertTriangle,
-  Bot,
   ArrowRight,
-  Clock,
-  Zap,
-  CheckCircle2,
   Radio,
-  FileText,
   Globe,
-  Coins,
   TrendingUp,
-  Users,
-  Cpu,
-  Building,
   DollarSign,
-  Lock,
   FileCheck,
 } from "lucide-react";
 import Link from "next/link";
-import { normalizeRole, CANONICAL_ROLES } from "@/lib/roles";
+import { normalizeRole } from "@/lib/roles";
 
-interface RoleBasedDashboardProps {
-  dashboardData: any;
-  sectorCode: string;
+interface KPIItem {
+  id?: string;
+  label?: string;
+  value?: number | string;
 }
 
-export default function RoleBasedDashboard({ dashboardData, sectorCode }: RoleBasedDashboardProps) {
+interface DashboardData {
+  kpis?: KPIItem[];
+  activeOrgs?: number;
+  active_orgs_count?: number;
+  [key: string]: unknown;
+}
+
+interface RoleBasedDashboardProps {
+  dashboardData: DashboardData | null | undefined;
+  sectorCode?: string;
+}
+
+export default function RoleBasedDashboard({ dashboardData }: RoleBasedDashboardProps) {
   const { user } = useWorkspace();
   const canonicalRole = normalizeRole(user?.role);
 
@@ -46,7 +48,7 @@ export default function RoleBasedDashboard({ dashboardData, sectorCode }: RoleBa
   if (canonicalRole === "SUPER_ADMIN") {
     const totalSubmissions =
       dashboardData?.kpis?.find(
-        (k: any) =>
+        (k: KPIItem) =>
           k.id === "installations" ||
           k.label?.includes("Submissions") ||
           k.label?.includes("Assets") ||
@@ -101,43 +103,7 @@ export default function RoleBasedDashboard({ dashboardData, sectorCode }: RoleBa
 
   // 2. ORGANIZATION ADMIN WORKSPACE
   if (canonicalRole === "ORG_ADMIN") {
-    return (
-      <div className="space-y-4">
-        <div className="p-4 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)] space-y-1.5">
-          <div className="flex items-center gap-2">
-            <Building size={16} className="text-[#008A5E] shrink-0" />
-            <span className="font-semibold text-[var(--color-text-primary)] uppercase text-xs tracking-wider">
-              Tenant Administration & Governance
-            </span>
-          </div>
-          <p className="text-xs text-[var(--color-text-secondary)] leading-relaxed">
-            Organization workspace active. Manage team memberships, API keys, and enterprise sector subscriptions.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <div className="p-4 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)] space-y-1">
-            <span className="text-xs font-medium text-[var(--color-text-secondary)]">Team Access Control</span>
-            <p className="text-xl font-bold text-[var(--color-text-primary)]">Roster & Roles</p>
-            <Link href="/dashboard/people" className="text-xs text-emerald-500 hover:underline inline-block mt-1">
-              Manage Team & Invites →
-            </Link>
-          </div>
-          <div className="p-4 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)] space-y-1">
-            <span className="text-xs font-medium text-[var(--color-text-secondary)]">Organization Settings</span>
-            <p className="text-xl font-bold text-[var(--color-text-primary)]">API Keys & Security</p>
-            <Link href="/dashboard/settings" className="text-xs text-emerald-500 hover:underline inline-block mt-1">
-              Configure Settings →
-            </Link>
-          </div>
-          <div className="p-4 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)] space-y-1">
-            <span className="text-xs font-medium text-[var(--color-text-secondary)]">Audit Log Activity</span>
-            <p className="text-xl font-bold text-emerald-600">Tamper-Proof</p>
-            <p className="text-[11px] text-[var(--color-text-muted)]">Signed Immutable Ledger</p>
-          </div>
-        </div>
-      </div>
-    );
+    return null;
   }
 
   // 3. FIELD AGENT WORKSPACE
