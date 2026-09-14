@@ -34,13 +34,47 @@ import Link from "next/link";
 
 
 
+interface DashboardKPI {
+  code: string;
+  label: string;
+  value: number | string;
+  unit?: string;
+  subtext?: string;
+  iconName?: string;
+  colorTheme?: string;
+  change?: string;
+  trend?: string;
+}
+
+interface DashboardAsset {
+  id: string;
+  name: string;
+  lat?: number | string;
+  lng?: number | string;
+  latitude?: number;
+  longitude?: number;
+  trust?: number;
+  trust_score?: number;
+  status?: string;
+  sector?: string;
+  radiusCheck?: string;
+  asset_type?: string;
+}
+
 interface DashboardPayload {
-  kpis?: Array<{ id: string; label: string; value: string | number; change?: string; trend?: string }>;
+  workspace?: { code?: string; badge?: string; name?: string };
+  methodology?: { code?: string; name?: string };
+  project?: { id?: string | null; name?: string | null };
+  kpis?: DashboardKPI[];
   charts?: Array<{ id: string; title: string; type: string; data?: unknown }>;
   activities?: PipelineActivityItem[];
   activity_total?: number;
   asset_total?: number;
-  assets?: Array<{ id: string; name?: string; status?: string }>;
+  assets?: DashboardAsset[];
+  widgets?: unknown[];
+  alerts?: unknown[];
+  tables?: unknown[];
+  labels?: Record<string, unknown>;
   [key: string]: unknown;
 }
 
@@ -260,7 +294,7 @@ export default function EnterpriseDashboard() {
 
           methodologyName={methodology?.name}
 
-          projectName={project?.name}
+          projectName={project?.name || undefined}
 
           viewMode={viewMode}
 

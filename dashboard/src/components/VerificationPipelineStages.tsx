@@ -327,10 +327,10 @@ export default function VerificationPipelineStages({
 
               {/* Middle Row: Percentage & Count */}
               <div className="flex items-baseline justify-between gap-2 pt-0.5">
-                <span className={`text-xl font-bold font-mono tracking-tight ${st.textColor}`}>
+                <span className={`text-xl font-bold tracking-tight ${st.textColor}`}>
                   {pct}%
                 </span>
-                <span className="text-xs font-mono text-[var(--color-text-secondary)] shrink-0">
+                <span className="text-xs text-[var(--color-text-secondary)] shrink-0">
                   {cnt} {cnt === 1 ? "record" : "records"}
                 </span>
               </div>
