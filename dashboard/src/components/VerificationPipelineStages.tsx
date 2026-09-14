@@ -28,137 +28,129 @@ import { fetchActivities } from "@/lib/api";
 
 
 
+import type { Activity } from "@/lib/types";
+
 export type PipelineStage = "pending" | "ai_verified" | "flagged" | "manual_review" | "approved";
 
-
+export type PipelineActivityItem =
+  | Activity
+  | {
+      id?: string;
+      status?: string | null;
+      pipeline_stage?: string | null;
+      validation_status?: string | null;
+      trust_score?: number | string | null;
+      [key: string]: unknown;
+    };
 
 interface VerificationPipelineStagesProps {
-
   selectedStage?: PipelineStage | null;
-
   onStageChange?: (stage: PipelineStage | null) => void;
-
-  activities?: any[];
-
+  activities?: PipelineActivityItem[];
   className?: string;
-
 }
-
-
 
 /**
-
  * Canonical Mutually Exclusive Pipeline State Machine (Front-end & Back-end Contract)
-
  * Guarantee: Every activity maps to EXACTLY ONE stage.
-
  * Precedence:
-
- * 1. APPROVED
-
- * 2. FLAGGED
-
- * 3. MANUAL_REVIEW
-
- * 4. AI_VERIFIED
-
- * 5. PENDING (Default fallback)
-
+ * 1. APPROVED (Explicit final validation state)
+ * 2. FLAGGED (Explicit flagged/anomaly/rejection state)
+ * 3. MANUAL_REVIEW (Explicit audit queue/human review requirement)
+ * 4. PENDING (Explicit newly submitted/pending state - beats inferred trust score)
+ * 5. AI_VERIFIED (Explicit machine/AI verified state)
+ * 6. Inferred Trust Score fallback ONLY when no explicit status is provided
+ * 7. PENDING (Safe default fallback for unknown/null states)
  */
+export function getVerificationPipelineStage(a?: PipelineActivityItem | null): PipelineStage {
+  if (!a) return "pending";
 
-export function getVerificationPipelineStage(a: any): PipelineStage {
-
-  if (a?.pipeline_stage) {
-
-    const ps = String(a.pipeline_stage).toLowerCase();
-
+  if (a.pipeline_stage) {
+    const ps = String(a.pipeline_stage).toLowerCase().trim();
     if (ps === "approved") return "approved";
-
     if (ps === "flagged") return "flagged";
-
     if (ps === "manual_review") return "manual_review";
-
     if (ps === "ai_verified") return "ai_verified";
-
     if (ps === "pending") return "pending";
-
   }
 
+  const st = (a.status || "").toLowerCase().trim();
+  const val_st = (a.validation_status || "").toUpperCase().trim();
 
-
-  const st = (a?.status || "").toLowerCase().trim();
-
-  const val_st = (a?.validation_status || "").toUpperCase().trim();
-
-  const trust = typeof a?.trust_score === "number" ? a.trust_score : null;
-
-
-
+  // 1. Approved (Highest precedence: explicit final validation)
   if (val_st === "APPROVED" || st === "approved") {
-
     return "approved";
-
   }
 
-  if (st === "flagged" || st === "anomaly" || (trust !== null && trust < 70)) {
-
+  // 2. Flagged (Explicit anomaly or rejection)
+  if (st === "flagged" || st === "anomaly" || st === "rejected" || val_st === "FLAGGED" || val_st === "REJECTED") {
     return "flagged";
-
   }
 
-  if (st === "review" || st === "audit" || (trust !== null && trust >= 70 && trust < 80)) {
-
+  // 3. Manual Review (Explicit human review or audit requirement)
+  if (st === "review" || st === "audit" || st === "manual_review" || val_st === "REVIEW" || val_st === "MANUAL_REVIEW") {
     return "manual_review";
-
   }
 
-  if (st === "verified" || (trust !== null && trust >= 80)) {
-
+  // 4. AI Verified (Explicit machine/AI verified state)
+  if (st === "verified" || st === "ai_verified" || val_st === "VERIFIED" || val_st === "AI_VERIFIED") {
     return "ai_verified";
-
   }
 
-  return "pending";
+  // 5. Pending (Explicit pending / unverified submission state - cannot be auto-verified by trust score alone)
+  if (st === "pending" || st === "submitted" || st === "new" || st === "draft" || st === "unprocessed") {
+    return "pending";
+  }
 
+  // 6. Inferred Trust Score fallback ONLY when no authoritative explicit status exists
+  const rawTrust = typeof a.trust_score === "number" ? a.trust_score : (
+    typeof a.trust_score === "string" ? parseFloat(a.trust_score) : null
+  );
+  const trust = (rawTrust !== null && !isNaN(rawTrust)) ? rawTrust : null;
+
+  if (trust !== null) {
+    if (trust < 70) return "flagged";
+    if (trust < 80) return "manual_review";
+    return "ai_verified";
+  }
+
+  // 7. Safe Default Fallback (Unknown or null workflow state defaults to pending, never auto-verified)
+  return "pending";
 }
 
-
-
 export default function VerificationPipelineStages({
-
   selectedStage: externalSelectedStage,
-
   onStageChange,
-
   activities: externalActivities,
-
   className = "",
-
 }: VerificationPipelineStagesProps) {
-
   const [internalSelectedStage, setInternalSelectedStage] = useState<PipelineStage | null>(null);
-
-  const [activities, setActivities] = useState<any[]>(externalActivities || []);
+  const [fetchedActivities, setFetchedActivities] = useState<PipelineActivityItem[]>([]);
 
   const activeStage = externalSelectedStage !== undefined ? externalSelectedStage : internalSelectedStage;
 
   useEffect(() => {
-    if (externalActivities) {
-      setActivities(externalActivities);
-      return;
-    }
+    if (externalActivities !== undefined) return;
 
+    let isMounted = true;
     async function loadPipelineMetrics() {
       try {
         const res = await fetchActivities({ per_page: 500 });
-        const list = Array.isArray(res) ? res : (res?.activities || []);
-        setActivities(list);
+        if (isMounted) {
+          const list = Array.isArray(res) ? res : (res?.activities || []);
+          setFetchedActivities(list as PipelineActivityItem[]);
+        }
       } catch (err) {
         console.warn("Pipeline stages fetch notice:", err);
       }
     }
     loadPipelineMetrics();
+    return () => {
+      isMounted = false;
+    };
   }, [externalActivities]);
+
+  const activities = externalActivities !== undefined ? externalActivities : fetchedActivities;
 
 
 

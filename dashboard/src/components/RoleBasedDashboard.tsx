@@ -47,13 +47,11 @@ export default function RoleBasedDashboard({ dashboardData }: RoleBasedDashboard
   // 1. PLATFORM SUPER ADMIN WORKSPACE
   if (canonicalRole === "SUPER_ADMIN") {
     const totalSubmissions =
-      dashboardData?.kpis?.find(
-        (k: KPIItem) =>
-          k.id === "installations" ||
-          k.label?.includes("Submissions") ||
-          k.label?.includes("Assets") ||
-          k.label?.includes("Installations")
-      )?.value ?? 0;
+      typeof dashboardData?.activity_total === "number"
+        ? dashboardData.activity_total
+        : Array.isArray(dashboardData?.activities)
+        ? dashboardData.activities.length
+        : 0;
     const activeTenants = dashboardData?.activeOrgs ?? dashboardData?.active_orgs_count ?? 1;
 
     return (

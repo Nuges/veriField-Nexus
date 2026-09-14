@@ -249,31 +249,48 @@ class Activity(Base):
 
 
     @__builtins__["property"]
-
     def pipeline_stage(self) -> str:
-
         st = (self.status or "").lower().strip()
-
         val_st = (self.validation_status or "").upper().strip()
 
-
-
+        # 1. Approved (Highest precedence: explicit final approval / certification)
         if val_st == "APPROVED" or st in ("approved",):
-
             return "APPROVED"
 
-        if st in ("flagged", "anomaly") or (self.trust_score is not None and self.trust_score < 70):
-
+        # 2. Flagged (Explicit anomaly or rejection)
+        if st in ("flagged", "anomaly", "rejected") or val_st in ("FLAGGED", "REJECTED"):
             return "FLAGGED"
 
-        if st in ("review", "audit") or (self.trust_score is not None and 70 <= self.trust_score < 80):
-
+        # 3. Manual Review (Explicit audit queue / human review requirement)
+        if st in ("review", "audit", "manual_review") or val_st in ("REVIEW", "MANUAL_REVIEW"):
             return "MANUAL_REVIEW"
 
-        if st in ("verified",) or (self.trust_score is not None and self.trust_score >= 80):
-
+        # 4. AI Verified (Explicit machine verified status)
+        if st in ("verified", "ai_verified") or val_st in ("VERIFIED", "AI_VERIFIED"):
             return "AI_VERIFIED"
 
+        # 5. Pending (Explicit pending / unverified submission state - cannot be auto-verified by trust score alone)
+        if st in ("pending", "submitted", "new", "draft", "unprocessed"):
+            return "PENDING"
+
+        # 6. Trust score fallback ONLY when status is unassigned/generic/empty
+        raw_trust = self.trust_score
+        if raw_trust is not None:
+            try:
+                trust_val = float(raw_trust)
+            except (ValueError, TypeError):
+                trust_val = None
+        else:
+            trust_val = None
+
+        if trust_val is not None:
+            if trust_val < 70:
+                return "FLAGGED"
+            if trust_val < 80:
+                return "MANUAL_REVIEW"
+            return "AI_VERIFIED"
+
+        # 7. Safe Default Fallback (Unknown or null workflow state defaults to PENDING, never auto-verified)
         return "PENDING"
 
 

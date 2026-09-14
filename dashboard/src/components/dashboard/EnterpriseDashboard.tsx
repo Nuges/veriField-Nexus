@@ -26,19 +26,29 @@ import AnalyticsTabs from "./AnalyticsTabs";
 
 import RoleBasedDashboard from "../RoleBasedDashboard";
 
-import VerificationPipelineStages from "../VerificationPipelineStages";
+import VerificationPipelineStages, { getVerificationPipelineStage, type PipelineActivityItem } from "../VerificationPipelineStages";
 
-import { AlertTriangle, Terminal, RefreshCw, Bot, ShieldCheck, ArrowRight, Clock, AlertOctagon } from "lucide-react";
+import { AlertTriangle, Terminal, RefreshCw, ShieldCheck, ArrowRight, Clock } from "lucide-react";
 
 import Link from "next/link";
 
 
 
+interface DashboardPayload {
+  kpis?: Array<{ id: string; label: string; value: string | number; change?: string; trend?: string }>;
+  charts?: Array<{ id: string; title: string; type: string; data?: unknown }>;
+  activities?: PipelineActivityItem[];
+  activity_total?: number;
+  asset_total?: number;
+  assets?: Array<{ id: string; name?: string; status?: string }>;
+  [key: string]: unknown;
+}
+
 export default function EnterpriseDashboard() {
 
   const { activeSector, activeMethodology, activeProject, workspaceError, user, isLoading: isWorkspaceLoading } = useWorkspace();
 
-  const [dashboardData, setDashboardData] = useState<any>(null);
+  const [dashboardData, setDashboardData] = useState<DashboardPayload | null>(null);
 
   const [isLoading, setIsLoading] = useState(true);
 
@@ -74,9 +84,9 @@ export default function EnterpriseDashboard() {
 
         setDashboardData(payload);
 
-      } catch (err: any) {
+      } catch (err) {
 
-        setError(err.message || "Failed to load enterprise dashboard.");
+        setError(err instanceof Error ? err.message : "Failed to load enterprise dashboard.");
 
       } finally {
 
@@ -267,19 +277,34 @@ export default function EnterpriseDashboard() {
 
 
         {/* 1. EXECUTIVE SUMMARY SURFACE */}
-
         {(() => {
+          const activitiesList = dashboardData?.activities || [];
+          const totalActivities =
+            typeof dashboardData?.activity_total === "number"
+              ? dashboardData.activity_total
+              : activitiesList.length;
 
-          const totalSubmissions = dashboardData?.kpis?.find((k: any) => k.id === "installations" || k.label?.includes("Submissions") || k.label?.includes("Assets") || k.label?.includes("Installations"))?.value ?? 0;
+          let pendingCount = 0;
+          let flaggedCount = 0;
+          let manualReviewCount = 0;
 
-          const hasSubmissions = typeof totalSubmissions === "number" && totalSubmissions > 0;
+          activitiesList.forEach((act: PipelineActivityItem) => {
+            const stage = getVerificationPipelineStage(act);
+            if (stage === "flagged") flaggedCount++;
+            else if (stage === "manual_review") manualReviewCount++;
+            else if (stage === "pending") pendingCount++;
+          });
 
-
+          const summarySectorName = project?.name || titleName;
+          const summaryCopy =
+            totalActivities === 0
+              ? `0 field activities submitted for ${summarySectorName}. Awaiting field data capture.`
+              : totalActivities === 1
+              ? `1 field activity submitted for ${summarySectorName}.`
+              : `${totalActivities} field activities submitted for ${summarySectorName}.`;
 
           return (
-
             <>
-
               <div className="p-4 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)] space-y-1.5">
                 <div className="flex items-center gap-2">
                   <ShieldCheck size={16} className="text-[#008A5E] shrink-0" />
@@ -288,10 +313,7 @@ export default function EnterpriseDashboard() {
                   </span>
                 </div>
                 <p className="text-xs text-[var(--color-text-secondary)] leading-relaxed">
-                  {!hasSubmissions
-                    ? `0 field activities submitted for ${project?.name || titleName}. Telemetry stream active and awaiting field data capture.`
-                    : `Active project carbon yield tracking operational across ${totalSubmissions} verified field submissions.`
-                  }
+                  {summaryCopy}
                 </p>
               </div>
 
@@ -309,32 +331,78 @@ export default function EnterpriseDashboard() {
                   </div>
 
                   <div className="space-y-2 text-xs">
-                    {!hasSubmissions ? (
-                      <div className="p-4 text-center text-[var(--color-text-muted)] text-xs rounded-md bg-[var(--color-background)] border border-[var(--color-border)]">
-                        No pending actions required.
-                      </div>
-                    ) : (
-                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 p-2.5 rounded-md bg-[var(--color-background)] border border-[var(--color-border)]">
+                    {flaggedCount > 0 ? (
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 p-2.5 rounded-md bg-red-500/10 border border-red-500/30">
                         <div className="flex items-center gap-2.5">
-                          <div className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                          <div className="w-2 h-2 rounded-full bg-red-500 shrink-0" />
                           <div>
-                            <p className="font-semibold text-[var(--color-text-primary)]">Execute VVB Independent Audit Sign-off</p>
-                            <p className="text-[11px] text-[var(--color-text-secondary)]">Target Stage: Phase 5 (Verification)</p>
+                            <p className="font-semibold text-[var(--color-text-primary)]">
+                              {flaggedCount} Flagged {flaggedCount === 1 ? "Activity" : "Activities"} Detected
+                            </p>
+                            <p className="text-[11px] text-[var(--color-text-secondary)]">
+                              Potential telemetry anomaly requires verification investigation.
+                            </p>
+                          </div>
+                        </div>
+                        <Link
+                          href="/dashboard/anomalies"
+                          className="px-3 py-1.5 rounded-md bg-red-600 hover:bg-red-700 text-white font-semibold text-xs transition-colors flex items-center gap-1 shrink-0 self-end sm:self-auto"
+                        >
+                          <span>Review Anomalies</span>
+                          <ArrowRight size={12} />
+                        </Link>
+                      </div>
+                    ) : manualReviewCount > 0 ? (
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 p-2.5 rounded-md bg-blue-500/10 border border-blue-500/30">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-2 h-2 rounded-full bg-blue-500 shrink-0" />
+                          <div>
+                            <p className="font-semibold text-[var(--color-text-primary)]">
+                              {manualReviewCount} {manualReviewCount === 1 ? "Activity Requires" : "Activities Require"} Manual Review
+                            </p>
+                            <p className="text-[11px] text-[var(--color-text-secondary)]">
+                              Pending independent VVB auditor evaluation and sign-off.
+                            </p>
                           </div>
                         </div>
                         <Link
                           href="/dashboard/verifications"
                           className="px-3 py-1.5 rounded-md bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs transition-colors flex items-center gap-1 shrink-0 self-end sm:self-auto"
                         >
-                          <span>Sign Task</span>
+                          <span>Open Queue</span>
                           <ArrowRight size={12} />
                         </Link>
+                      </div>
+                    ) : pendingCount > 0 ? (
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 p-2.5 rounded-md bg-amber-500/10 border border-amber-500/30">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+                          <div>
+                            <p className="font-semibold text-[var(--color-text-primary)]">
+                              {pendingCount} Field {pendingCount === 1 ? "Activity" : "Activities"} Pending Verification
+                            </p>
+                            <p className="text-[11px] text-[var(--color-text-secondary)]">
+                              Awaiting AI Trust Engine ingestion and audit validation.
+                            </p>
+                          </div>
+                        </div>
+                        <Link
+                          href="/dashboard/activities"
+                          className="px-3 py-1.5 rounded-md bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs transition-colors flex items-center gap-1 shrink-0 self-end sm:self-auto"
+                        >
+                          <span>View Pipeline</span>
+                          <ArrowRight size={12} />
+                        </Link>
+                      </div>
+                    ) : (
+                      <div className="p-4 text-center text-[var(--color-text-muted)] text-xs rounded-md bg-[var(--color-background)] border border-[var(--color-border)]">
+                        No pending actions required.
                       </div>
                     )}
                   </div>
                 </div>
 
-                {/* Risks & Actions (5 Cols) */}
+                {/* Activity Timeline / Risks (5 Cols) */}
                 <div className="md:col-span-5 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-4 space-y-3">
                   <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-2">
                     <div className="flex items-center gap-2">
@@ -345,13 +413,17 @@ export default function EnterpriseDashboard() {
                     </div>
                   </div>
                   <div className="space-y-2 text-xs">
-                    {!hasSubmissions ? (
+                    {flaggedCount > 0 ? (
+                      <div className="p-2.5 rounded-md bg-red-500/10 border border-red-500/20 text-xs text-red-600 dark:text-red-400 font-medium">
+                        {flaggedCount} potential data {flaggedCount === 1 ? "anomaly" : "anomalies"} currently flagged for investigation.
+                      </div>
+                    ) : totalActivities === 0 ? (
                       <div className="p-4 text-center text-[var(--color-text-muted)] text-xs rounded-md bg-[var(--color-background)] border border-[var(--color-border)]">
                         No recent anomalies or risks reported.
                       </div>
                     ) : (
                       <div className="p-2.5 rounded-md bg-[var(--color-background)] border border-[var(--color-border)] text-xs text-[var(--color-text-secondary)]">
-                        System telemetry operating within normal bounds.
+                        All {totalActivities} field {totalActivities === 1 ? "submission" : "submissions"} verified within normal operational bounds.
                       </div>
                     )}
                   </div>

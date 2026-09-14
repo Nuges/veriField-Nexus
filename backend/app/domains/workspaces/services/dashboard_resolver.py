@@ -35,10 +35,63 @@ logger = logging.getLogger(__name__)
 class DashboardResolverService:
 
     def __init__(self, db: AsyncSession):
-
         self.db = db
 
+    @staticmethod
+    def _matches_sector_activity(act: Activity, code_upper: str) -> bool:
+        atype = (act.activity_type or "").lower()
+        adata = act.activity_data or {}
 
+        cook_indicators = ["cook", "stove", "fuel", "household", "wood", "charcoal", "biomass", "ams_ii_g"]
+        energy_indicators = ["energy", "solar", "grid", "meter", "generation", "diesel", "inverter", "hybrid", "acm0002"]
+        biochar_indicators = ["biochar", "pyrolysis", "feedstock", "kiln", "vm0042"]
+        ev_indicators = ["ev", "charging", "vehicle", "fleet", "mobility", "ams_iii_c"]
+
+        if "COOK" in code_upper or "AMS_II_G" in code_upper:
+            if any(k in atype for k in (energy_indicators + biochar_indicators + ev_indicators)):
+                return False
+            return True
+        elif "HYBRID" in code_upper or "ENERGY" in code_upper or "ACM0002" in code_upper:
+            if any(k in atype for k in (cook_indicators + biochar_indicators + ev_indicators)):
+                return False
+            return True
+        elif "BIOCHAR" in code_upper or "VM0042" in code_upper:
+            if any(k in atype for k in (cook_indicators + energy_indicators + ev_indicators)):
+                return False
+            return True
+        elif "EV" in code_upper or "MOBILITY" in code_upper or "AMS_III_C" in code_upper:
+            if any(k in atype for k in (cook_indicators + energy_indicators + biochar_indicators)):
+                return False
+            return True
+        return True
+
+    @staticmethod
+    def _matches_sector_asset(ast: Asset, code_upper: str) -> bool:
+        atype = (getattr(ast, "asset_type", "") or str(getattr(ast, "asset_type_id", "")) or "").lower()
+        aname = (ast.name or "").lower()
+
+        cook_indicators = ["cook", "stove", "household"]
+        energy_indicators = ["energy", "solar", "grid", "meter", "mini", "inverter", "hybrid"]
+        biochar_indicators = ["biochar", "pyrolysis", "kiln"]
+        ev_indicators = ["ev", "charging", "vehicle", "fleet", "mobility"]
+
+        if "COOK" in code_upper or "AMS_II_G" in code_upper:
+            if any(k in atype or k in aname for k in (energy_indicators + biochar_indicators + ev_indicators)):
+                return False
+            return True
+        elif "HYBRID" in code_upper or "ENERGY" in code_upper or "ACM0002" in code_upper:
+            if any(k in atype or k in aname for k in (cook_indicators + biochar_indicators + ev_indicators)):
+                return False
+            return True
+        elif "BIOCHAR" in code_upper or "VM0042" in code_upper:
+            if any(k in atype or k in aname for k in (cook_indicators + energy_indicators + ev_indicators)):
+                return False
+            return True
+        elif "EV" in code_upper or "MOBILITY" in code_upper or "AMS_III_C" in code_upper:
+            if any(k in atype or k in aname for k in (cook_indicators + energy_indicators + biochar_indicators)):
+                return False
+            return True
+        return True
 
     async def resolve_dashboard(
 
@@ -153,7 +206,7 @@ class DashboardResolverService:
 
 
 
-        ui_config = methodology.ui_config or {}
+        ui_config = (methodology.ui_config if methodology else None) or {}
 
         kpi_defs = ui_config.get("kpis", [])
 
@@ -165,90 +218,70 @@ class DashboardResolverService:
 
         # 2. Real Database Metrics Aggregation (Strictly No Mockups)
 
+        # 2. Real Database Metrics Aggregation (Strictly No Mockups)
         code_upper = (family.code if family else w_str).upper()
 
-
-
-        # Query all real assets and activities from DB safely
+        # Safely convert organization_id to UUID if string for cross-dialect compatibility
+        org_uuid = None
+        if organization_id:
+            if isinstance(organization_id, UUID):
+                org_uuid = organization_id
+            else:
+                try:
+                    org_uuid = UUID(str(organization_id).strip())
+                except (ValueError, TypeError):
+                    org_uuid = None
 
         try:
-
             # Query all assets for organization
             asset_stmt = select(Asset)
-            if organization_id:
-                asset_stmt = asset_stmt.where(Asset.organization_id == organization_id)
+            if org_uuid:
+                asset_stmt = asset_stmt.where(Asset.organization_id == org_uuid)
             asset_res = await self.db.execute(asset_stmt)
             all_assets = asset_res.scalars().all()
 
             # Query all activities for organization
             act_stmt = select(Activity)
-            if organization_id:
-                act_stmt = act_stmt.where(Activity.organization_id == organization_id)
+            if org_uuid:
+                act_stmt = act_stmt.where(Activity.organization_id == org_uuid)
             act_res = await self.db.execute(act_stmt)
             all_activities = act_res.scalars().all()
 
+            # Apply strict sector isolation
+            sector_activities = [
+                act for act in all_activities
+                if self._matches_sector_activity(act, code_upper)
+            ]
+            sector_assets = [
+                ast for ast in all_assets
+                if self._matches_sector_asset(ast, code_upper)
+            ]
 
-
-            # Filter by project_id if provided
-
+            # Filter by project_id if provided (without leaking across projects)
             if project_id and str(project_id).strip() and str(project_id).strip().lower() not in ["all", "-- all projects --"]:
-
                 p_str = str(project_id).strip().lower()
 
-
-
                 db_assets = [
-
-                    ast for ast in all_assets
-
+                    ast for ast in sector_assets
                     if p_str in str(ast.id).lower()
-
                     or p_str in (ast.name or "").lower()
-
                     or (ast.project_id and p_str in str(ast.project_id).lower())
-
                 ]
-
-
 
                 db_activities = [
-
-                    act for act in all_activities
-
+                    act for act in sector_activities
                     if p_str in str(act.id).lower()
-
                     or (act.property_id and p_str in str(act.property_id).lower())
-
                     or (act.asset_id and p_str in str(act.asset_id).lower())
-
                     or p_str in str((act.activity_data or {}).get("stove_id", "")).lower()
-
                     or p_str in str((act.activity_data or {}).get("household_id", "")).lower()
-
                 ]
-
-
-
-                # Fallback to all sector activities if project filter returns no exact matches
-
-                if not db_activities and all_activities:
-
-                    db_activities = all_activities
-
-                if not db_assets and all_assets:
-
-                    db_assets = all_assets
-
             else:
+                db_assets = sector_assets
+                db_activities = sector_activities
 
-                db_assets = all_assets
-
-                db_activities = all_activities
-
-
-
-            real_assets = len(db_assets) if db_assets else len(db_activities)
-
+            # Active Sites and Activities must remain strictly separate entities
+            real_assets = len(db_assets)
             real_act_count = len(db_activities)
 
 
@@ -536,52 +569,62 @@ class DashboardResolverService:
 
 
         # Format real activities list for frontend table
-
         activities_list = []
-
         for act in db_activities:
-
             adata = act.activity_data or {}
 
+            # Numeric trust score representation
+            raw_trust = getattr(act, "trust_score", None)
+            if raw_trust is not None:
+                try:
+                    trust_score_num = float(raw_trust)
+                except (ValueError, TypeError):
+                    trust_score_num = None
+            else:
+                trust_score_num = None
+
+            # Formatted display string for UI tables
+            if trust_score_num is not None:
+                trust_display = f"{int(trust_score_num if trust_score_num > 1.0 else trust_score_num * 100)}%"
+            else:
+                trust_display = "Pending"
+
+            raw_status = getattr(act, "status", None) or "pending"
+            raw_validation = getattr(act, "validation_status", None)
+            raw_stage = getattr(act, "pipeline_stage", None)
+            stage_str = str(raw_stage).lower() if raw_stage else "pending"
+
+            captured_at_str = None
+            if getattr(act, "captured_at", None):
+                captured_at_str = act.captured_at.strftime("%Y-%m-%d")
+            elif getattr(act, "created_at", None):
+                captured_at_str = act.created_at.strftime("%Y-%m-%d")
+
             activities_list.append({
-
                 "id": str(act.id),
-
                 "stove_id": adata.get("stove_id") or f"STOVE-{str(act.id)[:5]}",
-
                 "household_id": adata.get("household_id") or "Household",
-
                 "head_name": adata.get("head_name") or "User",
-
                 "primary_fuel": adata.get("primary_fuel", "LPG").upper(),
-
-                "trust_index": f"{int((act.trust_score or 1.0) * 100)}%",
-
-                "status": "VERIFIED",
-
-                "captured_at": act.created_at.strftime("%Y-%m-%d") if act.created_at else "2026-07-22"
-
+                "trust_score": trust_score_num,
+                "trust_index": trust_display,
+                "status": raw_status,
+                "pipeline_stage": stage_str,
+                "validation_status": raw_validation,
+                "captured_at": captured_at_str,
+                "created_at": act.created_at.isoformat() if getattr(act, "created_at", None) else None,
+                "activity_type": getattr(act, "activity_type", None),
+                "activity_data": adata,
             })
-
-
 
         # Format real assets list for frontend spatial map
-
         assets_list = []
-
         for ast in db_assets:
-
             assets_list.append({
-
                 "id": str(ast.id),
-
                 "name": ast.name,
-
                 "asset_type": getattr(ast, "asset_type", None) or str(getattr(ast, "asset_type_id", "STOVE"))
-
             })
-
-
 
         # Resolve dynamic fallbacks based on code_upper
         if "HYBRID" in code_upper or "ENERGY" in code_upper:
@@ -617,29 +660,18 @@ class DashboardResolverService:
                 "code": methodology.code if methodology else default_m_code,
                 "name": methodology.name if methodology else default_m_name
             },
-
             "project": {
-
                 "id": str(project.id) if project else None,
-
                 "name": project.name if project else None
-
             },
-
             "kpis": resolved_kpis,
-
             "charts": resolved_charts,
-
             "widgets": [],
-
             "alerts": [],
-
             "tables": [],
-
             "activities": activities_list,
-
+            "activity_total": real_act_count,
             "assets": assets_list,
-
+            "asset_total": real_assets,
             "labels": labels
-
         }

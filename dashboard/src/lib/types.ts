@@ -94,6 +94,10 @@ export interface Activity {
 
   status: string;
 
+  pipeline_stage?: string | null;
+
+  validation_status?: string | null;
+
   trust_status?: string | null;
 
   client_id: string | null;
