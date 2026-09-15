@@ -111,6 +111,7 @@ from app.domains.ai_orchestrator.api import router as ai_orchestrator_router
 from app.domains.authentication.routers.mfa import router as mfa_router
 from app.domains.authentication.routers.sso import router as sso_router
 from app.domains.documents.api import router as documents_router
+from app.domains.agriculture.api import router as agriculture_router
 
 
 
@@ -2277,6 +2278,7 @@ app.include_router(ai_orchestrator_router, prefix="/api/v1/ai", tags=["AI Orches
 app.include_router(mfa_router, prefix="/api/v1", tags=["Multi-Factor Authentication"])
 app.include_router(sso_router, prefix="/api/v1", tags=["Enterprise SSO"])
 app.include_router(documents_router, prefix="/api/v1", tags=["Document Intelligence"])
+app.include_router(agriculture_router, prefix="/api/v1", tags=["Agriculture & Land Use MRV"])
 
 
 

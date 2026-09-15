@@ -37,6 +37,7 @@ apscheduler==3.11.2
 python-dotenv==1.0.1
 cachetools==5.3.3
 asteval==0.9.31
+geographiclib==2.1
 redis==5.3.1
 aiomqtt==2.5.1
 prometheus_client==0.25.0

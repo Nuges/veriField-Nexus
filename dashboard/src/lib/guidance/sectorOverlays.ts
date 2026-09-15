@@ -147,6 +147,41 @@ export const SECTOR_OVERLAYS: Record<string, SectorGuidanceOverlay> = {
         "Are there unassigned vehicle telematics dongles?"
       ]
     }
+  },
+
+  agriculture_land_use: {
+    sectorName: "Agriculture & Land Use",
+    protocol: "VM0042 / VT0014 / VM0047 / BM AG04",
+    contextTerminology: "land management units, WGS84 geodesic boundaries, soil organic carbon (0–30 cm), tree allometric biomass, and Sentinel Earth Observation proxies",
+    recommendationOverlay: {
+      "/dashboard": "Agricultural land units, soil core samples, and satellite observation feeds synchronized in database. VM0042 & VT0014 MRV monitoring active.",
+      "/dashboard/projects": "Active agricultural and agroforestry land units registered with WGS84 geodesic boundary precision. Multi-management unit stratification validated.",
+      "/dashboard/methodologies": "Methodology snapshot locked. VM0042 minimum 30 cm soil depth rules and VT0014 spatial uncertainty criteria enforced.",
+      "/dashboard/assets": "Registered management units, monitoring plots, and soil core datasets active. Satellite optical/SAR index feeds synchronized.",
+      "/dashboard/operations": "Agricultural field management queue active. Planting, tillage, fertilizer application, irrigation water logs, and soil sampling records synchronized.",
+      "/dashboard/monitoring": "Sentinel-2 NDVI/EVI and Sentinel-1 SAR backscatter ingestion nominal. Ground soil core calibration coverage verified.",
+      "/dashboard/verifications": "MRV verification dossier sealed with SHA-256 cryptographic attestation. Methodology quantification fail-closed status verified."
+    },
+    suggestedQueriesOverlay: {
+      "/dashboard/monitoring": [
+        "Which management units have soil samples shallower than 30 cm?",
+        "What is the latest Sentinel-2 NDVI mean across active fields?",
+        "Are there unsampled strata requiring ground calibration?",
+        "Which monitoring plots have pending laboratory assay results?"
+      ],
+      "/dashboard/projects": [
+        "What is the total geodesic land area across registered parcels?",
+        "Which projects have locked VM0042 v2.2 baseline parameters?",
+        "Are boundary sources categorized by GNSS/RTK survey precision?",
+        "Which management units require land-cover validation?"
+      ],
+      "/dashboard/sensors": [
+        "Are soil moisture and weather dataloggers transmitting nominal telemetry?",
+        "Which groundwater/paddy water level sensors require battery inspection?",
+        "What is the data freshness of Sentinel Earth Observation feeds?",
+        "Are there unlinked GPS boundary survey files?"
+      ]
+    }
   }
 };
 

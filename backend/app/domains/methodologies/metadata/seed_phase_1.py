@@ -51,18 +51,13 @@ from app.domains.methodologies.models.legacy_mapping import (
 
 
 
-
 async def seed_data(db: AsyncSession):
-
     """Idempotent seed — skips if registries already exist."""
-
     existing = await db.execute(select(MethodologyFamily).limit(1))
-
     if existing.scalars().first():
-
+        from app.domains.agriculture.seed import seed_agriculture_methodologies
+        await seed_agriculture_methodologies(db)
         return
-
-
 
     # ─── Registries ───
 
@@ -1213,6 +1208,9 @@ async def seed_data(db: AsyncSession):
 
 
     await db.commit()
+
+    from app.domains.agriculture.seed import seed_agriculture_methodologies
+    await seed_agriculture_methodologies(db)
 
     print("✅ Seeded Methodology Registry — Phase 1 complete.")
 

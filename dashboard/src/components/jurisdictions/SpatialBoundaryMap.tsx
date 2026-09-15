@@ -385,25 +385,44 @@ export default function SpatialBoundaryMap({ data, activeTab = "MICRO" }: { data
                     </div>
 
                   </div>
-
                 </div>
-
               </Popup>
-
             </CircleMarker>
-
           </React.Fragment>
-
         ))}
 
-
+        {/* 1b. AGRICULTURE & FORESTRY: Land Unit, Parcel & Monitoring Plot Polygon Layer */}
+        {data?.boundary_geojson && (
+          <GeoJSON
+            key={JSON.stringify(data.boundary_geojson).substring(0, 32)}
+            data={data.boundary_geojson}
+            style={{
+              color: "#10B981",
+              weight: 2.5,
+              fillColor: "#059669",
+              fillOpacity: 0.25,
+            }}
+          />
+        )}
+        {Array.isArray(data?.land_units) && data.land_units.map((unit: any) => (
+          unit.boundary_geojson ? (
+            <GeoJSON
+              key={unit.id || unit.name}
+              data={unit.boundary_geojson}
+              style={{
+                color: unit.unit_type === "MONITORING_PLOT" ? "#F59E0B" : "#10B981",
+                weight: unit.unit_type === "MONITORING_PLOT" ? 2 : 2.5,
+                fillColor: unit.unit_type === "MONITORING_PLOT" ? "#D97706" : "#059669",
+                fillOpacity: 0.2,
+                dashArray: unit.unit_type === "MONITORING_PLOT" ? "4, 4" : undefined,
+              }}
+            />
+          ) : null
+        ))}
 
         {/* 2. REGIONAL MODE: Render Regional State Cluster Boundaries */}
-
         {activeTab === "REGIONAL" && (
-
           <>
-
             <Circle
 
               center={[6.5244, 3.3792]}

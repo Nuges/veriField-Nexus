@@ -490,6 +490,7 @@ export function buildMethodologyToFamilyMap(
 export function canonicalSectorCode(sec: string): string {
   if (!sec) return "";
   const clean = sec.toLowerCase().trim().replace(/[\s\-_]+/g, "_");
+  if (clean.includes("agri") || clean.includes("land_use") || clean.includes("farming") || clean.includes("soil") || clean.includes("rice") || clean.includes("vm0042") || clean.includes("vm0047") || clean.includes("vt0014") || clean.includes("vmd0053") || clean.includes("vm0051") || clean.includes("bm_ag04") || clean.includes("bm_fr05")) return "agriculture_land_use";
   if (clean.includes("7f12bfe9") || clean.includes("hybrid") || clean.includes("energy") || clean.includes("solar")) return "hybrid_energy";
   if (clean.includes("867f684f") || clean.includes("ev") || clean.includes("electric") || clean.includes("mobility")) return "ev_mobility";
   if (clean.includes("e6db7fbe") || clean.includes("4f12bfe9") || clean.includes("biochar")) return "biochar";
@@ -507,7 +508,7 @@ export function canonicalSectorCode(sec: string): string {
  * 3. First available workspace in registry
  * 4. "generic" (no workspace)
  */
-const SECTOR_FAMILY_CODES = ["cookstoves", "hybrid_energy", "biochar", "ev_mobility"];
+const SECTOR_FAMILY_CODES = ["cookstoves", "hybrid_energy", "biochar", "ev_mobility", "agriculture_land_use"];
 
 export function resolveUserWorkspace(
   licensedSectors: string[],
@@ -915,29 +916,29 @@ export function getSectorTerminology(sectorCode?: string): SectorTerminology {
 
 
 
-  if (code === "agroforestry" || code === "forestry") {
+  if (code === "agriculture_land_use" || code === "agroforestry" || code === "forestry" || code === "agriculture") {
 
     return {
 
-      sectorCode: "agroforestry",
+      sectorCode: "agriculture_land_use",
 
-      sectorName: "Agroforestry & Land",
+      sectorName: "Agriculture & Land Use",
 
-      assetSingular: "Land Plot / Parcel",
+      assetSingular: "Land Management Unit",
 
-      assetPlural: "Land Plots & Parcels",
+      assetPlural: "Parcels & Management Units",
 
-      projectsNavLabel: "Projects & Land Plots",
+      projectsNavLabel: "Projects & Land Units",
 
-      stage3Label: "3. Plot Registration",
+      stage3Label: "3. Boundary & Plots",
 
-      stage3DetailedName: "3. Land Plot & Parcel Onboarding",
+      stage3DetailedName: "3. Geodesic Boundaries & Soil Stratification",
 
-      proceedToStage3Label: "Proceed to Plot Registration",
+      proceedToStage3Label: "Proceed to Land Unit Registration",
 
-      telemetrySource: "LiDAR & Canopy Biomass Sensors",
+      telemetrySource: "Sentinel EO, SAR Proxies & Soil Core Logs",
 
-      entityTypeAsset: "Forestry Land Parcel"
+      entityTypeAsset: "Agricultural Land Unit"
 
     };
 
