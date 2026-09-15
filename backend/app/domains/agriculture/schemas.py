@@ -114,6 +114,8 @@ class LandUnitResponse(LandUnitBase):
 # ─── Soil Sample Schemas ───
 
 class SoilSampleBase(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
     sample_code: str = Field(..., min_length=1, max_length=50)
     sampling_date: date
     latitude: float = Field(..., ge=-90.0, le=90.0)
@@ -132,6 +134,8 @@ class SoilSampleBase(BaseModel):
     lab_accreditation: Optional[str] = None
     is_model_calibration_source: bool = False
     is_model_validation_source: bool = False
+    model_represents_30cm: bool = False
+    extrapolation_method: Optional[str] = None
 
     @field_validator("depth_lower_cm")
     @classmethod
@@ -164,7 +168,7 @@ class SoilSampleUpdate(BaseModel):
 
 
 class SoilSampleResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, protected_namespaces=())
 
     id: uuid.UUID
     organization_id: uuid.UUID
@@ -189,6 +193,8 @@ class SoilSampleResponse(BaseModel):
     lab_accreditation: Optional[str] = None
     qa_status: str
     compliance_classification: str
+    model_represents_30cm: bool = False
+    extrapolation_method: Optional[str] = None
     compliance_notes: Optional[str] = None
     evidence_id: Optional[uuid.UUID] = None
     created_at: datetime
@@ -209,8 +215,11 @@ class TreeObservationBase(BaseModel):
     latitude: Optional[float] = Field(None, ge=-90.0, le=90.0)
     longitude: Optional[float] = Field(None, ge=-180.0, le=180.0)
     measurement_date: date
-    allometric_equation_id: Optional[str] = "CHAVE_2014_PANTROPICAL"
+    allometric_model_id: str = Field(default="CHAVE_2014_PANTROPICAL_AGB")
+    allometric_equation_id: Optional[str] = None
+    belowground_model_id: Optional[str] = None
     wood_density_g_cm3: float = Field(default=0.60, gt=0.0)
+    wood_density_source: str = Field(default="Global Wood Density Database (Zanne et al. 2009)")
 
 
 class TreeObservationCreate(TreeObservationBase):
@@ -244,6 +253,7 @@ class TreeObservationResponse(BaseModel):
     longitude: Optional[float] = None
     measurement_date: date
     allometric_equation_id: Optional[str] = None
+    belowground_model_id: Optional[str] = None
     derived_aboveground_biomass_kg: Optional[float] = None
     derived_belowground_biomass_kg: Optional[float] = None
     derived_carbon_stock_t_co2e: Optional[float] = None

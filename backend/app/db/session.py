@@ -256,6 +256,18 @@ async def _init_fallback_db():
                 )
             """))
 
+            for col_def in [
+                ("soil_samples", "model_represents_30cm", "BOOLEAN DEFAULT 0"),
+                ("soil_samples", "extrapolation_method", "TEXT"),
+                ("tree_observations", "belowground_model_id", "TEXT"),
+                ("tree_observations", "derived_belowground_biomass_kg", "FLOAT"),
+            ]:
+                try:
+                    await conn.execute(text(f"ALTER TABLE {col_def[0]} ADD COLUMN {col_def[1]} {col_def[2]}"))
+                except Exception:
+                    pass
+
+
 
         async with fallback_session_factory() as session:
             await session.execute(text("""

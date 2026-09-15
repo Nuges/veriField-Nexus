@@ -80,6 +80,18 @@ async def init_test_database():
             )
         """))
 
+        for col_def in [
+            ("soil_samples", "model_represents_30cm", "BOOLEAN DEFAULT 0"),
+            ("soil_samples", "extrapolation_method", "TEXT"),
+            ("tree_observations", "belowground_model_id", "TEXT"),
+            ("tree_observations", "derived_belowground_biomass_kg", "FLOAT"),
+        ]:
+            try:
+                await conn.execute(text(f"ALTER TABLE {col_def[0]} ADD COLUMN {col_def[1]} {col_def[2]}"))
+            except Exception:
+                pass
+
+
     async with async_session_factory() as session:
         await session.execute(text("""
             INSERT OR IGNORE INTO system_settings (id, gps_max_distance_km, max_submissions_per_hour, image_hash_threshold, suspicious_hours_start, suspicious_hours_end)

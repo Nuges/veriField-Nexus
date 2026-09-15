@@ -391,15 +391,23 @@ async def seed_data(db: AsyncSession):
 
         code="VM0044",
 
-        name="Biochar Utilization",
+        name="Biochar Utilization in Soil and Non-Soil Applications",
 
-        description="Verra methodology for quantifying the greenhouse gas emission reductions and carbon dioxide removals from the production and utilization of biochar. Applies to agricultural and forestry waste.",
+        description="Verra methodology for quantifying the greenhouse gas emission reductions and carbon dioxide removals from the production and utilization of biochar. Scope 13 Waste handling and disposal.",
 
         registry_id=verra.id,
 
         family_id=biochar_fam.id,
 
-        recommendation_rules={"project_types": ["BIOCHAR_SOIL"], "countries": ["Global"], "reason": "Verra methodology for agricultural residue conversion.", "confidence": "High"},
+        recommendation_rules={"project_types": ["BIOCHAR_SOIL"], "countries": ["Global"], "reason": "Verra methodology for biochar conversion in soil and non-soil applications.", "confidence": "High"},
+
+        ui_config={
+            "document_type": "METHODOLOGY",
+            "sectoral_scope": "13 — Waste handling and disposal",
+            "outcome": "Removals",
+            "active_since": "2025-06-27",
+            "maturity_state": "MRV_ENABLED",
+        },
 
     )
 

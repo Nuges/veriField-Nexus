@@ -3,19 +3,23 @@
 VeriField Nexus — Verra VM0047 v1.1 ARR Calculator Adapter
 =============================================================================
 Methodology: VM0047 v1.1
-Name: Afforestation, Reforestation and Revegetation (Scope 14 AFOLU)
+Name: Afforestation, Reforestation, and Revegetation (Scope 14 AFOLU)
 Supports: AREA_BASED (plot sample) and CENSUS_BASED (individual tree)
-Biomass Derivation: Authoritative Pantropical Allometric Equations (Chave 2014)
+Biomass Derivation: Allometric Model Registry (Supports Chave 2014, IPCC 2006, etc.)
+Strict Separation: Aboveground Biomass (AGB) and Belowground Biomass (BGB) are NOT conflated.
 Production Issuance Status: NOT_CONFIGURED (Fail-closed)
 =============================================================================
 """
 
 import hashlib
 import json
-import math
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
+from app.domains.agriculture.allometrics import (
+    AllometricModelRegistry,
+    estimate_tree_biomass_pools,
+)
 from app.domains.agriculture.calculators.base import (
     AgricultureCalculator,
     CalculationResult,
@@ -52,49 +56,33 @@ class VM0047CalculatorV11(AgricultureCalculator):
         dbh_cm: float,
         height_m: Optional[float] = None,
         wood_density_g_cm3: float = 0.60,
-        root_to_shoot_ratio: float = 0.235,
+        agb_model_id: str = "CHAVE_2014_PANTROPICAL_AGB",
+        bgb_model_id: Optional[str] = None,
         carbon_fraction: float = 0.47,
-    ) -> Dict[str, float]:
+    ) -> Dict[str, Any]:
         """
-        Derives aboveground biomass (AGB), belowground biomass (BGB),
-        and carbon stock (t CO2e) for an individual tree using Chave et al. (2014).
-
-        AGB (kg dry matter):
-        If height is measured:
-            AGB = 0.0673 * (wood_density * dbh^2 * height)^0.976
-        If height is not measured:
-            AGB = exp(-1.803 + 0.976 * ln(wood_density) + 2.673 * ln(dbh) - 0.0299 * (ln(dbh))^2)
+        Derives aboveground biomass (AGB), belowground biomass (BGB, if requested),
+        and carbon stock (t CO2e) for an individual tree using the Allometric Model Registry.
+        Adheres to VM0047: does NOT automatically infer BGB unless an approved belowground
+        or root-shoot model is explicitly configured.
         """
         if dbh_cm <= 0:
             return {
                 "agb_kg": 0.0,
-                "bgb_kg": 0.0,
+                "bgb_kg": None,
                 "total_biomass_kg": 0.0,
                 "carbon_stock_t_co2e": 0.0,
+                "provenance": None,
             }
 
-        if height_m and height_m > 0:
-            compound = wood_density_g_cm3 * (dbh_cm**2) * height_m
-            agb_kg = 0.0673 * (compound**0.976)
-        else:
-            ln_d = math.log(dbh_cm)
-            ln_rho = math.log(wood_density_g_cm3)
-            ln_agb = -1.803 + 0.976 * ln_rho + 2.673 * ln_d - 0.0299 * (ln_d**2)
-            agb_kg = math.exp(ln_agb)
-
-        bgb_kg = agb_kg * root_to_shoot_ratio
-        total_biomass_kg = agb_kg + bgb_kg
-        total_biomass_tonnes = total_biomass_kg / 1000.0
-
-        # Carbon stock: Biomass (t) * Carbon Fraction (0.47) * (44/12)
-        carbon_stock_t_co2e = total_biomass_tonnes * carbon_fraction * (44.0 / 12.0)
-
-        return {
-            "agb_kg": round(agb_kg, 2),
-            "bgb_kg": round(bgb_kg, 2),
-            "total_biomass_kg": round(total_biomass_kg, 2),
-            "carbon_stock_t_co2e": round(carbon_stock_t_co2e, 4),
-        }
+        return estimate_tree_biomass_pools(
+            dbh_cm=dbh_cm,
+            height_m=height_m,
+            wood_density_g_cm3=wood_density_g_cm3,
+            agb_model_id=agb_model_id,
+            bgb_model_id=bgb_model_id,
+            carbon_fraction=carbon_fraction,
+        )
 
     def calculate_project_credits(
         self,
@@ -106,9 +94,9 @@ class VM0047CalculatorV11(AgricultureCalculator):
         Fail-closed project crediting calculation for VM0047 v1.1.
         """
         msg = (
-            "VM0047 v1.1 project-level net crediting requires baseline ARR stratification "
-            "and dynamic performance benchmark calibration. Production crediting is blocked "
-            "(status=NOT_CONFIGURED) while tree census and field measurements remain active."
+            "VM0047 v1.1 project-level net crediting requires baseline ARR stratification, "
+            "leakage assessment, and dynamic performance benchmark calibration. Production crediting "
+            "is blocked (status=NOT_CONFIGURED) while tree census and field measurements remain active."
         )
 
         provenance_payload = {

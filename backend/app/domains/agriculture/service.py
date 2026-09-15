@@ -50,10 +50,11 @@ from app.domains.agriculture.soil.depth_classifier import (
     classify_soil_sample_depth,
     compute_soc_stock_t_c_ha,
 )
+from app.domains.agriculture.allometrics import estimate_tree_biomass_pools
 from app.domains.agriculture.soil.digital_soil_mapping import (
     VT0014SoilMappingEngine,
 )
-from app.domains.ledger.models import Signature
+from app.domains.ledger.service import LedgerService
 from app.domains.methodologies.models.base_registry import (
     Methodology,
     MethodologyFamily,
@@ -247,6 +248,8 @@ class AgricultureService:
             has_lab_accreditation=bool(payload.lab_accreditation),
             is_model_calibration_source=payload.is_model_calibration_source,
             is_model_validation_source=payload.is_model_validation_source,
+            model_represents_30cm=payload.model_represents_30cm,
+            extrapolation_method=payload.extrapolation_method,
         )
 
         # Compute stock if bulk density provided
@@ -283,6 +286,8 @@ class AgricultureService:
             lab_accreditation=payload.lab_accreditation,
             qa_status="ACCEPTED",
             compliance_classification=classification.value,
+            model_represents_30cm=payload.model_represents_30cm,
+            extrapolation_method=payload.extrapolation_method,
             compliance_notes=notes,
             evidence_id=payload.evidence_id,
         )
@@ -325,11 +330,18 @@ class AgricultureService:
         if not unit:
             raise ValueError(f"Land unit '{payload.land_unit_id}' not found.")
 
-        # Derive biomass using registered allometric equations
-        biomass_res = VM0047CalculatorV11.calculate_tree_biomass(
+        # Derive biomass using registered allometric equations (separating AGB and BGB)
+        agb_model = getattr(payload, "allometric_model_id", None) or payload.allometric_equation_id or "CHAVE_2014_PANTROPICAL_AGB"
+        bgb_model = getattr(payload, "belowground_model_id", None)
+        wood_density_src = getattr(payload, "wood_density_source", "Global Wood Density Database (Zanne et al. 2009)")
+
+        biomass_res = estimate_tree_biomass_pools(
             dbh_cm=payload.dbh_cm,
             height_m=payload.height_m,
             wood_density_g_cm3=payload.wood_density_g_cm3,
+            agb_model_id=agb_model,
+            bgb_model_id=bgb_model,
+            wood_density_source=wood_density_src,
         )
 
         tree = TreeObservation(
@@ -347,7 +359,8 @@ class AgricultureService:
             latitude=payload.latitude,
             longitude=payload.longitude,
             measurement_date=payload.measurement_date,
-            allometric_equation_id=payload.allometric_equation_id,
+            allometric_equation_id=agb_model,
+            belowground_model_id=bgb_model,
             derived_aboveground_biomass_kg=biomass_res["agb_kg"],
             derived_belowground_biomass_kg=biomass_res["bgb_kg"],
             derived_carbon_stock_t_co2e=biomass_res["carbon_stock_t_co2e"],
@@ -374,10 +387,17 @@ class AgricultureService:
 
         created = []
         for obs in observations:
-            biomass_res = VM0047CalculatorV11.calculate_tree_biomass(
+            agb_model = getattr(obs, "allometric_model_id", None) or obs.allometric_equation_id or "CHAVE_2014_PANTROPICAL_AGB"
+            bgb_model = getattr(obs, "belowground_model_id", None)
+            wood_density_src = getattr(obs, "wood_density_source", "Global Wood Density Database (Zanne et al. 2009)")
+
+            biomass_res = estimate_tree_biomass_pools(
                 dbh_cm=obs.dbh_cm,
                 height_m=obs.height_m,
                 wood_density_g_cm3=obs.wood_density_g_cm3,
+                agb_model_id=agb_model,
+                bgb_model_id=bgb_model,
+                wood_density_source=wood_density_src,
             )
             tree = TreeObservation(
                 organization_id=organization_id,
@@ -394,7 +414,8 @@ class AgricultureService:
                 latitude=obs.latitude,
                 longitude=obs.longitude,
                 measurement_date=obs.measurement_date,
-                allometric_equation_id=obs.allometric_equation_id,
+                allometric_equation_id=agb_model,
+                belowground_model_id=bgb_model,
                 derived_aboveground_biomass_kg=biomass_res["agb_kg"],
                 derived_belowground_biomass_kg=biomass_res["bgb_kg"],
                 derived_carbon_stock_t_co2e=biomass_res["carbon_stock_t_co2e"],
@@ -677,24 +698,21 @@ class AgricultureService:
         manifest_sha256 = hashlib.sha256(canonical_json.encode("utf-8")).hexdigest()
         dossier_data["manifest_sha256"] = manifest_sha256
 
-        # Seal manifest into cryptographic ledger
-        sig = Signature(
-            signer_id=user_id,
-            signer_role="METHODOLOGY_ENGINEER",
-            organization_id=organization_id,
+        # Seal manifest into cryptographic ledger via official LedgerService
+        ledger_service = LedgerService(db)
+        sig = await ledger_service.record_dossier_seal(
             project_id=project_id,
-            payload_hash=manifest_sha256,
-            signature_hash=f"SHA256:{manifest_sha256}",
+            organization_id=organization_id,
+            manifest_sha256=manifest_sha256,
             raw_payload={
                 "action": "SEAL_VERIFICATION_DOSSIER",
                 "manifest_sha256": manifest_sha256,
                 "project_code": project.project_code,
                 "sector": "AGRICULTURE_LAND_USE",
             },
+            signer_id=user_id,
+            signer_role="METHODOLOGY_ENGINEER",
         )
-        db.add(sig)
-        await db.flush()
-        await db.refresh(sig)
 
         dossier_data["ledger_seal_status"] = "SEALED_CRYPTOGRAPHICALLY"
         dossier_data["ledger_signature_id"] = str(sig.id)

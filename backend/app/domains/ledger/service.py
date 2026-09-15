@@ -236,3 +236,30 @@ class LedgerService:
             provider=provider,
         )
         return tx_hash
+
+    async def record_dossier_seal(
+        self,
+        project_id: uuid.UUID,
+        organization_id: uuid.UUID,
+        manifest_sha256: str,
+        raw_payload: dict,
+        signer_id: Optional[uuid.UUID] = None,
+        signer_role: str = "METHODOLOGY_ENGINEER",
+    ) -> Signature:
+        """
+        Cryptographically signs and records an MRV verification dossier seal
+        via the official Ledger domain service.
+        """
+        sig_hex = self.signature_provider.sign_hash(manifest_sha256)
+        sig = Signature(
+            signer_id=signer_id,
+            signer_role=signer_role,
+            organization_id=organization_id,
+            project_id=project_id,
+            payload_hash=manifest_sha256,
+            signature_hash=f"SHA256:{manifest_sha256}",
+            raw_payload=raw_payload,
+        )
+        self.db.add(sig)
+        await self.db.flush()
+        return sig

@@ -196,6 +196,9 @@ class SoilSample(Base):
         default="REFERENCE_ONLY",
     )  # EX_POST_QUANTIFICATION_ELIGIBLE, MODEL_CALIBRATION_ELIGIBLE, MODEL_VALIDATION_ELIGIBLE, REFERENCE_ONLY, NON_COMPLIANT
 
+    model_represents_30cm: Mapped[bool] = mapped_column(Boolean, default=False)
+    extrapolation_method: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+
     compliance_notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     evidence_id: Mapped[Optional[uuid.UUID]] = mapped_column(
@@ -289,6 +292,7 @@ class TreeObservation(Base):
 
     # Derived Biomass (strictly computed via registered allometric equations in calculation runs)
     allometric_equation_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    belowground_model_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     derived_aboveground_biomass_kg: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     derived_belowground_biomass_kg: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     derived_carbon_stock_t_co2e: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
