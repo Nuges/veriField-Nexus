@@ -56,3 +56,5 @@ from app.domains.hardware.models import *
 from app.domains.digital_twins.models import *
 from app.domains.documents.models import *
 from app.domains.agriculture.models import *
+from app.domains.biochar.models import *
+from app.domains.biochar.puro_models import *

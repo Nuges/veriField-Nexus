@@ -507,40 +507,24 @@ export async function onboardDeveloper(payload: {
 
 
 export async function fetchActivities(params?: {
-
   page?: number;
-
   per_page?: number;
-
   status?: string;
-
   min_trust?: number;
-
   max_trust?: number;
-
   sector_id?: string;
-
   activity_type?: string;
-
+  project_id?: string;
 }): Promise<ActivityListResponse> {
-
   const searchParams = new URLSearchParams();
-
   if (params?.activity_type) searchParams.set("activity_type", params.activity_type);
-
   if (params?.page) searchParams.set("page", String(params.page));
-
   if (params?.per_page) searchParams.set("per_page", String(params.per_page));
-
   if (params?.status) searchParams.set("status", params.status);
-
   if (params?.min_trust !== undefined) searchParams.set("min_trust", String(params.min_trust));
-
   if (params?.max_trust !== undefined) searchParams.set("max_trust", String(params.max_trust));
-
   if (params?.sector_id) searchParams.set("sector_id", params.sector_id);
-
-
+  if (params?.project_id) searchParams.set("project_id", params.project_id);
 
   const query = searchParams.toString();
 
@@ -2903,4 +2887,648 @@ export async function downloadRegistryDocument(
   a.click();
   a.remove();
   window.URL.revokeObjectURL(url);
+}
+
+// =============================================================================
+// Biochar Carbon Removal Value-Chain API
+// =============================================================================
+
+export interface BiocharBatchRecord {
+  id: string;
+  organization_id?: string;
+  project_id: string;
+  batch_number: string;
+  facility_name: string;
+  kiln_id: string;
+  production_run_id?: string;
+  feedstock_type: string;
+  feedstock_weight_tonnes: number;
+  biochar_yield_tonnes: number;
+  dry_mass_tonnes?: number;
+  fixed_carbon_pct: number;
+  molar_h_c_ratio: number;
+  carbon_permanence_factor: number;
+  net_co2e_removed_tonnes: number;
+  quality_grade: string;
+  status: string;
+  has_anomaly: boolean;
+  anomaly_reason?: string;
+  carbon_claim_project_id?: string;
+  carbon_claim_registry?: string;
+  carbon_claim_methodology?: string;
+  mass_balance_allocated_tonnes: number;
+  mass_balance_status: string;
+  created_at: string;
+}
+
+export interface BiocharSummary {
+  total_batches: number;
+  total_feedstock_tonnes: number;
+  total_biochar_produced_tonnes: number;
+  total_net_co2e_removed_tonnes: number;
+  grade_a_percentage: number;
+  detected_anomalies_count: number;
+}
+
+export interface BiocharMassBalance {
+  batch_id: string;
+  batch_number: string;
+  original_produced_mass_tonnes: number;
+  current_inventory_tonnes: number;
+  terminal_end_use_tonnes: number;
+  documented_losses_tonnes: number;
+  rejected_tonnes: number;
+  total_reconciled_tonnes: number;
+  discrepancy_tonnes: number;
+  status: string;
+  is_valid: boolean;
+  tolerated_variance: number;
+  notes?: string;
+}
+
+export interface BiocharMethodologyConflict {
+  has_conflict: boolean;
+  conflict_code?: string;
+  severity?: string;
+  biochar_project_id?: string;
+  agriculture_project_id?: string;
+  affected_land_unit_id?: string;
+  affected_land_unit_name?: string;
+  biochar_methodology?: string;
+  agriculture_methodology?: string;
+  carbon_pool?: string;
+  message?: string;
+  resolution_requirement?: string;
+  accounting_blocked: boolean;
+}
+
+export interface BiocharEligibility {
+  project_id: string;
+  target_standard: string;
+  target_methodology: string;
+  methodology_version: string;
+  eligibility_status: string;
+  facility_criteria_met: boolean;
+  feedstock_criteria_met: boolean;
+  additionality_status: string;
+  requirements_complete: string[];
+  requirements_missing: string[];
+  blocking_findings: string[];
+  review_findings: string[];
+  source_references: string[];
+  evaluated_at: string;
+}
+
+export interface BiocharChainOfCustody {
+  batch_id: string;
+  batch_number: string;
+  traceability_complete: boolean;
+  nodes: Array<{
+    node_type: string;
+    node_id: string;
+    title: string;
+    details: Record<string, unknown>;
+    hash?: string;
+  }>;
+  upstream_chain: string[];
+  downstream_chain: string[];
+  evidence_hashes: string[];
+}
+
+export async function fetchBiocharBatches(projectId?: string): Promise<BiocharBatchRecord[]> {
+  const query = projectId ? `?project_id=${projectId}` : "";
+  return apiFetch<BiocharBatchRecord[]>(`/biochar/batches${query}`);
+}
+
+export async function fetchBiocharBatch(batchId: string): Promise<BiocharBatchRecord> {
+  return apiFetch<BiocharBatchRecord>(`/biochar/batches/${batchId}`);
+}
+
+export async function fetchBiocharSummary(projectId?: string): Promise<BiocharSummary> {
+  const query = projectId ? `?project_id=${projectId}` : "";
+  return apiFetch<BiocharSummary>(`/biochar/summary${query}`);
+}
+
+export async function fetchBiocharMassBalance(batchId: string): Promise<BiocharMassBalance> {
+  return apiFetch<BiocharMassBalance>(`/biochar/batches/${batchId}/mass-balance`);
+}
+
+export async function fetchBiocharLineage(batchId: string): Promise<BiocharChainOfCustody> {
+  return apiFetch<BiocharChainOfCustody>(`/biochar/batches/${batchId}/lineage`);
+}
+
+export async function fetchBiocharLandUnitConflict(
+  landUnitId: string,
+  biocharMethodology = "VM0044",
+  biocharProjectId?: string
+): Promise<BiocharMethodologyConflict> {
+  const pidQuery = biocharProjectId ? `&biochar_project_id=${biocharProjectId}` : "";
+  return apiFetch<BiocharMethodologyConflict>(
+    `/biochar/conflicts/land-units/${landUnitId}?biochar_methodology=${biocharMethodology}${pidQuery}`
+  );
+}
+
+export async function fetchBiocharEligibility(
+  projectId: string,
+  targetStandard = "VERRA",
+  targetMethodology = "VM0044",
+  methodologyVersion = "v1.2"
+): Promise<BiocharEligibility> {
+  return apiFetch<BiocharEligibility>(
+    `/biochar/projects/${projectId}/eligibility?target_standard=${targetStandard}&target_methodology=${targetMethodology}&methodology_version=${methodologyVersion}`
+  );
+}
+
+export interface FeedstockSourceRecord {
+  id: string;
+  source_code: string;
+  source_name: string;
+  source_type: string;
+  biomass_type: string;
+  origin_location?: string;
+  supplier_name?: string;
+  waste_status: string;
+  baseline_fate: string;
+  sustainability_status: string;
+  metadata_json?: Record<string, any>;
+  created_at: string;
+}
+
+export interface FeedstockLotRecord {
+  id: string;
+  lot_number: string;
+  feedstock_type: string;
+  mass_received_tonnes: number;
+  moisture_content_pct: number;
+  dry_mass_tonnes: number;
+  available_mass_tonnes: number;
+  allocated_mass_tonnes: number;
+  dry_basis_derivation_method?: string;
+  storage_location?: string;
+  receipt_date: string;
+  created_at: string;
+}
+
+export interface ProductionFacilityRecord {
+  id: string;
+  facility_code: string;
+  facility_name: string;
+  location: string;
+  facility_status: string;
+  technology_type: string;
+  production_capacity_tpy?: number;
+  permits_json?: Record<string, any>;
+  created_at: string;
+}
+
+export interface ProductionRunRecord {
+  id: string;
+  run_number: string;
+  start_time: string;
+  end_time?: string;
+  total_feedstock_input_tonnes: number;
+  total_feedstock_dry_tonnes: number;
+  avg_pyrolysis_temp_celsius: number;
+  residence_time_minutes: number;
+  output_biochar_mass_tonnes: number;
+  qa_status: string;
+  created_at: string;
+}
+
+export interface BiocharEndUseItem {
+  id: string;
+  batch_id: string;
+  end_use_type: string;
+  applied_quantity_tonnes: number;
+  event_date: string;
+  source_land_unit_id?: string;
+  application_rate_tonnes_per_ha?: number;
+  area_hectares?: number;
+  application_method?: string;
+  gps_coordinates?: string;
+  crop_type?: string;
+  product_category?: string;
+  recipient_organization?: string;
+  durability_classification?: string;
+  verification_status: string;
+  created_at: string;
+}
+
+export async function fetchFeedstockSources(projectId?: string): Promise<FeedstockSourceRecord[]> {
+  const query = projectId ? `?project_id=${projectId}` : "";
+  return apiFetch<FeedstockSourceRecord[]>(`/biochar/sources${query}`);
+}
+
+export const fetchBiocharSources = fetchFeedstockSources;
+
+export async function fetchFeedstockLots(projectId?: string): Promise<FeedstockLotRecord[]> {
+  const query = projectId ? `?project_id=${projectId}` : "";
+  return apiFetch<FeedstockLotRecord[]>(`/biochar/lots${query}`);
+}
+
+export async function fetchProductionFacilities(projectId?: string): Promise<ProductionFacilityRecord[]> {
+  const query = projectId ? `?project_id=${projectId}` : "";
+  return apiFetch<ProductionFacilityRecord[]>(`/biochar/facilities${query}`);
+}
+
+export async function fetchProductionRuns(projectId?: string): Promise<ProductionRunRecord[]> {
+  const query = projectId ? `?project_id=${projectId}` : "";
+  return apiFetch<ProductionRunRecord[]>(`/biochar/runs${query}`);
+}
+
+export async function fetchBiocharEndUses(projectId?: string): Promise<BiocharEndUseItem[]> {
+  const query = projectId ? `?project_id=${projectId}` : "";
+  return apiFetch<BiocharEndUseItem[]>(`/biochar/end-uses${query}`);
+}
+
+// ─── Puro.earth Biochar Edition 2025 V2 Endpoints ──────────────────────────
+
+export interface PuroRuleDefinitionRecord {
+  id: string;
+  section_number: number;
+  section_title: string;
+  rule_number: string;
+  rule_title: string;
+  applicability_condition?: string;
+  requirement_type: string;
+  implementation_handler: string;
+  required_evidence_types: string[];
+  is_blocking: boolean;
+}
+
+export interface PuroNormativeDependencyRecord {
+  id: string;
+  code: string;
+  title: string;
+  version: string;
+  document_type: string;
+  status: string;
+  effective_date: string;
+  source_reference?: string;
+  required_by_rules: string[];
+  implementation_state: string;
+  checksum_hash?: string;
+  last_reviewed_at?: string;
+}
+
+export interface PuroEndUseCategoryRecord {
+  id: string;
+  category_code: string;
+  category_name: string;
+  sector: string;
+  product_type: string;
+  application_type?: string;
+  pure_or_mixed: string;
+  min_environmental_quality?: string;
+  is_corc_eligible: boolean;
+  default_durability_years: number;
+  persistence_factor_non_soil?: number;
+  reversal_rules?: Record<string, any>;
+  cascading_conditions?: Record<string, any>;
+  reversal_discount_factor_required?: boolean;
+  required_evidence_types: string[];
+  rule_references: string[];
+}
+
+export interface PuroSupplierProfileRecord {
+  id: string;
+  organization_id: string;
+  project_id: string;
+  facility_id: string;
+  supplier_legal_name: string;
+  registration_number?: string;
+  jurisdiction_country: string;
+  supplier_role: string;
+  claim_rights_status: string;
+  authorization_agreement_ref?: string;
+  rights_declaration_doc_hash?: string;
+  contract_effective_date?: string;
+  contract_expiry_date?: string;
+  validation_state: string;
+  created_at: string;
+}
+
+export interface PuroFacilityProfileRecord {
+  id: string;
+  organization_id: string;
+  facility_id: string;
+  facility_classification: string;
+  host_country: string;
+  reference_coordinates?: string;
+  spatial_extent_geojson?: Record<string, any>;
+  receiving_location?: string;
+  pretreatment_location?: string;
+  conversion_location?: string;
+  packaging_location?: string;
+  technology_similarity_verified: boolean;
+  commissioned_status: string;
+  operating_status: string;
+  created_at: string;
+}
+
+export interface PuroCreditingPeriodRecord {
+  id: string;
+  organization_id: string;
+  facility_id: string;
+  sequence_number: number;
+  start_date: string;
+  end_date: string;
+  crediting_duration_years: number;
+  status: string;
+  renewal_type?: string;
+  renewal_eligibility: boolean;
+  previous_period_id?: string;
+  created_at: string;
+}
+
+export interface PuroQuantificationRequest {
+  batch_id: string;
+  soil_temperature_celsius?: number;
+  dry_mass_override_tonnes?: number;
+  impurity_pct?: number;
+  eligible_feedstock_fraction?: number;
+  e_project_transport_tco2e?: number;
+  e_project_processing_tco2e?: number;
+  e_project_application_tco2e?: number;
+  e_project_auxiliary_fuel_tco2e?: number;
+  e_project_methane_storage_tco2e?: number;
+  e_leakage_tco2e?: number;
+  dry_mass_determination_method?: string;
+}
+
+export interface PuroSimulationRequest {
+  batch_id?: string;
+  dry_mass_tonnes: number;
+  c_org_pct: number;
+  molar_h_c: number;
+  soil_temperature_celsius: number;
+  baseline_scenario?: string;
+  historical_baseline_tco2e?: number;
+  end_use_category_code?: string;
+  reversal_discount_factor?: number;
+  is_non_soil_durable?: boolean;
+  e_biomass?: number;
+  e_production?: number;
+  e_use?: number;
+  e_infra?: number;
+  e_dluc?: number;
+  crediting_years?: number;
+  is_leakage_mitigated?: boolean;
+  ecological_leakage_tco2e?: number;
+  market_activity_shifting_tco2e?: number;
+  iluc_feedstock_category?: string;
+  feedstock_quantity_dry_tonnes?: number;
+}
+
+export interface PuroQuantificationBreakdown {
+  eligible_dry_biochar_mass_tonnes: number;
+  organic_carbon_pct: number;
+  molar_h_c: number;
+  soil_temperature_celsius: number;
+  persistence_fraction_pf: number;
+  regression_m?: number | null;
+  regression_a?: number | null;
+  durability_class: string;
+
+  c_stored_tco2e: number;
+  c_baseline_tco2e: number;
+  c_loss_tco2e: number;
+  e_project_tco2e: number;
+  e_ops_biomass_tco2e?: number;
+  e_ops_production_tco2e?: number;
+  e_ops_use_tco2e?: number;
+  e_ops_total_tco2e?: number;
+  e_emb_infra_tco2e?: number;
+  e_emb_dluc_tco2e?: number;
+  e_emb_annualized_tco2e?: number;
+
+  leakage_eco_tco2e?: number;
+  leakage_ma_tco2e?: number;
+  leakage_iluc_tco2e?: number;
+  e_leakage_tco2e: number;
+
+  net_corcs_calculated: number;
+  combined_uncertainty_pct: number;
+  deductible_uncertainty_pct: number;
+  final_corcs_issuable: number;
+  reported_uncertainty_text?: string | null;
+
+  calculation_mode?: string;
+  calculation_status: string;
+  corc_point_status: string;
+  calculation_hash: string;
+  methodology_version: string;
+  coefficient_version: string;
+  engine_version: string;
+  timestamp: string;
+  execution_id?: string | null;
+  superseded_at?: string | null;
+  replacement_engine_version?: string | null;
+  rule_references: string[];
+  warnings: string[];
+  notes?: string | null;
+}
+
+export interface PuroAuditWorkflowRecord {
+  id: string;
+  organization_id: string;
+  facility_id: string;
+  monitoring_period_id?: string;
+  audit_type: string;
+  auditor_organization: string;
+  lead_auditor_name?: string;
+  audit_status: string;
+  scheduled_date?: string;
+  completion_date?: string;
+  audit_dossier_hash?: string;
+  certificate_number?: string;
+  created_at: string;
+}
+
+export interface PuroOutputReportRecord {
+  id: string;
+  organization_id: string;
+  facility_id: string;
+  monitoring_period_id: string;
+  report_number: string;
+  report_version: number;
+  report_status: string;
+  total_eligible_biochar_mass_tonnes: number;
+  total_net_corcs: number;
+  manifest_hash: string;
+  ledger_signature_id?: string;
+  generated_at: string;
+}
+
+export interface PuroRegistryReadiness {
+  project_id: string;
+  facility_id?: string;
+  methodology_code: string;
+  readiness_state: string;
+  overall_capability_status: string;
+  active_blockers: string[];
+  unresolved_dependencies: string[];
+  audit_readiness_status: string;
+  quantification_status: string;
+  issuance_status: string;
+  corc_point_verified_batches_count: number;
+  total_eligible_batches_count: number;
+  evaluated_at: string;
+}
+
+export async function fetchPuroRules(): Promise<PuroRuleDefinitionRecord[]> {
+  return apiFetch<PuroRuleDefinitionRecord[]>("/biochar/puro/rules");
+}
+
+export async function fetchPuroDependencies(): Promise<PuroNormativeDependencyRecord[]> {
+  return apiFetch<PuroNormativeDependencyRecord[]>("/biochar/puro/dependencies");
+}
+
+export async function fetchPuroEndUseCategories(): Promise<PuroEndUseCategoryRecord[]> {
+  return apiFetch<PuroEndUseCategoryRecord[]>("/biochar/puro/categories");
+}
+
+export async function fetchPuroSupplierProfile(projectId: string): Promise<PuroSupplierProfileRecord | null> {
+  return apiFetch<PuroSupplierProfileRecord | null>(`/biochar/puro/projects/${projectId}/supplier`);
+}
+
+export async function fetchPuroFacilityProfile(facilityId: string): Promise<PuroFacilityProfileRecord | null> {
+  return apiFetch<PuroFacilityProfileRecord | null>(`/biochar/puro/facilities/${facilityId}/profile`);
+}
+
+export async function fetchPuroCreditingPeriods(facilityId: string): Promise<PuroCreditingPeriodRecord[]> {
+  return apiFetch<PuroCreditingPeriodRecord[]>(`/biochar/puro/facilities/${facilityId}/crediting-periods`);
+}
+
+export async function executePuroQuantification(
+  batchId: string,
+  payload?: PuroQuantificationRequest
+): Promise<PuroQuantificationBreakdown> {
+  return apiFetch<PuroQuantificationBreakdown>(`/biochar/puro/batches/${batchId}/quantification`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload || {}),
+  });
+}
+
+export async function simulatePuroQuantification(
+  payload: PuroSimulationRequest,
+  batchId?: string
+): Promise<PuroQuantificationBreakdown> {
+  const url = batchId
+    ? `/biochar/puro/batches/${batchId}/simulate-quantification`
+    : "/biochar/puro/simulate-quantification";
+  return apiFetch<PuroQuantificationBreakdown>(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function fetchPuroAudits(facilityId: string): Promise<PuroAuditWorkflowRecord[]> {
+  return apiFetch<PuroAuditWorkflowRecord[]>(`/biochar/puro/facilities/${facilityId}/audits`);
+}
+
+export async function fetchPuroOutputReports(facilityId: string): Promise<PuroOutputReportRecord[]> {
+  return apiFetch<PuroOutputReportRecord[]>(`/biochar/puro/facilities/${facilityId}/output-reports`);
+}
+
+export async function fetchPuroRegistryReadiness(
+  projectId: string,
+  facilityId?: string
+): Promise<PuroRegistryReadiness> {
+  const q = facilityId ? `?facility_id=${facilityId}` : "";
+  return apiFetch<PuroRegistryReadiness>(`/biochar/puro/projects/${projectId}/readiness${q}`);
+}
+
+// ─── Earth Observation & Agriculture Spatial Endpoints ──────────────────────
+
+export interface SatelliteObservationRecord {
+  id: string;
+  organization_id: string;
+  project_id: string;
+  land_unit_id?: string | null;
+  provider: string;
+  scene_id: string;
+  acquisition_timestamp: string;
+  cloud_coverage_pct?: number | null;
+  spatial_resolution_m: number;
+  observation_type: string;
+  raw_band_uris: Record<string, any>;
+  derived_indices: Record<string, any>;
+  provenance_hash: string;
+  processing_level: string;
+  lineage_manifest?: Record<string, any>;
+  created_at: string;
+}
+
+export interface LandUnitRecord {
+  id: string;
+  organization_id: string;
+  project_id: string;
+  name: string;
+  unit_type: string;
+  area_ha: number;
+  perimeter_m?: number;
+  boundary_geojson: any;
+  centroid_lat?: number;
+  centroid_lon?: number;
+  is_active: boolean;
+  stratum_id?: string | null;
+}
+
+export interface SoilSampleRecord {
+  id: string;
+  organization_id: string;
+  project_id: string;
+  land_unit_id: string;
+  sample_code: string;
+  latitude: number;
+  longitude: number;
+  collection_date: string;
+  depth_top_cm: number;
+  depth_bottom_cm: number;
+  organic_carbon_pct?: number | null;
+  bulk_density_g_cm3?: number | null;
+  lab_sample_id?: string | null;
+}
+
+export interface TreeObservationRecord {
+  id: string;
+  organization_id: string;
+  project_id: string;
+  land_unit_id: string;
+  tree_tag: string;
+  latitude: number;
+  longitude: number;
+  dbh_cm: number;
+  height_m?: number | null;
+  species_name?: string | null;
+  observation_timestamp: string;
+}
+
+export async function fetchSatelliteObservations(projectId?: string): Promise<SatelliteObservationRecord[]> {
+  const query = projectId ? `?project_id=${projectId}` : "";
+  return apiFetch<SatelliteObservationRecord[]>(`/agriculture/satellite-observations${query}`).catch(() => []);
+}
+
+export async function fetchLandUnits(projectId?: string): Promise<LandUnitRecord[]> {
+  const query = projectId ? `?project_id=${projectId}` : "";
+  return apiFetch<LandUnitRecord[]>(`/agriculture/land-units${query}`).catch(() => []);
+}
+
+export async function fetchSoilSamples(projectId?: string, landUnitId?: string): Promise<SoilSampleRecord[]> {
+  const params = new URLSearchParams();
+  if (projectId) params.set("project_id", projectId);
+  if (landUnitId) params.set("land_unit_id", landUnitId);
+  const qs = params.toString() ? `?${params.toString()}` : "";
+  return apiFetch<SoilSampleRecord[]>(`/agriculture/soil-samples${qs}`).catch(() => []);
+}
+
+export async function fetchTreeObservations(projectId?: string, landUnitId?: string): Promise<TreeObservationRecord[]> {
+  const params = new URLSearchParams();
+  if (projectId) params.set("project_id", projectId);
+  if (landUnitId) params.set("land_unit_id", landUnitId);
+  const qs = params.toString() ? `?${params.toString()}` : "";
+  return apiFetch<TreeObservationRecord[]>(`/agriculture/tree-observations${qs}`).catch(() => []);
 }

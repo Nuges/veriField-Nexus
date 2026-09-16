@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Float, String, text
+from sqlalchemy import DateTime, Float, String, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -41,5 +41,5 @@ class EmissionFactorRegistry(Base):
     version: Mapped[str] = mapped_column(String(50), nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
-        default=lambda: datetime.now(timezone.utc), server_default=text("now()")
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), server_default=text("now()")
     )

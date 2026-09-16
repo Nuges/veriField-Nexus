@@ -14,31 +14,6 @@
 
 
 
-import {
-
-  Leaf,
-
-  Flame,
-
-  Zap,
-
-  Scale,
-
-  Sprout,
-
-  Home,
-
-  Globe,
-
-  ClipboardCheck,
-
-  MessageSquare,
-
-  Cpu,
-
-  LucideIcon
-
-} from "lucide-react";
 
 
 
@@ -487,14 +462,66 @@ export function buildMethodologyToFamilyMap(
 
  */
 
+const SECTOR_CANONICAL_MAP: Record<string, string> = {
+  // Agriculture & Land Use
+  agriculture_land_use: "agriculture_land_use",
+  agriculture: "agriculture_land_use",
+  afolu: "agriculture_land_use",
+  land_use: "agriculture_land_use",
+  agri: "agriculture_land_use",
+  farm: "agriculture_land_use",
+  farming: "agriculture_land_use",
+  soil: "agriculture_land_use",
+  rice: "agriculture_land_use",
+  vm0042: "agriculture_land_use",
+  vm0047: "agriculture_land_use",
+  vt0014: "agriculture_land_use",
+  vmd0053: "agriculture_land_use",
+  vm0051: "agriculture_land_use",
+  bm_ag04: "agriculture_land_use",
+  bm_fr05: "agriculture_land_use",
+
+  // EV Mobility
+  ev_mobility: "ev_mobility",
+  ev: "ev_mobility",
+  electric_mobility: "ev_mobility",
+  mobility: "ev_mobility",
+  electric_vehicles: "ev_mobility",
+  ams_iii_c: "ev_mobility",
+  "867f684f": "ev_mobility",
+
+  // Hybrid Energy
+  hybrid_energy: "hybrid_energy",
+  hybrid: "hybrid_energy",
+  energy: "hybrid_energy",
+  solar: "hybrid_energy",
+  mini_grids: "hybrid_energy",
+  acm0002: "hybrid_energy",
+  "7f12bfe9": "hybrid_energy",
+
+  // Clean Cookstoves
+  cookstoves: "cookstoves",
+  cookstove: "cookstoves",
+  clean_cooking: "cookstoves",
+  clean_cookstoves: "cookstoves",
+  ams_ii_g: "cookstoves",
+  "6f12bfe9": "cookstoves",
+  dff43d66: "cookstoves",
+
+  // Biochar
+  biochar: "biochar",
+  biochar_carbon: "biochar",
+  pyrolysis: "biochar",
+  "4f12bfe9": "biochar",
+  e6db7fbe: "biochar",
+};
+
 export function canonicalSectorCode(sec: string): string {
   if (!sec) return "";
   const clean = sec.toLowerCase().trim().replace(/[\s\-_]+/g, "_");
-  if (clean.includes("agri") || clean.includes("land_use") || clean.includes("farming") || clean.includes("soil") || clean.includes("rice") || clean.includes("vm0042") || clean.includes("vm0047") || clean.includes("vt0014") || clean.includes("vmd0053") || clean.includes("vm0051") || clean.includes("bm_ag04") || clean.includes("bm_fr05")) return "agriculture_land_use";
-  if (clean.includes("7f12bfe9") || clean.includes("hybrid") || clean.includes("energy") || clean.includes("solar")) return "hybrid_energy";
-  if (clean.includes("867f684f") || clean.includes("ev") || clean.includes("electric") || clean.includes("mobility")) return "ev_mobility";
-  if (clean.includes("e6db7fbe") || clean.includes("4f12bfe9") || clean.includes("biochar")) return "biochar";
-  if (clean.includes("dff43d66") || clean.includes("6f12bfe9") || clean.includes("cook") || clean.includes("stove")) return "cookstoves";
+  if (SECTOR_CANONICAL_MAP[clean]) {
+    return SECTOR_CANONICAL_MAP[clean];
+  }
   return clean;
 }
 
@@ -776,6 +803,10 @@ export interface SectorTerminology {
 
   projectsNavLabel: string;   // e.g., "Projects & Devices", "Projects & Fleets", "Projects & Mini-Grids"
 
+  monitoringNavLabel: string;  // e.g., "Live Telemetry", "Monitoring & EO"
+
+  aiNavLabel: string;          // e.g., "AI Assistant", "Decision Support"
+
   stage3Label: string;        // e.g., "3. Device Deployment", "3. Fleet Onboard", "3. Mini-grid Install"
 
   stage3DetailedName: string; // e.g., "3. Device Deployment & Calibration"
@@ -810,6 +841,10 @@ export function getSectorTerminology(sectorCode?: string): SectorTerminology {
 
       projectsNavLabel: "Projects & Devices",
 
+      monitoringNavLabel: "Live Telemetry",
+
+      aiNavLabel: "Decision Support",
+
       stage3Label: "3. Device Deployment",
 
       stage3DetailedName: "3. Device Deployment & Calibration",
@@ -839,6 +874,10 @@ export function getSectorTerminology(sectorCode?: string): SectorTerminology {
       assetPlural: "EV Fleets & Stations",
 
       projectsNavLabel: "Projects & Fleets",
+
+      monitoringNavLabel: "Live Telemetry",
+
+      aiNavLabel: "Decision Support",
 
       stage3Label: "3. Fleet Onboard",
 
@@ -870,6 +909,10 @@ export function getSectorTerminology(sectorCode?: string): SectorTerminology {
 
       projectsNavLabel: "Projects & Mini-Grids",
 
+      monitoringNavLabel: "Live Telemetry",
+
+      aiNavLabel: "Decision Support",
+
       stage3Label: "3. Mini-grid Install",
 
       stage3DetailedName: "3. Mini-grid & Inverter Onboarding",
@@ -899,6 +942,10 @@ export function getSectorTerminology(sectorCode?: string): SectorTerminology {
       assetPlural: "Biochar Pyrolyzers",
 
       projectsNavLabel: "Projects & Facilities",
+
+      monitoringNavLabel: "Live Telemetry",
+
+      aiNavLabel: "Decision Support",
 
       stage3Label: "3. Facility Onboard",
 
@@ -930,6 +977,10 @@ export function getSectorTerminology(sectorCode?: string): SectorTerminology {
 
       projectsNavLabel: "Projects & Land Units",
 
+      monitoringNavLabel: "Monitoring & EO",
+
+      aiNavLabel: "Decision Support",
+
       stage3Label: "3. Boundary & Plots",
 
       stage3DetailedName: "3. Geodesic Boundaries & Soil Stratification",
@@ -959,6 +1010,10 @@ export function getSectorTerminology(sectorCode?: string): SectorTerminology {
     assetPlural: "Monitored Assets",
 
     projectsNavLabel: "Projects & Assets",
+
+    monitoringNavLabel: "Live Telemetry",
+
+    aiNavLabel: "Decision Support",
 
     stage3Label: "3. Asset Deployment",
 

@@ -2,70 +2,60 @@
 
 
 
-import React, { useState } from "react";
-
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
-
-import { Flame, Shield, AlertTriangle, Users, RefreshCw, UserPlus } from "lucide-react";
-
-import ChartRenderer from "./ChartRenderer";
-
-
+import { Flame, Shield, AlertTriangle, Users, RefreshCw, UserPlus, Layers } from "lucide-react";
+import ChartRenderer, { type ChartConfig } from "./ChartRenderer";
+import BiocharValueChainView from "./BiocharValueChainView";
+import { canonicalSectorCode } from "@/lib/moduleRegistry";
+import type { PipelineActivityItem } from "../VerificationPipelineStages";
 
 export default function AnalyticsTabs({
-
   sectorCode,
-
+  projectId,
   charts,
-
   activities
-
 }: {
-
   sectorCode?: string;
-
-  charts?: any[];
-
-  activities?: any[];
-
+  projectId?: string;
+  charts?: ChartConfig[];
+  activities?: PipelineActivityItem[];
 }) {
-
-  const [activeTab, setActiveTab] = useState("reductions");
-
-  const code = (sectorCode || "").toUpperCase();
-
+  const canonical = canonicalSectorCode(sectorCode || "").toUpperCase();
+  const [activeTab, setActiveTab] = useState(
+    canonical === "BIOCHAR" ? "biochar_value_chain" : "reductions"
+  );
   const displayActivities = activities || [];
 
+  useEffect(() => {
+    if (canonical === "BIOCHAR") {
+      setActiveTab("biochar_value_chain");
+    } else {
+      setActiveTab("reductions");
+    }
+  }, [canonical]);
 
-
-  const sectorTitle = code.includes("COOK") || code.includes("AMS_II_G")
-
+  const sectorTitle = canonical === "COOKSTOVES"
     ? "Cookstoves"
-
-    : code.includes("HYBRID") || code.includes("ENERGY")
-
+    : canonical === "HYBRID_ENERGY"
     ? "Hybrid Energy"
-
-    : code.includes("BIOCHAR")
-
+    : canonical === "BIOCHAR"
     ? "Biochar"
-
-    : "EV Mobility";
-
-
+    : canonical === "EV_MOBILITY"
+    ? "EV Mobility"
+    : canonical === "AGRICULTURE_LAND_USE"
+    ? "Agriculture & Land Use"
+    : "Operations";
 
   const tabs = [
-
-    { id: "reductions", label: `Offset Reductions & ${sectorTitle}`, icon: Flame },
-
-    { id: "trust", label: "Trust Engine Variables", icon: Shield },
-
+    ...(canonical === "BIOCHAR"
+      ? [{ id: "biochar_value_chain", label: "Biochar Operations & Value Chain", icon: Layers }]
+      : []),
+    { id: "reductions", label: canonical === "AGRICULTURE_LAND_USE" ? "Agriculture & Land Use Overview" : `Offset Reductions & ${sectorTitle}`, icon: Flame },
+    { id: "trust", label: "Evidence Trust", icon: Shield },
     { id: "anomalies", label: "Anomaly Center (0 Alerts)", icon: AlertTriangle },
-
     { id: "agents", label: "Field Agent Analytics", icon: Users },
-
     { id: "pipeline", label: "Sync Pipeline & Metrics", icon: RefreshCw }
-
   ];
 
 
@@ -120,6 +110,10 @@ export default function AnalyticsTabs({
 
       {/* Tab Panels */}
 
+      {activeTab === "biochar_value_chain" && canonical === "BIOCHAR" && (
+        <BiocharValueChainView projectId={projectId} />
+      )}
+
       {activeTab === "reductions" && (
 
         <div className="space-y-6">
@@ -132,19 +126,19 @@ export default function AnalyticsTabs({
 
           {/* Live Activity Feed Table */}
 
-          <div className="rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] p-6 backdrop-blur-md shadow-xl transition-colors duration-300">
+          <div className="rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] p-6 backdrop-blur-md shadow-xs transition-colors duration-300">
 
             <div className="flex items-center justify-between mb-4 pb-4 border-b border-[var(--color-border)]">
 
               <div>
 
-                <h4 className="text-xs font-black tracking-widest text-[var(--color-text-primary)] uppercase font-sans">
+                <h4 className="text-sm font-semibold text-[var(--color-text-primary)]">
 
-                  LIVE FIELD ACTIVITY FEED & TELEMETRY LOGS
+                  Live field activity feed & telemetry logs
 
                 </h4>
 
-                <p className="text-[10px] text-[var(--color-text-secondary)] font-sans mt-0.5">
+                <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">
 
                   Direct IoT sensor sync and field agent mobile submission stream.
 
@@ -165,92 +159,64 @@ export default function AnalyticsTabs({
                   <tr className="border-b border-[var(--color-border)] text-[10px] font-black text-[var(--color-text-secondary)] uppercase tracking-wider">
 
                     <th className="py-3 px-3">
-
-                      {code.includes("HYBRID") || code.includes("ENERGY") ? "SYSTEM ID" : code.includes("BIOCHAR") ? "KILN ID" : code.includes("EV") ? "CHARGER ID" : "STOVE ID"}
-
+                      {canonical === "HYBRID_ENERGY" ? "SYSTEM ID" : canonical === "BIOCHAR" ? "KILN ID" : canonical === "EV_MOBILITY" ? "CHARGER ID" : canonical === "AGRICULTURE_LAND_USE" ? "LAND UNIT ID" : "STOVE ID"}
                     </th>
-
                     <th className="py-3 px-3">
-
-                      {code.includes("HYBRID") || code.includes("ENERGY") ? "SITE LOCATION" : code.includes("BIOCHAR") ? "SINK LOCATION" : code.includes("EV") ? "STATION HUB" : "HOUSEHOLD ID"}
-
+                      {canonical === "HYBRID_ENERGY" ? "SITE LOCATION" : canonical === "BIOCHAR" ? "SINK LOCATION" : canonical === "EV_MOBILITY" ? "STATION HUB" : canonical === "AGRICULTURE_LAND_USE" ? "PARCEL LOCATION" : "HOUSEHOLD ID"}
                     </th>
-
                     <th className="py-3 px-3">
-
-                      {code.includes("HYBRID") || code.includes("ENERGY") || code.includes("BIOCHAR") || code.includes("EV") ? "OPERATOR NAME" : "HEAD OF HOUSEHOLD"}
-
+                      {canonical === "HYBRID_ENERGY" || canonical === "BIOCHAR" || canonical === "EV_MOBILITY" ? "OPERATOR NAME" : canonical === "AGRICULTURE_LAND_USE" ? "OPERATOR / FARMER" : "HEAD OF HOUSEHOLD"}
                     </th>
-
                     <th className="py-3 px-3">
-
-                      {code.includes("HYBRID") || code.includes("ENERGY") ? "ENERGY SOURCE" : code.includes("BIOCHAR") ? "BIOMASS TYPE" : code.includes("EV") ? "CHARGING SPEED" : "PRIMARY FUEL"}
-
+                      {canonical === "HYBRID_ENERGY" ? "ENERGY SOURCE" : canonical === "BIOCHAR" ? "BIOMASS TYPE" : canonical === "EV_MOBILITY" ? "CHARGING SPEED" : canonical === "AGRICULTURE_LAND_USE" ? "ACTIVITY TYPE" : "PRIMARY FUEL"}
                     </th>
-
                     <th className="py-3 px-3">TRUST INDEX</th>
-
                     <th className="py-3 px-3">STATUS</th>
-
                     <th className="py-3 px-3">CAPTURED AT</th>
-
                   </tr>
-
                 </thead>
-
                 <tbody className="divide-y divide-[var(--color-border)] text-[var(--color-text-primary)] font-sans">
-
                   {displayActivities.length > 0 ? (
+                    displayActivities.map((act: PipelineActivityItem, idx: number) => {
+                      const item = act as Record<string, unknown>;
+                      return (
+                        <tr key={act.id || idx} className="hover:bg-[var(--color-background)] transition-colors">
+                          <td className="py-3 px-3 font-bold text-emerald-600 dark:text-emerald-400 font-mono">
+                            {String(item.unit_code || item.land_unit_id || item.stove_id || item.asset_id || `AST-00${idx + 1}`)}
+                          </td>
+                          <td className="py-3 px-3 font-mono text-[var(--color-text-secondary)]">
+                            {String(item.parcel_name || item.field_name || item.household_id || item.site_id || `LOC-90${idx + 1}`)}
+                          </td>
+                          <td className="py-3 px-3 font-bold text-[var(--color-text-primary)]">
+                            {String(item.farmer_name || item.head_name || item.operator_name || "Verified Operator")}
+                          </td>
+                          <td className="py-3 px-3 font-semibold text-[var(--color-text-secondary)]">
+                            {String(item.practice_type || item.activity_type || item.primary_fuel || item.energy_source || "Clean Biomass")}
+                          </td>
 
-                    displayActivities.map((act: any, idx: number) => (
+                          <td className="py-3 px-3 font-bold text-emerald-600 dark:text-emerald-400">
 
-                      <tr key={act.id || idx} className="hover:bg-[var(--color-background)] transition-colors">
+                            {String(item.trust_index || "100 / 100")}
 
-                        <td className="py-3 px-3 font-bold text-emerald-600 dark:text-emerald-400 font-mono">
+                          </td>
 
-                          {act.stove_id || act.asset_id || `AST-00${idx + 1}`}
+                          <td className="py-3 px-3">
 
-                        </td>
+                            <span className="px-2 py-0.5 text-[9px] font-black rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
 
-                        <td className="py-3 px-3 font-mono text-[var(--color-text-secondary)]">
+                              {String(act.status || "VERIFIED")}
 
-                          {act.household_id || act.site_id || `LOC-90${idx + 1}`}
+                            </span>
 
-                        </td>
+                          </td>
 
-                        <td className="py-3 px-3 font-bold text-[var(--color-text-primary)]">
+                          <td className="py-3 px-3 text-[var(--color-text-secondary)] font-mono text-[11px]">{String(item.captured_at || "Recent Sync")}</td>
 
-                          {act.head_name || act.operator_name || "Verified Operator"}
+                        </tr>
 
-                        </td>
+                      );
 
-                        <td className="py-3 px-3 font-semibold text-[var(--color-text-secondary)]">
-
-                          {act.primary_fuel || act.energy_source || "Clean Biomass"}
-
-                        </td>
-
-                        <td className="py-3 px-3 font-bold text-emerald-600 dark:text-emerald-400">
-
-                          {act.trust_index || "100 / 100"}
-
-                        </td>
-
-                        <td className="py-3 px-3">
-
-                          <span className="px-2 py-0.5 text-[9px] font-black rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
-
-                            {act.status || "VERIFIED"}
-
-                          </span>
-
-                        </td>
-
-                        <td className="py-3 px-3 text-[var(--color-text-secondary)] font-mono text-[11px]">{act.captured_at || "Recent Sync"}</td>
-
-                      </tr>
-
-                    ))
+                    })
 
                   ) : (
 
@@ -283,7 +249,7 @@ export default function AnalyticsTabs({
       {activeTab === "trust" && (
         <div className="rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] p-5 transition-colors duration-300">
           <h4 className="text-xs font-bold tracking-wider text-[var(--color-text-primary)] uppercase font-sans mb-4">
-            Trust Engine Weighted Variables & Geometry Validation
+            Evidence Trust — Weighted Variables & Geometry Validation
           </h4>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 font-sans text-xs">
             <div className="p-4 rounded-lg bg-[var(--color-background)] border border-[var(--color-border)]">
@@ -306,13 +272,13 @@ export default function AnalyticsTabs({
 
       {activeTab === "anomalies" && (
 
-        <div className="rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] p-6 backdrop-blur-md text-center py-12 shadow-xl transition-colors duration-300">
+        <div className="rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] p-6 backdrop-blur-md text-center py-12 shadow-xs transition-colors duration-300">
 
-          <Shield size={32} className="mx-auto text-emerald-500 dark:text-emerald-400 mb-2 opacity-90" />
+          <Shield size={32} className="mx-auto text-[var(--color-primary)] mb-2 opacity-90" />
 
-          <h4 className="text-sm font-bold text-[var(--color-text-primary)] font-sans">ANOMALY ENGINE ACTIVE</h4>
+          <h4 className="text-sm font-semibold text-[var(--color-text-primary)]">Anomaly engine active</h4>
 
-          <p className="text-xs text-[var(--color-text-secondary)] mt-1 max-w-sm mx-auto font-sans">
+          <p className="text-xs text-[var(--color-text-secondary)] mt-1 max-w-sm mx-auto">
 
             Zero active telemetry anomalies or duplicate coordinates flagged across active installations.
 
@@ -326,13 +292,13 @@ export default function AnalyticsTabs({
 
       {activeTab === "agents" && (
 
-        <div className="rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] p-6 backdrop-blur-md font-sans text-xs shadow-xl transition-colors duration-300 space-y-4">
+        <div className="rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] p-6 backdrop-blur-md text-xs shadow-xs transition-colors duration-300 space-y-4">
 
           <div className="flex items-center justify-between">
 
-            <h4 className="text-xs font-black tracking-widest text-[var(--color-text-primary)] uppercase">
+            <h4 className="text-sm font-semibold text-[var(--color-text-primary)]">
 
-              FIELD AGENT PERFORMANCE & TELEMETRY INGESTION
+              Field agent performance & telemetry ingestion
 
             </h4>
 
@@ -340,7 +306,7 @@ export default function AnalyticsTabs({
 
               href="/dashboard/agents"
 
-              className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold text-white bg-emerald-600 hover:bg-emerald-500 transition-colors shadow-sm cursor-pointer"
+              className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-[var(--color-primary)] hover:opacity-90 transition-opacity shadow-xs cursor-pointer"
 
             >
 
@@ -354,35 +320,37 @@ export default function AnalyticsTabs({
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-            <div className="p-4 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] flex justify-between items-center shadow-sm">
+            <div className="p-4 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] flex justify-between items-center shadow-xs">
 
               <div>
 
-                <p className="text-[var(--color-text-primary)] font-bold">Active Agents</p>
+                <p className="text-[var(--color-text-primary)] font-semibold">Active agents</p>
 
-                <p className="text-[10px] text-[var(--color-text-secondary)]">Mobile VeriField Capture Sync</p>
+                <p className="text-xs text-[var(--color-text-secondary)]">Mobile VeriField Capture Sync</p>
 
               </div>
 
-              <span className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
-
-                {displayActivities.length > 0 ? new Set(displayActivities.map((a: any) => a.user_id || a.user?.id || a.id)).size : 0}
-
+              <span className="text-2xl font-bold text-[var(--color-text-primary)] tracking-tight">
+                {displayActivities.length > 0 ? new Set(displayActivities.map((a: PipelineActivityItem, idx: number) => {
+                  const item = a as Record<string, unknown>;
+                  const uid = item.user_id || (item.user as Record<string, unknown> | undefined)?.id || a.id;
+                  return uid ? String(uid) : `anon-${idx}`;
+                })).size : 0}
               </span>
 
             </div>
 
-            <div className="p-4 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] flex justify-between items-center shadow-sm">
+            <div className="p-4 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] flex justify-between items-center shadow-xs">
 
               <div>
 
-                <p className="text-[var(--color-text-primary)] font-bold">Submissions Today</p>
+                <p className="text-[var(--color-text-primary)] font-semibold">Submissions today</p>
 
-                <p className="text-[10px] text-[var(--color-text-secondary)]">Automated QA Stream</p>
+                <p className="text-xs text-[var(--color-text-secondary)]">Automated QA stream</p>
 
               </div>
 
-              <span className="text-xl font-bold text-emerald-600 dark:text-emerald-400">{displayActivities.length}</span>
+              <span className="text-2xl font-bold text-[var(--color-text-primary)] tracking-tight">{displayActivities.length}</span>
 
             </div>
 
@@ -396,11 +364,11 @@ export default function AnalyticsTabs({
 
       {activeTab === "pipeline" && (
 
-        <div className="rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] p-6 backdrop-blur-md font-sans text-xs shadow-xl transition-colors duration-300">
+        <div className="rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] p-6 backdrop-blur-md text-xs shadow-xs transition-colors duration-300">
 
-          <h4 className="text-xs font-black tracking-widest text-[var(--color-text-primary)] uppercase mb-4">
+          <h4 className="text-sm font-semibold text-[var(--color-text-primary)] mb-4">
 
-            VERIFIELD TRUST LEDGER SYNC PIPELINE
+            VeriField trust ledger sync pipeline
 
           </h4>
 

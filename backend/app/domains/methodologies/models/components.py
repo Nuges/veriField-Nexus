@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, ForeignKey, String, text
+from sqlalchemy import Boolean, DateTime, ForeignKey, String, text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -36,7 +36,7 @@ class MonitoringTemplate(Base):
     )  # min, max, regex
 
     created_at: Mapped[datetime] = mapped_column(
-        default=lambda: datetime.now(timezone.utc), server_default=text("now()")
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), server_default=text("now()")
     )
 
 

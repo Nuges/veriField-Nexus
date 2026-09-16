@@ -5,8 +5,16 @@ from app.core.rate_limit import reset_rate_limits
 
 @pytest.mark.asyncio
 async def test_auth_rate_limiting_login_and_signup(async_client: AsyncClient):
-    # Reset in-memory rate limiter
+    # Reset in-memory rate limiter and Redis keys
     reset_rate_limits()
+    try:
+        from app.core.redis import get_redis_client
+        r = get_redis_client()
+        keys = await r.keys("rate_limit:*")
+        if keys:
+            await r.delete(*keys)
+    except Exception:
+        pass
 
     # Test 1: Submitting requests under the limit (15 requests for login)
     for i in range(15):

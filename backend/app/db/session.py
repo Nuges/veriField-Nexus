@@ -72,11 +72,14 @@ connect_args = {
     "prepared_statement_cache_size": 0,
 }
 if not is_sqlite:
-    import ssl
-    ssl_ctx = ssl.create_default_context()
-    ssl_ctx.check_hostname = False
-    ssl_ctx.verify_mode = ssl.CERT_NONE
-    connect_args["ssl"] = ssl_ctx
+    if "localhost" in (db_url or "") or "127.0.0.1" in (db_url or "") or "ssl=disable" in (db_url or ""):
+        connect_args["ssl"] = False
+    else:
+        import ssl
+        ssl_ctx = ssl.create_default_context()
+        ssl_ctx.check_hostname = False
+        ssl_ctx.verify_mode = ssl.CERT_NONE
+        connect_args["ssl"] = ssl_ctx
     connect_args["prepared_statement_name_func"] = lambda: f"__asyncpg_{uuid.uuid4().hex}__"
 else:
     connect_args = {}

@@ -60,4 +60,4 @@ class Organization(Base):
     )
 
     def __repr__(self) -> str:
-        return f"<Organization(id={self.id}, name={self.name}, status={self.status}, type={self.type})>"
+        return f"<Organization(id={self.id}, name={self.name}, status={self.status}, type={self.org_type})>"
