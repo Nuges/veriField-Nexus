@@ -3,36 +3,24 @@
 
 
 import React from "react";
-
 import { ResponsiveContainer, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
+import { canonicalSectorCode } from "@/lib/moduleRegistry";
 
 
 
-interface ChartConfig {
-
-  key: string;
-
+export interface ChartConfig {
+  key?: string;
+  id?: string;
   title: string;
-
   type?: string;
-
   dataKeyX?: string;
-
   dataKeyY?: string;
-
   fillColor?: string;
-
   strokeColor?: string;
-
-  data?: any[];
-
+  data?: unknown;
 }
 
-
-
 export default function ChartRenderer({ charts, sectorCode }: { charts?: ChartConfig[]; sectorCode?: string }) {
-
-  const code = (sectorCode || "").toUpperCase();
 
 
 
@@ -350,134 +338,175 @@ export default function ChartRenderer({ charts, sectorCode }: { charts?: ChartCo
 
 
 
-  const defaultCharts = code.includes("COOK") || code.includes("AMS_II_G")
+  const agriCharts: ChartConfig[] = [
+    {
+      key: "field_activities_timeline",
+      title: "FIELD ACTIVITIES OVER TIME",
+      type: "area",
+      dataKeyX: "date",
+      dataKeyY: "activities",
+      fillColor: "#00B47A",
+      strokeColor: "#10B981",
+      data: [
+        { date: "Mon", activities: 0 },
+        { date: "Tue", activities: 0 },
+        { date: "Wed", activities: 0 },
+        { date: "Thu", activities: 0 },
+        { date: "Fri", activities: 0 },
+        { date: "Sat", activities: 0 },
+        { date: "Sun", activities: 0 },
+      ],
+    },
+    {
+      key: "land_units_growth",
+      title: "LAND UNITS REGISTERED",
+      type: "bar",
+      dataKeyX: "date",
+      dataKeyY: "units",
+      fillColor: "#3B82F6",
+      strokeColor: "#2563EB",
+      data: [
+        { date: "Mon", units: 0 },
+        { date: "Tue", units: 0 },
+        { date: "Wed", units: 0 },
+        { date: "Thu", units: 0 },
+        { date: "Fri", units: 0 },
+        { date: "Sat", units: 0 },
+        { date: "Sun", units: 0 },
+      ],
+    },
+  ];
 
+  const genericCharts: ChartConfig[] = [
+    {
+      key: "activity_volume",
+      title: "ACTIVITY VOLUME OVER TIME",
+      type: "area",
+      dataKeyX: "date",
+      dataKeyY: "count",
+      fillColor: "#00B47A",
+      strokeColor: "#10B981",
+      data: [
+        { date: "Mon", count: 0 },
+        { date: "Tue", count: 0 },
+        { date: "Wed", count: 0 },
+        { date: "Thu", count: 0 },
+        { date: "Fri", count: 0 },
+        { date: "Sat", count: 0 },
+        { date: "Sun", count: 0 },
+      ],
+    },
+    {
+      key: "registered_entities",
+      title: "REGISTERED ENTITIES",
+      type: "bar",
+      dataKeyX: "date",
+      dataKeyY: "entities",
+      fillColor: "#3B82F6",
+      strokeColor: "#2563EB",
+      data: [
+        { date: "Mon", entities: 0 },
+        { date: "Tue", entities: 0 },
+        { date: "Wed", entities: 0 },
+        { date: "Thu", entities: 0 },
+        { date: "Fri", entities: 0 },
+        { date: "Sat", entities: 0 },
+        { date: "Sun", entities: 0 },
+      ],
+    },
+  ];
+
+  const canonical = canonicalSectorCode(sectorCode || "").toUpperCase();
+  const defaultCharts = canonical === "COOKSTOVES"
     ? cookstoveCharts
-
-    : code.includes("HYBRID") || code.includes("ENERGY")
-
+    : canonical === "HYBRID_ENERGY"
     ? hybridEnergyCharts
-
-    : code.includes("BIOCHAR")
-
+    : canonical === "BIOCHAR"
     ? biocharCharts
-
-    : evCharts;
+    : canonical === "EV_MOBILITY"
+    ? evCharts
+    : canonical === "AGRICULTURE_LAND_USE"
+    ? agriCharts
+    : genericCharts;
 
 
 
   const hasValidData = (cList?: ChartConfig[]) => {
-
     if (!cList || cList.length === 0) return false;
-
-    return cList.some(c => c.data && c.data.length > 0 && c.data.some((d: any) => {
-
-      const val = d.value ?? d.reductions ?? d.hours ?? d.kwh ?? d.litres ?? d.tonnes ?? d.stored ?? d.sessions;
-
-      return val !== undefined && val !== null;
-
-    }));
-
+    return cList.some(c => {
+      const dataArr = Array.isArray(c.data) ? c.data : [];
+      return dataArr.length > 0 && dataArr.some((d: Record<string, unknown>) => {
+        const val = (d.value ?? d.reductions ?? d.hours ?? d.kwh ?? d.litres ?? d.tonnes ?? d.stored ?? d.sessions) as unknown;
+        return val !== undefined && val !== null;
+      });
+    });
   };
-
-
 
   const activeCharts = hasValidData(charts) ? charts! : defaultCharts;
 
-
-
   return (
-
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
       {activeCharts.map((chart, i) => {
-
         const isArea = chart.type !== "bar";
-
+        const rawData = Array.isArray(chart.data) ? chart.data : [];
+        const chartData = rawData as Array<Record<string, unknown>>;
         const xKey = chart.dataKeyX || "date";
-
-        const yKey = chart.dataKeyY || Object.keys(chart.data?.[0] || {}).find(k => k !== xKey) || "value";
-
+        const yKey = chart.dataKeyY || Object.keys(chartData[0] || {}).find(k => k !== xKey) || "value";
+        const hasPoints = chartData.some(d => {
+          const v = d[yKey];
+          return v !== null && v !== undefined && Number(v) > 0;
+        });
         const fill = chart.fillColor || "#00B47A";
 
-
-
         return (
-
           <div key={i} className="rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] p-5 backdrop-blur-md shadow-2xl transition-colors duration-300">
-
             <h4 className="text-[11px] font-black tracking-widest text-[var(--color-text-primary)] uppercase font-sans mb-4">
-
               {chart.title}
-
             </h4>
 
-
-
             <div className="h-[220px] w-full">
-
-              <ResponsiveContainer width="100%" height="100%">
-
-                {isArea ? (
-
-                  <AreaChart data={chart.data}>
-
-                    <defs>
-
-                      <linearGradient id={`grad-${i}`} x1="0" y1="0" x2="0" y2="1">
-
-                        <stop offset="5%" stopColor={fill} stopOpacity={0.4} />
-
-                        <stop offset="95%" stopColor={fill} stopOpacity={0.0} />
-
-                      </linearGradient>
-
-                    </defs>
-
-                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-
-                    <XAxis dataKey={xKey} stroke="#64748b" fontSize={11} tickLine={false} />
-
-                    <YAxis stroke="#64748b" fontSize={11} tickLine={false} />
-
-                    <Tooltip
-
-                      contentStyle={{ backgroundColor: "#0f172a", borderColor: "#334155", borderRadius: "8px" }}
-
-                      itemStyle={{ color: "#38bdf8" }}
-
-                    />
-
-                    <Area type="monotone" dataKey={yKey} stroke={fill} fillOpacity={1} fill={`url(#grad-${i})`} strokeWidth={2} />
-
-                  </AreaChart>
-
-                ) : (
-
-                  <BarChart data={chart.data}>
-
-                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-
-                    <XAxis dataKey={xKey} stroke="#64748b" fontSize={11} tickLine={false} />
-
-                    <YAxis stroke="#64748b" fontSize={11} tickLine={false} />
-
-                    <Tooltip
-
-                      contentStyle={{ backgroundColor: "#0f172a", borderColor: "#334155", borderRadius: "8px" }}
-
-                      itemStyle={{ color: "#38bdf8" }}
-
-                    />
-
-                    <Bar dataKey={yKey} fill={fill} radius={[4, 4, 0, 0]} />
-
-                  </BarChart>
-
-                )}
-
-              </ResponsiveContainer>
-
+              {!hasPoints ? (
+                <div className="h-full w-full flex flex-col items-center justify-center border border-dashed border-[var(--color-border)] rounded-xl bg-[var(--color-background)] p-4 text-center">
+                  <p className="text-xs font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider">
+                    No activity recorded
+                  </p>
+                  <p className="text-[11px] text-[var(--color-text-secondary)] mt-1 opacity-70">
+                    Data will populate dynamically as field records are logged.
+                  </p>
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  {isArea ? (
+                    <AreaChart data={chartData}>
+                      <defs>
+                        <linearGradient id={`grad-${i}`} x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor={fill} stopOpacity={0.4} />
+                          <stop offset="95%" stopColor={fill} stopOpacity={0.0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                      <XAxis dataKey={xKey} stroke="#64748b" fontSize={11} tickLine={false} />
+                      <YAxis stroke="#64748b" fontSize={11} tickLine={false} />
+                      <Tooltip
+                        contentStyle={{ backgroundColor: "#0f172a", borderColor: "#334155", borderRadius: "8px" }}
+                        itemStyle={{ color: "#38bdf8" }}
+                      />
+                      <Area type="monotone" dataKey={yKey} stroke={fill} fillOpacity={1} fill={`url(#grad-${i})`} strokeWidth={2} />
+                    </AreaChart>
+                  ) : (
+                    <BarChart data={chartData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                      <XAxis dataKey={xKey} stroke="#64748b" fontSize={11} tickLine={false} />
+                      <YAxis stroke="#64748b" fontSize={11} tickLine={false} />
+                      <Tooltip
+                        contentStyle={{ backgroundColor: "#0f172a", borderColor: "#334155", borderRadius: "8px" }}
+                        itemStyle={{ color: "#38bdf8" }}
+                      />
+                      <Bar dataKey={yKey} fill={fill} radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  )}
+                </ResponsiveContainer>
+              )}
             </div>
 
           </div>

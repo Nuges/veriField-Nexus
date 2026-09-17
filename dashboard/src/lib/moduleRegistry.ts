@@ -489,6 +489,8 @@ const SECTOR_CANONICAL_MAP: Record<string, string> = {
   electric_vehicles: "ev_mobility",
   ams_iii_c: "ev_mobility",
   "867f684f": "ev_mobility",
+  electric_mobility_fleet: "ev_mobility",
+  biod_ev: "ev_mobility",
 
   // Hybrid Energy
   hybrid_energy: "hybrid_energy",
@@ -496,6 +498,9 @@ const SECTOR_CANONICAL_MAP: Record<string, string> = {
   energy: "hybrid_energy",
   solar: "hybrid_energy",
   mini_grids: "hybrid_energy",
+  solar_mini_grids: "hybrid_energy",
+  solar_mini_grid: "hybrid_energy",
+  dammy_solar: "hybrid_energy",
   acm0002: "hybrid_energy",
   "7f12bfe9": "hybrid_energy",
 
@@ -511,6 +516,7 @@ const SECTOR_CANONICAL_MAP: Record<string, string> = {
   // Biochar
   biochar: "biochar",
   biochar_carbon: "biochar",
+  biochar_pyrolysis: "biochar",
   pyrolysis: "biochar",
   "4f12bfe9": "biochar",
   e6db7fbe: "biochar",
@@ -522,7 +528,75 @@ export function canonicalSectorCode(sec: string): string {
   if (SECTOR_CANONICAL_MAP[clean]) {
     return SECTOR_CANONICAL_MAP[clean];
   }
+
+  // Check 2-word pairs first
+  const words = clean.split("_").filter(Boolean);
+  for (let i = 0; i < words.length - 1; i++) {
+    const pair = `${words[i]}_${words[i + 1]}`;
+    if (SECTOR_CANONICAL_MAP[pair]) {
+      return SECTOR_CANONICAL_MAP[pair];
+    }
+  }
+
+  // For individual words, detect if there are conflicting sector keywords (e.g. "Solar Biochar", "EV Agriculture")
+  const matchedSectors = new Set<string>();
+  for (const word of words) {
+    if (SECTOR_CANONICAL_MAP[word]) {
+      matchedSectors.add(SECTOR_CANONICAL_MAP[word]);
+    }
+  }
+
+  // If conflicting sectors are present in free text, fail closed to clean/unresolved (do NOT guess arbitrarily)
+  if (matchedSectors.size > 1) {
+    return clean;
+  }
+  if (matchedSectors.size === 1) {
+    return Array.from(matchedSectors)[0];
+  }
+
   return clean;
+}
+
+export interface SectorPrecedenceContext {
+  projectSector?: string | null;
+  licensedSector?: string | null;
+  selectedWorkspace?: string | null;
+  explicitSector?: string | null;
+  legacyAlias?: string | null;
+  displayNameFallback?: string | null;
+}
+
+export function resolveSectorWithPrecedence(ctx: SectorPrecedenceContext): string {
+  // Precedence 1: project.sector
+  if (ctx.projectSector) {
+    const s = canonicalSectorCode(ctx.projectSector);
+    if (SECTOR_FAMILY_CODES.includes(s)) return s;
+  }
+  // Precedence 2: licensed sector / selected workspace
+  if (ctx.licensedSector) {
+    const s = canonicalSectorCode(ctx.licensedSector);
+    if (SECTOR_FAMILY_CODES.includes(s)) return s;
+  }
+  if (ctx.selectedWorkspace) {
+    const s = canonicalSectorCode(ctx.selectedWorkspace);
+    if (SECTOR_FAMILY_CODES.includes(s)) return s;
+  }
+  // Precedence 3: explicit canonical sector field
+  if (ctx.explicitSector) {
+    const s = canonicalSectorCode(ctx.explicitSector);
+    if (SECTOR_FAMILY_CODES.includes(s)) return s;
+  }
+  // Precedence 4: legacy alias normalization
+  if (ctx.legacyAlias) {
+    const s = canonicalSectorCode(ctx.legacyAlias);
+    if (SECTOR_FAMILY_CODES.includes(s)) return s;
+  }
+  // Precedence 5: Controlled display name fallback (ONLY when all above are absent)
+  if (ctx.displayNameFallback) {
+    const s = canonicalSectorCode(ctx.displayNameFallback);
+    if (SECTOR_FAMILY_CODES.includes(s)) return s;
+  }
+  return "";
 }
 
 /**

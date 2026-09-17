@@ -441,3 +441,60 @@ authorities:
         approval_authority: "VeriField Cryptographic Seal Engine"
         authorization_required: false
         blocking_conditions: []
+
+  # ---------------------------------------------------------------------------
+  # 7. PURO.EARTH STANDARD (BIOCHAR EDITION 2025 VERSION 2)
+  # ---------------------------------------------------------------------------
+  - id: PURO_STANDARD
+    name: "Puro.earth Standard"
+    jurisdiction: "Global"
+    enabling_framework: "Puro Standard General Rules & Biochar Edition 2025 v2"
+    authority_type: "INDEPENDENT_CARBON_STANDARD"
+    documents:
+      - document_id: PURO_PROJECT_DESCRIPTION
+        official_name: "Puro.earth Project Description & Audit Form"
+        nexus_name: "Puro Project Description Document (PDD)"
+        document_class: "REQUIRED_SUBMISSION_DOCUMENT"
+        lifecycle_stage: "REGISTRATION"
+        mandatory: true
+        conditional: false
+        official_template_available: true
+        nexus_generation_supported: true
+        supported_formats: ["PDF", "DOCX"]
+        required_inputs: ["project_name", "facility_specs", "feedstock_origins", "permanence_tier"]
+        required_evidence: ["facility_commissioning_doc", "sustainability_certificate"]
+        approval_authority: "Puro.earth Secretariat"
+        authorization_required: false
+        blocking_conditions: ["ZERO_ASSETS_ENROLLED", "METHODOLOGY_UNLINKED"]
+
+      - document_id: PURO_PRODUCTION_AUDIT_REPORT
+        official_name: "Puro.earth Facility Production & Audit Dossier"
+        nexus_name: "Puro Production Run & Lab Audit Dossier"
+        document_class: "REQUIRED_SUBMISSION_DOCUMENT"
+        lifecycle_stage: "ISSUANCE_AUDIT"
+        mandatory: true
+        conditional: false
+        official_template_available: true
+        nexus_generation_supported: true
+        supported_formats: ["PDF", "JSON"]
+        required_inputs: ["production_runs", "lab_analyses", "mass_balance_reconciliation"]
+        required_evidence: ["iso_17025_lab_report", "mass_balance_ledger"]
+        approval_authority: "Accredited Puro VVB Auditor"
+        authorization_required: false
+        blocking_conditions: ["BIOCHAR_MASS_BALANCE_OVER_ALLOCATED", "ZERO_ACTIVITY_DATA"]
+
+      - document_id: PURO_OUTPUT_ISSUANCE_REQUEST
+        official_name: "Puro.earth CORC Issuance & Output Audit Statement"
+        nexus_name: "CORC / CORC200+ Issuance Declaration"
+        document_class: "REQUIRED_SUBMISSION_DOCUMENT"
+        lifecycle_stage: "ISSUANCE"
+        mandatory: true
+        conditional: false
+        official_template_available: true
+        nexus_generation_supported: true
+        supported_formats: ["PDF"]
+        required_inputs: ["gross_removal_tonnes", "operational_deductions", "net_corc_requested"]
+        required_evidence: ["end_use_records", "chain_of_custody_report"]
+        approval_authority: "Puro.earth Registry"
+        authorization_required: false
+        blocking_conditions: ["METHODOLOGY_CONFLICT_VM0044_VM0042"]

@@ -36,7 +36,7 @@ class ActivityCreate(BaseModel):
 
     gps_accuracy: Optional[float] = None
 
-    captured_at: datetime
+    captured_at: Optional[datetime] = Field(default_factory=datetime.utcnow)
 
     client_id: Optional[str] = None
 

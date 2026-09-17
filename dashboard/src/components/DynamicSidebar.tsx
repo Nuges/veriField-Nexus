@@ -176,7 +176,7 @@ export function DynamicSidebar() {
                 href: "/dashboard/operations",
                 badge: flaggedCount ? `${flaggedCount}` : undefined,
               },
-              { label: "Live Telemetry", icon: "Activity", href: "/dashboard/monitoring" },
+              { label: sectorTerms.monitoringNavLabel, icon: "Activity", href: "/dashboard/monitoring" },
             ],
           },
           {
@@ -195,7 +195,7 @@ export function DynamicSidebar() {
           {
             title: "Intelligence & Guides",
             items: [
-              { label: "AI Assistant", icon: "Bot", href: "/dashboard/ai" },
+              { label: sectorTerms.aiNavLabel, icon: "Bot", href: "/dashboard/ai" },
               { label: "Help & Knowledge", icon: "HelpCircle", href: "/dashboard/help" },
             ],
           },
@@ -506,7 +506,7 @@ export function DynamicSidebar() {
       <div className="flex-1 overflow-y-auto px-3 py-4 space-y-5 scrollbar-thin scrollbar-thumb-[var(--color-border)]">
         {navGroups.map((group, gIdx) => (
           <div key={gIdx} className="space-y-1">
-            <div className="px-3 text-[10px] font-mono uppercase tracking-wider text-[var(--color-text-secondary)] font-bold mb-1.5 opacity-80">
+            <div className="px-3 text-[11px] font-semibold uppercase tracking-wider text-[var(--color-text-secondary)] mb-1.5 opacity-80">
               {group.title}
             </div>
             {group.items.map((item, iIdx) => {
@@ -519,20 +519,20 @@ export function DynamicSidebar() {
                   href={item.href}
                   className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-all duration-150 ${
                     active
-                      ? "bg-emerald-500/10 text-[#008A5E] dark:text-emerald-400 font-bold border border-emerald-500/20 shadow-xs"
+                      ? "bg-[var(--color-primary)]/10 text-[var(--color-primary)] font-semibold border border-[var(--color-primary)]/20 shadow-xs"
                       : "text-[var(--color-text-secondary)] hover:bg-[var(--color-background)] hover:text-[var(--color-text-primary)]"
                   }`}
                 >
                   <div className="flex items-center gap-2.5 truncate">
-                    <Icon className={`w-4 h-4 shrink-0 ${active ? "text-[#008A5E] dark:text-emerald-400" : "text-[var(--color-text-secondary)]"}`} />
+                    <Icon className={`w-4 h-4 shrink-0 ${active ? "text-[var(--color-primary)]" : "text-[var(--color-text-secondary)]"}`} />
                     <span className="truncate">{item.label}</span>
                   </div>
                   {item.badge && (
                     <span
-                      className={`text-[9px] px-1.5 py-0.5 rounded-full font-mono font-bold ${
+                      className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium ${
                         item.badge === "Live"
-                          ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border border-emerald-500/30 animate-pulse"
-                          : "bg-amber-500/20 text-amber-600 dark:text-amber-300 border border-amber-500/30"
+                          ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30"
+                          : "bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30"
                       }`}
                     >
                       {item.badge}
@@ -546,7 +546,7 @@ export function DynamicSidebar() {
       </div>
 
       {/* Footer System Status */}
-      <div className="p-3 border-t border-[var(--color-border)] bg-[var(--color-background)] text-[10px] font-mono text-[var(--color-text-secondary)]">
+      <div className="p-3 border-t border-[var(--color-border)] bg-[var(--color-background)] text-[11px] text-[var(--color-text-muted)]">
         <span>CIOS v5.4-PROD</span>
       </div>
     </aside>

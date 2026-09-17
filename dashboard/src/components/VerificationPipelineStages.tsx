@@ -4,7 +4,7 @@
 
 // =============================================================================
 
-// Renders dynamic verification stages (Pending, AI Verified, Flagged, Manual Review, Approved)
+// Renders dynamic verification stages (Pending, Checks Passed, Flagged, Manual Review, Approved)
 
 // with live percentage and count calculations derived from backend database activities.
 
@@ -238,7 +238,7 @@ export default function VerificationPipelineStages({
     },
     {
       id: "ai_verified",
-      label: "AI Verified",
+      label: "Checks Passed",
       color: "text-emerald-500 dark:text-emerald-400",
       bgActive: "bg-emerald-500/10",
       borderActive: "border-emerald-500/40",
@@ -328,7 +328,7 @@ export default function VerificationPipelineStages({
               {/* Middle Row: Percentage & Count */}
               <div className="flex items-baseline justify-between gap-2 pt-0.5">
                 <span className={`text-xl font-bold tracking-tight ${st.textColor}`}>
-                  {pct}%
+                  {total === 0 ? "—" : `${pct}%`}
                 </span>
                 <span className="text-xs text-[var(--color-text-secondary)] shrink-0">
                   {cnt} {cnt === 1 ? "record" : "records"}

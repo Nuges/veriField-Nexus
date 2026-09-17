@@ -46,7 +46,7 @@ router = APIRouter(prefix="/activities", tags=["Activities"])
 
 
 @router.post("", response_model=ActivityResponse, status_code=status.HTTP_201_CREATED)
-
+@router.post("/offline", response_model=ActivityResponse, status_code=status.HTTP_201_CREATED)
 async def create_activity(
 
     payload: ActivityCreate,
@@ -63,10 +63,6 @@ async def create_activity(
 
     abac = get_abac_engine(db, current_user)
 
-    # Project-level access enforcement removed since activities are decoupled from projects
-
-
-
     org_id = current_user.organization_id
     if not org_id:
         from app.domains.organizations.models import Organization
@@ -74,6 +70,39 @@ async def create_activity(
         org_res = await db.execute(select(Organization.id).limit(1))
         default_org_id = org_res.scalar_one_or_none()
         org_id = default_org_id or current_user.id
+
+    # Project methodology lock & cross-tenant access enforcement
+    target_project_id = payload.project_id or (payload.activity_data.get("project_id") if payload.activity_data else None)
+    if target_project_id:
+        try:
+            target_proj_uuid = UUID(str(target_project_id))
+            from app.domains.projects.models import Project
+            from sqlalchemy import select
+            proj_stmt = select(Project).where(Project.id == target_proj_uuid)
+            proj_res = await db.execute(proj_stmt)
+            project = proj_res.scalar_one_or_none()
+            if not project:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Project {target_project_id} not found.")
+            if current_user.role != "SUPER_ADMIN" and project.organization_id and project.organization_id != org_id:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access to project in another organization is forbidden.")
+
+            if project.methodology_id:
+                from app.domains.methodologies.models.base_registry import Methodology
+                meth_stmt = select(Methodology).where(Methodology.id == project.methodology_id)
+                meth_res = await db.execute(meth_stmt)
+                meth_obj = meth_res.scalar_one_or_none()
+                locked_meth = (meth_obj.code if meth_obj else str(project.methodology_id)).strip().upper()
+                client_meth = (payload.activity_data.get("methodology") or payload.activity_data.get("methodology_code") or payload.activity_data.get("methodology_id")) if payload.activity_data else None
+                if client_meth and str(client_meth).strip().upper() != locked_meth:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Methodology mismatch: Project is locked to '{locked_meth}', but activity payload specified '{client_meth}'."
+                    )
+                if payload.activity_data is not None:
+                    payload.activity_data["methodology"] = locked_meth
+                    payload.activity_data["methodology_locked"] = True
+        except (ValueError, TypeError):
+            pass
 
     repo = ActivityRepository(db)
     service = ActivityService(repo)
@@ -85,7 +114,7 @@ async def create_activity(
             return ActivityResponse.model_validate(existing)
 
     activity = await service.create_activity(
-        payload, user_id=current_user.id, organization_id=org_id
+        payload, user_id=current_user.id, organization_id=org_id, user_role=current_user.role
     )
     return ActivityResponse.model_validate(activity)
 
@@ -94,7 +123,7 @@ async def create_activity(
 
 
 @router.post("/batch")
-
+@router.post("/bulk")
 async def create_activities_batch(
 
     payload: dict,
@@ -186,9 +215,7 @@ async def create_activities_batch(
 
 
                 activity = await service.create_activity(
-
-                    activity_create, user_id=current_user.id, organization_id=org_id
-
+                    activity_create, user_id=current_user.id, organization_id=org_id, user_role=current_user.role
                 )
 
                 results.append({"client_id": client_id, "status": "submitted", "id": str(activity.id)})

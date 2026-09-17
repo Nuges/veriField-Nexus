@@ -60,18 +60,18 @@ async def test_sector_role_and_multi_tenant_integrity():
             await db.flush()
 
         # 3. Fetch or seed Methodologies
-        res_meth1 = await db.execute(select(Methodology).where(Methodology.code == "VM0042"))
-        meth_vm0042 = res_meth1.scalar_one_or_none()
-        if not meth_vm0042:
-            meth_vm0042 = Methodology(
+        res_meth1 = await db.execute(select(Methodology).where(Methodology.code == "VM0044"))
+        meth_vm0044 = res_meth1.scalar_one_or_none()
+        if not meth_vm0044:
+            meth_vm0044 = Methodology(
                 id=uuid.uuid4(),
-                code="VM0042",
-                name="Methodology for Improved Agricultural Land Management",
+                code="VM0044",
+                name="Methodology for Biochar Utilization in Soil and Non-Soil Applications",
                 registry_id=reg.id,
                 family_id=sec_biochar.id,
                 is_active=True,
             )
-            db.add(meth_vm0042)
+            db.add(meth_vm0044)
             await db.flush()
 
         res_meth2 = await db.execute(select(Methodology).where(Methodology.code == "ACM0002"))
@@ -98,7 +98,7 @@ async def test_sector_role_and_multi_tenant_integrity():
             org_type="DEVELOPER",
             plan="PROFESSIONAL",
             licensed_sectors=["BIOCHAR"],
-            licensed_methodologies=["VM0042"],
+            licensed_methodologies=["VM0044"],
             status="ACTIVE",
             max_installations=100,
             max_agents=10,
@@ -155,9 +155,9 @@ async def test_sector_role_and_multi_tenant_integrity():
         await db.commit()
 
         # --- Invariant 1: Sector -> Section -> Methodology Invariant ---
-        assert meth_vm0042.family_id == sec_biochar.id
+        assert meth_vm0044.family_id == sec_biochar.id
         assert meth_acm0002.family_id == sec_energy.id
-        assert meth_vm0042.family_id != sec_energy.id
+        assert meth_vm0044.family_id != sec_energy.id
 
         # --- Invariant 2: Project Creation Invariant in ProjectService ---
         repo = ProjectRepository(db)
@@ -167,7 +167,7 @@ async def test_sector_role_and_multi_tenant_integrity():
         p1 = await svc.create_project(
             ProjectCreate(
                 name="Biochar Project 1",
-                methodology_id=meth_vm0042.id,
+                methodology_id=meth_vm0044.id,
                 country="Kenya",
             ),
             organization_id=org_biochar_id,
@@ -205,7 +205,7 @@ async def test_sector_role_and_multi_tenant_integrity():
             await svc.create_project(
                 ProjectCreate(
                     name="Illegal Cross-Sector Biochar Project",
-                    methodology_id=meth_vm0042.id,
+                    methodology_id=meth_vm0044.id,
                     country="Nigeria",
                 ),
                 organization_id=org_energy_id,

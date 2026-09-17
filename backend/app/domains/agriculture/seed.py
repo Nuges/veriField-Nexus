@@ -102,6 +102,12 @@ async def seed_agriculture_methodologies(db: AsyncSession) -> Dict[str, int]:
         "Bureau of Energy Efficiency / Government of India Carbon Credit Trading Scheme (CCTS) Offset Mechanism under Ministry of Power",
         "https://beeindia.gov.in",
     )
+    puro = await get_or_create_registry(
+        "PURO_STANDARD",
+        "Puro.earth Standard",
+        "Puro.earth Standard for Engineered Carbon Removals",
+        "https://puro.earth",
+    )
 
     # ─── 2. Sector Family ───
     fam_stmt = select(MethodologyFamily).where(MethodologyFamily.code == "AGRICULTURE_LAND_USE")
@@ -287,7 +293,7 @@ async def seed_agriculture_methodologies(db: AsyncSession) -> Dict[str, int]:
             "official_name": "Estimating Organic Carbon Stocks Using Digital Soil Mapping",
             "document_type": "TOOL",
             "status": "ACTIVE",
-            "sectoral_scope": "AFOLU",
+            "sectoral_scope": "14 — Agriculture, forestry, and other land use (AFOLU)",
             "active_since": "2025-08-26",
             "is_standalone_project_methodology": False,
             "maturity_state": "MRV_ENABLED",
@@ -324,7 +330,7 @@ async def seed_agriculture_methodologies(db: AsyncSession) -> Dict[str, int]:
             "official_name": "Model Calibration, Validation, and Uncertainty Guidance for Biogeochemical Modeling for Agricultural Land Management Projects",
             "document_type": "MODULE",
             "status": "ACTIVE",
-            "sectoral_scope": "Quantification Approach 1 Guidance",
+            "sectoral_scope": "14 — AFOLU",
             "active_since": "2025-03-25",
             "is_standalone_project_methodology": False,
             "maturity_state": "MRV_ENABLED",
@@ -479,6 +485,7 @@ async def seed_agriculture_methodologies(db: AsyncSession) -> Dict[str, int]:
             "status": "ACTIVE",
             "sectoral_scope": "15 — Livestock and manure management",
             "outcome": "Reductions",
+            "active_since": "2021-12-21",
             "crop_gated": True,
             "applicable_activities": ["LIVESTOCK_RUMINANT_FEED"],
             "maturity_state": "CATALOGUED",
@@ -490,7 +497,7 @@ async def seed_agriculture_methodologies(db: AsyncSession) -> Dict[str, int]:
             {
                 "version": "2.0",
                 "status": "active",
-                "release_date": date(2024, 6, 1),
+                "release_date": date(2021, 12, 21),
                 "migration_notes": "Active livestock feed methodology.",
             },
         ],
@@ -528,6 +535,81 @@ async def seed_agriculture_methodologies(db: AsyncSession) -> Dict[str, int]:
                 "release_date": date(2025, 6, 27),
                 "migration_notes": "Active version covering biochar utilization in soil and non-soil applications.",
             },
+            {
+                "version": "2.0",
+                "status": "draft",
+                "release_date": date(2027, 1, 1),
+                "migration_notes": "UNDER_DEVELOPMENT / WATCHLIST. VM0044 v2.0 is currently in public consultation / under review by Verra and cannot be selected for crediting.",
+            },
+        ],
+    )
+
+    # I. Puro Standard Biochar Edition 2025 v2
+    await upsert_methodology(
+        code="PURO_BIOCHAR_2025",
+        name="Puro Standard Biochar Methodology",
+        description=(
+            "Puro Standard Biochar Methodology Edition 2025 Version 2. "
+            "Quantifies net CO2 removal and long-term durability of biochar produced from sustainable biomass sources "
+            "and utilized in terrestrial soil or durable non-soil materials. Issues CORC and CORC200+."
+        ),
+        registry_id=puro.id,
+        family_id=biochar_fam_id,
+        ui_config={
+            "official_code": "PURO-BIOCHAR-2025-V2",
+            "official_name": "Puro Standard Biochar Methodology Edition 2025 Version 2",
+            "document_type": "METHODOLOGY",
+            "status": "ACTIVE",
+            "credit_unit": "CORC",
+            "sectoral_scope": "Engineered Carbon Removals",
+            "outcome": "Removals",
+            "active_since": "2025-01-01",
+            "maturity_state": "MRV_ENABLED",
+            "quantification_status": "NOT_CONFIGURED",
+            "notes": "Accepts existing operational facilities and new facilities; verified via independent ISO 17025 lab testing.",
+            "official_source_url": "https://puro.earth/biochar/",
+            "last_verified_at": now_iso,
+        },
+        versions_data=[
+            {
+                "version": "Edition 2025 v2",
+                "status": "active",
+                "release_date": date(2025, 1, 1),
+                "migration_notes": "Current active edition of Puro Standard biochar methodology.",
+            }
+        ],
+    )
+
+    # J. Gold Standard PARC (Under Development)
+    await upsert_methodology(
+        code="GS_PARC",
+        name="Gold Standard Biochar Methodology (PARC / NMC 110)",
+        description=(
+            "Gold Standard Platform for Agriculture & Removals from Carbon (PARC / NMC 110) biochar methodology. "
+            "Currently under development by Gold Standard Technical Advisory Committee."
+        ),
+        registry_id=gs.id,
+        family_id=biochar_fam_id,
+        ui_config={
+            "official_code": "GS-PARC-NMC110",
+            "official_name": "Gold Standard PARC Biochar Methodology",
+            "document_type": "METHODOLOGY",
+            "status": "UNDER_DEVELOPMENT",
+            "selectable": False,
+            "credit_unit": "GS-VER",
+            "maturity_state": "NOT_SELECTABLE",
+            "quantification_status": "NOT_CONFIGURED",
+            "notes": "Under development / TAC review; not selectable for project crediting.",
+            "official_source_url": "https://www.goldstandard.org/",
+            "last_verified_at": now_iso,
+        },
+        versions_data=[
+            {
+                "version": "1.0_DRAFT",
+                "status": "draft",
+                "release_date": date(2027, 1, 1),
+                "migration_notes": "UNDER_DEVELOPMENT. Draft methodology under TAC review.",
+            }
         ],
     )
 

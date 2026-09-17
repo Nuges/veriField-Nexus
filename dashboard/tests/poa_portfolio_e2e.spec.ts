@@ -17,15 +17,14 @@ test.describe('POA Portfolio Aggregation & Decision Support E2E', () => {
 
   test.beforeEach(async ({ page }) => {
     // Setup authentication token in localStorage before navigation
-    await page.addInitScript(() => {
-      localStorage.setItem('vf_token', 'mock-poa-e2e-token-valid');
-      localStorage.setItem('user', JSON.stringify({
-        id: '00000000-0000-0000-0000-000000000001',
-        email: 'admin@verifield.test',
-        role: 'ORG_ADMIN',
-        organization_id: 'org-poa-001',
-      }));
-    });
+    await page.addInitScript(
+      ({ userData }: { userData: Record<string, unknown> }) => {
+        window.localStorage.setItem('vf_token', 'mock-poa-e2e-token-valid');
+        window.localStorage.setItem('vf_user', JSON.stringify(userData));
+        window.localStorage.setItem('vf_workspace_00000000-0000-0000-0000-000000000001', 'multi_sector');
+      },
+      { userData: mockAdminUser }
+    );
   });
 
   test('1. Synthetic Agriculture project PoA: canonical label and Active Sectors count', async ({ page }) => {
@@ -75,7 +74,20 @@ test.describe('POA Portfolio Aggregation & Decision Support E2E', () => {
         });
       }
 
-      return route.continue();
+      if (url.includes('/users')) {
+        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) });
+      }
+      if (url.includes('/settings')) {
+        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({}) });
+      }
+      if (url.includes('/methodologies')) {
+        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) });
+      }
+      if (url.includes('/properties')) {
+        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ kpis: [], activeOrgs: 1 }) });
+      }
+
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) });
     });
 
     await page.goto(`${BASE_URL}/dashboard/poa`);
@@ -147,7 +159,20 @@ test.describe('POA Portfolio Aggregation & Decision Support E2E', () => {
         });
       }
 
-      return route.continue();
+      if (url.includes('/users')) {
+        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) });
+      }
+      if (url.includes('/settings')) {
+        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({}) });
+      }
+      if (url.includes('/methodologies')) {
+        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) });
+      }
+      if (url.includes('/properties')) {
+        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ kpis: [], activeOrgs: 1 }) });
+      }
+
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) });
     });
 
     await page.goto(`${BASE_URL}/dashboard/poa`);
@@ -165,9 +190,9 @@ test.describe('POA Portfolio Aggregation & Decision Support E2E', () => {
     const sectorSection = page.getByTestId('sector-yield-contribution');
     await expect(sectorSection.getByText('Agriculture & Land Use', { exact: true })).toBeVisible();
     await expect(sectorSection.getByText('Clean Cookstoves', { exact: true })).toBeVisible();
-    await expect(sectorSection.getByText('Hybrid Energy & Mini-grids', { exact: true })).toBeVisible();
+    await expect(sectorSection.getByText('Solar & Mini-Grids', { exact: true })).toBeVisible();
     await expect(sectorSection.getByText('Biochar Carbon Removal', { exact: true })).toBeVisible();
-    await expect(sectorSection.getByText('EV Mobility', { exact: true })).toBeVisible();
+    await expect(sectorSection.getByText('Electric Mobility', { exact: true })).toBeVisible();
 
     // Verify individual yields
     await expect(sectorSection.getByText('500 tCO₂e')).toBeVisible(); // Biochar
@@ -210,7 +235,20 @@ test.describe('POA Portfolio Aggregation & Decision Support E2E', () => {
         });
       }
 
-      return route.continue();
+      if (url.includes('/users')) {
+        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) });
+      }
+      if (url.includes('/settings')) {
+        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({}) });
+      }
+      if (url.includes('/methodologies')) {
+        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) });
+      }
+      if (url.includes('/properties')) {
+        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ kpis: [], activeOrgs: 1 }) });
+      }
+
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) });
     });
 
     await page.goto(`${BASE_URL}/dashboard/poa`);
@@ -263,7 +301,20 @@ test.describe('POA Portfolio Aggregation & Decision Support E2E', () => {
         return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ items: [] }) });
       }
 
-      return route.continue();
+      if (url.includes('/users')) {
+        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) });
+      }
+      if (url.includes('/settings')) {
+        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({}) });
+      }
+      if (url.includes('/methodologies')) {
+        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) });
+      }
+      if (url.includes('/properties')) {
+        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ kpis: [], activeOrgs: 1 }) });
+      }
+
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) });
     });
 
     await page.goto(`${BASE_URL}/dashboard/poa`);
@@ -330,7 +381,20 @@ test.describe('POA Portfolio Aggregation & Decision Support E2E', () => {
         });
       }
 
-      return route.continue();
+      if (url.includes('/users')) {
+        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) });
+      }
+      if (url.includes('/settings')) {
+        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({}) });
+      }
+      if (url.includes('/methodologies')) {
+        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) });
+      }
+      if (url.includes('/properties')) {
+        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ kpis: [], activeOrgs: 1 }) });
+      }
+
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) });
     });
 
     const viewports = [

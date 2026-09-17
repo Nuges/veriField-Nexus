@@ -50,11 +50,11 @@ SECTOR_CONFIGS = [
     {
         "name": "Biochar Carbon Removal",
         "sector_code": "BIOCHAR",
-        "meth_code": "VM0042",
+        "meth_code": "VM0044",
         "org_name": "Terra Biochar Sink Ltd",
         "email": "test_biochar@example.com",
         "expected_ws_code": "BIOCHAR",
-        "expected_kpi_label": "CARBON REMOVED"
+        "expected_kpi_label": "BIOCHAR PRODUCED"
     },
     {
         "name": "EV Mobility",

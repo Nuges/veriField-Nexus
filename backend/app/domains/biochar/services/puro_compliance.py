@@ -325,6 +325,11 @@ class PuroOutputReportBuilder:
         calcs = res_calcs.scalars().all()
 
         total_mass = sum(Decimal(str(c.eligible_dry_biochar_mass_tonnes)) for c in calcs)
+        total_c_stored = sum(Decimal(str(c.c_stored_tco2e)) for c in calcs)
+        total_c_baseline = sum(Decimal(str(c.c_baseline_tco2e)) for c in calcs)
+        total_c_loss = sum(Decimal(str(c.c_loss_tco2e)) for c in calcs)
+        total_e_project = sum(Decimal(str(c.e_project_tco2e)) for c in calcs)
+        total_e_leakage = sum(Decimal(str(c.e_leakage_tco2e)) for c in calcs)
         total_corcs = sum(Decimal(str(c.final_corcs_issuable)) for c in calcs)
 
         report_num = f"PUR-REP-{fac.facility_code}-{monitoring_period_id}-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M')}"
@@ -336,15 +341,23 @@ class PuroOutputReportBuilder:
             "monitoring_period_id": monitoring_period_id,
             "crediting_period_id": str(crediting_period_id) if crediting_period_id else None,
             "methodology": "PURO_BIOCHAR_2025_V2",
+            "equation": "CORCs = max(0, Cstored - Cbaseline - Closs - Eproject - Eleakage)",
             "total_eligible_biochar_mass_tonnes": f"{total_mass:.6f}",
+            "total_c_stored_tco2e": f"{total_c_stored:.6f}",
+            "total_c_baseline_tco2e": f"{total_c_baseline:.6f}",
+            "total_c_loss_tco2e": f"{total_c_loss:.6f}",
+            "total_e_project_tco2e": f"{total_e_project:.6f}",
+            "total_e_leakage_tco2e": f"{total_e_leakage:.6f}",
             "total_net_corcs": f"{total_corcs:.6f}",
             "calculation_count": len(calcs),
             "calculations": [
                 {
                     "batch_id": str(c.batch_id),
                     "c_stored": f"{Decimal(str(c.c_stored_tco2e)):.6f}",
+                    "c_baseline": f"{Decimal(str(c.c_baseline_tco2e)):.6f}",
                     "c_loss": f"{Decimal(str(c.c_loss_tco2e)):.6f}",
                     "e_project": f"{Decimal(str(c.e_project_tco2e)):.6f}",
+                    "e_leakage": f"{Decimal(str(c.e_leakage_tco2e)):.6f}",
                     "final_corcs": f"{Decimal(str(c.final_corcs_issuable)):.6f}",
                     "calc_hash": c.calculation_hash,
                 }

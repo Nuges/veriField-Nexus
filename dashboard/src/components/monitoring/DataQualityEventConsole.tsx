@@ -274,11 +274,11 @@ export function DataQualityEventConsole({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[var(--color-border)] pb-4">
         <div>
           <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded bg-[#00B47A]/10 text-[#00B47A] text-[9px] font-extrabold tracking-wider uppercase border border-[#00B47A]/20">
-              DATA QUALITY ALERTS
+            <span className="px-2.5 py-0.5 rounded-full bg-[var(--color-primary)]/10 text-[var(--color-primary)] text-xs font-medium border border-[var(--color-primary)]/20">
+              Data quality alerts
             </span>
           </div>
-          <h2 className="text-sm font-extrabold text-[var(--color-text-primary)] uppercase tracking-wider mt-1">
+          <h2 className="text-sm font-semibold text-[var(--color-text-primary)] mt-1">
             {title}
           </h2>
           <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">
@@ -308,7 +308,7 @@ export function DataQualityEventConsole({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Filter events by asset, type, or keyword..."
-            className="w-full pl-9 pr-3 py-1.5 bg-[var(--color-background)] border border-[var(--color-border)] rounded-xl text-xs text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[#00B47A]"
+            className="w-full pl-9 pr-3 py-1.5 bg-[var(--color-background)] border border-[var(--color-border)] rounded-xl text-xs text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-primary)]"
           />
         </div>
 
@@ -317,7 +317,7 @@ export function DataQualityEventConsole({
           <select
             value={severityFilter}
             onChange={(e) => setSeverityFilter(e.target.value)}
-            className="py-1.5 px-2.5 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] text-xs font-bold text-[var(--color-text-primary)] focus:outline-none focus:border-[#00B47A]"
+            className="py-1.5 px-2.5 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] text-xs font-medium text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary)]"
           >
             <option value="ALL">Severity: All</option>
             <option value="CRITICAL">Critical</option>
@@ -329,7 +329,7 @@ export function DataQualityEventConsole({
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="py-1.5 px-2.5 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] text-xs font-bold text-[var(--color-text-primary)] focus:outline-none focus:border-[#00B47A]"
+            className="py-1.5 px-2.5 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] text-xs font-medium text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary)]"
           >
             <option value="ALL">Status: All</option>
             <option value="ACTIVE">Active</option>
@@ -344,7 +344,7 @@ export function DataQualityEventConsole({
             className="p-2 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:text-white transition-colors cursor-pointer disabled:opacity-50"
             title="Refresh Anomaly Stream"
           >
-            <RefreshCw size={14} className={isLoading ? "animate-spin text-[#00B47A]" : ""} />
+            <RefreshCw size={14} className={isLoading ? "animate-spin text-[var(--color-primary)]" : ""} />
           </button>
         </div>
       </div>

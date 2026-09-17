@@ -238,7 +238,7 @@ export default function EnergyDashboardPage() {
               className="p-2 rounded-md bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors cursor-pointer"
               title="Refresh energy data"
             >
-              <RefreshCw size={15} className={isLoading ? "animate-spin text-[#00B47A]" : ""} />
+              <RefreshCw size={15} className={isLoading ? "animate-spin text-[var(--color-primary)]" : ""} />
             </button>
           </div>
         </div>
@@ -248,57 +248,57 @@ export default function EnergyDashboardPage() {
             ═══════════════════════════════════════════════════════════════ */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
           {/* Total CO₂ Displaced */}
-          <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-4 flex items-center justify-between shadow-sm relative overflow-hidden group hover:border-amber-400/30 transition-all">
+          <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4 flex items-center justify-between shadow-xs relative overflow-hidden transition-all">
             <div className="space-y-1">
-              <p className="text-[9px] font-extrabold text-[var(--color-text-muted)] uppercase tracking-wider">Total CO₂ Displaced</p>
-              <p className="text-2xl font-black text-amber-400 tracking-tight">
-                {isLoading ? "..." : totalCo2.toLocaleString(undefined, { maximumFractionDigits: 2 })} <span className="text-xs font-bold text-[var(--color-text-muted)]">tCO₂e</span>
+              <p className="text-xs font-medium text-[var(--color-text-secondary)]">Total CO₂ displaced</p>
+              <p className="text-2xl font-bold text-[var(--color-text-primary)] tracking-tight">
+                {isLoading ? "..." : totalCo2.toLocaleString(undefined, { maximumFractionDigits: 2 })} <span className="text-xs font-normal text-[var(--color-text-muted)]">tCO₂e</span>
               </p>
-              <p className="text-[9px] text-[var(--color-text-muted)] font-medium">Verified emission reductions</p>
+              <p className="text-xs text-[var(--color-text-muted)] font-normal">Verified emission reductions</p>
             </div>
-            <div className="p-3 bg-amber-400/5 border border-amber-400/10 rounded-xl text-amber-400 shrink-0 group-hover:bg-amber-400 group-hover:text-white transition-all duration-300">
+            <div className="p-2.5 bg-[var(--color-surface-hover)] border border-[var(--color-border)] rounded-lg text-[var(--color-text-secondary)] shrink-0">
               <Leaf size={18} />
             </div>
           </div>
 
           {/* Total Energy Generated */}
-          <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-4 flex items-center justify-between shadow-sm relative overflow-hidden group hover:border-blue-400/30 transition-all">
+          <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4 flex items-center justify-between shadow-xs relative overflow-hidden transition-all">
             <div className="space-y-1">
-              <p className="text-[9px] font-extrabold text-[var(--color-text-muted)] uppercase tracking-wider">Total Energy Generated</p>
-              <p className="text-2xl font-black text-blue-400 tracking-tight">
-                {isLoading ? "..." : totalMwh.toLocaleString(undefined, { maximumFractionDigits: 1 })} <span className="text-xs font-bold text-[var(--color-text-muted)]">MWh</span>
+              <p className="text-xs font-medium text-[var(--color-text-secondary)]">Total energy generated</p>
+              <p className="text-2xl font-bold text-[var(--color-text-primary)] tracking-tight">
+                {isLoading ? "..." : totalMwh.toLocaleString(undefined, { maximumFractionDigits: 1 })} <span className="text-xs font-normal text-[var(--color-text-muted)]">MWh</span>
               </p>
-              <p className="text-[9px] text-[var(--color-text-muted)] font-medium">Cumulative clean generation</p>
+              <p className="text-xs text-[var(--color-text-muted)] font-normal">Cumulative clean generation</p>
             </div>
-            <div className="p-3 bg-blue-400/5 border border-blue-400/10 rounded-xl text-blue-400 shrink-0 group-hover:bg-blue-400 group-hover:text-white transition-all duration-300">
+            <div className="p-2.5 bg-[var(--color-surface-hover)] border border-[var(--color-border)] rounded-lg text-[var(--color-text-secondary)] shrink-0">
               <Zap size={18} />
             </div>
           </div>
 
           {/* Active Projects */}
-          <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-4 flex items-center justify-between shadow-sm relative overflow-hidden group hover:border-purple-400/30 transition-all">
+          <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4 flex items-center justify-between shadow-xs relative overflow-hidden transition-all">
             <div className="space-y-1">
-              <p className="text-[9px] font-extrabold text-[var(--color-text-muted)] uppercase tracking-wider">Active Projects</p>
-              <p className="text-2xl font-black text-purple-400 tracking-tight">
-                {isLoading ? "..." : totalProjects} <span className="text-xs font-bold text-[var(--color-text-muted)]">Sites</span>
+              <p className="text-xs font-medium text-[var(--color-text-secondary)]">Active projects</p>
+              <p className="text-2xl font-bold text-[var(--color-text-primary)] tracking-tight">
+                {isLoading ? "..." : totalProjects} <span className="text-xs font-normal text-[var(--color-text-muted)]">Sites</span>
               </p>
-              <p className="text-[9px] text-[var(--color-text-muted)] font-medium">Monitored energy facilities</p>
+              <p className="text-xs text-[var(--color-text-muted)] font-normal">Monitored energy facilities</p>
             </div>
-            <div className="p-3 bg-purple-400/5 border border-purple-400/10 rounded-xl text-purple-400 shrink-0 group-hover:bg-purple-400 group-hover:text-white transition-all duration-300">
+            <div className="p-2.5 bg-[var(--color-surface-hover)] border border-[var(--color-border)] rounded-lg text-[var(--color-text-secondary)] shrink-0">
               <Layers size={18} />
             </div>
           </div>
 
           {/* Portfolio Value */}
-          <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-4 flex items-center justify-between shadow-sm relative overflow-hidden group hover:border-emerald-400/30 transition-all">
+          <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4 flex items-center justify-between shadow-xs relative overflow-hidden transition-all">
             <div className="space-y-1">
-              <p className="text-[9px] font-extrabold text-[var(--color-text-muted)] uppercase tracking-wider">Portfolio Value</p>
-              <p className="text-2xl font-black text-emerald-400 tracking-tight">
+              <p className="text-xs font-medium text-[var(--color-text-secondary)]">Portfolio value</p>
+              <p className="text-2xl font-bold text-[var(--color-text-primary)] tracking-tight">
                 {isLoading ? "..." : `$${portfolioValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
               </p>
-              <p className="text-[9px] text-[var(--color-text-muted)] font-medium">Estimated credit market value</p>
+              <p className="text-xs text-[var(--color-text-muted)] font-normal">Estimated credit market value</p>
             </div>
-            <div className="p-3 bg-emerald-400/5 border border-emerald-400/10 rounded-xl text-emerald-400 shrink-0 group-hover:bg-emerald-400 group-hover:text-white transition-all duration-300">
+            <div className="p-2.5 bg-[var(--color-surface-hover)] border border-[var(--color-border)] rounded-lg text-[var(--color-text-secondary)] shrink-0">
               <DollarSign size={18} />
             </div>
           </div>
@@ -307,11 +307,11 @@ export default function EnergyDashboardPage() {
         {/* ═══════════════════════════════════════════════════════════════════
             ENERGY ACTIVITIES TABLE
             ═══════════════════════════════════════════════════════════════ */}
-        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl shadow-sm overflow-hidden">
+        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl shadow-xs overflow-hidden">
           {/* Table Header */}
           <div className="p-4 border-b border-[var(--color-border)] flex items-center justify-between bg-[var(--color-background)]/50">
-            <h2 className="text-xs font-bold uppercase tracking-wider">Energy Activities</h2>
-            <div className="text-[9px] font-extrabold text-amber-400 bg-amber-400/5 border border-amber-400/15 px-2 py-0.5 rounded uppercase">
+            <h2 className="text-xs font-semibold text-[var(--color-text-primary)]">Energy activities</h2>
+            <div className="text-xs font-medium text-[var(--color-text-secondary)] bg-[var(--color-surface)] border border-[var(--color-border)] px-2.5 py-0.5 rounded-full">
               {activities.length} records
             </div>
           </div>
@@ -529,9 +529,9 @@ export default function EnergyDashboardPage() {
                                       e.stopPropagation();
                                       openSiteDetail(act);
                                     }}
-                                    className="text-xs font-extrabold text-[#00B47A] hover:text-[#00B47A]/80 uppercase tracking-wider transition-colors active:scale-95"
+                                    className="text-xs font-semibold text-[var(--color-primary)] hover:opacity-80 transition-colors active:scale-95"
                                   >
-                                    View Full Telemetry →
+                                    View full telemetry →
                                   </button>
                                 </div>
                               </div>
@@ -650,13 +650,13 @@ export default function EnergyDashboardPage() {
 
                 return (
                   <div>
-                    <h4 className="text-[10px] font-extrabold text-[var(--color-text-muted)] uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
-                      <Camera size={14} className="text-[#00B47A]" /> Photographic Evidence
+                    <h4 className="text-xs font-semibold text-[var(--color-text-secondary)] mb-2.5 flex items-center gap-1.5">
+                      <Camera size={14} className="text-[var(--color-primary)]" /> Photographic evidence
                     </h4>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                       {solarUrl && (
                         <div className="bg-[var(--color-background)] border border-[var(--color-border)] rounded-xl overflow-hidden p-2.5 space-y-2">
-                          <span className="text-[8px] font-extrabold text-[#00B47A] uppercase tracking-wider block">Solar PV Installation</span>
+                          <span className="text-[10px] font-medium text-[var(--color-primary)] block">Solar PV installation</span>
                           <div className="aspect-[4/3] rounded-lg overflow-hidden bg-black border border-[var(--color-border)]">
                             <img src={cleanUrl(solarUrl)} alt="Solar PV Installation" className="w-full h-full object-cover" />
                           </div>
@@ -664,7 +664,7 @@ export default function EnergyDashboardPage() {
                       )}
                       {generatorUrl && (
                         <div className="bg-[var(--color-background)] border border-[var(--color-border)] rounded-xl overflow-hidden p-2.5 space-y-2">
-                          <span className="text-[8px] font-extrabold text-amber-500 uppercase tracking-wider block">Baseline Generator</span>
+                          <span className="text-[10px] font-medium text-amber-500 block">Baseline generator</span>
                           <div className="aspect-[4/3] rounded-lg overflow-hidden bg-black border border-[var(--color-border)]">
                             <img src={cleanUrl(generatorUrl)} alt="Baseline Generator" className="w-full h-full object-cover" />
                           </div>
@@ -672,7 +672,7 @@ export default function EnergyDashboardPage() {
                       )}
                       {inverterUrl && (
                         <div className="bg-[var(--color-background)] border border-[var(--color-border)] rounded-xl overflow-hidden p-2.5 space-y-2">
-                          <span className="text-[8px] font-extrabold text-purple-400 uppercase tracking-wider block">Inverter Label</span>
+                          <span className="text-[10px] font-medium text-purple-400 block">Inverter label</span>
                           <div className="aspect-[4/3] rounded-lg overflow-hidden bg-black border border-[var(--color-border)]">
                             <img src={cleanUrl(inverterUrl)} alt="Inverter Label" className="w-full h-full object-cover" />
                           </div>
@@ -690,11 +690,11 @@ export default function EnergyDashboardPage() {
                   <div className="flex items-center gap-2">
                     <Fuel size={16} className="text-blue-400" />
                     <div>
-                      <h4 className="text-[10px] font-extrabold text-[var(--color-text-muted)] uppercase tracking-wider">
-                        Telemetry Log
+                      <h4 className="text-xs font-semibold text-[var(--color-text-secondary)]">
+                        Telemetry log
                       </h4>
                       {!isTelemetryLoading && telemetry.length > 0 && (
-                        <p className="text-[9px] text-[var(--color-text-muted)] mt-0.5">
+                        <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
                           Showing {filteredLogs.length} total entries
                         </p>
                       )}
@@ -702,12 +702,12 @@ export default function EnergyDashboardPage() {
                   </div>
                   
                   {!isTelemetryLoading && telemetry.length > 0 && (
-                    <button
-                      onClick={exportToCSV}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-[#00B47A]/10 hover:bg-[#00B47A]/25 border border-[#00B47A]/20 text-[#00B47A] text-[9px] font-extrabold rounded-lg uppercase tracking-wider transition-all self-start sm:self-auto active:scale-95"
-                    >
-                      <Download size={12} /> Export CSV
-                    </button>
+                        <button
+                          onClick={exportToCSV}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--color-primary)]/10 hover:bg-[var(--color-primary)]/20 border border-[var(--color-primary)]/20 text-[var(--color-primary)] text-xs font-medium rounded-lg transition-all self-start sm:self-auto active:scale-95"
+                        >
+                          <Download size={12} /> Export CSV
+                        </button>
                   )}
                 </div>
 
@@ -729,7 +729,7 @@ export default function EnergyDashboardPage() {
                           placeholder="Search logs by date..."
                           value={searchQuery}
                           onChange={(e) => setSearchQuery(e.target.value)}
-                          className="w-full pl-8 pr-3 py-1.5 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg text-[10px] text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[#00B47A]/40 transition-colors font-mono"
+                          className="w-full pl-8 pr-3 py-1.5 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg text-xs text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-primary)]/40 transition-colors"
                         />
                       </div>
 
@@ -743,9 +743,9 @@ export default function EnergyDashboardPage() {
                           <button
                             key={btn.id}
                             onClick={() => setDateRange(btn.id)}
-                            className={`px-2.5 py-1 text-[9px] font-extrabold rounded-md uppercase tracking-wider transition-all ${
+                            className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all ${
                               dateRange === btn.id
-                                ? "bg-[#00B47A] text-white shadow-sm font-black"
+                                ? "bg-[var(--color-primary)] text-white shadow-xs font-semibold"
                                 : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
                             }`}
                           >
@@ -789,7 +789,7 @@ export default function EnergyDashboardPage() {
                                   <td className="p-2.5 text-right text-rose-500 font-semibold">
                                     {log.diesel_hrs != null ? `${Number(log.diesel_hrs).toFixed(1)} hrs` : "—"}
                                   </td>
-                                  <td className="p-2.5 text-center text-[#00B47A] font-extrabold">
+                                  <td className="p-2.5 text-center text-[var(--color-primary)] font-semibold">
                                     {log.battery_soc != null ? `${Number(log.battery_soc).toFixed(0)}%` : "—"}
                                   </td>
                                   <td className="p-2.5 text-center">
@@ -827,7 +827,7 @@ export default function EnergyDashboardPage() {
                             <ChevronLeft size={10} />
                           </button>
                           
-                          <span className="font-mono px-2 py-1 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg text-[var(--color-text-primary)]">
+                          <span className="px-2.5 py-1 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg text-[var(--color-text-secondary)] font-medium text-xs">
                             {currentPage} / {totalPages}
                           </span>
                           

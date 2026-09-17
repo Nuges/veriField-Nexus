@@ -19,10 +19,9 @@
 
 
 import React, { useState, useMemo } from "react";
-
 import dynamic from "next/dynamic";
-
 import { MapPin, List, Map as MapIcon } from "lucide-react";
+import { canonicalSectorCode } from "@/lib/moduleRegistry";
 
 
 
@@ -60,7 +59,7 @@ interface SpatialAsset {
 
 
 
-function parseCoord(val: any): number {
+function parseCoord(val: unknown): number {
 
   if (typeof val === "number") return val;
 
@@ -126,27 +125,33 @@ export default function SpatialModule({
 
 
 
-  const code = (sectorCode || "").toUpperCase();
+  const canonCode = canonicalSectorCode(sectorCode || "").toUpperCase();
 
-
-
-  const assetLabel = code.includes("COOK") || code.includes("AMS_II_G")
-
+  const assetLabel = canonCode === "COOKSTOVES"
     ? "cookstoves"
-
-    : code.includes("HYBRID") || code.includes("ENERGY")
-
+    : canonCode === "HYBRID_ENERGY"
     ? "hybrid energy systems"
-
-    : code.includes("BIOCHAR")
-
+    : canonCode === "BIOCHAR"
     ? "biochar facilities"
-
-    : code.includes("EV")
-
+    : canonCode === "EV_MOBILITY"
     ? "charging stations"
-
+    : canonCode === "AGRICULTURE_LAND_USE"
+    ? "land units"
     : "assets";
+
+  const isAgriculture = canonCode === "AGRICULTURE_LAND_USE";
+  const emptyTitle = isAgriculture ? "No land boundaries registered." : `No ${assetLabel} registered.`;
+  const emptySubtitle = isAgriculture
+    ? "Add or capture a land unit to establish the project map."
+    : canonCode === "COOKSTOVES"
+    ? "Add or capture a device to establish the project map."
+    : canonCode === "BIOCHAR"
+    ? "Add or capture a facility to establish the project map."
+    : canonCode === "EV_MOBILITY"
+    ? "Add or capture a charging station to establish the project map."
+    : canonCode === "HYBRID_ENERGY"
+    ? "Add or capture an energy system to establish the project map."
+    : "Add or capture an asset to establish the project map.";
 
 
 
@@ -205,86 +210,49 @@ export default function SpatialModule({
       <div className="flex flex-wrap items-center justify-between gap-3">
 
         <div className="flex items-center gap-2">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-primary)]">
-            Spatial Verification — {assetLabel}
+          <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
+            Spatial view — {assetLabel}
           </h3>
-          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[var(--color-surface-hover)] text-[var(--color-text-secondary)] border border-[var(--color-border)] font-semibold">
+          <span className="text-xs font-medium px-2.5 py-0.5 rounded-full bg-[var(--color-surface-hover)] text-[var(--color-text-secondary)] border border-[var(--color-border)]">
             {filteredAssets.length} {assetLabel}
           </span>
         </div>
 
-
-
         <div className="flex items-center gap-2">
-
           {/* Status filter */}
-
           <select
-
             value={statusFilter}
-
             onChange={(e) => setStatusFilter(e.target.value)}
-
-            className="text-[11px] font-bold bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg px-2 py-1 text-[var(--color-text-primary)]"
-
+            className="text-xs font-medium bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg px-2.5 py-1 text-[var(--color-text-primary)]"
           >
-
-            <option value="all">All Statuses ({normalizedAssets.length})</option>
-
+            <option value="all">All statuses ({normalizedAssets.length})</option>
             {Object.entries(statCounts).map(([s, c]) => (
-
               <option key={s} value={s}>{s} ({c})</option>
-
             ))}
-
           </select>
 
-
-
           {/* View toggle */}
-
           <div className="flex items-center border border-[var(--color-border)] rounded-lg overflow-hidden">
-
             <button
-
               onClick={() => setViewMode("map")}
-
-              className={`px-2.5 py-1.5 text-[11px] font-bold flex items-center gap-1 cursor-pointer ${
-
+              className={`px-3 py-1.5 text-xs font-medium flex items-center gap-1.5 cursor-pointer transition-colors ${
                 viewMode === "map"
-
-                  ? "bg-[#00B47A] text-slate-950"
-
-                  : "bg-[var(--color-surface)] text-[var(--color-text-secondary)]"
-
+                  ? "bg-[var(--color-primary)] text-white"
+                  : "bg-[var(--color-surface)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
               }`}
-
             >
-
               <MapIcon size={12} /> Map
-
             </button>
-
             <button
-
               onClick={() => setViewMode("table")}
-
-              className={`px-2.5 py-1.5 text-[11px] font-bold flex items-center gap-1 cursor-pointer ${
-
+              className={`px-3 py-1.5 text-xs font-medium flex items-center gap-1.5 cursor-pointer transition-colors ${
                 viewMode === "table"
-
-                  ? "bg-[#00B47A] text-slate-950"
-
-                  : "bg-[var(--color-surface)] text-[var(--color-text-secondary)]"
-
+                  ? "bg-[var(--color-primary)] text-white"
+                  : "bg-[var(--color-surface)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
               }`}
-
             >
-
               <List size={12} /> Table
-
             </button>
-
           </div>
 
         </div>
@@ -297,21 +265,35 @@ export default function SpatialModule({
 
       {viewMode === "map" && (
 
-        <LeafletMap
+        <div className="relative isolate rounded-xl overflow-hidden">
 
-          assets={filteredAssets}
+          <LeafletMap
+            assets={filteredAssets}
+            sectorCode={sectorCode}
+            height="500px"
+            showRadius={true}
+            radiusMeters={50}
+            hideEmptyState={true}
+            onAssetClick={(a) => setSelectedAsset(a.id)}
+          />
 
-          sectorCode={sectorCode}
+          {filteredAssets.length === 0 && (
+            <div
+              className="absolute inset-0 flex items-center justify-center pointer-events-none z-[500]"
+              role="status"
+            >
+              <div className="max-w-[380px] w-full mx-4 px-6 py-5 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-sm text-center pointer-events-none">
+                <p className="text-sm font-semibold text-[var(--color-text-primary)]">
+                  {emptyTitle}
+                </p>
+                <p className="text-xs text-[var(--color-text-secondary)] mt-1.5 leading-relaxed">
+                  {emptySubtitle}
+                </p>
+              </div>
+            </div>
+          )}
 
-          height="500px"
-
-          showRadius={true}
-
-          radiusMeters={50}
-
-          onAssetClick={(a) => setSelectedAsset(a.id)}
-
-        />
+        </div>
 
       )}
 
@@ -354,19 +336,12 @@ export default function SpatialModule({
                   onClick={() => setSelectedAsset(a.id)}
 
                   className={`border-t border-[var(--color-border)] hover:bg-[var(--color-surface)]/50 cursor-pointer transition-colors ${
-
-                    selectedAsset === a.id ? "bg-[#00B47A]/5" : ""
-
+                    selectedAsset === a.id ? "bg-[var(--color-primary)]/5" : ""
                   }`}
-
                 >
-
-                  <td className="p-3 font-bold text-[var(--color-text-primary)]">
-
-                    <MapPin size={12} className="inline mr-1 text-[#00B47A]" />
-
+                  <td className="p-3 font-semibold text-[var(--color-text-primary)]">
+                    <MapPin size={12} className="inline mr-1 text-[var(--color-primary)]" />
                     {a.name}
-
                   </td>
 
                   <td className="p-3 font-mono text-[var(--color-text-secondary)]">{a.lat.toFixed(4)}</td>
@@ -414,9 +389,7 @@ export default function SpatialModule({
                 <tr>
 
                   <td colSpan={5} className="p-6 text-center text-[var(--color-text-secondary)]">
-
-                    No assets with geospatial data. Deploy field agents to begin location capture.
-
+                    No {assetLabel} with geospatial data. Deploy field agents to begin location capture.
                   </td>
 
                 </tr>

@@ -317,24 +317,35 @@ class ApiService {
 
 
 
+  /// Sanitize headers for logging to prevent credential leakage.
+  static Map<String, String> sanitizeHeaders(Map<String, String> rawHeaders) {
+    final sanitized = <String, String>{};
+    for (final entry in rawHeaders.entries) {
+      final keyLower = entry.key.toLowerCase();
+      if (keyLower == 'authorization' ||
+          keyLower == 'cookie' ||
+          keyLower == 'set-cookie' ||
+          keyLower.contains('token') ||
+          keyLower.contains('secret') ||
+          keyLower.contains('password') ||
+          keyLower.contains('key')) {
+        sanitized[entry.key] = '[REDACTED]';
+      } else {
+        sanitized[entry.key] = entry.value;
+      }
+    }
+    return sanitized;
+  }
+
   /// Standard headers with auth token.
-
   static Map<String, String> get _headers {
-
     final token = _authToken;
-
     final headers = {
-
       'Content-Type': 'application/json',
-
       if (token != null) 'Authorization': 'Bearer $token',
-
     };
-
-    debugPrint('[ApiService] Request Headers: $headers');
-
+    debugPrint('[ApiService] Request Headers: ${sanitizeHeaders(headers)}');
     return headers;
-
   }
 
 

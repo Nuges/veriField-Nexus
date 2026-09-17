@@ -738,7 +738,7 @@ export default function AuditorWorkspaceView({ packageId }: AuditorWorkspaceView
                   <span className="text-xs text-slate-400">tCO₂e (CORCs)</span>
                 </div>
                 <p className="text-[11px] text-slate-500 mt-2">
-                  C_stored ({summaryQuant.c_stored_tco2e ?? 0}) - C_loss ({summaryQuant.c_loss_tco2e ?? 0}) - E_proj ({summaryQuant.e_project_tco2e ?? 0}) - E_leak ({summaryQuant.e_leakage_tco2e ?? 0})
+                  C_stored ({summaryQuant.c_stored_tco2e ?? 0}) - C_baseline ({summaryQuant.c_baseline_tco2e ?? 0}) - C_loss ({summaryQuant.c_loss_tco2e ?? 0}) - E_proj ({summaryQuant.e_project_tco2e ?? 0}) - E_leak ({summaryQuant.e_leakage_tco2e ?? 0})
                 </p>
               </div>
 
@@ -1219,6 +1219,7 @@ export default function AuditorWorkspaceView({ packageId }: AuditorWorkspaceView
                 {[
                   { key: "net_removals_corcs", title: "Net Removals (CORCs)", value: summaryQuant.net_removals_tco2e, unit: "tCO₂e", color: "text-emerald-400" },
                   { key: "c_stored", title: "Carbon Stored (C_stored)", value: summaryQuant.c_stored_tco2e, unit: "tCO₂e", color: "text-blue-400" },
+                  { key: "c_baseline", title: "Baseline Removal (C_baseline)", value: summaryQuant.c_baseline_tco2e ?? 0, unit: "tCO₂e", color: "text-purple-400" },
                   { key: "c_loss", title: "Carbon Losses (C_loss)", value: summaryQuant.c_loss_tco2e, unit: "tCO₂e", color: "text-slate-300" },
                   { key: "e_project", title: "Project Emissions (E_project)", value: summaryQuant.e_project_tco2e, unit: "tCO₂e", color: "text-red-400" },
                   { key: "e_leakage", title: "Leakage Emissions (E_leakage)", value: summaryQuant.e_leakage_tco2e, unit: "tCO₂e", color: "text-amber-400" },

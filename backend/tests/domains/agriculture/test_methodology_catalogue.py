@@ -129,7 +129,7 @@ async def test_verra_methodology_catalogue_official_names_and_metadata(db_sessio
     assert vt14 is not None
     assert vt14.name == "Estimating Organic Carbon Stocks Using Digital Soil Mapping"
     assert vt14.ui_config["document_type"] == "TOOL"
-    assert vt14.ui_config["sectoral_scope"] == "AFOLU"
+    assert vt14.ui_config["sectoral_scope"] == "14 — Agriculture, forestry, and other land use (AFOLU)"
     assert vt14.ui_config["is_standalone_project_methodology"] is False
     assert any("16 October 2025" in c for c in vt14.ui_config["corrections_clarifications"])
 
@@ -139,6 +139,7 @@ async def test_verra_methodology_catalogue_official_names_and_metadata(db_sessio
     assert vmd53 is not None
     assert vmd53.name == "Model Calibration, Validation, and Uncertainty Guidance for Biogeochemical Modeling for Agricultural Land Management Projects"
     assert vmd53.ui_config["document_type"] == "MODULE"
+    assert vmd53.ui_config["sectoral_scope"] == "14 — AFOLU"
     assert vmd53.ui_config["is_standalone_project_methodology"] is False
 
     # D. VM0047 (ARR)
@@ -282,12 +283,12 @@ async def test_methodology_catalogue_source_of_truth_frozen_constants(db_session
         "VT0014": {
             "name": "Estimating Organic Carbon Stocks Using Digital Soil Mapping",
             "type": "TOOL",
-            "scope": "AFOLU",
+            "scope": "14 — Agriculture, forestry, and other land use (AFOLU)",
         },
         "VMD0053": {
             "name": "Model Calibration, Validation, and Uncertainty Guidance for Biogeochemical Modeling for Agricultural Land Management Projects",
             "type": "MODULE",
-            "scope": "Quantification Approach 1 Guidance",
+            "scope": "14 — AFOLU",
         },
         "VM0047": {
             "name": "Afforestation, Reforestation, and Revegetation",

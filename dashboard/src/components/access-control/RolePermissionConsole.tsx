@@ -392,7 +392,9 @@ export function RolePermissionConsole({
       COOKSTOVES: "Clean Cookstoves (AMS-II.G)",
       HYBRID_ENERGY: "Hybrid Energy & Mini-grids (AMS-I.F)",
       BIOCHAR: "Biochar Carbon Removal (VCS-V004)",
-      EV_MOBILITY: "EV Mobility & Transport (AMS-III.C)"
+      EV_MOBILITY: "EV Mobility & Transport (AMS-III.C)",
+      AGRICULTURE_LAND_USE: "Agriculture & Land Use (VM0042 / VM0047)",
+      AGRICULTURE: "Agriculture & Land Use (VM0042 / VM0047)",
     };
 
     return Array.from(sectorsSet).map(code => ({

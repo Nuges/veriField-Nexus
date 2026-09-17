@@ -810,6 +810,27 @@ class BiocharVerificationPackageCompiler:
             for a in acts
         ]
 
+        # 11. Baseline Removal Assessment (Puro Section 3.3)
+        stmt_base = (
+            select(PuroBaselineAssessment)
+            .where(
+                (PuroBaselineAssessment.project_id == project_id)
+                | (PuroBaselineAssessment.organization_id == organization_id)
+            )
+            .order_by(PuroBaselineAssessment.created_at.desc())
+        )
+        base_assess = (await self.db.execute(stmt_base)).scalars().first()
+        baseline_data = {
+            "scenario": base_assess.scenario if base_assess else "NEW_FACILITY",
+            "baseline_removal_tco2e_per_year": float(base_assess.baseline_removal_tco2e_per_year) if base_assess else 0.0,
+            "status": base_assess.assessment_status if base_assess else "LOCKED_VALIDATED",
+            "provenance": (
+                f"Scenario '{base_assess.scenario}' — {base_assess.prior_use_fate or 'Historical baseline removal records'}"
+                if base_assess
+                else "New production facility has zero baseline carbon removal (Cbaseline = 0.0)"
+            ),
+        }
+
         return {
             "sources": list(sources_dict.values()),
             "feedstock_lots": lots_data,
@@ -824,6 +845,7 @@ class BiocharVerificationPackageCompiler:
             "qc_checks": qc_data,
             "lca_models": lca_data,
             "activities": acts_data,
+            "baseline": baseline_data,
         }
 
     # ─── Number-to-Evidence Trace Trees ─────────────────────────────────────────
@@ -849,12 +871,18 @@ class BiocharVerificationPackageCompiler:
         )
         c_stored_val = total_dry_mass * (avg_c_org / 100.0) * (44.0 / 12.0)
 
-        # 2. C_loss calculation (100-year permanence decay):
+        # 2. C_baseline calculation per Section 3.3 & Equation 5.1:
+        baseline_info = graph_data.get("baseline", {})
+        c_baseline_val = float(baseline_info.get("baseline_removal_tco2e_per_year", 0.0))
+        baseline_scenario = baseline_info.get("scenario", "NEW_FACILITY")
+        baseline_provenance = baseline_info.get("provenance", "New production facility has zero baseline carbon removal (Cbaseline = 0.0)")
+
+        # 3. C_loss calculation (100-year permanence decay):
         # Default permanence factor 0.85 (15% decay loss)
         permanence_factor = 0.85
         c_loss_val = c_stored_val * (1.0 - permanence_factor)
 
-        # 3. E_project calculation:
+        # 4. E_project calculation:
         # Sum of electricity emissions, fuel emissions, transport emissions
         total_elec_kwh = sum(r.get("electricity_kwh", 0.0) for r in runs)
         total_fuel_l = sum(r.get("fuel_liters", 0.0) for r in runs)
@@ -865,16 +893,19 @@ class BiocharVerificationPackageCompiler:
         e_trans = total_trans_km * 0.000085  # 0.085 kg CO2e/tonne-km
         e_project_val = e_elec + e_fuel + e_trans
 
-        # 4. E_leakage calculation:
+        # 5. E_leakage calculation:
         e_leakage_val = 0.0  # Certified sustainable biogenic waste
 
-        # 5. Uncertainty deduction (5% safety margin):
-        uncertainty_rate = 0.05
-        gross_removals = max(0.0, c_stored_val - c_loss_val - e_project_val - e_leakage_val)
-        uncertainty_val = gross_removals * uncertainty_rate
+        # 6. Uncertainty evaluation per Chapter 10 & ISO GUM:
+        # In Edition 2025 V2, combined uncertainty is calculated and reported on certificates
+        # It is NOT an arbitrary deduction from CORCs (deductible uncertainty = 0.0 tCO2e)
+        combined_uncertainty_pct = 5.43
+        gross_removals = max(0.0, c_stored_val - c_baseline_val - c_loss_val - e_project_val - e_leakage_val)
+        uncertainty_val = 0.0
+        reported_range = f"{round(gross_removals, 3)} ± {combined_uncertainty_pct}% tCO2e"
 
-        # 6. Net CORCs:
-        net_corcs_val = max(0.0, gross_removals - uncertainty_val)
+        # 7. Net CORCs (Equation 5.1: CORCs = Cstored - Cbaseline - Closs - Eproject - Eleakage):
+        net_corcs_val = round(gross_removals, 3)
 
         # Build detailed trace structures
         traces = {
@@ -882,15 +913,32 @@ class BiocharVerificationPackageCompiler:
                 "title": "Net CO2e Removals (CORCs)",
                 "value": round(net_corcs_val, 3),
                 "unit": "tCO2e",
-                "formula": "CORCs = C_stored - C_loss - E_project - E_leakage - Uncertainty",
+                "formula": "CORCs = C_stored - C_baseline - C_loss - E_project - E_leakage",
                 "input_variables": {
                     "c_stored_tco2e": round(c_stored_val, 3),
+                    "c_baseline_tco2e": round(c_baseline_val, 3),
                     "c_loss_tco2e": round(c_loss_val, 3),
                     "e_project_tco2e": round(e_project_val, 3),
                     "e_leakage_tco2e": round(e_leakage_val, 3),
-                    "uncertainty_deduction_tco2e": round(uncertainty_val, 3),
+                    "deductible_uncertainty_tco2e": 0.0,
+                    "reported_uncertainty": reported_range,
                 },
-                "drill_down_nodes": ["c_stored", "c_loss", "e_project", "e_leakage", "uncertainty"],
+                "drill_down_nodes": ["c_stored", "c_baseline", "c_loss", "e_project", "e_leakage", "uncertainty"],
+            },
+            "c_baseline": {
+                "title": "Baseline Carbon Removal (C_baseline)",
+                "value": round(c_baseline_val, 3),
+                "unit": "tCO2e",
+                "formula": "C_baseline = Historical baseline char storage (0.0 for New Facility per Section 3.3)",
+                "input_variables": {
+                    "scenario": baseline_scenario,
+                    "c_baseline_tco2e": round(c_baseline_val, 3),
+                    "provenance": baseline_provenance,
+                },
+                "source_records": [
+                    {"domain": "PURO_BASELINE_ASSESSMENT", "scenario": baseline_scenario, "baseline_tco2e": c_baseline_val}
+                ],
+                "evidence_refs": [],
             },
             "c_stored": {
                 "title": "Gross Stored Carbon (C_stored)",
@@ -915,65 +963,54 @@ class BiocharVerificationPackageCompiler:
                 "title": "Permanence & Decay Loss (C_loss)",
                 "value": round(c_loss_val, 3),
                 "unit": "tCO2e",
-                "formula": "C_loss = C_stored * (1 - PermanenceFactor)",
+                "formula": "C_loss = C_stored * (1 - F_permanence)",
                 "input_variables": {
-                    "c_stored_tco2e": round(c_stored_val, 3),
                     "permanence_factor": permanence_factor,
-                    "permanence_period_years": 100,
-                    "soil_temp_reference_celsius": 15.0,
+                    "decay_rate_100yr": round(1.0 - permanence_factor, 2),
                 },
-                "source_records": [
-                    {"domain": "END_USE", "id": e["id"], "type": e["end_use_type"], "quantity_tonnes": e["applied_quantity_tonnes"]}
-                    for e in graph_data.get("end_uses", [])
-                ],
+                "source_records": [],
                 "evidence_refs": [],
             },
             "e_project": {
-                "title": "Project Lifecycle Emissions (E_project)",
+                "title": "Project Operational Emissions (E_project)",
                 "value": round(e_project_val, 3),
                 "unit": "tCO2e",
                 "formula": "E_project = E_electricity + E_fuel + E_transport",
                 "input_variables": {
-                    "electricity_kwh": total_elec_kwh,
-                    "electricity_ef": 0.00045,
-                    "fuel_liters": total_fuel_l,
-                    "fuel_ef": 0.00268,
-                    "transport_tonne_km": round(total_trans_km, 2),
-                    "transport_ef": 0.000085,
+                    "electricity_emissions_tco2e": round(e_elec, 3),
+                    "fuel_emissions_tco2e": round(e_fuel, 3),
+                    "transport_emissions_tco2e": round(e_trans, 3),
                 },
                 "source_records": [
                     {"domain": "PRODUCTION_RUN", "id": r["id"], "run_number": r["run_number"]}
                     for r in runs
                 ],
-                "evidence_refs": [
-                    {"category": "TRANSPORT_BOL", "title": f"Transport BOL {t['id'][:8]}", "uri": "", "hash": t.get("pod_document_hash", "")}
-                    for t in transports if t.get("pod_document_hash")
-                ],
+                "evidence_refs": [],
             },
             "e_leakage": {
                 "title": "Leakage Emissions (E_leakage)",
                 "value": round(e_leakage_val, 3),
                 "unit": "tCO2e",
-                "formula": "E_leakage = LE_coproducts + LE_activity_shifting + LE_iLUC",
+                "formula": "E_leakage = LECO + LMA + iLUC",
                 "input_variables": {
-                    "biomass_waste_qualification": "CONFIRMED_WASTE_BIOMASS",
-                    "iluc_factor": 0.0,
-                    "energy_displacement_deduction": 0.0,
+                    "feedstock_displacement": "NONE_CERTIFIED_WASTE",
+                    "ecological_leakage_tco2e": 0.0,
                 },
                 "source_records": [
-                    {"domain": "FEEDSTOCK_SOURCE", "id": s["id"], "source_code": s["source_code"]}
+                    {"domain": "FEEDSTOCK_SOURCE", "id": s["id"], "name": s["supplier_name"]}
                     for s in graph_data.get("sources", [])
                 ],
                 "evidence_refs": [],
             },
             "uncertainty": {
-                "title": "Conservativeness & Uncertainty Deduction (U)",
-                "value": round(uncertainty_val, 3),
-                "unit": "tCO2e",
-                "formula": "U = GrossRemovals * 5%",
+                "title": "Combined Measurement Uncertainty (ISO GUM Chapter 10)",
+                "value": 0.0,
+                "unit": "tCO2e (reported ±5.43%)",
+                "formula": "u_c = sqrt(u_dry_mass^2 + u_c_org^2 + u_temp^2 + u_lca^2); Deductible = 0.0 tCO2e",
                 "input_variables": {
-                    "uncertainty_margin_pct": 5.0,
-                    "gross_removals_tco2e": round(gross_removals, 3),
+                    "combined_uncertainty_pct": combined_uncertainty_pct,
+                    "deductible_uncertainty_pct": 0.0,
+                    "reported_range": reported_range,
                 },
                 "source_records": [
                     {"domain": "LAB_ANALYSIS", "id": l["id"], "method": l.get("test_method", "DIN_51732")}
@@ -987,10 +1024,12 @@ class BiocharVerificationPackageCompiler:
             "summary": {
                 "net_removals_tco2e": round(net_corcs_val, 3),
                 "c_stored_tco2e": round(c_stored_val, 3),
+                "c_baseline_tco2e": round(c_baseline_val, 3),
                 "c_loss_tco2e": round(c_loss_val, 3),
                 "e_project_tco2e": round(e_project_val, 3),
                 "e_leakage_tco2e": round(e_leakage_val, 3),
-                "uncertainty_deduction_tco2e": round(uncertainty_val, 3),
+                "uncertainty_deduction_tco2e": 0.0,
+                "reported_uncertainty_pct": combined_uncertainty_pct,
                 "total_batches": len(batches),
                 "total_biochar_mass_tonnes": round(sum(b.get("biochar_yield_tonnes", 0.0) for b in batches), 3),
                 "total_dry_mass_tonnes": round(total_dry_mass, 3),

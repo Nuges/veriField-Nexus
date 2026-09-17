@@ -42,6 +42,22 @@ void main() {
 
     });
 
+    test('sanitizeHeaders redacts sensitive authorization and credential headers', () {
+      final headers = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer secret_jwt_token_here',
+        'Cookie': 'session_id=abcdef12345',
+        'X-API-Key': 'my-secret-key-1234',
+        'Accept': '*/*',
+      };
+      final sanitized = ApiService.sanitizeHeaders(headers);
+      expect(sanitized['Content-Type'], equals('application/json'));
+      expect(sanitized['Accept'], equals('*/*'));
+      expect(sanitized['Authorization'], equals('[REDACTED]'));
+      expect(sanitized['Cookie'], equals('[REDACTED]'));
+      expect(sanitized['X-API-Key'], equals('[REDACTED]'));
+    });
+
   });
 
 }

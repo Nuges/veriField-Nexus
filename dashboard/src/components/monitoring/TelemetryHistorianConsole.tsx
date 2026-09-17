@@ -234,14 +234,14 @@ export function TelemetryHistorianConsole({
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-[var(--color-border)] pb-4">
         <div>
           <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded bg-[#00B47A]/10 text-[#00B47A] text-[9px] font-extrabold tracking-wider uppercase border border-[#00B47A]/20">
-              HISTORIAN ENGINE (DAQ)
+            <span className="px-2.5 py-0.5 rounded-full bg-[var(--color-primary)]/10 text-[var(--color-primary)] text-xs font-medium border border-[var(--color-primary)]/20">
+              Historian engine (DAQ)
             </span>
-            <span className="flex items-center gap-1 text-[9px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
-              <ShieldCheck size={11} /> SHA-256 Provenance Active
+            <span className="flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20">
+              <ShieldCheck size={12} /> SHA-256 Provenance Active
             </span>
           </div>
-          <h2 className="text-base font-extrabold text-[var(--color-text-primary)] mt-1 tracking-tight">
+          <h2 className="text-base font-bold text-[var(--color-text-primary)] mt-1.5 tracking-tight">
             {title}
           </h2>
           <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">
@@ -257,9 +257,9 @@ export function TelemetryHistorianConsole({
               <button
                 key={tw}
                 onClick={() => setTimeWindow(tw)}
-                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all cursor-pointer ${
                   timeWindow === tw
-                    ? "bg-[#00B47A] text-white shadow-xs"
+                    ? "bg-[var(--color-primary)] text-white shadow-xs font-semibold"
                     : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
                 }`}
               >
@@ -272,7 +272,7 @@ export function TelemetryHistorianConsole({
           <select
             value={granularity}
             onChange={(e) => setGranularity(e.target.value as Granularity)}
-            className="px-2.5 py-1.5 bg-[var(--color-background)] border border-[var(--color-border)] rounded-xl text-xs font-bold text-[var(--color-text-primary)] focus:outline-none focus:border-[#00B47A]"
+            className="px-2.5 py-1.5 bg-[var(--color-background)] border border-[var(--color-border)] rounded-xl text-xs font-medium text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary)]"
           >
             <option value="raw">Granularity: Raw (15m)</option>
             <option value="hourly">Granularity: Hourly Avg</option>
@@ -285,21 +285,21 @@ export function TelemetryHistorianConsole({
             className="p-2 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:text-white transition-colors cursor-pointer"
             title="Refresh Telemetry"
           >
-            <RefreshCw size={14} className={isLoading ? "animate-spin text-[#00B47A]" : ""} />
+            <RefreshCw size={14} className={isLoading ? "animate-spin text-[var(--color-primary)]" : ""} />
           </button>
 
           {/* Export Dropdown */}
           <div className="flex items-center gap-1">
             <button
               onClick={exportCSV}
-              className="px-3 py-1.5 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] text-xs font-bold text-[var(--color-text-primary)] hover:border-[#00B47A]/50 hover:text-[#00B47A] flex items-center gap-1.5 transition-all cursor-pointer"
+              className="px-3 py-1.5 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] text-xs font-medium text-[var(--color-text-primary)] hover:border-[var(--color-primary)]/50 hover:text-[var(--color-primary)] flex items-center gap-1.5 transition-all cursor-pointer"
             >
-              <FileSpreadsheet size={13} className="text-[#00B47A]" />
+              <FileSpreadsheet size={13} className="text-[var(--color-primary)]" />
               <span>CSV</span>
             </button>
             <button
               onClick={exportJSON}
-              className="px-3 py-1.5 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] text-xs font-bold text-[var(--color-text-primary)] hover:border-blue-500/50 hover:text-blue-400 flex items-center gap-1.5 transition-all cursor-pointer"
+              className="px-3 py-1.5 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] text-xs font-medium text-[var(--color-text-primary)] hover:border-blue-500/50 hover:text-blue-400 flex items-center gap-1.5 transition-all cursor-pointer"
             >
               <FileCode size={13} className="text-blue-400" />
               <span>JSON</span>
@@ -321,17 +321,17 @@ export function TelemetryHistorianConsole({
               onClick={() => setSelectedMetric(key)}
               className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
                 isSelected
-                  ? "bg-[#00B47A]/10 border-[#00B47A]/40 shadow-xs"
+                  ? "bg-[var(--color-primary)]/10 border-[var(--color-primary)]/40 shadow-xs"
                   : "bg-[var(--color-background)] border-[var(--color-border)] hover:border-[var(--color-border)]/80"
               }`}
             >
               <div className="flex items-center justify-between">
-                <span className={`text-[10px] font-extrabold uppercase tracking-wider ${isSelected ? "text-[#00B47A]" : "text-[var(--color-text-secondary)]"}`}>
+                <span className={`text-xs font-semibold ${isSelected ? "text-[var(--color-primary)]" : "text-[var(--color-text-secondary)]"}`}>
                   {cfg.label}
                 </span>
                 <Icon size={14} style={{ color: cfg.stroke }} />
               </div>
-              <p className="text-base font-black text-[var(--color-text-primary)] mt-2">
+              <p className="text-lg font-bold text-[var(--color-text-primary)] tracking-tight mt-1.5">
                 {key === "co2_reduction" ? `${stats.total} kg` : key === "energy_power" ? `${stats.total} kWh` : key === "operating_hours" ? `${stats.total} hrs` : `${stats.trustAvg}%`}
               </p>
             </button>

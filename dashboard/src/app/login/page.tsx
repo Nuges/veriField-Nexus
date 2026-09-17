@@ -22,7 +22,7 @@ import Link from "next/link";
 
 import { ShieldCheck, Mail, Lock, Loader2, KeyRound, ArrowLeft } from "lucide-react";
 
-import { loginAdmin, setAuthToken, changePassword, verifyMFALogin, useMFARecovery, getSSOProviders, initiateSSOLogin } from "@/lib/api";
+import { loginAdmin, setAuthToken, changePassword, verifyMFALogin, useMFARecovery as submitMFARecovery, getSSOProviders, initiateSSOLogin } from "@/lib/api";
 
 import { safeStorage } from "@/lib/storage";
 import { isDashboardRoleAllowed } from "@/lib/roles";
@@ -262,7 +262,7 @@ export default function LoginPage() {
 
       if (showRecovery) {
 
-        result = await useMFARecovery(mfaToken, recoveryCode);
+        result = await submitMFARecovery(mfaToken, recoveryCode);
 
       } else {
 

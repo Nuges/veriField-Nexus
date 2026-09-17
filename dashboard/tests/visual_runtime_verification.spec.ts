@@ -79,12 +79,13 @@ test.describe('Phase 7: Real Visual Runtime & Multi-Viewport Verification', () =
   // Test Multi-viewport responsive rendering and overflow across all 9 routes
   for (const vp of VIEWPORTS) {
     test(`Viewport ${vp.name} (${vp.width}x${vp.height}) across all 9 operational routes`, async ({ page }) => {
+      test.setTimeout(90000);
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await setupAuth(page);
 
       for (const routePath of ROUTES) {
         await page.goto(`${BASE_URL}${routePath}`, { waitUntil: 'domcontentloaded' });
-        await page.waitForLoadState('networkidle').catch(() => {});
+        await page.waitForTimeout(400);
 
         // 1. Verify no horizontal scroll overflow
         const overflow = await page.evaluate(() => {

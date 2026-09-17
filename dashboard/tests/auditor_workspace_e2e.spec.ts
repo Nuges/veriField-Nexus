@@ -77,6 +77,7 @@ test.describe('Biochar Automatic Audit Package Compiler & Auditor Workspace E2E'
       summary_quantification: {
         net_removals_tco2e: 989.10,
         c_stored_tco2e: 1250.40,
+        c_baseline_tco2e: 0.00,
         c_loss_tco2e: 215.10,
         e_project_tco2e: 45.20,
         e_leakage_tco2e: 0.00,
@@ -87,13 +88,14 @@ test.describe('Biochar Automatic Audit Package Compiler & Auditor Workspace E2E'
           title: 'Net CO2e Removals (CORCs)',
           value: 989.10,
           unit: 'tCO2e',
-          formula: 'CORCs = C_stored - C_loss - E_project - E_leakage - Uncertainty',
+          formula: 'CORCs = C_stored - C_baseline - C_loss - E_project - E_leakage',
           input_variables: {
             c_stored_tco2e: 1250.40,
+            c_baseline_tco2e: 0.00,
             c_loss_tco2e: 215.10,
             e_project_tco2e: 45.20,
             e_leakage_tco2e: 0.00,
-            uncertainty_deduction_tco2e: 1.00,
+            deductible_uncertainty_tco2e: 0.00,
           },
           evidence_refs: [
             { type: 'LAB_COA', hash: 'a1b2c3d4e5f67890123456789abcdef0123456789abcdef0123456789abcdef0' },
@@ -112,6 +114,17 @@ test.describe('Biochar Automatic Audit Package Compiler & Auditor Workspace E2E'
           evidence_refs: [
             { type: 'BIOCHAR_BATCH', hash: 'b2c3d4e5f67890123456789abcdef0123456789abcdef0123456789abcdef01' },
           ],
+        },
+        c_baseline: {
+          title: 'Baseline Carbon Removal (C_baseline)',
+          value: 0.00,
+          unit: 'tCO2e',
+          formula: 'C_baseline = Historical baseline char storage (0.0 for New Facility per Section 3.3)',
+          input_variables: {
+            scenario: 'NEW_FACILITY',
+            c_baseline_tco2e: 0.00,
+          },
+          evidence_refs: [],
         },
       },
       value_chain_graph: {
@@ -642,7 +655,7 @@ test.describe('Biochar Automatic Audit Package Compiler & Auditor Workspace E2E'
 
     // Verify Drill-Down Modal content
     await expect(page.locator('text=NET REMOVALS CORCS DRILL-DOWN')).toBeVisible();
-    await expect(page.locator('text=CORCs = C_stored - C_loss - E_project - E_leakage - Uncertainty')).toBeVisible();
+    await expect(page.locator('text=CORCs = C_stored - C_baseline - C_loss - E_project - E_leakage')).toBeVisible();
     await expect(page.locator('text=Input Variables')).toBeVisible();
 
     // Close drill-down modal

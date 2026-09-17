@@ -3,11 +3,12 @@
 
 
 import React from "react";
+import { canonicalSectorCode } from "@/lib/moduleRegistry";
 
 interface KPI {
   code: string;
   label: string;
-  value: number | string;
+  value: number | string | null;
   unit?: string;
   subtext?: string;
   iconName?: string;
@@ -15,88 +16,62 @@ interface KPI {
 }
 
 export default function WidgetRenderer({ kpis, sectorCode }: { kpis?: KPI[]; sectorCode?: string }) {
-
-  const code = (sectorCode || "").toUpperCase();
-
-
+  const canonCode = canonicalSectorCode(sectorCode || "").toUpperCase();
 
   // Sector Default Fallbacks if backend KPIs are minimal
-
   const defaultKpis: KPI[] = (() => {
-
-    if (code.includes("COOK") || code.includes("AMS_II_G")) {
-
+    if (canonCode === "COOKSTOVES") {
       return [
-
         { code: "co2_reduced", label: "TOTAL CO₂ QUANTIFIED", value: "0", unit: "tCO₂e verified", iconName: "Leaf", colorTheme: "emerald" },
-
         { code: "households", label: "HOUSEHOLDS REACHED", value: "0", unit: "Stoves deployed in households", iconName: "Home", colorTheme: "blue" },
-
         { code: "usage_rate", label: "UTILISATION RATE", value: "No data", unit: "Mean daily utilisation rate", iconName: "Flame", colorTheme: "amber" },
-
         { code: "portfolio_val", label: "ESTIMATED CREDIT VALUE", value: "$0", unit: "At baseline price of $15/tCO2e", iconName: "DollarSign", colorTheme: "emerald" }
-
       ];
-
-    } else if (code.includes("HYBRID") || code.includes("ENERGY")) {
-
+    } else if (canonCode === "HYBRID_ENERGY") {
       return [
-
         { code: "co2_reduced", label: "TOTAL CO₂ QUANTIFIED", value: "0", unit: "tCO₂e displaced", iconName: "Leaf", colorTheme: "emerald" },
-
         { code: "active_assets", label: "ACTIVE ENERGY ASSETS", value: "0", unit: "Mini-grids & hybrid units", iconName: "Zap", colorTheme: "blue" },
-
         { code: "generation", label: "TOTAL GENERATION", value: "0 kWh", unit: "Clean solar generation", iconName: "Layers", colorTheme: "amber" },
-
         { code: "diesel_avoided", label: "DIESEL AVOIDED", value: "0 L", unit: "Displaced generator fuel", iconName: "Fuel", colorTheme: "emerald" }
-
       ];
-
-    } else if (code.includes("BIOCHAR")) {
-
+    } else if (canonCode === "BIOCHAR") {
       return [
-
         { code: "co2_reduced", label: "CARBON REMOVED", value: "0", unit: "tCO₂e permanent sink", iconName: "Leaf", colorTheme: "emerald" },
-
         { code: "biochar_produced", label: "BIOCHAR PRODUCED", value: "0", unit: "Tonnes high-carbon char", iconName: "Layers", colorTheme: "amber" },
-
         { code: "permanence", label: "CARBON PERMANENCE", value: "100+ Yrs", unit: "Soil sink durability", iconName: "ShieldCheck", colorTheme: "blue" },
-
         { code: "credit_val", label: "ESTIMATED CREDIT VALUE", value: "$0", unit: "At CORC price of $150/t", iconName: "DollarSign", colorTheme: "emerald" }
-
       ];
-
-    } else if (code.includes("EV") || code.includes("MOBILITY")) {
+    } else if (canonCode === "EV_MOBILITY") {
       return [
         { code: "co2_reduced", label: "CO₂ DISPLACED", value: "0", unit: "tCO₂e EV fleet emissions", iconName: "Leaf", colorTheme: "emerald" },
         { code: "charging_sessions", label: "CHARGING SESSIONS", value: "0", unit: "Completed charges", iconName: "Zap", colorTheme: "blue" },
         { code: "active_vehicles", label: "ACTIVE VEHICLES", value: "0", unit: "Monitored EV units", iconName: "Globe", colorTheme: "amber" },
         { code: "credit_val", label: "ESTIMATED CREDIT VALUE", value: "$0", unit: "At baseline price", iconName: "DollarSign", colorTheme: "emerald" }
       ];
-    } else {
-      // Universal Carbon Assets Default
+    } else if (canonCode === "AGRICULTURE_LAND_USE") {
       return [
-        { code: "co2_reduced", label: "TOTAL CO₂ QUANTIFIED", value: "0", unit: "tCO₂e emissions reduced", iconName: "Leaf", colorTheme: "emerald" },
-        { code: "active_assets", label: "MONITORED ASSETS", value: "0", unit: "Registered field devices", iconName: "Layers", colorTheme: "blue" },
-        { code: "usage_rate", label: "TELEMETRY UPTIME", value: "99.8%", unit: "Operational sensor stream", iconName: "Activity", colorTheme: "amber" },
-        { code: "credit_val", label: "ESTIMATED CREDIT VALUE", value: "$0", unit: "At baseline price", iconName: "DollarSign", colorTheme: "emerald" }
+        { code: "monitored_area", label: "MONITORED AREA", value: "—", unit: "Hectares under monitoring", subtext: "Awaiting land unit registration", iconName: "Layers", colorTheme: "emerald" },
+        { code: "land_units", label: "LAND UNITS", value: 0, unit: "Total registered management units (including sub-units)", subtext: "Parcels, fields & strata mapped", iconName: "Globe", colorTheme: "blue" },
+        { code: "field_activities", label: "FIELD ACTIVITIES", value: 0, unit: "Submitted field records", subtext: "Recorded field observations", iconName: "Activity", colorTheme: "amber" },
+        { code: "qa_findings", label: "OPEN QA FINDINGS", value: "—", unit: "Active quality flags", subtext: "No QA aggregate available", iconName: "AlertTriangle", colorTheme: "purple" }
+      ];
+    } else {
+      // Universal Generic Neutral Default (never EV!)
+      return [
+        { code: "monitored_assets", label: "MONITORED ASSETS", value: 0, unit: "Registered units", subtext: "Active registered entities", iconName: "Layers", colorTheme: "blue" },
+        { code: "field_activities", label: "ACTIVITIES", value: 0, unit: "Submitted records", subtext: "Recorded activities", iconName: "Activity", colorTheme: "emerald" },
+        { code: "open_findings", label: "OPEN FINDINGS", value: "—", unit: "Active quality flags", subtext: "No QA aggregate available", iconName: "AlertTriangle", colorTheme: "amber" },
+        { code: "monitoring_status", label: "MONITORING STATUS", value: "Standby", unit: "Operational stream", subtext: "Operational monitoring stream", iconName: "ShieldCheck", colorTheme: "blue" }
       ];
     }
-
   })();
-
-
 
   const activeKpis = (kpis && kpis.length >= 4) ? kpis : defaultKpis;
 
-
-
   return (
-
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
-
       {activeKpis.map((kpi, idx) => {
-        const valStr = typeof kpi.value === "number" ? kpi.value.toLocaleString() : kpi.value;
+        const valStr = kpi.value === null || kpi.value === undefined ? "—" : typeof kpi.value === "number" ? kpi.value.toLocaleString() : kpi.value;
 
         return (
           <div

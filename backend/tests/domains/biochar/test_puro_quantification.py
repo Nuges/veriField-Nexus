@@ -626,3 +626,50 @@ async def test_puro_authoritative_resolver_and_legacy_superseding(db_session: As
     assert persisted_new.calculation_mode == "AUTHORITATIVE"
     assert persisted_new.final_corcs_issuable == breakdown["final_corcs_issuable"]
     assert persisted_new.superseded_at is None
+
+
+def test_puro_equation_5_1_cbaseline_integrity():
+    """
+    Forensic Equation 5.1 Verification per Puro Biochar 2025 v2:
+    CORCs = max(0, Cstored - Cbaseline - Closs - Eproject - Eleakage)
+
+    Test case 1:
+        Cstored = 100
+        Cbaseline = 10
+        Closs = 20
+        Eproject = 5
+        Eleakage = 2
+    Expected:
+        CORCs = 63 (100 - 10 - 20 - 5 - 2)
+
+    Test case 2:
+        Cbaseline = 0
+    Expected:
+        CORCs = 73 (100 - 0 - 20 - 5 - 2)
+
+    Must fail if Cbaseline is ignored or omitted.
+    """
+    # Test case 1: Active baseline removal (10 tCO2e)
+    res_with_baseline = PuroCORCCalculator.calculate_net_corcs(
+        c_stored=Decimal("100"),
+        c_baseline=Decimal("10"),
+        c_loss=Decimal("20"),
+        e_project=Decimal("5"),
+        e_leakage=Decimal("2"),
+    )
+    assert res_with_baseline == Decimal("63"), f"Expected 63, got {res_with_baseline}"
+
+    # Test case 2: Zero baseline (New facility scenario)
+    res_zero_baseline = PuroCORCCalculator.calculate_net_corcs(
+        c_stored=Decimal("100"),
+        c_baseline=Decimal("0"),
+        c_loss=Decimal("20"),
+        e_project=Decimal("5"),
+        e_leakage=Decimal("2"),
+    )
+    assert res_zero_baseline == Decimal("73"), f"Expected 73, got {res_zero_baseline}"
+
+    # Verify that ignoring Cbaseline produces an incorrect result (73 instead of 63)
+    ignored_baseline_result = Decimal("100") - Decimal("20") - Decimal("5") - Decimal("2")
+    assert ignored_baseline_result != res_with_baseline
+    assert ignored_baseline_result == Decimal("73")

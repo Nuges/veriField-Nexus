@@ -93,7 +93,7 @@ test.describe('VeriField Critical Shared Workflows & UI Invariants', () => {
     await expect(page.locator('h3:has-text("Verification Pipeline Stages")')).toBeVisible({ timeout: 15000 });
 
     // Verify all 5 stages render
-    const stages = ['Pending', 'AI Verified', 'Flagged', 'Manual Review', 'Approved'];
+    const stages = ['Pending', 'Checks Passed', 'Flagged', 'Manual Review', 'Approved'];
     for (const stageName of stages) {
       const stageBtn = page.locator(`button:has-text("${stageName}")`).first();
       await expect(stageBtn).toBeVisible();
@@ -234,7 +234,7 @@ test.describe('VeriField Critical Shared Workflows & UI Invariants', () => {
   // =========================================================================
   test('6A. Role-restricted UI: Field Agent blocked from /dashboard/people by Least-Privilege boundary', async ({ page }) => {
     await setupAuth(page, 'FIELD_AGENT');
-    await page.goto(`${BASE_URL}/dashboard/people`);
+    await page.goto(`${BASE_URL}/dashboard/people`, { waitUntil: 'domcontentloaded' });
     await page.waitForLoadState('networkidle').catch(() => {});
 
     // Verify Access Denied boundary is shown
@@ -250,7 +250,7 @@ test.describe('VeriField Critical Shared Workflows & UI Invariants', () => {
   // =========================================================================
   test('6B. Role-restricted UI: Super Admin allowed on /dashboard/people', async ({ page }) => {
     await setupAuth(page, 'SUPER_ADMIN');
-    await page.goto(`${BASE_URL}/dashboard/people`);
+    await page.goto(`${BASE_URL}/dashboard/people`, { waitUntil: 'domcontentloaded' });
     await page.waitForLoadState('networkidle').catch(() => {});
 
     // Access Denied should NOT be visible for SUPER_ADMIN

@@ -212,21 +212,7 @@ class SyncService {
 
       if (!await file.exists()) return null;
 
-      final bytes = await file.readAsBytes();
-
-      await SupabaseConfig.client.storage
-
-          .from('activity-photos')
-
-          .uploadBinary(fileName, bytes);
-
-      final publicUrl = SupabaseConfig.client.storage
-
-          .from('activity-photos')
-
-          .getPublicUrl(fileName);
-
-      return publicUrl;
+      return await uploadImage(XFile(filePath), fileName);
 
     } catch (e) {
 

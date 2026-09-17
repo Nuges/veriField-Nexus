@@ -18,7 +18,7 @@
 
 
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef } from "react";
 
 import L from "leaflet";
 
@@ -60,6 +60,8 @@ interface LeafletMapProps {
 
   radiusMeters?: number;
 
+  hideEmptyState?: boolean;
+
   onAssetClick?: (asset: MapAsset) => void;
 
 }
@@ -83,9 +85,10 @@ const SECTOR_COLORS: Record<string, string> = {
   biochar: "#8B5CF6",
 
   ev: "#10B981",
-
   ev_mobility: "#10B981",
-
+  agriculture_land_use: "#00B47A",
+  agriculture: "#00B47A",
+  afolu: "#00B47A",
 };
 
 
@@ -143,6 +146,8 @@ export default function LeafletMap({
   showRadius = true,
 
   radiusMeters = 50,
+
+  hideEmptyState = false,
 
   onAssetClick,
 
@@ -205,8 +210,7 @@ export default function LeafletMap({
 
     // Fix Leaflet icon path issue in bundlers
 
-    // @ts-ignore
-
+    // @ts-expect-error Leaflet prototype override
     delete L.Icon.Default.prototype._getIconUrl;
 
     L.Icon.Default.mergeOptions({
@@ -222,15 +226,10 @@ export default function LeafletMap({
 
 
     return () => {
-
       map.remove();
-
       mapInstanceRef.current = null;
-
     };
-
     // eslint-disable-next-line react-hooks/exhaustive-deps
-
   }, []);
 
 
@@ -367,26 +366,15 @@ export default function LeafletMap({
 
       <div ref={mapRef} style={{ height, width: "100%" }} />
 
-      {assets.filter((a) => a.lat && a.lng).length === 0 && (
-
-        <div className="absolute inset-0 flex items-center justify-center bg-[var(--color-background)]/80 backdrop-blur-sm">
-
-          <div className="text-center p-6">
-
-            <div className="text-4xl mb-2">🗺️</div>
-
-            <h3 className="text-sm font-bold text-[var(--color-text-primary)]">No Geospatial Data</h3>
-
-            <p className="text-xs text-[var(--color-text-secondary)] mt-1">
-
+      {!hideEmptyState && assets.filter((a) => a.lat && a.lng).length === 0 && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10" role="status">
+          <div className="max-w-[380px] w-full mx-4 px-6 py-5 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-sm text-center">
+            <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">No Geospatial Data</h3>
+            <p className="text-xs text-[var(--color-text-secondary)] mt-1.5 leading-relaxed">
               Assets with GPS coordinates will appear on this map.
-
             </p>
-
           </div>
-
         </div>
-
       )}
 
       <style jsx global>{`

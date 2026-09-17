@@ -211,6 +211,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     } catch {}
 
     const cleanSec = canonicalSectorCode(activeSector);
+    if (cleanSec === "agriculture_land_use") return "VM0042";
     if (cleanSec === "hybrid_energy") return "ACM0002";
     if (cleanSec === "biochar") return "VM0042";
     if (cleanSec === "ev_mobility") return "AMS-III.C";
@@ -264,7 +265,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
 
     if (isSuperAdmin) {
-      const SECTOR_FAMILIES = ["cookstoves", "hybrid_energy", "biochar", "ev_mobility"];
+      const SECTOR_FAMILIES = ["cookstoves", "hybrid_energy", "biochar", "ev_mobility", "agriculture_land_use"];
       const allowedWorkspaces = SECTOR_FAMILIES;
       let activeWorkspace = SECTOR_FAMILIES[0];
 
@@ -280,7 +281,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
         const validated = validateCachedWorkspace(cached, allowedWorkspaces, methMap, true);
 
-        if (validated && registry[validated]) {
+        if (validated && (registry[validated] || SECTOR_FAMILIES.includes(validated))) {
 
           activeWorkspace = validated;
 
@@ -293,6 +294,26 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
 
       setActiveSector(activeWorkspace);
+
+      if (registry[activeWorkspace]) {
+        const methodologies = registry[activeWorkspace].methodologyCodes || [];
+        const userMeths = Array.isArray(u.licensed_methodologies) ? u.licensed_methodologies : [];
+        const matchingMeth = userMeths.find(m =>
+          methodologies.some((x: string) => x.toLowerCase() === m.toLowerCase())
+        );
+        if (matchingMeth) {
+          setActiveMethodology(matchingMeth);
+        } else if (methodologies.length > 0) {
+          setActiveMethodology(methodologies[0]);
+        }
+      } else {
+        const clean = canonicalSectorCode(activeWorkspace);
+        if (clean === "agriculture_land_use") setActiveMethodology("VM0042");
+        else if (clean === "hybrid_energy") setActiveMethodology("ACM0002");
+        else if (clean === "biochar") setActiveMethodology("VM0042");
+        else if (clean === "ev_mobility") setActiveMethodology("AMS-III.C");
+        else setActiveMethodology("AMS-II.G");
+      }
 
       return;
 

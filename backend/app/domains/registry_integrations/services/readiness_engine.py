@@ -381,6 +381,41 @@ class RegistryReadinessEngine:
                 p9_items.append("Article 6 Sovereign Authorization: NOT_STARTED")
             p9_items.append("Double Claiming Mitigation: ENFORCED VIA LEDGER")
 
+        # Cross-Sector Methodology & Carbon Pool Double-Counting Check for Biochar
+        try:
+            from app.domains.biochar.models import BiocharEndUseRecord, BiocharBatch
+            stmt_beu = select(BiocharEndUseRecord).where(
+                BiocharEndUseRecord.project_id == project.id,
+                BiocharEndUseRecord.end_use_type == "SOIL_APPLICATION",
+                BiocharEndUseRecord.source_land_unit_id.isnot(None),
+            )
+            res_beu = await self.db.execute(stmt_beu)
+            soil_end_uses = res_beu.scalars().all()
+            if soil_end_uses:
+                from app.domains.biochar.services.conflict_resolver import BiocharMethodologyConflictResolver
+                for eu in soil_end_uses:
+                    conflict = await BiocharMethodologyConflictResolver.check_end_use_record_conflict(self.db, eu)
+                    if conflict.has_conflict and conflict.accounting_blocked:
+                        blocking_items.append("METHODOLOGY_CONFLICT_VM0044_VM0042")
+                        missing_requirements.append(f"Cross-sector double counting conflict: {conflict.message}")
+                        p9_score = 0
+                        p9_items.append(f"Double-Counting Conflict: {conflict.conflict_code} (BLOCKING)")
+                        break
+
+            # Biochar Mass Balance Check
+            stmt_bb = select(BiocharBatch).where(BiocharBatch.project_id == project.id)
+            res_bb = await self.db.execute(stmt_bb)
+            biochar_batches = res_bb.scalars().all()
+            for b in biochar_batches:
+                if (b.mass_balance_status or "").upper() == "OVER_ALLOCATED":
+                    blocking_items.append("BIOCHAR_MASS_BALANCE_OVER_ALLOCATED")
+                    missing_requirements.append(f"Batch {b.batch_number} mass balance over-allocated.")
+                    p9_score = min(p9_score, 20)
+                    p9_items.append(f"Batch {b.batch_number} Over-Allocated (BLOCKING)")
+                    break
+        except Exception:
+            pass
+
         pillars["article_6_readiness"] = {"score": max(p9_score, 0), "details": p9_items}
 
         # ---------------------------------------------------------------------
@@ -488,6 +523,7 @@ class RegistryReadinessEngine:
             "project_name": project.name,
             "target_standard": target_standard.upper(),
             "target_stage": target_stage.upper(),
+            "credit_unit": "CORC" if "PURO" in target_standard.upper() else ("ITMO" if is_a6_standard else "VCU"),
             "overall_readiness_score": overall_score,
             "readiness_status": readiness_status,
             "authorization_status": authorization_status.value,

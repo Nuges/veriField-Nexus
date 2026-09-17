@@ -19,10 +19,12 @@ import {
   Sparkles,
   Upload,
   Zap,
+  Wifi,
+  WifiOff,
 } from "lucide-react";
 import { useToast } from "@/components/Toast";
-import { createActivity, uploadProof } from "@/lib/api";
-import type { Activity } from "@/lib/types";
+import { createActivity, uploadProof, fetchProjects } from "@/lib/api";
+import type { Activity, Project } from "@/lib/types";
 
 const SECTORS = [
   { id: "cookstoves", name: "Clean Cooking (AMS-II.G / TPDDTEC)", icon: Flame, unit: "Daily Cooking Hours" },
@@ -48,9 +50,50 @@ export default function GenericCapturePage() {
   const [submitting, setSubmitting] = useState(false);
   const [submittedActivity, setSubmittedActivity] = useState<Activity | null>(null);
 
-  // Attempt initial GPS lock
+  // PWA Offline Queue & Network State
+  const [isOnline, setIsOnline] = useState<boolean>(true);
+  const [offlineQueue, setOfflineQueue] = useState<any[]>([]);
+  const [syncing, setSyncing] = useState<boolean>(false);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [selectedProjectId, setSelectedProjectId] = useState<string>("");
+
   useEffect(() => {
     fetchCurrentLocation();
+    if (typeof window !== "undefined") {
+      setIsOnline(navigator.onLine);
+      try {
+        const cached = localStorage.getItem("verifield_pwa_offline_queue");
+        if (cached) {
+          setOfflineQueue(JSON.parse(cached));
+        }
+      } catch (e) {
+        console.warn("Could not read offline queue:", e);
+      }
+
+      const onOnline = () => {
+        setIsOnline(true);
+        toast.info("Network Online", "Internet connection restored.");
+      };
+      const onOffline = () => {
+        setIsOnline(false);
+        toast.warning("Offline Mode", "Network disconnected. Offline queue active.");
+      };
+
+      window.addEventListener("online", onOnline);
+      window.addEventListener("offline", onOffline);
+      return () => {
+        window.removeEventListener("online", onOnline);
+        window.removeEventListener("offline", onOffline);
+      };
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchProjects()
+      .then((res) => {
+        if (Array.isArray(res)) setProjects(res);
+      })
+      .catch(() => {});
   }, []);
 
   const fetchCurrentLocation = () => {
@@ -90,6 +133,35 @@ export default function GenericCapturePage() {
     }
   };
 
+  const syncOfflineQueue = async () => {
+    if (offlineQueue.length === 0 || syncing) return;
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      toast.warning("Cannot Sync", "Network is currently offline. Please restore connection.");
+      return;
+    }
+    setSyncing(true);
+    const successfullySynced: string[] = [];
+    for (const item of offlineQueue) {
+      try {
+        await createActivity(item);
+        successfullySynced.push(item.client_id);
+      } catch (err: any) {
+        console.warn("Failed syncing offline record:", item.client_id, err);
+        toast.error("Sync Error", err.message || "Failed synchronizing offline queue.");
+        break;
+      }
+    }
+    const updated = offlineQueue.filter((q) => !successfullySynced.includes(q.client_id));
+    setOfflineQueue(updated);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("verifield_pwa_offline_queue", JSON.stringify(updated));
+    }
+    setSyncing(false);
+    if (successfullySynced.length > 0) {
+      toast.success("Sync Complete", `Successfully synchronized ${successfullySynced.length} offline records to PostgreSQL.`);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!assetId.trim()) {
@@ -102,39 +174,73 @@ export default function GenericCapturePage() {
     }
 
     setSubmitting(true);
-    try {
-      let proofUrl = "/static/proofs/sample_field_capture.jpg";
-      if (imageFile) {
-        try {
-          const uploadRes = await uploadProof(imageFile);
-          if (uploadRes && uploadRes.image_url) {
-            proofUrl = uploadRes.image_url;
-          }
-        } catch (uploadErr) {
-          console.warn("Direct proof upload fallback:", uploadErr);
+    let proofUrl = "/static/proofs/sample_field_capture.jpg";
+    if (imageFile) {
+      try {
+        const uploadRes = await uploadProof(imageFile);
+        if (uploadRes && uploadRes.image_url) {
+          proofUrl = uploadRes.image_url;
         }
+      } catch (uploadErr) {
+        console.warn("Direct proof upload fallback:", uploadErr);
       }
+    }
 
-      const payload = {
-        activity_type: selectedSector === "cookstoves" ? "stove_usage" : selectedSector === "ev_mobility" ? "ev_trip" : "production_batch",
-        latitude: latitude || 9.0765,
-        longitude: longitude || 7.3986,
-        proof_url: proofUrl,
-        activity_data: {
-          asset_identifier: assetId.trim(),
-          metric_quantity: parseFloat(metricValue) || 0,
-          sector: selectedSector,
-          notes: notes.trim(),
-          captured_via: "Web PWA Client",
-          gps_accuracy_meters: gpsAccuracy || 10,
-        },
-      };
+    const clientId = (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : `pwa-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
+    const payload = {
+      client_id: clientId,
+      activity_type: selectedSector === "cookstoves" ? "stove_usage" : selectedSector === "ev_mobility" ? "ev_trip" : "production_batch",
+      latitude: latitude || 9.0765,
+      longitude: longitude || 7.3986,
+      captured_at: new Date().toISOString(),
+      proof_url: proofUrl,
+      image_url: proofUrl,
+      activity_data: {
+        asset_identifier: assetId.trim(),
+        metric_quantity: parseFloat(metricValue) || 0,
+        sector: selectedSector,
+        project_id: selectedProjectId || undefined,
+        notes: notes.trim(),
+        captured_via: "Web PWA Client",
+        gps_accuracy_meters: gpsAccuracy || 10,
+      },
+    };
+
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      const updatedQueue = [...offlineQueue, payload];
+      setOfflineQueue(updatedQueue);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("verifield_pwa_offline_queue", JSON.stringify(updatedQueue));
+      }
+      toast.success("Saved to Offline Queue", "Network is offline. Submission queued locally in browser storage.");
+      setSubmittedActivity({
+        id: clientId,
+        activity_type: payload.activity_type,
+        status: "QUEUED_OFFLINE",
+        trust_score: 90,
+      } as any);
+      setSubmitting(false);
+      return;
+    }
+
+    try {
       const result = await createActivity(payload);
       setSubmittedActivity(result);
       toast.success("Submission Verified", `Telemetry record created with ID ${result.id.slice(0, 8)}...`);
     } catch (err: any) {
-      toast.error("Submission Failed", err.message || "Could not persist field telemetry.");
+      const updatedQueue = [...offlineQueue, payload];
+      setOfflineQueue(updatedQueue);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("verifield_pwa_offline_queue", JSON.stringify(updatedQueue));
+      }
+      toast.warning("Network Error — Saved to Offline Queue", "Could not reach server. Queued locally.");
+      setSubmittedActivity({
+        id: clientId,
+        activity_type: payload.activity_type,
+        status: "QUEUED_OFFLINE",
+        trust_score: 90,
+      } as any);
     } finally {
       setSubmitting(false);
     }
@@ -158,11 +264,59 @@ export default function GenericCapturePage() {
                 <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                   PWA COLLECTOR
                 </span>
+                {isOnline ? (
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
+                    <Wifi className="w-3 h-3" /> ONLINE
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 flex items-center gap-1">
+                    <WifiOff className="w-3 h-3" /> OFFLINE
+                  </span>
+                )}
               </div>
               <p className="text-zinc-400 text-xs mt-0.5">Live Browser-Based Field Ingestion & Telemetry</p>
             </div>
           </div>
         </header>
+
+        {/* Offline Status & Local Queue Sync Card */}
+        <div className="mb-6 space-y-3">
+          {!isOnline && (
+            <div data-testid="pwa-offline-banner" className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between text-xs text-amber-400">
+              <div className="flex items-center gap-2.5">
+                <WifiOff className="w-4 h-4 text-amber-400 shrink-0" />
+                <span><strong>OFFLINE MODE:</strong> Network disconnected. Telemetry will be queued locally.</span>
+              </div>
+              <span className="font-mono text-[10px] uppercase px-2 py-0.5 rounded bg-amber-500/20">Offline</span>
+            </div>
+          )}
+
+          {offlineQueue.length > 0 && (
+            <div data-testid="pwa-queue-banner" className="p-3.5 rounded-2xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-between text-xs text-blue-400">
+              <div className="flex items-center gap-2.5">
+                <Database className="w-4 h-4 text-blue-400 shrink-0" />
+                <span><strong>{offlineQueue.length}</strong> record(s) queued locally in browser storage.</span>
+              </div>
+              <button
+                type="button"
+                data-testid="pwa-sync-button"
+                onClick={syncOfflineQueue}
+                disabled={syncing || !isOnline}
+                className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs flex items-center gap-1.5 transition-all disabled:opacity-40"
+              >
+                {syncing ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" /> Syncing...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5" /> Sync Pending Records
+                  </>
+                )}
+              </button>
+            </div>
+          )}
+        </div>
 
         {/* Offline Mobile App Notice Card */}
         <div className="mb-6 p-4 rounded-2xl bg-zinc-900/80 border border-zinc-800 flex items-start gap-3">
@@ -218,6 +372,25 @@ export default function GenericCapturePage() {
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-5">
+            {/* Associated Project Selector */}
+            {projects.length > 0 && (
+              <div>
+                <label className="text-xs font-semibold text-zinc-300 mb-1.5 block">Associated Project (Optional)</label>
+                <select
+                  data-testid="pwa-project-select"
+                  value={selectedProjectId}
+                  onChange={(e) => setSelectedProjectId(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-white text-sm focus:border-emerald-500 focus:outline-none"
+                >
+                  <option value="">-- Direct Telemetry Ingestion (No Project Lock) --</option>
+                  {projects.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name} ({p.methodology_id || p.sector || "MRV"})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             {/* Sector Selector */}
             <div>
               <label className="text-xs font-semibold text-zinc-300 mb-2 block">Select Climate Sector / Methodology</label>

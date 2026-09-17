@@ -143,19 +143,12 @@ export default function EnterpriseDashboard() {
       <div className="flex h-[70vh] w-full flex-col items-center justify-center p-6 bg-[var(--color-bg-primary)]">
 
         <div className="text-center space-y-3">
-
-          <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-[#00B47A] mx-auto animate-spin">
-
+          <div className="w-10 h-10 rounded-xl bg-[var(--color-primary)]/10 border border-[var(--color-primary)]/20 flex items-center justify-center text-[var(--color-primary)] mx-auto animate-spin">
             <RefreshCw size={20} />
-
           </div>
-
-          <div className="text-sm font-bold text-[var(--color-text-primary)] font-mono">
-
+          <div className="text-sm font-medium text-[var(--color-text-primary)]">
             Resolving Licensed Workspace & Sector Metrics...
-
           </div>
-
         </div>
 
       </div>
@@ -243,15 +236,10 @@ export default function EnterpriseDashboard() {
     return (
 
       <div className="flex h-[70vh] w-full flex-col items-center justify-center bg-[var(--color-bg-primary)] space-y-3">
-
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-emerald-500 border-t-transparent" />
-
-        <p className="text-slate-400 text-xs font-bold tracking-widest uppercase font-mono animate-pulse">
-
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-[var(--color-primary)] border-t-transparent" />
+        <p className="text-xs font-medium text-[var(--color-text-secondary)]">
           Connecting to VeriField Mission Control Engine...
-
         </p>
-
       </div>
 
     );
@@ -341,9 +329,9 @@ export default function EnterpriseDashboard() {
             <>
               <div className="p-4 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)] space-y-1.5">
                 <div className="flex items-center gap-2">
-                  <ShieldCheck size={16} className="text-[#008A5E] shrink-0" />
-                  <span className="font-semibold text-[var(--color-text-primary)] uppercase text-xs tracking-wider">
-                    Operational Status & Summary
+                  <ShieldCheck size={16} className="text-[var(--color-primary)] shrink-0" />
+                  <span className="font-semibold text-[var(--color-text-primary)] text-xs">
+                    Operational status & summary
                   </span>
                 </div>
                 <p className="text-xs text-[var(--color-text-secondary)] leading-relaxed">
@@ -357,9 +345,9 @@ export default function EnterpriseDashboard() {
                 <div className="md:col-span-7 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-4 space-y-3">
                   <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-2">
                     <div className="flex items-center gap-2">
-                      <ShieldCheck size={15} className="text-[#008A5E] shrink-0" />
-                      <span className="font-semibold text-xs uppercase tracking-wider text-[var(--color-text-primary)]">
-                        Action Required
+                      <ShieldCheck size={15} className="text-[var(--color-primary)] shrink-0" />
+                      <span className="font-semibold text-xs text-[var(--color-text-primary)]">
+                        Action required
                       </span>
                     </div>
                   </div>
@@ -416,7 +404,7 @@ export default function EnterpriseDashboard() {
                               {pendingCount} Field {pendingCount === 1 ? "Activity" : "Activities"} Pending Verification
                             </p>
                             <p className="text-[11px] text-[var(--color-text-secondary)]">
-                              Awaiting AI Trust Engine ingestion and audit validation.
+                              Awaiting automated checks and audit validation.
                             </p>
                           </div>
                         </div>
@@ -430,7 +418,7 @@ export default function EnterpriseDashboard() {
                       </div>
                     ) : (
                       <div className="p-4 text-center text-[var(--color-text-muted)] text-xs rounded-md bg-[var(--color-background)] border border-[var(--color-border)]">
-                        No pending actions required.
+                        No pending actions.
                       </div>
                     )}
                   </div>
@@ -440,9 +428,9 @@ export default function EnterpriseDashboard() {
                 <div className="md:col-span-5 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-4 space-y-3">
                   <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-2">
                     <div className="flex items-center gap-2">
-                      <Clock size={15} className="text-[#008A5E] shrink-0" />
-                      <span className="font-semibold text-xs uppercase tracking-wider text-[var(--color-text-primary)]">
-                        Activity Timeline
+                      <Clock size={15} className="text-[var(--color-primary)] shrink-0" />
+                      <span className="font-semibold text-xs text-[var(--color-text-primary)]">
+                        Activity timeline
                       </span>
                     </div>
                   </div>
@@ -453,7 +441,7 @@ export default function EnterpriseDashboard() {
                       </div>
                     ) : totalActivities === 0 ? (
                       <div className="p-4 text-center text-[var(--color-text-muted)] text-xs rounded-md bg-[var(--color-background)] border border-[var(--color-border)]">
-                        No recent anomalies or risks reported.
+                        No recent activity.
                       </div>
                     ) : (
                       <div className="p-2.5 rounded-md bg-[var(--color-background)] border border-[var(--color-border)] text-xs text-[var(--color-text-secondary)]">
@@ -492,11 +480,8 @@ export default function EnterpriseDashboard() {
             </div>
 
             <div className="flex items-center space-x-2 text-xs text-[var(--color-text-secondary)] font-medium shrink-0">
-
-              <RefreshCw size={14} className="animate-spin text-[#00B47A]" />
-
+              <RefreshCw size={14} className="animate-spin text-[var(--color-primary)]" />
               <span>Streaming IoT Telemetry Feeds</span>
-
             </div>
 
           </div>
@@ -529,7 +514,7 @@ export default function EnterpriseDashboard() {
 
           <div className="lg:col-span-4 flex flex-col">
 
-            <RegistryModule sectorCode={sectorCode} />
+            <RegistryModule sectorCode={sectorCode} projectId={activeProject || undefined} />
 
           </div>
 
@@ -539,7 +524,12 @@ export default function EnterpriseDashboard() {
 
         {/* Bottom Platform Analytics Workspace (5 Tabs, Charts & Live Activity Feed) */}
 
-        <AnalyticsTabs sectorCode={sectorCode} charts={dashboardData?.charts} activities={dashboardData?.activities} />
+        <AnalyticsTabs
+          sectorCode={sectorCode}
+          projectId={activeProject || dashboardData?.project?.id || undefined}
+          charts={dashboardData?.charts}
+          activities={dashboardData?.activities}
+        />
 
       </div>
 

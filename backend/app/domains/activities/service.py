@@ -28,8 +28,34 @@ class ActivityService:
         return await self.repository.list_by_organization(organization_id, status)
 
     async def create_activity(
-        self, payload: ActivityCreate, user_id: UUID, organization_id: UUID
+        self,
+        payload: ActivityCreate,
+        user_id: UUID,
+        organization_id: UUID,
+        user_role: Optional[str] = None,
     ) -> Activity:
+        data = dict(payload.activity_data or {})
+        role = (user_role or "").upper()
+        is_privileged = role in ["SUPER_ADMIN", "ORG_ADMIN", "COMPLIANCE_ADMIN", "QA_OFFICER"]
+        if not is_privileged or role in ["FIELD_AGENT", "FIELD_SUPERVISOR"]:
+            # Server derives authority: never trust client flags
+            data["field_data_authority"] = "PROVISIONAL_OBSERVATION"
+            data["provisional_field_observation"] = True
+            data["is_authoritative"] = False
+
+            # Isolate any field-entered analytical/lab parameters so they never become authoritative lab results
+            lab_keys = [
+                "c_org", "c_org_pct", "organic_carbon_pct",
+                "h_c_org", "molar_h_c_ratio", "molar_h_c",
+                "pte", "pah", "lab_moisture", "analytical_moisture",
+            ]
+            estimates = {}
+            for k in lab_keys:
+                if k in data:
+                    estimates[k] = data.pop(k)
+            if estimates:
+                data["provisional_field_estimates"] = estimates
+                data["lab_provenance"] = "UNVALIDATED_FIELD_OBSERVATION"
 
         activity = Activity(
             organization_id=organization_id,
@@ -37,7 +63,7 @@ class ActivityService:
             property_id=payload.property_id,
             asset_id=payload.asset_id,
             activity_type=payload.activity_type,
-            activity_data=payload.activity_data or {},
+            activity_data=data,
             description=payload.description,
             image_url=payload.image_url,
             image_hash=payload.image_hash,

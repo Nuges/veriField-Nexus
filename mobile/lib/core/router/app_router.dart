@@ -174,7 +174,14 @@ final GoRouter appRouter = GoRouter(
 
               path: 'new-activity',
 
-              builder: (context, state) => const ActivityFormScreen(),
+              builder: (context, state) {
+                final extra = state.extra as Map<String, dynamic>?;
+                return ActivityFormScreen(
+                  initialActivityTypeId: state.uri.queryParameters['type'] ?? extra?['type'] as String?,
+                  projectId: state.uri.queryParameters['projectId'] ?? extra?['projectId'] as String?,
+                  methodologyLock: state.uri.queryParameters['methodology'] ?? extra?['methodology'] as String?,
+                );
+              },
 
             ),
 

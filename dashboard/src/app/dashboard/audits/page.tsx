@@ -155,10 +155,8 @@ export default function AuditsPage() {
 
           setAudits(auditsWithProps);
 
-          setProperties(propsRes.properties);
-
-          setAgents(agentsRes.agents || []);
-
+          setProperties(propList);
+          setAgents(agentList);
           setIsLoading(false);
 
         }

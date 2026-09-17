@@ -64,7 +64,18 @@ import 'dart:convert';
 
 class ActivityFormScreen extends StatefulWidget {
 
-  const ActivityFormScreen({super.key});
+  final String? initialActivityTypeId;
+
+  final String? projectId;
+
+  final String? methodologyLock;
+
+  const ActivityFormScreen({
+    super.key,
+    this.initialActivityTypeId,
+    this.projectId,
+    this.methodologyLock,
+  });
 
 
 
@@ -134,20 +145,31 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
 
 
 
+  bool get _isMethodologyLocked => widget.initialActivityTypeId != null || widget.methodologyLock != null;
+
   @override
-
   void initState() {
-
     super.initState();
+    if (widget.initialActivityTypeId != null) {
+      final matches = activityTypes.where((c) => c.id == widget.initialActivityTypeId).toList();
+      if (matches.isNotEmpty) {
+        _selectActivityType(matches.first);
+        _currentStep = 1;
+      }
+    } else if (widget.methodologyLock != null) {
+      final matches = activityTypes.where((c) =>
+        c.methodology.toLowerCase().contains(widget.methodologyLock!.toLowerCase()) ||
+        c.id.toLowerCase() == widget.methodologyLock!.toLowerCase()).toList();
+      if (matches.isNotEmpty) {
+        _selectActivityType(matches.first);
+        _currentStep = 1;
+      }
+    }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-
       _captureLocation();
-
       _fetchCsiProfiles();
-
     });
-
   }
 
 
@@ -328,7 +350,9 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
 
   void _prevStep() {
 
-    if (_currentStep > 0) setState(() => _currentStep--);
+    final minStep = _isMethodologyLocked ? 1 : 0;
+
+    if (_currentStep > minStep) setState(() => _currentStep--);
 
   }
 
@@ -786,6 +810,15 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
 
     activityData['image_metadata'] = _capturedImagesMetadata;
 
+    if (widget.projectId != null) {
+      activityData['project_id'] = widget.projectId;
+    }
+
+    if (_selectedTypeId == 'BIOCHAR_C_SINK') {
+      activityData['provisional_field_observation'] = true;
+      activityData['field_data_authority'] = 'PROVISIONAL_OBSERVATION';
+    }
+
 
 
     try {
@@ -853,6 +886,8 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
           'activity_type': _selectedTypeId,
 
           'activity_data': activityData,
+
+          if (widget.projectId != null) 'project_id': widget.projectId,
 
           'description': _descriptionController.text,
 
@@ -1176,7 +1211,7 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
 
       child: Row(children: [
 
-        if (_currentStep > 0)
+        if (_currentStep > (_isMethodologyLocked ? 1 : 0))
 
           Expanded(
 
@@ -1184,7 +1219,7 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
 
           ),
 
-        if (_currentStep > 0) const SizedBox(width: AppSpacing.md),
+        if (_currentStep > (_isMethodologyLocked ? 1 : 0)) const SizedBox(width: AppSpacing.md),
 
         Expanded(
 
@@ -1242,6 +1277,50 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
 
   // --- Step 0: Activity Type Selection ---
 
+  void _selectActivityType(ActivityTypeConfig config) {
+    setState(() {
+      _selectedTypeId = config.id;
+      _selectedConfig = config;
+
+      // Clear previous field values when switching types
+      _fieldValues.clear();
+      for (final c in _textControllers.values) {
+        c.clear();
+      }
+
+      // Pre-initialize boolean fields to false to prevent required-field null validation failure
+      for (final field in config.fields) {
+        if (field.type == 'boolean') {
+          _fieldValues[field.key] = false;
+        } else if (field.key == 'kiln_id') {
+          _fieldValues[field.key] = '22222222-2222-2222-2222-222222222222'; // Match seeded Kiln ID fallback
+        } else if (field.key == 'biomass_id') {
+          _fieldValues[field.key] = '33333333-3333-3333-3333-333333333333'; // Match seeded Biomass ID fallback
+        }
+      }
+
+      if (config.id == 'BIOCHAR_C_SINK') {
+        final currentUser = SupabaseConfig.currentUser;
+        final agentId = currentUser?.email ?? currentUser?.id ?? 'agent@verifield.io';
+        final nowStr = DateTime.now().toUtc().toIso8601String();
+        _fieldValues['field_agent_id'] = agentId;
+        _controllerFor('field_agent_id').text = agentId;
+        _fieldValues['application_timestamp'] = nowStr;
+        _controllerFor('application_timestamp').text = nowStr;
+        _fieldValues['production_timestamp'] = nowStr;
+        _controllerFor('production_timestamp').text = nowStr;
+        _fieldValues['batch_id'] = '';
+        _controllerFor('batch_id').text = '';
+        _fieldValues['applied_quantity_kg'] = 0.0;
+        _controllerFor('applied_quantity_kg').text = '0.0';
+        _fieldValues['remaining_quantity_kg'] = 0.0;
+        _controllerFor('remaining_quantity_kg').text = '0.0';
+        _fieldValues['kiln_capacity_limit_kg'] = 300.0; // standard fallback
+        _controllerFor('kiln_capacity_limit_kg').text = '300.0';
+      }
+    });
+  }
+
   Widget _buildTypeSelection() {
 
     return Column(
@@ -1274,87 +1353,7 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
 
             child: GestureDetector(
 
-              onTap: () {
-
-                setState(() {
-
-                  _selectedTypeId = config.id;
-
-                  _selectedConfig = config;
-
-                  // Clear previous field values when switching types
-
-                  _fieldValues.clear();
-
-                  for (final c in _textControllers.values) {
-
-                    c.clear();
-
-                  }
-
-                  // Pre-initialize boolean fields to false to prevent required-field null validation failure
-
-                  for (final field in config.fields) {
-
-                    if (field.type == 'boolean') {
-
-                      _fieldValues[field.key] = false;
-
-                    } else if (field.key == 'kiln_id') {
-
-                      _fieldValues[field.key] = '22222222-2222-2222-2222-222222222222'; // Match seeded Kiln ID fallback
-
-                    } else if (field.key == 'biomass_id') {
-
-                      _fieldValues[field.key] = '33333333-3333-3333-3333-333333333333'; // Match seeded Biomass ID fallback
-
-                    }
-
-                  }
-
-
-
-                  if (config.id == 'BIOCHAR_C_SINK') {
-
-                    final currentUser = SupabaseConfig.currentUser;
-
-                    final agentId = currentUser?.email ?? currentUser?.id ?? 'agent@verifield.io';
-
-                    final nowStr = DateTime.now().toUtc().toIso8601String();
-
-                    _fieldValues['field_agent_id'] = agentId;
-
-                    _controllerFor('field_agent_id').text = agentId;
-
-                    _fieldValues['application_timestamp'] = nowStr;
-
-                    _controllerFor('application_timestamp').text = nowStr;
-
-                    _fieldValues['production_timestamp'] = nowStr;
-
-                    _controllerFor('production_timestamp').text = nowStr;
-
-                    _fieldValues['batch_id'] = '';
-
-                    _controllerFor('batch_id').text = '';
-
-                    _fieldValues['applied_quantity_kg'] = 0.0;
-
-                    _controllerFor('applied_quantity_kg').text = '0.0';
-
-                    _fieldValues['remaining_quantity_kg'] = 0.0;
-
-                    _controllerFor('remaining_quantity_kg').text = '0.0';
-
-                    _fieldValues['kiln_capacity_limit_kg'] = 300.0; // standard fallback
-
-                    _controllerFor('kiln_capacity_limit_kg').text = '300.0';
-
-                  }
-
-                });
-
-              },
+              onTap: () => _selectActivityType(config),
 
               child: Container(
 
@@ -1496,6 +1495,43 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
 
         Text(config.methodology, style: AppTypography.caption.copyWith(color: AppColors.primary)),
 
+        if (_isMethodologyLocked) ...[
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              const Icon(Icons.lock_rounded, size: 14, color: AppColors.primary),
+              const SizedBox(width: 4),
+              Text('Locked to Assigned Project Methodology',
+                  style: AppTypography.caption.copyWith(color: AppColors.primary, fontWeight: FontWeight.w600)),
+            ],
+          ),
+        ],
+
+        if (_selectedTypeId == 'BIOCHAR_C_SINK') ...[
+          const SizedBox(height: AppSpacing.md),
+          Container(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            decoration: BoxDecoration(
+              color: AppColors.warning.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+              border: Border.all(color: AppColors.warning.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.info_outline_rounded, color: AppColors.warning, size: 20),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Text(
+                    'Provisional Field Observation: Analytical parameters (Corg, H/C, moisture) entered on mobile are provisional. Authoritative CORC issuance requires accredited laboratory certificate verification.',
+                    style: AppTypography.caption.copyWith(color: AppColors.textPrimary),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+
         const SizedBox(height: AppSpacing.xl),
 
         ...config.fields.asMap().entries.map((entry) {
@@ -1551,8 +1587,6 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
                        field.key == 'field_agent_id' ||
 
                        field.key == 'production_timestamp' ||
-
-                       field.key == 'batch_id' ||
 
                        field.key == 'application_timestamp';
 

@@ -6,13 +6,19 @@ import { useEffect, useState } from "react";
 
 import { motion } from "framer-motion";
 
-import { Zap, Flame, Leaf, Car, Layers } from "lucide-react";
+import { Zap, Flame, Leaf, Car, Layers, Sprout, type LucideIcon } from "lucide-react";
 
 import { fetchPublicSectors } from "@/lib/api";
 
+export interface SectorItem {
+  id?: string;
+  code: string;
+  name: string;
+  description: string;
+  project_types?: Array<{ name?: string }>;
+}
 
-
-const SECTOR_ICONS: Record<string, any> = {
+const SECTOR_ICONS: Record<string, LucideIcon> = {
 
   COOKSTOVES: Flame,
 
@@ -22,13 +28,57 @@ const SECTOR_ICONS: Record<string, any> = {
 
   EV_MOBILITY: Car,
 
+  AGRICULTURE_LAND_USE: Sprout,
+
+  AGRICULTURE: Sprout,
+
 };
+
+const DEFAULT_SECTORS: SectorItem[] = [
+  {
+    code: "AGRICULTURE_LAND_USE",
+    name: "Agriculture & Land Use",
+    description: "Agricultural land management, soil carbon, agroforestry and land-use MRV.",
+    project_types: [
+      { name: "Agricultural Land Management" },
+      { name: "Rice Cultivation Water Management" },
+      { name: "Afforestation & Reforestation" },
+      { name: "Agroforestry Systems" },
+    ],
+  },
+  {
+    code: "COOKSTOVES",
+    name: "Clean Cookstoves",
+    description: "Thermal telemetry and fuel-switch MRV for clean cooking transitions.",
+    project_types: [{ name: "Improved Biomass Stoves" }, { name: "Electric Induction Stoves" }],
+  },
+  {
+    code: "HYBRID_ENERGY",
+    name: "Hybrid Energy & Mini-Grids",
+    description: "Grid and mini-grid renewable energy displacement monitoring.",
+    project_types: [{ name: "Solar Mini-Grids" }, { name: "Commercial & Industrial Solar" }],
+  },
+  {
+    code: "BIOCHAR",
+    name: "Biochar Utilization",
+    description: "Biomass pyrolysis tracking, carbon sequestration, and soil application MRV.",
+    project_types: [{ name: "Artisanal & Industrial Pyrolysis" }, { name: "Soil Amendment" }],
+  },
+  {
+    code: "EV_MOBILITY",
+    name: "Electric Mobility",
+    description: "Fleet electrification, charging telemetry, and transport emission reduction MRV.",
+    project_types: [{ name: "2/3-Wheeler Fleets" }, { name: "Commercial EV Charging" }],
+  },
+];
+
+
 
 
 
 export function ClimateSectorsSection() {
 
-  const [sectors, setSectors] = useState<any[]>([]);
+  const [sectors, setSectors] = useState<SectorItem[]>([]);
 
   const [isLoading, setIsLoading] = useState(true);
 
@@ -94,31 +144,23 @@ export function ClimateSectorsSection() {
 
           </div>
 
-        ) : sectors.length === 0 ? (
-
-          <div className="p-8 text-center bg-zinc-900/40 border border-zinc-800 rounded-2xl text-zinc-400 text-sm">
-
-            Sector methodology families will populate dynamically as enabled on the platform.
-
-          </div>
-
         ) : (
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-20">
 
-            {sectors.map((sector, idx) => {
+            {(sectors.length > 0 ? sectors : DEFAULT_SECTORS).map((sector, idx) => {
 
               const IconComp = SECTOR_ICONS[sector.code] || Layers;
 
               const typesCount = sector.project_types?.length || 0;
 
-              const typesText = sector.project_types?.map((p: any) => p.name).join(", ");
+              const typesText = (sector.project_types as Array<{ name?: string }> | undefined)?.map((p) => p.name).filter(Boolean).join(", ");
 
               return (
 
                 <motion.div
 
-                  key={sector.id || idx}
+                  key={sector.id || sector.code || idx}
 
                   initial={{ opacity: 0, y: 10 }}
 

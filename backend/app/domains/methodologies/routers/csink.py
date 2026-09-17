@@ -23,6 +23,9 @@ async def get_biomass():
 async def get_batch(code: str):
     return {
         "batch_code": code,
+        "batch_id": code,
+        "batch_weight_kg": 350.0,
+        "production_timestamp": "2026-07-14T00:00:00Z",
         "status": "active",
         "kiln_id": "k1",
         "biomass_id": "b1",

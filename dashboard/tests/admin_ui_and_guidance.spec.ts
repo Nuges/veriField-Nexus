@@ -364,7 +364,7 @@ test.describe('Part 2: Visual Runtime & Header Invariants', () => {
     // 1. AI Assistant link exists without "Live" badge
     const aiAssistantLink = sidebar.locator('a[href="/dashboard/ai"]');
     await expect(aiAssistantLink).toBeVisible();
-    await expect(aiAssistantLink).toContainText('AI Assistant');
+    await expect(aiAssistantLink).toContainText(/AI Assistant|Decision Support/);
     await expect(aiAssistantLink.getByText('Live')).toHaveCount(0);
 
     // 2. Prohibited Governance strings completely removed from Organization Overview

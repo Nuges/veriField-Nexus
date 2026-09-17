@@ -37,7 +37,7 @@ class PuroStoredCarbonCalculator:
         end_use_category_code: Optional[str] = None,
         reversal_discount_factor: Optional[Decimal] = None,
     ) -> Dict[str, Any]:
-        if eligible_dry_mass_tonnes is None or eligible_dry_mass_tonnes <= Decimal("0"):
+        if eligible_dry_mass_tonnes is None or Decimal(str(eligible_dry_mass_tonnes)) <= Decimal("0"):
             return {
                 "status": "FAIL_CLOSED",
                 "c_stored_tco2e": Decimal("0.0"),
@@ -47,7 +47,7 @@ class PuroStoredCarbonCalculator:
                 "notes": "Eligible dry biochar mass must be strictly positive and verified.",
             }
 
-        if c_org_pct is None or c_org_pct <= Decimal("0"):
+        if c_org_pct is None or Decimal(str(c_org_pct)) <= Decimal("0"):
             return {
                 "status": "FAIL_CLOSED",
                 "c_stored_tco2e": Decimal("0.0"),
@@ -56,6 +56,9 @@ class PuroStoredCarbonCalculator:
                 "rules": ["PURO-BIOCHAR-6.1", "PURO-BIOCHAR-6.2"],
                 "notes": "Organic carbon (C_org) percentage is missing or non-positive; cannot calculate stored carbon.",
             }
+
+        eligible_dry_mass = Decimal(str(eligible_dry_mass_tonnes))
+        c_org = Decimal(str(c_org_pct))
 
         # Check Category R3 Reversal Discount Factor requirement
         cat_code = (end_use_category_code or "").upper().strip()
@@ -71,8 +74,8 @@ class PuroStoredCarbonCalculator:
                 }
 
         # Equation 6.1: Cstored = Q_biochar * (C_org / 100) * (44 / 12)
-        c_fraction = c_org_pct / Decimal("100")
-        c_stored_raw = eligible_dry_mass_tonnes * c_fraction * CARBON_TO_CO2_FACTOR
+        c_fraction = c_org / Decimal("100")
+        c_stored_raw = eligible_dry_mass * c_fraction * CARBON_TO_CO2_FACTOR
 
         rdf_applied = Decimal("1.0")
         if cat_code == "R3" and reversal_discount_factor is not None:
@@ -437,6 +440,21 @@ class PuroCORCCalculator:
     Supports both AUTHORITATIVE and SIMULATION execution modes.
     """
 
+    @staticmethod
+    def calculate_net_corcs(
+        c_stored: Decimal,
+        c_baseline: Decimal,
+        c_loss: Decimal,
+        e_project: Decimal,
+        e_leakage: Decimal,
+    ) -> Decimal:
+        """
+        Puro Biochar Edition 2025 V2 Equation 5.1:
+        CORCs = max(0, Cstored - Cbaseline - Closs - Eproject - Eleakage)
+        """
+        net = Decimal(str(c_stored)) - Decimal(str(c_baseline)) - Decimal(str(c_loss)) - Decimal(str(e_project)) - Decimal(str(e_leakage))
+        return max(Decimal("0.0"), net)
+
     @classmethod
     def execute_quantification(
         cls,
@@ -578,8 +596,8 @@ class PuroCORCCalculator:
 
         # 6. Net CORCs Quantification
         # CORCs = max(0, Cstored - Cbaseline - Closs - Eproject - Eleakage)
-        net_corcs = c_stored - c_baseline - c_loss - e_project - e_leakage
-        final_corcs = max(Decimal("0.0"), net_corcs)
+        net_corcs = cls.calculate_net_corcs(c_stored, c_baseline, c_loss, e_project, e_leakage)
+        final_corcs = net_corcs
 
         # 7. Uncertainty Quantification (Chapter 10)
         unc_res = PuroUncertaintyCalculator.calculate(final_corcs)

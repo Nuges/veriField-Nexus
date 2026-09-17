@@ -99,6 +99,8 @@ class TemplateRegistry:
             target_auth_ids = ["VERRA_VCS"]
         elif "GOLD" in std_clean or "GS" in std_clean:
             target_auth_ids = ["GOLD_STANDARD"]
+        elif "PURO" in std_clean:
+            target_auth_ids = ["PURO_STANDARD"]
         elif "NEXUS" in std_clean:
             target_auth_ids = ["VERIFIELD_NEXUS"]
         else:

@@ -4,13 +4,13 @@ import string
 
 import uuid
 
-from typing import Optional
+from typing import Optional, Union
 
 
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 
 from sqlalchemy import text, select
 
@@ -56,23 +56,31 @@ router = APIRouter(tags=["Access Requests"])
 
 class AccessRequestCreate(BaseModel):
 
-    full_name: str
+    full_name: str = Field(..., min_length=1)
 
-    email: str
+    email: str = Field(..., min_length=5)
 
     phone: Optional[str] = None
 
-    organization_name: str
+    organization_name: str = Field(..., min_length=1)
 
     country: Optional[str] = None
 
     use_case: Optional[str] = None
 
-    sector_id: Optional[uuid.UUID] = None
+    sector_id: Optional[Union[uuid.UUID, str]] = None
 
-    methodology_id: Optional[uuid.UUID] = None
+    methodology_id: Optional[Union[uuid.UUID, str]] = None
 
     project_name: Optional[str] = None
+
+    @field_validator("email")
+    @classmethod
+    def validate_email_format(cls, v: str) -> str:
+        clean = v.strip().lower()
+        if "@" not in clean or "." not in clean.split("@")[-1] or len(clean.split("@")[-1].split(".")[-1]) < 2:
+            raise ValueError("Invalid email address format.")
+        return clean
 
 
 
@@ -191,6 +199,7 @@ async def create_access_request(
 
 
 @router.get("/access-requests")
+@router.get("/admin/access-requests")
 async def get_access_requests(
     status: Optional[str] = None,
     current_user: User = Depends(get_current_user),
@@ -455,6 +464,8 @@ async def approve_access_request(
             alias_code = "BIOCHAR"
         elif "cook" in clean_sec or "stove" in clean_sec:
             alias_code = "COOKSTOVES"
+        elif "agri" in clean_sec or "land_use" in clean_sec or "farm" in clean_sec or "afolu" in clean_sec or "soil" in clean_sec or "rice" in clean_sec:
+            alias_code = "AGRICULTURE_LAND_USE"
         else:
             alias_code = clean_sec.upper()
 
@@ -493,6 +504,8 @@ async def approve_access_request(
             alias_code = "BIOCHAR"
         elif "cook" in combined_text or "stove" in combined_text:
             alias_code = "COOKSTOVES"
+        elif "agri" in combined_text or "farm" in combined_text or "soil" in combined_text or "land_use" in combined_text or "rice" in combined_text:
+            alias_code = "AGRICULTURE_LAND_USE"
 
         if alias_code:
             res_sec = await db.execute(

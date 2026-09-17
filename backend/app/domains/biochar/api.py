@@ -568,6 +568,13 @@ async def create_lab_analysis(
     abac = ABACEngine(db, current_user)
     await abac.enforce_project_access(batch.project_id)
 
+    user_role = (current_user.role or "").upper()
+    if user_role in ["FIELD_AGENT", "FIELD_SUPERVISOR", "INVESTOR", "VIEWER"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Field agents, supervisors, and viewers are not authorized to create authoritative laboratory analyses.",
+        )
+
     lab_hash = data.lab_report_hash
     if not lab_hash:
         raw_sig = f"{data.sample_id}:{data.laboratory_name}:{data.molar_h_c_ratio}:{data.organic_carbon_pct}"

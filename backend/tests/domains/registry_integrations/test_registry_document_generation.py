@@ -61,9 +61,9 @@ async def test_adversarial_zero_data_project_strictly_blocked():
 
     async with factory() as session:
         org = Organization(id=org_id, name=f"Solaris Grid Dev {uuid.uuid4().hex[:6]}", org_type="DEVELOPER")
-        reg = MethodologyRegistry(id=reg_id, code=f"UNFCCC_{uuid.uuid4().hex[:4]}", name="UNFCCC Clean Development")
-        sec = MethodologyFamily(id=sec_id, code=f"ENERGY_{uuid.uuid4().hex[:4]}", name="Hybrid Energy & Mini-grids")
-        meth = Methodology(id=meth_id, code=f"AMS_I_L_{uuid.uuid4().hex[:4]}", name="Electrification of rural communities", registry_id=reg_id, family_id=sec_id)
+        reg = MethodologyRegistry(id=reg_id, code=f"UNFCCC_{uuid.uuid4().hex[:12]}", name="UNFCCC Clean Development")
+        sec = MethodologyFamily(id=sec_id, code=f"ENERGY_{uuid.uuid4().hex[:12]}", name="Hybrid Energy & Mini-grids")
+        meth = Methodology(id=meth_id, code=f"AMS_I_L_{uuid.uuid4().hex[:12]}", name="Electrification of rural communities", registry_id=reg_id, family_id=sec_id)
         proj = Project(
             id=proj_id,
             name=f"Adversarial Zero Data Mini-Grid {uuid.uuid4().hex[:6]}",
@@ -166,9 +166,9 @@ async def test_package_builder_with_section_15():
 
     async with factory() as session:
         org = Organization(id=org_id, name=f"Enugu Solar Mini-Grid Co {uuid.uuid4().hex[:6]}", org_type="DEVELOPER")
-        reg = MethodologyRegistry(id=reg_id, code=f"VERRA_{uuid.uuid4().hex[:4]}", name="Verra VCS Registry")
-        sec = MethodologyFamily(id=sec_id, code=f"SOLAR_{uuid.uuid4().hex[:4]}", name="Renewable Energy")
-        meth = Methodology(id=meth_id, code=f"AMS_I_F_{uuid.uuid4().hex[:4]}", name="Renewable Electricity for Captive Use", registry_id=reg_id, family_id=sec_id)
+        reg = MethodologyRegistry(id=reg_id, code=f"VERRA_{uuid.uuid4().hex[:12]}", name="Verra VCS Registry")
+        sec = MethodologyFamily(id=sec_id, code=f"SOLAR_{uuid.uuid4().hex[:12]}", name="Renewable Energy")
+        meth = Methodology(id=meth_id, code=f"AMS_I_F_{uuid.uuid4().hex[:12]}", name="Renewable Electricity for Captive Use", registry_id=reg_id, family_id=sec_id)
         proj = Project(
             id=proj_id,
             name=f"Enugu Rural Solar Mini-Grid {uuid.uuid4().hex[:6]}",

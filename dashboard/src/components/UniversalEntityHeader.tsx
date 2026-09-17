@@ -113,7 +113,7 @@ export default function UniversalEntityHeader({
 
       case "APPROVED":
 
-        return "bg-emerald-500/15 text-[#00B47A] border-emerald-500/30";
+        return "bg-emerald-500/15 text-[var(--color-primary)] border-emerald-500/30";
 
       case "FLAGGED":
 
@@ -180,85 +180,49 @@ export default function UniversalEntityHeader({
 
       {/* 2. 6-Stage Carbon Lifecycle Progress Timeline */}
       <div className="space-y-1.5">
-        <div className="flex items-center justify-between text-[10px] font-mono uppercase tracking-wider text-[var(--color-text-secondary)]">
-          <span>Carbon Project Operational Lifecycle</span>
-          <span>Current Phase: <strong className="text-[#00B47A] font-bold">{resolvedCurrentStageName}</strong></span>
+        <div className="flex items-center justify-between text-xs font-medium text-[var(--color-text-secondary)]">
+          <span>Carbon project operational lifecycle</span>
+          <span>Current phase: <strong className="text-[var(--color-primary)] font-semibold">{resolvedCurrentStageName}</strong></span>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-6 gap-1.5">
           {lifecycleStages.map((stg, idx) => {
-
             const stageNum = idx + 1;
-
             const isPassed = stageNum < currentStage;
-
             const isCurrent = stageNum === currentStage;
 
             return (
-
               <div
-
                 key={idx}
-
-                className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg border text-[11px] font-bold transition-all ${
-
+                className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-all ${
                   isPassed
-
-                    ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-
+                    ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
                     : isCurrent
-
-                    ? "bg-[#00B47A]/20 text-[#00B47A] border-[#00B47A] shadow-xs"
-
+                    ? "bg-[var(--color-primary)]/15 text-[var(--color-primary)] border-[var(--color-primary)]/40 shadow-xs font-semibold"
                     : "bg-[var(--color-background)]/50 text-[var(--color-text-secondary)] opacity-50 border-[var(--color-border)]"
-
                 }`}
-
               >
-
                 <span className="truncate">{stg}</span>
-
-                {isPassed && <CheckCircle2 size={12} className="shrink-0 text-emerald-400 ml-1" />}
-
-                {isCurrent && <ShieldCheck size={12} className="shrink-0 text-[#00B47A] ml-1" />}
-
+                {isPassed && <CheckCircle2 size={12} className="shrink-0 text-emerald-600 dark:text-emerald-400 ml-1" />}
+                {isCurrent && <ShieldCheck size={12} className="shrink-0 text-[var(--color-primary)] ml-1" />}
               </div>
-
             );
-
           })}
-
         </div>
-
       </div>
 
-
-
       {/* 3. Proactive Embedded AI Recommendation Card */}
-
       {aiRecommendation && (
-
         <div className="p-3.5 rounded-xl bg-emerald-500/5 border border-emerald-500/20 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs">
-
           <div className="flex items-start gap-2.5">
-
-            <Bot size={18} className="text-[#00B47A] shrink-0 mt-0.5" />
-
+            <Bot size={18} className="text-[var(--color-primary)] shrink-0 mt-0.5" />
             <div>
-
               <div className="flex items-center gap-2">
-
-                <span className="font-bold text-[#00B47A] uppercase text-[10px] tracking-wider">Verification Insight</span>
-
+                <span className="font-semibold text-[var(--color-primary)] text-xs">Verification insight</span>
                 {aiConfidence && aiConfidence > 0 ? (
-
-                  <span className="text-[10px] font-mono bg-emerald-500/20 text-[#00B47A] px-1.5 py-0.2 rounded font-bold">
-
-                    {aiConfidence}% Confidence
-
+                  <span className="text-xs bg-emerald-500/20 text-[var(--color-primary)] px-2 py-0.5 rounded-full font-medium">
+                    {aiConfidence}% confidence
                   </span>
-
                 ) : null}
-
               </div>
 
               <p className="text-[var(--color-text-primary)] font-medium mt-0.5 leading-snug">
@@ -311,7 +275,7 @@ export default function UniversalEntityHeader({
 
           <button
             onClick={onPrimaryNextAction}
-            className="flex items-center gap-2 px-3.5 py-1.5 rounded-md bg-[#008A5E] hover:bg-[#00734E] text-white font-semibold text-xs transition-colors cursor-pointer"
+            className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white font-medium text-xs transition-colors cursor-pointer shadow-xs"
           >
             <span>{primaryNextActionLabel}</span>
             <ArrowRight size={14} />
