@@ -399,10 +399,26 @@ async def test_one_time_bootstrap_does_not_resurrect_deleted_admin():
         assert row[0] == "VIEWER"
         assert row[1] == 1
 
-    # Cleanup test account to prevent side-effects on other suites
+    # Restore bootstrap super admin to prevent side-effects on subsequent test suites
     async with session_factory() as session:
-        await session.execute(
-            text("DELETE FROM users WHERE id = '00000000-0000-0000-0000-000000000001'")
-        )
+        from app.core.security import get_password_hash
+        pw_hash = get_password_hash("Lovelyday1")
+        await session.execute(text("""
+            INSERT OR REPLACE INTO users (id, email, full_name, role, status, is_active, password_hash, requires_password_change, version, is_deleted, created_at, updated_at)
+            VALUES (
+                '00000000-0000-0000-0000-000000000001',
+                :admin_email,
+                'Platform Super Admin',
+                'SUPER_ADMIN',
+                'active',
+                1,
+                :pw_hash,
+                0,
+                1,
+                0,
+                CURRENT_TIMESTAMP,
+                CURRENT_TIMESTAMP
+            )
+        """), {"admin_email": settings.authorized_bootstrap_admin_email, "pw_hash": pw_hash})
         await session.commit()
 

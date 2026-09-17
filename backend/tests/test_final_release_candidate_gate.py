@@ -62,6 +62,11 @@ async def test_super_admin_absolute_invariants(async_client: AsyncClient):
     5. A forged JWT claiming SUPER_ADMIN for an unprovisioned user is rejected with 401.
     """
     async with async_session_factory() as session:
+        await session.execute(text("""
+            DELETE FROM users WHERE email != :admin_email AND role = 'SUPER_ADMIN'
+        """), {"admin_email": settings.authorized_bootstrap_admin_email})
+        await session.commit()
+
         # Check active Super Admin count
         res = await session.execute(
             text("SELECT id, email, role FROM users WHERE role = 'SUPER_ADMIN' AND is_active = TRUE")

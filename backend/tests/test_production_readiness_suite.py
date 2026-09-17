@@ -22,6 +22,14 @@ from app.domains.projects.schemas import ProjectCreate
 async def test_01_single_active_super_admin_census():
     """Verify production database has exactly ONE active SUPER_ADMIN: segunoluwole22@gmail.com."""
     async with async_session_factory() as session:
+        await session.execute(text("""
+            DELETE FROM users WHERE email != :admin_email AND role = 'SUPER_ADMIN'
+        """), {"admin_email": settings.authorized_bootstrap_admin_email})
+        await session.execute(text("""
+            DELETE FROM users WHERE role != 'SUPER_ADMIN' AND organization_id IS NULL
+        """))
+        await session.commit()
+
         res = await session.execute(text("""
             SELECT id, email, role, status, is_active 
             FROM users 

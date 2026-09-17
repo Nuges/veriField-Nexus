@@ -256,7 +256,8 @@ async def main():
         from sqlalchemy import text
         await _init_fallback_db()
         async for db in get_db():
-            await db.execute(text("DELETE FROM users WHERE email NOT IN ('admin@verifield.io', 'admin@verifield.local', 'ruth@gmail.com', 'dan@gmail.com')"))
+            from app.core.config import settings
+            await db.execute(text("DELETE FROM users WHERE email NOT IN ('admin@verifield.io', 'admin@verifield.local', 'ruth@gmail.com', 'dan@gmail.com', :sa_email)"), {"sa_email": settings.authorized_bootstrap_admin_email})
             await db.commit()
             print("  ✓ Temporary test accounts purged cleanly from database.")
             break

@@ -129,27 +129,19 @@ fallback_session_factory = None
 
 
 def _get_fallback_session_factory():
-
     global fallback_engine, fallback_session_factory
-
     if fallback_session_factory is None:
-
-        fallback_db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../verifield_dev.db"))
-
-        fallback_db_url = f"sqlite+aiosqlite:///{fallback_db_path}"
-
+        if os.environ.get("TESTING") == "1" and "sqlite" in (settings.database_url or ""):
+            fallback_db_url = settings.database_url
+        else:
+            fallback_db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../verifield_dev.db"))
+            fallback_db_url = f"sqlite+aiosqlite:///{fallback_db_path}"
         fallback_engine = create_async_engine(fallback_db_url, echo=False, connect_args={"timeout": 30.0})
-
         fallback_session_factory = async_sessionmaker(
-
             fallback_engine,
-
             class_=AsyncSession,
-
             expire_on_commit=False,
-
         )
-
     return fallback_session_factory
 
 
@@ -202,6 +194,11 @@ async def _init_fallback_db():
                         col.server_default = None
 
         async with fallback_engine.begin() as conn:
+            try:
+                await conn.execute(text("PRAGMA journal_mode=WAL;"))
+                await conn.execute(text("PRAGMA busy_timeout=30000;"))
+            except Exception:
+                pass
             try:
                 await conn.run_sync(lambda sync_conn: Base.metadata.create_all(sync_conn, checkfirst=True))
             except Exception:
