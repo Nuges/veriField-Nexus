@@ -136,3 +136,4 @@ static/
 *.key
 backend/app/static/keys/*
 !backend/app/static/keys/.gitkeep
+test-results/

@@ -1,2 +1,6 @@
 [tool.ruff]
 ignore = ["E712", "F403", "F405", "E402", "F821"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

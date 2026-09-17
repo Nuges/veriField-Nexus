@@ -27,6 +27,11 @@ async def init_test_database():
                 if any(kw in sd_str.lower() for kw in ["gen_random_uuid", "jsonb", "now()", "true", "false", "::"]):
                     col.server_default = None
 
+    if "sqlite" in str(engine.url):
+        async with engine.begin() as conn:
+            await conn.execute(text("PRAGMA journal_mode=WAL;"))
+            await conn.execute(text("PRAGMA busy_timeout=30000;"))
+
     async with engine.begin() as conn:
         await conn.run_sync(lambda sync_conn: Base.metadata.create_all(sync_conn, checkfirst=True))
 
@@ -260,7 +265,26 @@ async def admin_token_headers():
 
 @pytest_asyncio.fixture(autouse=True)
 async def cleanup_redis():
-    from app.core.redis import close_redis
+    from app.core.redis import close_redis, get_redis_client
+    from app.core.rate_limit import reset_rate_limits
+
+    reset_rate_limits()
+    try:
+        r = get_redis_client()
+        keys = await r.keys("rate_limit:*")
+        if keys:
+            await r.delete(*keys)
+    except Exception:
+        pass
 
     yield
+
+    try:
+        r = get_redis_client()
+        keys = await r.keys("rate_limit:*")
+        if keys:
+            await r.delete(*keys)
+    except Exception:
+        pass
+    reset_rate_limits()
     await close_redis()

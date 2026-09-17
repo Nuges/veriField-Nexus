@@ -138,7 +138,7 @@ def _get_fallback_session_factory():
 
         fallback_db_url = f"sqlite+aiosqlite:///{fallback_db_path}"
 
-        fallback_engine = create_async_engine(fallback_db_url, echo=False)
+        fallback_engine = create_async_engine(fallback_db_url, echo=False, connect_args={"timeout": 30.0})
 
         fallback_session_factory = async_sessionmaker(
 
