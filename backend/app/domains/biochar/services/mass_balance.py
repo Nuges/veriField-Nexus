@@ -11,6 +11,8 @@ from app.domains.biochar.models import (
     BiocharEndUseRecord,
     BiocharStorageEvent,
     BiocharMaterialTransaction,
+    BiocharIngredientAllocation,
+    BiocharProductBatch,
     FeedstockLot,
     FeedstockRunAllocation,
     ProductionRun,
@@ -184,6 +186,76 @@ class BiocharMassBalanceEngine:
         return batch
 
     @staticmethod
+    async def allocate_batch_to_product_batch(
+        db: AsyncSession,
+        biochar_batch_id: UUID,
+        product_batch_id: UUID,
+        allocated_biochar_mass_tonnes: float,
+    ) -> BiocharIngredientAllocation:
+        """
+        Atomically allocates pure biochar from a BiocharBatch into a BiocharProductBatch with row-level locking.
+        Prevents over-allocation beyond batch yield or remaining available mass.
+        """
+        stmt_batch = select(BiocharBatch).where(BiocharBatch.id == biochar_batch_id).with_for_update()
+        res_batch = await db.execute(stmt_batch)
+        batch = res_batch.scalar_one_or_none()
+        if not batch:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Biochar Batch {biochar_batch_id} not found.",
+            )
+
+        total_yield = Decimal(str(batch.biochar_yield_tonnes or 0.0))
+
+        # Query existing terminal end-use
+        stmt_eu = select(
+            func.coalesce(func.sum(BiocharEndUseRecord.applied_quantity_tonnes), 0.0)
+        ).where(
+            BiocharEndUseRecord.batch_id == batch.id,
+            BiocharEndUseRecord.verification_status != "REJECTED",
+        )
+        res_eu = await db.execute(stmt_eu)
+        terminal_end_use = Decimal(str(res_eu.scalar() or 0.0))
+
+        # Query existing product allocations
+        stmt_prod_alloc = select(
+            func.coalesce(func.sum(BiocharIngredientAllocation.allocated_biochar_mass_tonnes), 0.0)
+        ).where(BiocharIngredientAllocation.biochar_batch_id == batch.id)
+        res_prod_alloc = await db.execute(stmt_prod_alloc)
+        product_allocations = Decimal(str(res_prod_alloc.scalar() or 0.0))
+
+        # Documented losses
+        stmt_losses = select(
+            func.coalesce(func.sum(BiocharStorageEvent.loss_or_damage_tonnes), 0.0)
+        ).where(BiocharStorageEvent.batch_id == batch.id)
+        res_losses = await db.execute(stmt_losses)
+        documented_losses = Decimal(str(res_losses.scalar() or 0.0))
+
+        current_dispositions = terminal_end_use + product_allocations + documented_losses
+        req_qty = Decimal(str(allocated_biochar_mass_tonnes))
+
+        available = total_yield - current_dispositions
+        if req_qty > available + Decimal("0.000001"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    f"Product formulation mass balance violation: Batch {batch.batch_number} has only "
+                    f"{float(max(Decimal('0.0'), available)):.3f} t available, "
+                    f"but {float(req_qty):.3f} t was requested for product formulation."
+                ),
+            )
+
+        allocation = BiocharIngredientAllocation(
+            product_batch_id=product_batch_id,
+            biochar_batch_id=biochar_batch_id,
+            allocated_biochar_mass_tonnes=float(req_qty),
+        )
+        db.add(allocation)
+
+        batch.mass_balance_allocated_tonnes = float(current_dispositions + req_qty)
+        return allocation
+
+    @staticmethod
     async def reconcile_batch(
         db: AsyncSession,
         batch_id: UUID,
@@ -191,7 +263,7 @@ class BiocharMassBalanceEngine:
     ) -> MassBalanceReconciliationResponse:
         """
         Deterministic reconciliation of a Biochar Batch using Decimal arithmetic:
-        original_produced_mass == current_inventory + terminal_end_use + documented_losses + rejected.
+        original_produced_mass == current_inventory + terminal_end_use + product_allocations + documented_losses + rejected.
         Reconciles terminal dispositions without double-counting successive logistics custody events.
         """
         stmt_batch = select(BiocharBatch).where(BiocharBatch.id == batch_id).with_for_update()
@@ -216,14 +288,21 @@ class BiocharMassBalanceEngine:
         res_eu = await db.execute(stmt_end_use)
         terminal_end_use = Decimal(str(res_eu.scalar() or 0.0))
 
-        # 2. Documented Losses & Handling Degradation
+        # 2. Product Formulation Allocations (Biochar allocated to mixed product batches)
+        stmt_prod_alloc = select(
+            func.coalesce(func.sum(BiocharIngredientAllocation.allocated_biochar_mass_tonnes), 0.0)
+        ).where(BiocharIngredientAllocation.biochar_batch_id == batch.id)
+        res_prod_alloc = await db.execute(stmt_prod_alloc)
+        product_allocations = Decimal(str(res_prod_alloc.scalar() or 0.0))
+
+        # 3. Documented Losses & Handling Degradation
         stmt_losses = select(
             func.coalesce(func.sum(BiocharStorageEvent.loss_or_damage_tonnes), 0.0)
         ).where(BiocharStorageEvent.batch_id == batch.id)
         res_losses = await db.execute(stmt_losses)
         documented_losses = Decimal(str(res_losses.scalar() or 0.0))
 
-        # 3. Rejected Material
+        # 4. Rejected Material
         stmt_rej = select(
             func.coalesce(func.sum(BiocharEndUseRecord.applied_quantity_tonnes), 0.0)
         ).where(
@@ -233,7 +312,7 @@ class BiocharMassBalanceEngine:
         res_rej = await db.execute(stmt_rej)
         rejected = Decimal(str(res_rej.scalar() or 0.0))
 
-        terminal_dispositions = terminal_end_use + documented_losses + rejected
+        terminal_dispositions = terminal_end_use + product_allocations + documented_losses + rejected
 
         if terminal_dispositions > original_produced + tol_variance:
             current_inventory = Decimal("0.0")
@@ -264,6 +343,7 @@ class BiocharMassBalanceEngine:
             original_produced_mass_tonnes=float(original_produced),
             current_inventory_tonnes=float(current_inventory),
             terminal_end_use_tonnes=float(terminal_end_use),
+            product_allocations_tonnes=float(product_allocations),
             documented_losses_tonnes=float(documented_losses),
             rejected_tonnes=float(rejected),
             total_reconciled_tonnes=float(total_reconciled),

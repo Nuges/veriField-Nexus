@@ -19,59 +19,46 @@
 import { useEffect, useState } from "react";
 
 import Link from "next/link";
-
 import {
-
   Bluetooth,
-
   MessageSquare,
-
   ShieldAlert,
-
   Plus,
-
   Loader2,
-
   CheckCircle,
-
   Calendar,
-
   Layers,
-
   ArrowRight,
-
   Cpu,
-
   FileText,
-
-  AlertTriangle
-
+  AlertTriangle,
+  ShieldCheck,
+  PackageCheck,
+  Lock,
+  ExternalLink,
+  RefreshCw,
+  X,
+  Clock,
+  Sparkles,
+  FileCheck2,
 } from "lucide-react";
-
 import {
-
   fetchProperties,
-
   fetchMyAuditTasks,
-
   createAuditTask,
-
   fetchActivities,
-
   fetchCommunityFeed,
-
   fetchSensorDevices,
-
   fetchAgentPerformance,
-
-  type AuditTask
-
+  fetchVerificationPackages,
+  compileVerificationPackage,
+  fetchProjects,
+  type AuditTask,
+  type VerificationPackageSummary,
+  type Project,
 } from "@/lib/api";
-
 import { useToast } from "@/components/Toast";
-
 import { useWorkspace } from "@/context/WorkspaceContext";
-
 import VerificationPipelineStages, { PipelineStage } from "@/components/VerificationPipelineStages";
 
 
@@ -84,7 +71,20 @@ export default function VerificationsPage() {
 
   const wsConfig = (activeSector && moduleRegistry?.[activeSector]) ? moduleRegistry[activeSector] : {};
 
-  const [activeTab, setActiveTab] = useState<'audits' | 'community' | 'sensors'>('audits');
+  const [activeTab, setActiveTab] = useState<'packages' | 'audits' | 'community' | 'sensors'>('packages');
+
+  // CIOS Verification Packages State
+  const [packages, setPackages] = useState<VerificationPackageSummary[]>([]);
+  const [isLoadingPackages, setIsLoadingPackages] = useState<boolean>(true);
+  const [availableProjects, setAvailableProjects] = useState<Project[]>([]);
+  const [showCompileModal, setShowCompileModal] = useState<boolean>(false);
+  const [compileProjectId, setCompileProjectId] = useState<string>("");
+  const [compilePackageName, setCompilePackageName] = useState<string>("Puro Biochar Q1-Q2 2026 Annual Verification Package");
+  const [compileRegistryTarget, setCompileRegistryTarget] = useState<string>("PURO_EARTH");
+  const [compileAuditType, setCompileAuditType] = useState<string>("ANNUAL_VERIFICATION");
+  const [compileStartDate, setCompileStartDate] = useState<string>("2026-01-01T00:00:00Z");
+  const [compileEndDate, setCompileEndDate] = useState<string>("2026-06-30T23:59:59Z");
+  const [isCompiling, setIsCompiling] = useState<boolean>(false);
 
   const [selectedStage, setSelectedStage] = useState<PipelineStage | null>(null);
 
@@ -232,22 +232,68 @@ export default function VerificationsPage() {
 
 
 
-  useEffect(() => {
+  // Load CIOS Verification Packages and Projects
+  const loadPackagesData = async () => {
+    setIsLoadingPackages(true);
+    try {
+      const [pkgs, projectsRes] = await Promise.all([
+        fetchVerificationPackages().catch(() => []),
+        fetchProjects().catch(() => ({ items: [], total: 0 })),
+      ]);
+      setPackages(pkgs);
+      const items = projectsRes?.items || [];
+      setAvailableProjects(items);
+      if (items.length > 0 && !compileProjectId) {
+        setCompileProjectId(items[0].id);
+      }
+    } catch (err) {
+      console.error("Failed to load verification packages", err);
+    } finally {
+      setIsLoadingPackages(false);
+    }
+  };
 
-    if (activeTab === 'audits') {
-
-      loadAuditData();
-
-    } else if (activeTab === 'community') {
-
-      loadSmsData();
-
-    } else if (activeTab === 'sensors') {
-
-      loadSensorData();
-
+  const handleCompilePackage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!compileProjectId) {
+      toast.warning("Project Required", "Please select a project to compile an audit package for.");
+      return;
+    }
+    if (!compilePackageName.trim()) {
+      toast.warning("Name Required", "Please enter a package name.");
+      return;
     }
 
+    try {
+      setIsCompiling(true);
+      const newPkg = await compileVerificationPackage({
+        project_id: compileProjectId,
+        package_name: compilePackageName.trim(),
+        registry_target: compileRegistryTarget,
+        audit_type: compileAuditType,
+        monitoring_period_start: compileStartDate,
+        monitoring_period_end: compileEndDate,
+      });
+      toast.success("Package Compiled", `Successfully compiled ${newPkg.package_name} v${newPkg.package_version}`);
+      setShowCompileModal(false);
+      await loadPackagesData();
+    } catch (err: any) {
+      toast.error("Compilation Failed", err.message || "Failed to compile verification package.");
+    } finally {
+      setIsCompiling(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'packages') {
+      loadPackagesData();
+    } else if (activeTab === 'audits') {
+      loadAuditData();
+    } else if (activeTab === 'community') {
+      loadSmsData();
+    } else if (activeTab === 'sensors') {
+      loadSensorData();
+    }
   }, [activeTab]);
 
 
@@ -448,85 +494,285 @@ export default function VerificationsPage() {
 
 
       {/* TABS TOOLBAR */}
-
-      <div className="flex bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-1 gap-1 max-w-fit shadow-inner">
+      <div className="flex bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-1 gap-1 max-w-fit shadow-xs">
+        <button
+          onClick={() => setActiveTab('packages')}
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium transition-all ${
+            activeTab === 'packages'
+              ? 'bg-[var(--color-primary)] text-white shadow-xs font-semibold'
+              : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-background)]/50'
+          }`}
+        >
+          <Layers size={14} /> Audit Packages (CIOS)
+        </button>
 
         <button
-
           onClick={() => setActiveTab('audits')}
-
-          className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold transition-all uppercase tracking-wider ${
-
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium transition-all ${
             activeTab === 'audits'
-
-              ? 'bg-[#00B47A] text-white shadow-md'
-
+              ? 'bg-[var(--color-primary)] text-white shadow-xs font-semibold'
               : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-background)]/50'
-
           }`}
-
         >
-
-          <ShieldAlert size={14} /> Audit Queue
-
+          <ShieldAlert size={14} /> Audit queue
         </button>
 
-
-
         <button
-
           onClick={() => setActiveTab('community')}
-
-          className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold transition-all uppercase tracking-wider ${
-
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium transition-all ${
             activeTab === 'community'
-
-              ? 'bg-[#00B47A] text-white shadow-md'
-
+              ? 'bg-[var(--color-primary)] text-white shadow-xs font-semibold'
               : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-background)]/50'
-
           }`}
-
         >
-
-          <MessageSquare size={14} /> SMS Verification
-
+          <MessageSquare size={14} /> SMS verification
         </button>
-
-
 
         <button
-
           onClick={() => setActiveTab('sensors')}
-
-          className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold transition-all uppercase tracking-wider ${
-
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium transition-all ${
             activeTab === 'sensors'
-
-              ? 'bg-[#00B47A] text-white shadow-md'
-
+              ? 'bg-[var(--color-primary)] text-white shadow-xs font-semibold'
               : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-background)]/50'
-
           }`}
-
         >
-
-          <Cpu size={14} /> IoT Telemetry
-
+          <Cpu size={14} /> IoT telemetry
         </button>
-
       </div>
 
 
 
       {/* CONTENT BLOCKS */}
-
       <div className="animation-delay-100 space-y-6">
 
+        {/* AUDIT PACKAGES (CIOS) TAB */}
+        {activeTab === 'packages' && (
+          <div className="space-y-6">
+            {/* Header / Actions Banner */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-[var(--color-surface)] p-5 rounded-2xl border border-[var(--color-border)] shadow-sm gap-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-[#00B47A] animate-pulse" />
+                  <h3 className="text-sm font-bold uppercase tracking-wider text-[var(--color-text-primary)]">
+                    Automatic Verification Packages (CIOS Level 5)
+                  </h3>
+                </div>
+                <p className="text-xs text-[var(--color-text-secondary)] mt-1 max-w-2xl">
+                  Cryptographically sealed, canonical audit manifests compiled from the complete MRV graph for Puro.earth and third-party validation.
+                </p>
+              </div>
 
+              <div className="flex items-center gap-2.5 shrink-0">
+                <button
+                  onClick={loadPackagesData}
+                  disabled={isLoadingPackages}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-[var(--color-surface-hover)] border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-all"
+                  title="Refresh Packages"
+                >
+                  <RefreshCw size={13} className={isLoadingPackages ? "animate-spin" : ""} />
+                  <span>Refresh</span>
+                </button>
+
+                <button
+                  onClick={() => setShowCompileModal(true)}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#00B47A] hover:bg-[#009b68] shadow-md shadow-[#00B47A]/25 transition-all uppercase tracking-wider active:scale-95"
+                >
+                  <Plus size={14} />
+                  <span>Compile Audit Package</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Overview Metrics Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="bg-[var(--color-surface)] border border-[var(--color-border)] p-4 rounded-2xl shadow-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-[var(--color-text-secondary)] font-medium">Total Packages</span>
+                  <Layers size={16} className="text-blue-400" />
+                </div>
+                <p className="text-2xl font-bold text-[var(--color-text-primary)] mt-2 font-mono">
+                  {packages.length}
+                </p>
+                <p className="text-[10px] text-[var(--color-text-muted)] mt-1">
+                  Across registered projects
+                </p>
+              </div>
+
+              <div className="bg-[var(--color-surface)] border border-[var(--color-border)] p-4 rounded-2xl shadow-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-[var(--color-text-secondary)] font-medium">RSA Ledger Sealed</span>
+                  <Lock size={16} className="text-emerald-400" />
+                </div>
+                <p className="text-2xl font-bold text-emerald-400 mt-2 font-mono">
+                  {packages.filter(p => p.package_status === 'SEALED' || !!p.ledger_signature_id).length}
+                </p>
+                <p className="text-[10px] text-[var(--color-text-muted)] mt-1">
+                  Tamper-proof canonical signatures
+                </p>
+              </div>
+
+              <div className="bg-[var(--color-surface)] border border-[var(--color-border)] p-4 rounded-2xl shadow-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-[var(--color-text-secondary)] font-medium">In Review / Draft</span>
+                  <Clock size={16} className="text-amber-400" />
+                </div>
+                <p className="text-2xl font-bold text-amber-400 mt-2 font-mono">
+                  {packages.filter(p => p.package_status === 'IN_REVIEW' || p.package_status === 'DRAFT').length}
+                </p>
+                <p className="text-[10px] text-[var(--color-text-muted)] mt-1">
+                  Awaiting audit sign-off
+                </p>
+              </div>
+
+              <div className="bg-[var(--color-surface)] border border-[var(--color-border)] p-4 rounded-2xl shadow-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-[var(--color-text-secondary)] font-medium">Average Completeness</span>
+                  <FileCheck2 size={16} className="text-purple-400" />
+                </div>
+                <p className="text-2xl font-bold text-[var(--color-text-primary)] mt-2 font-mono">
+                  {packages.length > 0
+                    ? Math.round(packages.reduce((acc, p) => acc + (p.completeness_score || 0), 0) / packages.length)
+                    : 0}%
+                </p>
+                <p className="text-[10px] text-[var(--color-text-muted)] mt-1">
+                  Mandatory MRV evidence checks
+                </p>
+              </div>
+            </div>
+
+            {/* Packages List / Grid */}
+            {isLoadingPackages ? (
+              <div className="flex flex-col items-center justify-center py-16 space-y-2">
+                <div className="w-6 h-6 border-2 border-[#00B47A] border-t-transparent rounded-full animate-spin" />
+                <p className="text-xs text-[var(--color-text-secondary)] font-semibold">Loading verification packages...</p>
+              </div>
+            ) : packages.length === 0 ? (
+              <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-12 text-center max-w-md mx-auto shadow-sm space-y-3">
+                <PackageCheck size={40} className="mx-auto text-[var(--color-text-muted)] opacity-60" />
+                <h3 className="text-sm font-bold uppercase tracking-wider text-[var(--color-text-primary)]">
+                  No Verification Packages Yet
+                </h3>
+                <p className="text-xs text-[var(--color-text-secondary)] leading-relaxed">
+                  Compile your first MRV audit package to automatically aggregate feedstock logs, production runs, lab COAs, end-use records, and LCA balances into an immutable manifest.
+                </p>
+                <button
+                  onClick={() => setShowCompileModal(true)}
+                  className="mt-2 inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#00B47A] hover:bg-[#009b68] shadow-sm transition-all"
+                >
+                  <Plus size={14} />
+                  <span>Compile First Package</span>
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {packages.map((pkg) => {
+                  const isSealed = pkg.package_status === 'SEALED' || !!pkg.ledger_signature_id;
+                  const isAccepted = pkg.package_status === 'ACCEPTED';
+                  const isRevision = pkg.package_status === 'REVISION_REQUIRED';
+
+                  let statusBadgeClass = "bg-amber-500/15 text-amber-400 border-amber-500/30";
+                  if (isSealed) statusBadgeClass = "bg-emerald-500/15 text-emerald-400 border-emerald-500/30";
+                  if (isAccepted) statusBadgeClass = "bg-blue-500/15 text-blue-400 border-blue-500/30";
+                  if (isRevision) statusBadgeClass = "bg-purple-500/15 text-purple-400 border-purple-500/30";
+
+                  return (
+                    <div
+                      key={pkg.id}
+                      className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-5 flex flex-col justify-between gap-4 shadow-sm hover:border-[#00B47A]/40 transition-all group"
+                    >
+                      <div className="space-y-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h4 className="text-sm font-bold text-[var(--color-text-primary)] group-hover:text-[#00B47A] transition-colors">
+                                {pkg.package_name}
+                              </h4>
+                              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-500/15 text-blue-400 border border-blue-500/25 font-bold">
+                                v{pkg.package_version}.0
+                              </span>
+                            </div>
+                            <p className="text-[10px] text-[var(--color-text-muted)] font-mono mt-0.5">
+                              ID: {pkg.id}
+                            </p>
+                          </div>
+
+                          <span className={`text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full border uppercase tracking-wider shrink-0 ${statusBadgeClass}`}>
+                            {pkg.package_status}
+                          </span>
+                        </div>
+
+                        {/* Metadata Rows */}
+                        <div className="grid grid-cols-2 gap-2 text-xs bg-[var(--color-background)]/60 rounded-xl p-3 border border-[var(--color-border)]/60">
+                          <div>
+                            <span className="text-[10px] text-[var(--color-text-muted)] uppercase block">Registry Target</span>
+                            <span className="font-semibold text-[var(--color-text-primary)] font-mono text-[11px]">
+                              {pkg.registry_target}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] text-[var(--color-text-muted)] uppercase block">Audit Type</span>
+                            <span className="font-semibold text-[var(--color-text-primary)] text-[11px]">
+                              {pkg.audit_type.replace(/_/g, ' ')}
+                            </span>
+                          </div>
+                          <div className="col-span-2 pt-1 border-t border-[var(--color-border)]/40 flex items-center justify-between">
+                            <span className="text-[10px] text-[var(--color-text-muted)]">Monitoring Period:</span>
+                            <span className="text-[11px] font-mono text-[var(--color-text-secondary)] font-medium">
+                              {pkg.monitoring_period_start.slice(0, 10)} → {pkg.monitoring_period_end.slice(0, 10)}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Completeness Bar */}
+                        <div className="space-y-1">
+                          <div className="flex justify-between items-center text-[10px]">
+                            <span className="text-[var(--color-text-secondary)] font-medium">Audit Package Completeness</span>
+                            <span className={`font-mono font-bold ${pkg.completeness_score >= 100 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                              {pkg.completeness_score}%
+                            </span>
+                          </div>
+                          <div className="w-full bg-[var(--color-background)] rounded-full h-1.5 overflow-hidden border border-[var(--color-border)]">
+                            <div
+                              className={`h-full transition-all duration-500 rounded-full ${
+                                pkg.completeness_score >= 100 ? 'bg-emerald-400' : 'bg-amber-400'
+                              }`}
+                              style={{ width: `${Math.min(pkg.completeness_score, 100)}%` }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Manifest Hash */}
+                        <div className="flex items-center gap-1.5 text-[10px] font-mono text-[var(--color-text-muted)] bg-[var(--color-background)]/80 px-2.5 py-1.5 rounded-lg border border-[var(--color-border)]/50 truncate">
+                          <Lock size={12} className={isSealed ? "text-emerald-400 shrink-0" : "text-[var(--color-text-muted)] shrink-0"} />
+                          <span className="truncate">sha256:{pkg.manifest_hash}</span>
+                        </div>
+
+                        {/* Blockers if any */}
+                        {pkg.blocker_reasons && pkg.blocker_reasons.length > 0 && (
+                          <div className="text-[10px] text-amber-400 bg-amber-500/10 border border-amber-500/20 p-2 rounded-lg space-y-0.5">
+                            <span className="font-bold uppercase tracking-wider block">Completeness Gaps ({pkg.blocker_reasons.length}):</span>
+                            <p className="line-clamp-2">{pkg.blocker_reasons.join(", ")}</p>
+                          </div>
+                        )}
+                      </div>
+
+                      <Link
+                        href={`/dashboard/verifications/${pkg.id}`}
+                        className="w-full py-2.5 rounded-xl bg-[#00B47A] hover:bg-[#009b68] text-white font-bold text-xs text-center transition-all flex items-center justify-center gap-2 shadow-xs group-hover:shadow-md group-hover:shadow-[#00B47A]/20"
+                      >
+                        <ShieldCheck size={14} />
+                        <span>Open Auditor Workspace</span>
+                        <ArrowRight size={13} />
+                      </Link>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* AUDITS TAB */}
-
         {activeTab === 'audits' && (
 
           <div className="space-y-6">
@@ -947,8 +1193,142 @@ export default function VerificationsPage() {
 
       </div>
 
+      {/* COMPILE AUDIT PACKAGE MODAL */}
+      {showCompileModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-5 animate-scale-in">
+            <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-3">
+              <div className="flex items-center gap-2">
+                <Layers size={18} className="text-[#00B47A]" />
+                <h3 className="text-sm font-bold text-[var(--color-text-primary)] uppercase tracking-wider">
+                  Compile New Verification Package
+                </h3>
+              </div>
+              <button
+                onClick={() => setShowCompileModal(false)}
+                className="p-1 rounded-lg hover:bg-[var(--color-background)] text-[var(--color-text-secondary)]"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={handleCompilePackage} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-[var(--color-text-secondary)]">Target Project</label>
+                {availableProjects.length > 0 ? (
+                  <select
+                    value={compileProjectId}
+                    onChange={(e) => setCompileProjectId(e.target.value)}
+                    required
+                    className="w-full px-3 py-2 text-xs rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] text-[var(--color-text-primary)] focus:outline-none focus:border-[#00B47A]"
+                  >
+                    {availableProjects.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} ({p.project_code || p.id.slice(0, 8)})
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    value={compileProjectId}
+                    onChange={(e) => setCompileProjectId(e.target.value)}
+                    placeholder="Enter Project UUID"
+                    required
+                    className="w-full px-3 py-2 text-xs rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] text-[var(--color-text-primary)] font-mono focus:outline-none focus:border-[#00B47A]"
+                  />
+                )}
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-[var(--color-text-secondary)]">Package Name</label>
+                <input
+                  type="text"
+                  value={compilePackageName}
+                  onChange={(e) => setCompilePackageName(e.target.value)}
+                  placeholder="e.g. Puro Biochar Q1-Q2 2026 Annual Audit Package"
+                  required
+                  className="w-full px-3 py-2 text-xs rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] text-[var(--color-text-primary)] focus:outline-none focus:border-[#00B47A]"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-[var(--color-text-secondary)]">Registry Target</label>
+                  <select
+                    value={compileRegistryTarget}
+                    onChange={(e) => setCompileRegistryTarget(e.target.value)}
+                    className="w-full px-3 py-2 text-xs rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] text-[var(--color-text-primary)] focus:outline-none focus:border-[#00B47A]"
+                  >
+                    <option value="PURO_EARTH">Puro.earth (CORC)</option>
+                    <option value="VERRA_VCS">Verra VCS</option>
+                    <option value="GOLD_STANDARD">Gold Standard</option>
+                    <option value="GENERIC_CIOS">Generic CIOS Audit</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-[var(--color-text-secondary)]">Audit Type</label>
+                  <select
+                    value={compileAuditType}
+                    onChange={(e) => setCompileAuditType(e.target.value)}
+                    className="w-full px-3 py-2 text-xs rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] text-[var(--color-text-primary)] focus:outline-none focus:border-[#00B47A]"
+                  >
+                    <option value="ANNUAL_VERIFICATION">Annual Verification</option>
+                    <option value="INITIAL_ACCREDITATION">Initial Accreditation</option>
+                    <option value="INTERIM_MONITORING">Interim Monitoring</option>
+                    <option value="SPOT_CHECK">Spot Check</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-[var(--color-text-secondary)]">Period Start (ISO)</label>
+                  <input
+                    type="text"
+                    value={compileStartDate}
+                    onChange={(e) => setCompileStartDate(e.target.value)}
+                    placeholder="YYYY-MM-DDTHH:mm:ssZ"
+                    required
+                    className="w-full px-3 py-2 text-xs rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] text-[var(--color-text-primary)] font-mono focus:outline-none focus:border-[#00B47A]"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-[var(--color-text-secondary)]">Period End (ISO)</label>
+                  <input
+                    type="text"
+                    value={compileEndDate}
+                    onChange={(e) => setCompileEndDate(e.target.value)}
+                    placeholder="YYYY-MM-DDTHH:mm:ssZ"
+                    required
+                    className="w-full px-3 py-2 text-xs rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] text-[var(--color-text-primary)] font-mono focus:outline-none focus:border-[#00B47A]"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-[var(--color-border)]">
+                <button
+                  type="button"
+                  onClick={() => setShowCompileModal(false)}
+                  className="px-4 py-2 text-xs rounded-xl border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] font-semibold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isCompiling}
+                  className="flex items-center gap-2 px-5 py-2 text-xs font-bold text-white bg-[#00B47A] hover:bg-[#009b68] rounded-xl shadow-md transition-all uppercase tracking-wider disabled:opacity-50"
+                >
+                  {isCompiling ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+                  <span>{isCompiling ? "Compiling Graph..." : "Compile Package"}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
-
   );
-
 }

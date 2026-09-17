@@ -232,6 +232,10 @@ ROLE_PERMISSIONS: Dict[str, Set[str]] = {
         "report:read",
         "ledger:read",
         "audit:read",
+        "audit:package:compile",
+        "audit:package:read",
+        "audit:finding:respond",
+        "audit:grant:manage",
         "compliance:read",
         "registry:read",
         "finance:read",
@@ -250,6 +254,9 @@ ROLE_PERMISSIONS: Dict[str, Set[str]] = {
         "report:read",
         "ledger:read",
         "audit:read",
+        "audit:package:compile",
+        "audit:package:read",
+        "audit:finding:respond",
         "compliance:read",
         "registry:read",
         "registry:prepare",
@@ -280,6 +287,10 @@ ROLE_PERMISSIONS: Dict[str, Set[str]] = {
         "report:all",
         "report:read",
         "ledger:read",
+        "audit:read",
+        "audit:package:compile",
+        "audit:package:read",
+        "audit:finding:respond",
     },
     ROLE_VERIFIER: {
         "org:read",
@@ -291,6 +302,10 @@ ROLE_PERMISSIONS: Dict[str, Set[str]] = {
         "ledger:read",
         "audit:read",
         "audit:write",
+        "audit:package:read",
+        "audit:package:sign",
+        "audit:finding:create",
+        "audit:finding:resolve",
         "verification:sign",
     },
     ROLE_AUDITOR: {
@@ -302,6 +317,10 @@ ROLE_PERMISSIONS: Dict[str, Set[str]] = {
         "ledger:read",
         "audit:read",
         "audit:write",
+        "audit:package:read",
+        "audit:package:sign",
+        "audit:finding:create",
+        "audit:finding:resolve",
     },
     ROLE_COMPLIANCE_ADMIN: {
         "org:read",
@@ -409,7 +428,7 @@ def validate_separation_of_duties(actor: User, project_developer_id: Optional[UU
         return
 
     # Verifier/Auditor credential check
-    if action in ("VERIFY", "AUDIT", "SIGN_OFF"):
+    if action in ("VERIFY", "AUDIT", "SIGN_OFF", "CREATE_FINDING", "RESOLVE_FINDING"):
         if canonical_role not in (ROLE_VERIFIER, ROLE_AUDITOR):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -419,5 +438,13 @@ def validate_separation_of_duties(actor: User, project_developer_id: Optional[UU
         if project_developer_id and str(actor.id).lower() == str(project_developer_id).lower():
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Separation of Duties Violation: Project developer cannot independently audit, verify, or sign off their own project.",
+                detail="Separation of Duties Violation: Project developer cannot independently audit, verify, create findings, or resolve findings for their own project.",
+            )
+
+    # Project Developer action check (auditors cannot act as project developers)
+    if action in ("RESPOND_FINDING", "COMPILE_PACKAGE"):
+        if canonical_role in (ROLE_VERIFIER, ROLE_AUDITOR):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Separation of Duties Violation: Independent auditor/verifier cannot perform project developer action '{action}'.",
             )

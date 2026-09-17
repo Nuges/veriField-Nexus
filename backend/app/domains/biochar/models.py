@@ -298,6 +298,7 @@ class BiocharBatch(Base):
     material_transactions = relationship("BiocharMaterialTransaction", back_populates="batch", cascade="all, delete-orphan")
     end_uses = relationship("BiocharEndUseRecord", back_populates="batch", cascade="all, delete-orphan")
     storage_events = relationship("BiocharStorageEvent", back_populates="batch", cascade="all, delete-orphan")
+    product_allocations = relationship("BiocharIngredientAllocation", back_populates="biochar_batch", cascade="all, delete-orphan")
 
 
 class BiocharInventory(Base):
@@ -518,6 +519,109 @@ class BiocharCarbonPoolClaim(Base):
     # Relationships
     organization = relationship("Organization")
     project = relationship("Project")
+
+
+class BiocharProductFormulation(Base):
+    """
+    Biochar Mixed Product Formulation.
+    Defines recipes for blending biochar into end-use products (e.g. soil amendments, compost blends,
+    building materials, asphalt/concrete mixes).
+    """
+    __tablename__ = "biochar_product_formulations"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    project_id = Column(UUID(as_uuid=True), ForeignKey("projects.id", ondelete="SET NULL"), nullable=True, index=True)
+
+    product_name = Column(String(255), nullable=False)
+    product_code = Column(String(50), nullable=False, unique=True, index=True)
+    target_sector = Column(String(100), nullable=False)  # AGRICULTURE_SOIL_AMENDMENT, URBAN_GREENING, CONSTRUCTION_CONCRETE, WATER_TREATMENT
+    description = Column(Text, nullable=True)
+    biochar_target_ratio = Column(Float, nullable=False, default=0.5)
+    is_active = Column(Boolean, nullable=False, default=True)
+
+    metadata_json = Column(JSON, default=dict)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), server_default=func.now(), onupdate=func.now())
+
+    # Relationships
+    organization = relationship("Organization")
+    project = relationship("Project")
+    batches = relationship("BiocharProductBatch", back_populates="formulation", cascade="all, delete-orphan")
+
+
+class BiocharProductBatch(Base):
+    """
+    Manufactured batch of mixed biochar product.
+    Contains mass balance accounting for pure biochar fraction and non-biochar ingredients.
+    """
+    __tablename__ = "biochar_product_batches"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    project_id = Column(UUID(as_uuid=True), ForeignKey("projects.id", ondelete="SET NULL"), nullable=True, index=True)
+    formulation_id = Column(UUID(as_uuid=True), ForeignKey("biochar_product_formulations.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    batch_number = Column(String(50), nullable=False, unique=True, index=True)
+    production_date = Column(DateTime(timezone=True), nullable=False)
+    total_product_mass_tonnes = Column(Numeric(18, 6), nullable=False)
+    biochar_mass_tonnes = Column(Numeric(18, 6), nullable=False)
+    non_biochar_mass_tonnes = Column(Numeric(18, 6), nullable=False, default=0.0)
+    packaging_type = Column(String(100), nullable=True)
+    storage_location = Column(String(255), nullable=True)
+    qa_status = Column(String(50), nullable=False, default="APPROVED")
+
+    metadata_json = Column(JSON, default=dict)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), server_default=func.now())
+
+    # Relationships
+    organization = relationship("Organization")
+    project = relationship("Project")
+    formulation = relationship("BiocharProductFormulation", back_populates="batches")
+    ingredient_allocations = relationship("BiocharIngredientAllocation", back_populates="product_batch", cascade="all, delete-orphan")
+    non_biochar_ingredients = relationship("BiocharProductNonBiocharIngredient", back_populates="product_batch", cascade="all, delete-orphan")
+
+
+class BiocharIngredientAllocation(Base):
+    """
+    Junction entity allocating pure BiocharBatch tonnes into a BiocharProductBatch.
+    Guarantees anti-overallocation: sum(allocated_biochar_mass_tonnes) <= biochar_batch.biochar_yield_tonnes.
+    """
+    __tablename__ = "biochar_product_ingredient_allocations"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    product_batch_id = Column(UUID(as_uuid=True), ForeignKey("biochar_product_batches.id", ondelete="CASCADE"), nullable=False, index=True)
+    biochar_batch_id = Column(UUID(as_uuid=True), ForeignKey("biochar_batches.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    allocated_biochar_mass_tonnes = Column(Numeric(18, 6), nullable=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), server_default=func.now())
+
+    # Relationships
+    product_batch = relationship("BiocharProductBatch", back_populates="ingredient_allocations")
+    biochar_batch = relationship("BiocharBatch", back_populates="product_allocations")
+
+
+class BiocharProductNonBiocharIngredient(Base):
+    """
+    Non-biochar ingredients in a mixed product batch (e.g. compost, sand, binder, microbes).
+    """
+    __tablename__ = "biochar_product_non_biochar_ingredients"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    product_batch_id = Column(UUID(as_uuid=True), ForeignKey("biochar_product_batches.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    ingredient_name = Column(String(255), nullable=False)
+    ingredient_type = Column(String(100), nullable=False)  # COMPOST, MINERAL_FERTILIZER, SAND, CLAY, CEMENT, BINDER
+    mass_tonnes = Column(Numeric(18, 6), nullable=False)
+    mass_pct = Column(Float, nullable=False)
+    cas_number = Column(String(50), nullable=True)
+    supplier = Column(String(255), nullable=True)
+
+    metadata_json = Column(JSON, default=dict)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), server_default=func.now())
+
+    # Relationships
+    product_batch = relationship("BiocharProductBatch", back_populates="non_biochar_ingredients")
 
 
 # Re-export Puro.earth Biochar Edition 2025 V2 methodology models

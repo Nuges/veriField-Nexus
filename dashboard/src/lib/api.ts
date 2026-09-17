@@ -28,7 +28,7 @@ import type {
   StandardApiResponse,
 } from "./types";
 
-export type { CarbonMintResponse, LedgerTransaction };
+export type { CarbonMintResponse, LedgerTransaction, Project };
 
 import { safeStorage } from "./storage";
 
@@ -3531,4 +3531,353 @@ export async function fetchTreeObservations(projectId?: string, landUnitId?: str
   if (landUnitId) params.set("land_unit_id", landUnitId);
   const qs = params.toString() ? `?${params.toString()}` : "";
   return apiFetch<TreeObservationRecord[]>(`/agriculture/tree-observations${qs}`).catch(() => []);
+}
+
+// ---------------------------------------------------------------------------
+// Verification Packages & Auditor Workspace Types & Client APIs
+// ---------------------------------------------------------------------------
+
+export interface VerificationPackageSummary {
+  id: string;
+  project_id: string;
+  organization_id: string;
+  monitoring_period_start: string;
+  monitoring_period_end: string;
+  package_name: string;
+  package_version: number;
+  parent_package_id?: string | null;
+  package_status: string;
+  registry_target: string;
+  audit_type: string;
+  manifest_hash: string;
+  ledger_signature_id?: string | null;
+  sealed_at?: string | null;
+  completeness_score: number;
+  blocker_reasons: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface VerificationPackageDetail extends VerificationPackageSummary {
+  manifest_json: Record<string, any>;
+  diff_summary_json: Record<string, any>;
+  sealed_by_user_id?: string | null;
+}
+
+export interface VerificationPackageFindingItem {
+  id: string;
+  package_id: string;
+  finding_number: string;
+  finding_type: "CAR" | "CL" | "FAR" | "NCR";
+  severity: "CRITICAL" | "MAJOR" | "MINOR" | "OBSERVATION";
+  title: string;
+  description: string;
+  target_domain: string;
+  target_record_id?: string | null;
+  target_field?: string | null;
+  status: "OPEN" | "RESPONSE_SUBMITTED" | "RESOLVED" | "CLOSED";
+  auditor_user_id?: string | null;
+  auditor_organization?: string | null;
+  project_response?: string | null;
+  response_submitted_at?: string | null;
+  resolved_at?: string | null;
+  resolution_notes?: string | null;
+  resolution_package_id?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface VerificationPackageEvidenceItem {
+  id: string;
+  package_id: string;
+  evidence_category: string;
+  reference_domain: string;
+  reference_id: string;
+  title: string;
+  file_name: string;
+  file_uri: string;
+  file_size_bytes: number;
+  sha256_hash: string;
+  verified_hash?: string | null;
+  integrity_status: "VERIFIED" | "INTEGRITY_MISMATCH" | "UNVERIFIED";
+  uploaded_at?: string | null;
+  created_at: string;
+}
+
+export interface VerificationAccessGrantItem {
+  id: string;
+  package_id: string;
+  auditor_user_id?: string | null;
+  auditor_email: string;
+  auditor_organization: string;
+  grantee_role: string;
+  is_active: boolean;
+  expires_at?: string | null;
+  last_accessed_at?: string | null;
+  created_at: string;
+}
+
+export interface MultiBiomassBlendComponent {
+  lot_id: string;
+  lot_number: string;
+  source_id: string;
+  source_code: string;
+  source_name: string;
+  biomass_type: string;
+  waste_status: string;
+  baseline_fate: string;
+  sustainability_status: string;
+  allocated_wet_mass_tonnes: number;
+  allocated_dry_mass_tonnes: number;
+  blend_pct_wet_basis: number;
+  blend_pct_dry_basis: number;
+  moisture_content_pct: number;
+}
+
+export interface MultiBiomassBlendBreakdown {
+  production_run_id: string;
+  run_number: string;
+  total_wet_mass_tonnes: number;
+  total_dry_mass_tonnes: number;
+  component_count: number;
+  components: MultiBiomassBlendComponent[];
+}
+
+export interface BiocharProductFormulationItem {
+  id: string;
+  organization_id: string;
+  project_id?: string | null;
+  product_name: string;
+  product_code: string;
+  target_sector: string;
+  description?: string | null;
+  biochar_target_ratio: number;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface BiocharProductBatchItem {
+  id: string;
+  organization_id: string;
+  project_id?: string | null;
+  formulation_id: string;
+  batch_number: string;
+  production_date: string;
+  total_product_mass_tonnes: number;
+  biochar_mass_tonnes: number;
+  non_biochar_mass_tonnes: number;
+  packaging_type?: string | null;
+  storage_location?: string | null;
+  created_at: string;
+}
+
+export async function fetchVerificationPackages(
+  projectId?: string,
+  packageStatus?: string
+): Promise<VerificationPackageSummary[]> {
+  const params = new URLSearchParams();
+  if (projectId) params.set("project_id", projectId);
+  if (packageStatus) params.set("package_status", packageStatus);
+  const qs = params.toString() ? `?${params.toString()}` : "";
+  return apiFetch<VerificationPackageSummary[]>(`/verification/packages${qs}`).catch(() => []);
+}
+
+export async function fetchVerificationPackage(packageId: string): Promise<VerificationPackageDetail> {
+  return apiFetch<VerificationPackageDetail>(`/verification/packages/${packageId}`);
+}
+
+export async function compileVerificationPackage(data: {
+  project_id: string;
+  monitoring_period_start: string;
+  monitoring_period_end: string;
+  package_name: string;
+  registry_target?: string;
+  audit_type?: string;
+}): Promise<VerificationPackageDetail> {
+  return apiFetch<VerificationPackageDetail>("/verification/packages/compile", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function sealVerificationPackage(packageId: string): Promise<VerificationPackageDetail> {
+  return apiFetch<VerificationPackageDetail>(`/verification/packages/${packageId}/seal`, {
+    method: "POST",
+  });
+}
+
+export async function fetchPackageEvidence(packageId: string): Promise<VerificationPackageEvidenceItem[]> {
+  return apiFetch<VerificationPackageEvidenceItem[]>(`/verification/packages/${packageId}/evidence`).catch(() => []);
+}
+
+export async function verifyEvidenceIntegrity(
+  packageId: string,
+  evidenceId: string
+): Promise<VerificationPackageEvidenceItem> {
+  return apiFetch<VerificationPackageEvidenceItem>(
+    `/verification/packages/${packageId}/evidence/${evidenceId}/verify`,
+    {
+      method: "POST",
+    }
+  );
+}
+
+export async function verifyAllEvidenceIntegrity(packageId: string): Promise<{
+  total_evidence_items: number;
+  verified_count: number;
+  mismatch_count: number;
+  unverified_count: number;
+  all_passed: boolean;
+}> {
+  return apiFetch<{
+    total_evidence_items: number;
+    verified_count: number;
+    mismatch_count: number;
+    unverified_count: number;
+    all_passed: boolean;
+  }>(`/verification/packages/${packageId}/evidence/verify-all`, {
+    method: "POST",
+  });
+}
+
+export async function fetchPackageFindings(
+  packageId: string,
+  filters?: { status?: string; severity?: string; domain?: string }
+): Promise<VerificationPackageFindingItem[]> {
+  const params = new URLSearchParams();
+  if (filters?.status) params.set("status", filters.status);
+  if (filters?.severity) params.set("severity", filters.severity);
+  if (filters?.domain) params.set("domain", filters.domain);
+  const qs = params.toString() ? `?${params.toString()}` : "";
+  return apiFetch<VerificationPackageFindingItem[]>(`/verification/packages/${packageId}/findings${qs}`).catch(() => []);
+}
+
+export async function createPackageFinding(
+  packageId: string,
+  data: {
+    finding_type: string;
+    severity: string;
+    title: string;
+    description: string;
+    target_domain: string;
+    target_record_id?: string;
+    target_field?: string;
+  }
+): Promise<VerificationPackageFindingItem> {
+  return apiFetch<VerificationPackageFindingItem>(`/verification/packages/${packageId}/findings`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function respondToFinding(
+  findingId: string,
+  data: { project_response: string }
+): Promise<VerificationPackageFindingItem> {
+  return apiFetch<VerificationPackageFindingItem>(`/verification/findings/${findingId}/respond`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function resolveFinding(
+  findingId: string,
+  data: { status_action: "RESOLVED" | "CLOSED"; resolution_notes: string }
+): Promise<VerificationPackageFindingItem> {
+  return apiFetch<VerificationPackageFindingItem>(`/verification/findings/${findingId}/resolve`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function recordAuditDecision(
+  packageId: string,
+  data: { decision: "VERIFIED" | "REJECTED"; decision_notes: string }
+): Promise<VerificationPackageDetail> {
+  return apiFetch<VerificationPackageDetail>(`/verification/packages/${packageId}/decision`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function fetchPackageGrants(packageId: string): Promise<VerificationAccessGrantItem[]> {
+  return apiFetch<VerificationAccessGrantItem[]>(`/verification/packages/${packageId}/grants`).catch(() => []);
+}
+
+export async function grantAuditorAccess(
+  packageId: string,
+  data: {
+    auditor_email: string;
+    auditor_organization: string;
+    grantee_role?: string;
+    expires_at?: string;
+  }
+): Promise<VerificationAccessGrantItem> {
+  return apiFetch<VerificationAccessGrantItem>(`/verification/packages/${packageId}/grants`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function exportPackageBundle(packageId: string): Promise<Record<string, any>> {
+  return apiFetch<Record<string, any>>(`/verification/packages/${packageId}/export`);
+}
+
+export async function fetchFeedstockBlendBreakdown(runId: string): Promise<MultiBiomassBlendBreakdown> {
+  return apiFetch<MultiBiomassBlendBreakdown>(`/biochar/runs/${runId}/blend-breakdown`);
+}
+
+export async function fetchProductFormulations(projectId?: string): Promise<BiocharProductFormulationItem[]> {
+  const query = projectId ? `?project_id=${projectId}` : "";
+  return apiFetch<BiocharProductFormulationItem[]>(`/biochar/product-formulations${query}`).catch(() => []);
+}
+
+export async function createProductFormulation(data: {
+  product_name: string;
+  product_code: string;
+  target_sector: string;
+  description?: string;
+  biochar_target_ratio?: number;
+  project_id?: string;
+}): Promise<BiocharProductFormulationItem> {
+  return apiFetch<BiocharProductFormulationItem>("/biochar/product-formulations", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function fetchProductBatches(
+  projectId?: string,
+  formulationId?: string
+): Promise<BiocharProductBatchItem[]> {
+  const params = new URLSearchParams();
+  if (projectId) params.set("project_id", projectId);
+  if (formulationId) params.set("formulation_id", formulationId);
+  const qs = params.toString() ? `?${params.toString()}` : "";
+  return apiFetch<BiocharProductBatchItem[]>(`/biochar/product-batches${qs}`).catch(() => []);
+}
+
+export async function createProductBatch(data: {
+  formulation_id: string;
+  batch_number: string;
+  production_date: string;
+  total_product_mass_tonnes: number;
+  biochar_mass_tonnes: number;
+  non_biochar_mass_tonnes?: number;
+  packaging_type?: string;
+  storage_location?: string;
+  biochar_batch_allocations: { biochar_batch_id: string; allocated_biochar_mass_tonnes: number }[];
+  non_biochar_ingredients?: {
+    ingredient_name: string;
+    ingredient_type: string;
+    mass_tonnes: number;
+    mass_pct: number;
+    supplier?: string;
+  }[];
+  project_id?: string;
+}): Promise<BiocharProductBatchItem> {
+  return apiFetch<BiocharProductBatchItem>("/biochar/product-batches", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
 }

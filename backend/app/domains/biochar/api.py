@@ -21,6 +21,10 @@ from app.domains.biochar.models import (
     BiocharMaterialTransaction,
     BiocharStorageEvent,
     BiocharTransportEvent,
+    BiocharProductFormulation,
+    BiocharProductBatch,
+    BiocharIngredientAllocation,
+    BiocharProductNonBiocharIngredient,
     FacilityReactor,
     FeedstockLot,
     FeedstockRunAllocation,
@@ -37,6 +41,10 @@ from app.domains.biochar.schemas import (
     BiocharLabAnalysisCreate,
     BiocharLabAnalysisResponse,
     BiocharMaterialTransactionResponse,
+    BiocharProductBatchCreate,
+    BiocharProductBatchResponse,
+    BiocharProductFormulationCreate,
+    BiocharProductFormulationResponse,
     BiocharStorageEventCreate,
     BiocharStorageEventResponse,
     BiocharSummaryResponse,
@@ -53,6 +61,8 @@ from app.domains.biochar.schemas import (
     FeedstockSourceResponse,
     MassBalanceReconciliationResponse,
     MethodologyConflictResponse,
+    MultiBiomassBlendBreakdownResponse,
+    MultiBiomassBlendComponent,
     ProductionFacilityCreate,
     ProductionFacilityResponse,
     ProductionRunCreate,
@@ -941,6 +951,296 @@ async def get_biochar_summary(
         "grade_a_percentage": round(grade_a_pct, 1),
         "detected_anomalies_count": row.anomaly_count or 0,
     }
+
+
+# ---------------------------------------------------------------------------
+# Multi-Biomass Feedstock Blend & Product Formulation Endpoints
+# ---------------------------------------------------------------------------
+
+@router.get(
+    "/runs/{run_id}/blend-breakdown",
+    response_model=MultiBiomassBlendBreakdownResponse,
+)
+async def get_run_feedstock_blend_breakdown(
+    run_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Returns the multi-biomass feedstock blend ingredients breakdown for a production run.
+    Calculates wet mass, dry mass, moisture content, blend percentages, baseline fate,
+    and sustainability status for each allocated feedstock lot.
+    """
+    from sqlalchemy.orm import selectinload
+    stmt = (
+        select(ProductionRun)
+        .options(
+            selectinload(ProductionRun.allocations)
+            .selectinload(FeedstockRunAllocation.lot)
+            .selectinload(FeedstockLot.source)
+        )
+        .where(ProductionRun.id == run_id)
+    )
+    res = await db.execute(stmt)
+    run = res.scalar_one_or_none()
+    if not run:
+        raise HTTPException(status_code=404, detail=f"Production Run {run_id} not found")
+
+    total_wet = float(run.total_feedstock_input_tonnes or 0.0)
+    total_dry = float(run.total_feedstock_dry_tonnes or 0.0)
+
+    components = []
+    for alloc in run.allocations:
+        lot = alloc.lot
+        source = lot.source if lot else None
+        wet = float(alloc.allocated_wet_mass_tonnes)
+        dry = float(alloc.allocated_dry_mass_tonnes)
+        wet_pct = (wet / total_wet * 100.0) if total_wet > 0 else 0.0
+        dry_pct = (dry / total_dry * 100.0) if total_dry > 0 else 0.0
+
+        components.append(
+            MultiBiomassBlendComponent(
+                source_id=source.id if source else uuid.uuid4(),
+                source_code=source.source_code if source else "UNKNOWN",
+                source_name=source.source_name if source else "Unknown Source",
+                source_type=source.source_type if source else "AGRICULTURAL_RESIDUE",
+                biomass_type=source.biomass_type if source else "CROP_RESIDUE",
+                baseline_fate=source.baseline_fate if source else "OPEN_BURNING",
+                sustainability_status=source.sustainability_status if source else "LOW_RISK",
+                lot_id=lot.id if lot else alloc.lot_id,
+                lot_number=lot.lot_number if lot else "N/A",
+                wet_mass_tonnes=round(wet, 4),
+                dry_mass_tonnes=round(dry, 4),
+                wet_mass_pct=round(wet_pct, 2),
+                dry_mass_pct=round(dry_pct, 2),
+                moisture_content_pct=float(lot.moisture_content_pct) if lot else 0.0,
+            )
+        )
+
+    return MultiBiomassBlendBreakdownResponse(
+        production_run_id=run.id,
+        run_number=run.run_number,
+        total_wet_mass_tonnes=round(total_wet, 4),
+        total_dry_mass_tonnes=round(total_dry, 4),
+        component_count=len(components),
+        components=components,
+    )
+
+
+@router.post(
+    "/product-formulations",
+    response_model=BiocharProductFormulationResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_product_formulation(
+    payload: BiocharProductFormulationCreate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Creates a mixed biochar product formulation recipe."""
+    org_id = current_user.organization_id
+    if not org_id:
+        raise HTTPException(status_code=400, detail="User does not belong to an organization")
+
+    formulation = BiocharProductFormulation(
+        organization_id=org_id,
+        project_id=payload.project_id,
+        product_name=payload.product_name,
+        product_code=payload.product_code,
+        target_sector=payload.target_sector,
+        description=payload.description,
+        biochar_target_ratio=payload.biochar_target_ratio,
+        is_active=payload.is_active,
+    )
+    db.add(formulation)
+    await db.commit()
+    await db.refresh(formulation)
+    return formulation
+
+
+@router.get(
+    "/product-formulations",
+    response_model=List[BiocharProductFormulationResponse],
+)
+async def list_product_formulations(
+    project_id: Optional[UUID] = None,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Lists biochar product formulations for project or organization."""
+    stmt = select(BiocharProductFormulation)
+    if project_id:
+        stmt = stmt.where(
+            (BiocharProductFormulation.project_id == project_id)
+            | (BiocharProductFormulation.project_id.is_(None))
+        )
+    elif current_user.role != "SUPER_ADMIN" and current_user.organization_id:
+        stmt = stmt.where(BiocharProductFormulation.organization_id == current_user.organization_id)
+
+    res = await db.execute(stmt)
+    return res.scalars().all()
+
+
+@router.post(
+    "/product-batches",
+    response_model=BiocharProductBatchResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_product_batch(
+    payload: BiocharProductBatchCreate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Manufactures a mixed biochar product batch with mass balance verification.
+    Allocates pure biochar from batches and enforces anti-overallocation.
+    """
+    org_id = current_user.organization_id
+    if not org_id:
+        raise HTTPException(status_code=400, detail="User does not belong to an organization")
+
+    product_batch = BiocharProductBatch(
+        organization_id=org_id,
+        project_id=payload.project_id,
+        formulation_id=payload.formulation_id,
+        batch_number=payload.batch_number,
+        production_date=payload.production_date,
+        total_product_mass_tonnes=payload.total_product_mass_tonnes,
+        biochar_mass_tonnes=payload.biochar_mass_tonnes,
+        non_biochar_mass_tonnes=payload.non_biochar_mass_tonnes,
+        packaging_type=payload.packaging_type,
+        storage_location=payload.storage_location,
+        qa_status="APPROVED",
+    )
+    db.add(product_batch)
+    await db.flush()
+
+    allocations_out = []
+    # Atomically allocate biochar from each contributing batch
+    for alloc_input in payload.biochar_batch_allocations:
+        alloc = await BiocharMassBalanceEngine.allocate_batch_to_product_batch(
+            db=db,
+            biochar_batch_id=alloc_input.biochar_batch_id,
+            product_batch_id=product_batch.id,
+            allocated_biochar_mass_tonnes=alloc_input.allocated_biochar_mass_tonnes,
+        )
+        allocations_out.append({
+            "allocation_id": str(alloc.id),
+            "biochar_batch_id": str(alloc.biochar_batch_id),
+            "allocated_biochar_mass_tonnes": float(alloc.allocated_biochar_mass_tonnes),
+        })
+
+    # Record non-biochar ingredients
+    non_biochar_out = []
+    for non_b in payload.non_biochar_ingredients:
+        ing = BiocharProductNonBiocharIngredient(
+            product_batch_id=product_batch.id,
+            ingredient_name=non_b.ingredient_name,
+            ingredient_type=non_b.ingredient_type,
+            mass_tonnes=non_b.mass_tonnes,
+            mass_pct=non_b.mass_pct,
+            cas_number=non_b.cas_number,
+            supplier=non_b.supplier,
+        )
+        db.add(ing)
+        non_biochar_out.append({
+            "ingredient_name": ing.ingredient_name,
+            "ingredient_type": ing.ingredient_type,
+            "mass_tonnes": float(ing.mass_tonnes),
+            "mass_pct": ing.mass_pct,
+            "supplier": ing.supplier,
+        })
+
+    await db.commit()
+    await db.refresh(product_batch)
+
+    return BiocharProductBatchResponse(
+        id=product_batch.id,
+        organization_id=product_batch.organization_id,
+        project_id=product_batch.project_id,
+        formulation_id=product_batch.formulation_id,
+        batch_number=product_batch.batch_number,
+        production_date=product_batch.production_date,
+        total_product_mass_tonnes=float(product_batch.total_product_mass_tonnes),
+        biochar_mass_tonnes=float(product_batch.biochar_mass_tonnes),
+        non_biochar_mass_tonnes=float(product_batch.non_biochar_mass_tonnes),
+        packaging_type=product_batch.packaging_type,
+        storage_location=product_batch.storage_location,
+        qa_status=product_batch.qa_status,
+        created_at=product_batch.created_at,
+        allocations=allocations_out,
+        non_biochar_ingredients=non_biochar_out,
+    )
+
+
+@router.get(
+    "/product-batches",
+    response_model=List[BiocharProductBatchResponse],
+)
+async def list_product_batches(
+    project_id: Optional[UUID] = None,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Lists manufactured product batches with ingredient allocations."""
+    from sqlalchemy.orm import selectinload
+    stmt = (
+        select(BiocharProductBatch)
+        .options(
+            selectinload(BiocharProductBatch.ingredient_allocations),
+            selectinload(BiocharProductBatch.non_biochar_ingredients),
+        )
+        .order_by(BiocharProductBatch.production_date.desc())
+    )
+    if project_id:
+        stmt = stmt.where(
+            (BiocharProductBatch.project_id == project_id)
+            | (BiocharProductBatch.project_id.is_(None))
+        )
+    elif current_user.role != "SUPER_ADMIN" and current_user.organization_id:
+        stmt = stmt.where(BiocharProductBatch.organization_id == current_user.organization_id)
+
+    res = await db.execute(stmt)
+    batches = res.scalars().all()
+
+    resp = []
+    for b in batches:
+        resp.append(
+            BiocharProductBatchResponse(
+                id=b.id,
+                organization_id=b.organization_id,
+                project_id=b.project_id,
+                formulation_id=b.formulation_id,
+                batch_number=b.batch_number,
+                production_date=b.production_date,
+                total_product_mass_tonnes=float(b.total_product_mass_tonnes),
+                biochar_mass_tonnes=float(b.biochar_mass_tonnes),
+                non_biochar_mass_tonnes=float(b.non_biochar_mass_tonnes),
+                packaging_type=b.packaging_type,
+                storage_location=b.storage_location,
+                qa_status=b.qa_status,
+                created_at=b.created_at,
+                allocations=[
+                    {
+                        "allocation_id": str(a.id),
+                        "biochar_batch_id": str(a.biochar_batch_id),
+                        "allocated_biochar_mass_tonnes": float(a.allocated_biochar_mass_tonnes),
+                    }
+                    for a in b.ingredient_allocations
+                ],
+                non_biochar_ingredients=[
+                    {
+                        "ingredient_name": n.ingredient_name,
+                        "ingredient_type": n.ingredient_type,
+                        "mass_tonnes": float(n.mass_tonnes),
+                        "mass_pct": n.mass_pct,
+                        "supplier": n.supplier,
+                    }
+                    for n in b.non_biochar_ingredients
+                ],
+            )
+        )
+    return resp
 
 
 # Include Puro.earth Biochar Edition 2025 V2 Methodology Router

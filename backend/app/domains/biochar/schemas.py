@@ -486,6 +486,7 @@ class MassBalanceReconciliationResponse(BaseModel):
     original_produced_mass_tonnes: float
     current_inventory_tonnes: float
     terminal_end_use_tonnes: float
+    product_allocations_tonnes: float = 0.0
     documented_losses_tonnes: float
     rejected_tonnes: float
     total_reconciled_tonnes: float
@@ -556,3 +557,111 @@ class BiocharSummaryResponse(BaseModel):
     total_net_co2e_removed_tonnes: float
     grade_a_percentage: float
     detected_anomalies_count: int
+
+
+# ---------------------------------------------------------------------------
+# Multi-Biomass Feedstock Blend Schemas
+# ---------------------------------------------------------------------------
+
+class MultiBiomassBlendComponent(BaseModel):
+    source_id: UUID
+    source_code: str
+    source_name: str
+    source_type: str
+    biomass_type: str
+    baseline_fate: str
+    sustainability_status: str
+    lot_id: UUID
+    lot_number: str
+    wet_mass_tonnes: float
+    dry_mass_tonnes: float
+    wet_mass_pct: float
+    dry_mass_pct: float
+    moisture_content_pct: float
+
+
+class MultiBiomassBlendBreakdownResponse(BaseModel):
+    production_run_id: UUID
+    run_number: str
+    total_wet_mass_tonnes: float
+    total_dry_mass_tonnes: float
+    component_count: int
+    components: List[MultiBiomassBlendComponent]
+
+
+# ---------------------------------------------------------------------------
+# Product Formulation & Mixed Product Batch Schemas
+# ---------------------------------------------------------------------------
+
+class BiocharProductFormulationCreate(BaseModel):
+    product_name: str
+    product_code: str
+    target_sector: str
+    description: Optional[str] = None
+    biochar_target_ratio: float = 0.5
+    is_active: bool = True
+    project_id: Optional[UUID] = None
+
+
+class BiocharProductFormulationResponse(BaseModel):
+    id: UUID
+    organization_id: UUID
+    project_id: Optional[UUID] = None
+    product_name: str
+    product_code: str
+    target_sector: str
+    description: Optional[str] = None
+    biochar_target_ratio: float
+    is_active: bool
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class BiocharIngredientAllocationInput(BaseModel):
+    biochar_batch_id: UUID
+    allocated_biochar_mass_tonnes: float
+
+
+class NonBiocharIngredientInput(BaseModel):
+    ingredient_name: str
+    ingredient_type: str  # COMPOST, MINERAL_FERTILIZER, SAND, CLAY, CEMENT, BINDER
+    mass_tonnes: float
+    mass_pct: float
+    cas_number: Optional[str] = None
+    supplier: Optional[str] = None
+
+
+class BiocharProductBatchCreate(BaseModel):
+    formulation_id: UUID
+    batch_number: str
+    production_date: datetime
+    total_product_mass_tonnes: float
+    biochar_mass_tonnes: float
+    non_biochar_mass_tonnes: float = 0.0
+    packaging_type: Optional[str] = None
+    storage_location: Optional[str] = None
+    biochar_batch_allocations: List[BiocharIngredientAllocationInput]
+    non_biochar_ingredients: List[NonBiocharIngredientInput] = []
+    project_id: Optional[UUID] = None
+
+
+class BiocharProductBatchResponse(BaseModel):
+    id: UUID
+    organization_id: UUID
+    project_id: Optional[UUID] = None
+    formulation_id: UUID
+    batch_number: str
+    production_date: datetime
+    total_product_mass_tonnes: float
+    biochar_mass_tonnes: float
+    non_biochar_mass_tonnes: float
+    packaging_type: Optional[str] = None
+    storage_location: Optional[str] = None
+    qa_status: str
+    created_at: datetime
+    allocations: List[Dict[str, Any]] = []
+    non_biochar_ingredients: List[Dict[str, Any]] = []
+
+    model_config = ConfigDict(from_attributes=True)
+
