@@ -3559,8 +3559,8 @@ export interface VerificationPackageSummary {
 }
 
 export interface VerificationPackageDetail extends VerificationPackageSummary {
-  manifest_json: Record<string, any>;
-  diff_summary_json: Record<string, any>;
+  manifest_json: Record<string, unknown>;
+  diff_summary_json: Record<string, unknown>;
   sealed_by_user_id?: string | null;
 }
 
@@ -3819,8 +3819,57 @@ export async function grantAuditorAccess(
   });
 }
 
-export async function exportPackageBundle(packageId: string): Promise<Record<string, any>> {
-  return apiFetch<Record<string, any>>(`/verification/packages/${packageId}/export`);
+export async function exportPackageBundle(packageId: string): Promise<Record<string, unknown>> {
+  return apiFetch<Record<string, unknown>>(`/verification/packages/${packageId}/export`);
+}
+
+export async function downloadEvidenceContent(packageId: string, evidenceId: string, fallbackFileName?: string): Promise<void> {
+  const token = typeof window !== "undefined" ? localStorage.getItem("vf_token") : null;
+  const base = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+  const res = await fetch(`${base}/verification/packages/${packageId}/evidence/${evidenceId}/content`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({ detail: "Failed to download evidence" }));
+    throw new Error(errorData.detail || `Download failed with status ${res.status}`);
+  }
+  const blob = await res.blob();
+  const disposition = res.headers.get("Content-Disposition");
+  let filename = fallbackFileName || `evidence-${evidenceId}`;
+  if (disposition && disposition.includes("filename=")) {
+    const match = disposition.match(/filename="?([^"]+)"?/);
+    if (match && match[1]) filename = match[1];
+  }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+export async function downloadPackageArchive(packageId: string, packageName?: string): Promise<void> {
+  const token = typeof window !== "undefined" ? localStorage.getItem("vf_token") : null;
+  const base = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+  const res = await fetch(`${base}/verification/packages/${packageId}/export/archive`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({ detail: "Failed to export archive" }));
+    throw new Error(errorData.detail || `Export failed with status ${res.status}`);
+  }
+  const blob = await res.blob();
+  const filename = `${packageName || "verification-package"}-archive.zip`;
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 export async function fetchFeedstockBlendBreakdown(runId: string): Promise<MultiBiomassBlendBreakdown> {

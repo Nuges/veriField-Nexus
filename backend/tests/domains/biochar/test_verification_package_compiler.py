@@ -17,7 +17,9 @@ Tests:
 """
 
 import hashlib
+import io
 import json
+import os
 import uuid
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
@@ -959,3 +961,430 @@ async def test_scale_verification_package_compiler(db_session: AsyncSession):
     assert len(manifest["value_chain_graph"]["feedstock_lots"]) >= 30
     assert len(manifest["value_chain_graph"]["batches"]) >= 25
     assert len(manifest["evidence_index"]) >= 30
+
+
+@pytest.mark.asyncio
+async def test_developer_and_auditor_strict_rbac_matrix(db_session: AsyncSession):
+    """
+    11. Authorization Matrix Test:
+        - Project Developer CANNOT: create auditor finding, resolve finding, record audit decision.
+        - Auditor CANNOT: alter source project records, submit project-team response, run package compilation.
+    """
+    from app.core.rbac import ROLE_PROJECT_MANAGER, ROLE_AUDITOR, has_permission
+    data = await _create_sample_project_graph(db_session)
+    compiler = BiocharVerificationPackageCompiler(db_session)
+    service = AuditorWorkspaceService(db_session)
+
+    start_date = (datetime.now(timezone.utc) - timedelta(days=30)).date()
+    end_date = (datetime.now(timezone.utc) + timedelta(days=5)).date()
+
+    pkg = await compiler.compile_package(
+        project_id=data["project_id"],
+        monitoring_period_start=start_date,
+        monitoring_period_end=end_date,
+        package_name="RBAC Matrix Package",
+    )
+
+    dev_user = data["developer_user"]
+    auditor_user = User(
+        id=uuid.uuid4(),
+        email=f"auditor-rbac-{uuid.uuid4().hex[:6]}@assurance.com",
+        full_name="Assurance Auditor",
+        role=ROLE_AUDITOR,
+        organization="Independent Assurance Corp",
+    )
+    db_session.add(auditor_user)
+    await db_session.flush()
+
+    # 1. Developer cannot record audit decision (403)
+    with pytest.raises(HTTPException) as exc_dev_dec:
+        await service.record_audit_decision(
+            package_id=pkg.id,
+            auditor=dev_user,
+            decision="VERIFIED",
+            decision_notes="Developer illegally approving own package",
+        )
+    assert exc_dev_dec.value.status_code == 403
+
+    # 2. Developer cannot create finding (403)
+    with pytest.raises(HTTPException) as exc_dev_find:
+        await service.create_finding(
+            package_id=pkg.id,
+            auditor=dev_user,
+            finding_type="CAR",
+            severity="MAJOR",
+            title="Dev Finding",
+            description="Dev trying to audit",
+            target_domain="BIOCHAR",
+        )
+    assert exc_dev_find.value.status_code == 403
+
+    # 3. Auditor creates a finding
+    finding = await service.create_finding(
+        package_id=pkg.id,
+        auditor=auditor_user,
+        finding_type="CL",
+        severity="MINOR",
+        title="Clarification on moisture sensor",
+        description="Verify moisture sensor calibration logs.",
+        target_domain="BIOCHAR",
+    )
+
+    # 4. Developer cannot resolve finding (403)
+    with pytest.raises(HTTPException) as exc_dev_res:
+        await service.resolve_finding(
+            finding_id=finding.id,
+            auditor=dev_user,
+            resolution_notes="Dev resolving finding",
+            status_action="RESOLVED",
+        )
+    assert exc_dev_res.value.status_code == 403
+
+    # 5. Auditor cannot submit developer response (403)
+    with pytest.raises(HTTPException) as exc_aud_resp:
+        await service.submit_finding_response(
+            finding_id=finding.id,
+            developer=auditor_user,
+            project_response="Auditor answering own finding",
+        )
+    assert exc_aud_resp.value.status_code == 403
+
+    # 6. Auditor permissions verify inability to mutate source project records
+    assert has_permission(auditor_user.role, "project:update") is False
+    assert has_permission(auditor_user.role, "project:create") is False
+    assert has_permission(auditor_user.role, "activity:create") is False
+    assert has_permission(auditor_user.role, "audit:package:compile") is False
+    assert has_permission(auditor_user.role, "audit:finding:respond") is False
+
+    # 7. Developer permissions verify inability to sign / resolve
+    assert has_permission(dev_user.role, "audit:package:sign") is False
+    assert has_permission(dev_user.role, "audit:finding:create") is False
+    assert has_permission(dev_user.role, "audit:finding:resolve") is False
+
+
+@pytest.mark.asyncio
+async def test_evidence_content_retrieval_and_403_access_gates(db_session: AsyncSession):
+    """
+    12. Original Evidence Access Test:
+        - Assigned auditor gets 200 with raw bytes and matching SHA-256.
+        - Denies with 403 on:
+          a) unassigned auditor
+          b) expired grant
+          c) revoked grant (is_active=False)
+          d) foreign tenant developer
+    """
+    data = await _create_sample_project_graph(db_session)
+    compiler = BiocharVerificationPackageCompiler(db_session)
+    service = AuditorWorkspaceService(db_session)
+
+    start_date = (datetime.now(timezone.utc) - timedelta(days=30)).date()
+    end_date = (datetime.now(timezone.utc) + timedelta(days=5)).date()
+
+    pkg = await compiler.compile_package(
+        project_id=data["project_id"],
+        monitoring_period_start=start_date,
+        monitoring_period_end=end_date,
+        package_name="Evidence Access Package",
+    )
+
+    stmt_ev = select(VerificationPackageEvidence).where(VerificationPackageEvidence.package_id == pkg.id)
+    ev = (await db_session.execute(stmt_ev)).scalars().first()
+    assert ev is not None
+
+    # a) Unassigned auditor -> 403
+    unassigned = User(
+        id=uuid.uuid4(),
+        email=f"unassigned-{uuid.uuid4().hex[:6]}@audits.com",
+        full_name="Unassigned Auditor",
+        role=ROLE_AUDITOR,
+    )
+    db_session.add(unassigned)
+    await db_session.flush()
+
+    with pytest.raises(HTTPException) as exc_unassigned:
+        await service.get_evidence_content(package_id=pkg.id, evidence_id=ev.id, user=unassigned)
+    assert exc_unassigned.value.status_code == 403
+
+    # b) Expired grant -> 403
+    expired_email = f"expired-{uuid.uuid4().hex[:6]}@audits.com"
+    expired_auditor = User(
+        id=uuid.uuid4(),
+        email=expired_email,
+        full_name="Expired Auditor",
+        role=ROLE_AUDITOR,
+    )
+    db_session.add(expired_auditor)
+    grant_exp = VerificationAccessGrant(
+        package_id=pkg.id,
+        auditor_user_id=expired_auditor.id,
+        auditor_email=expired_auditor.email,
+        auditor_organization="Expired Org",
+        grantee_role="AUDITOR",
+        is_active=True,
+        expires_at=datetime.now(timezone.utc) - timedelta(days=1),
+    )
+    db_session.add(grant_exp)
+    await db_session.flush()
+
+    with pytest.raises(HTTPException) as exc_exp:
+        await service.get_evidence_content(package_id=pkg.id, evidence_id=ev.id, user=expired_auditor)
+    assert exc_exp.value.status_code == 403
+    assert "expired" in exc_exp.value.detail.lower()
+
+    # c) Revoked grant -> 403
+    revoked_email = f"revoked-{uuid.uuid4().hex[:6]}@audits.com"
+    revoked_auditor = User(
+        id=uuid.uuid4(),
+        email=revoked_email,
+        full_name="Revoked Auditor",
+        role=ROLE_AUDITOR,
+    )
+    db_session.add(revoked_auditor)
+    grant_rev = VerificationAccessGrant(
+        package_id=pkg.id,
+        auditor_user_id=revoked_auditor.id,
+        auditor_email=revoked_auditor.email,
+        auditor_organization="Revoked Org",
+        grantee_role="AUDITOR",
+        is_active=False,
+    )
+    db_session.add(grant_rev)
+    await db_session.flush()
+
+    with pytest.raises(HTTPException) as exc_rev:
+        await service.get_evidence_content(package_id=pkg.id, evidence_id=ev.id, user=revoked_auditor)
+    assert exc_rev.value.status_code == 403
+    assert "revoked" in exc_rev.value.detail.lower()
+
+    # d) Foreign tenant developer -> 403
+    foreign_org = Organization(id=uuid.uuid4(), name=f"Foreign Tenant Corp {uuid.uuid4().hex[:6]}")
+    db_session.add(foreign_org)
+    foreign_dev = User(
+        id=uuid.uuid4(),
+        email=f"foreign-dev-{uuid.uuid4().hex[:6]}@other.com",
+        full_name="Foreign Dev",
+        role=ROLE_PROJECT_MANAGER,
+        organization_id=foreign_org.id,
+    )
+    db_session.add(foreign_dev)
+    await db_session.flush()
+
+    with pytest.raises(HTTPException) as exc_foreign:
+        await service.get_evidence_content(package_id=pkg.id, evidence_id=ev.id, user=foreign_dev)
+    assert exc_foreign.value.status_code == 403
+
+    # Authorized assigned auditor -> 200 with raw bytes
+    valid_email = f"assigned-valid-{uuid.uuid4().hex[:6]}@audits.com"
+    valid_auditor = User(
+        id=uuid.uuid4(),
+        email=valid_email,
+        full_name="Valid Auditor",
+        role=ROLE_AUDITOR,
+    )
+    db_session.add(valid_auditor)
+    grant_valid = VerificationAccessGrant(
+        package_id=pkg.id,
+        auditor_user_id=valid_auditor.id,
+        auditor_email=valid_auditor.email,
+        auditor_organization="Valid Org",
+        grantee_role="AUDITOR",
+        is_active=True,
+    )
+    db_session.add(grant_valid)
+    await db_session.flush()
+
+    raw_bytes, media_type, fname, digest, status_str = await service.get_evidence_content(
+        package_id=pkg.id,
+        evidence_id=ev.id,
+        user=valid_auditor,
+    )
+    assert len(raw_bytes) > 0
+    assert digest == ev.sha256_hash
+    assert hashlib.sha256(raw_bytes).hexdigest() == digest
+    assert status_str == "VERIFIED"
+
+
+@pytest.mark.asyncio
+async def test_evidence_integrity_with_physical_disk_mutation(db_session: AsyncSession):
+    """
+    13. Physical Evidence Integrity & Disk Mutation Test:
+        - Compile & seal v1 -> retrieve evidence -> hash matches.
+        - Mutate bytes on physical disk/storage -> verify returns INTEGRITY_MISMATCH.
+    """
+    data = await _create_sample_project_graph(db_session)
+    compiler = BiocharVerificationPackageCompiler(db_session)
+    service = AuditorWorkspaceService(db_session)
+
+    start_date = (datetime.now(timezone.utc) - timedelta(days=30)).date()
+    end_date = (datetime.now(timezone.utc) + timedelta(days=5)).date()
+
+    pkg = await compiler.compile_package(
+        project_id=data["project_id"],
+        monitoring_period_start=start_date,
+        monitoring_period_end=end_date,
+        package_name="Tamper Proofing Package",
+    )
+
+    # Seal Package v1
+    sealed = await compiler.seal_and_submit_package(package_id=pkg.id, user=data["developer_user"])
+    assert sealed.package_status == "SUBMITTED"
+
+    stmt_ev = select(VerificationPackageEvidence).where(VerificationPackageEvidence.package_id == pkg.id)
+    ev = (await db_session.execute(stmt_ev)).scalars().first()
+    assert ev is not None
+
+    # Ensure physical file exists initially matching hash
+    upload_dir = "/Users/segun/Documents/Verifield nexus/backend/static/uploads"
+    disk_path = os.path.join(upload_dir, f"{ev.sha256_hash}.pdf")
+    os.makedirs(upload_dir, exist_ok=True)
+    with open(disk_path, "wb") as f:
+        f.write(b"scale_ticket_lot1")
+
+    # Verify initial integrity passes
+    ev_verified = await service.verify_evidence_integrity(package_id=pkg.id, evidence_id=ev.id)
+    assert ev_verified.integrity_status == "VERIFIED"
+
+    try:
+        # Mutate physical bytes on disk
+        with open(disk_path, "wb") as f:
+            f.write(b"CORRUPTED_TAMPERED_SCALE_WEIGHT_TICKET_DATA")
+
+        # Re-verify evidence: physical disk mutation MUST trigger INTEGRITY_MISMATCH
+        ev_tampered = await service.verify_evidence_integrity(package_id=pkg.id, evidence_id=ev.id)
+        assert ev_tampered.integrity_status == "INTEGRITY_MISMATCH"
+        assert ev_tampered.verified_hash != ev.sha256_hash
+        assert ev_tampered.verified_hash == hashlib.sha256(b"CORRUPTED_TAMPERED_SCALE_WEIGHT_TICKET_DATA").hexdigest()
+
+        # Re-verifying all package evidence reports the tamper
+        summary = await service.verify_all_package_evidence(package_id=pkg.id)
+        assert summary["mismatch_count"] >= 1
+        assert summary["all_passed"] is False
+    finally:
+        if os.path.exists(disk_path):
+            os.remove(disk_path)
+
+
+@pytest.mark.asyncio
+async def test_package_export_zip_archive_and_sha256_checksums(db_session: AsyncSession):
+    """
+    14. Package Export Archive & SHA-256 Checksums Test:
+        - Generates ZIP archive.
+        - Verifies presence of MANIFEST.json, EVIDENCE_INDEX.json/CSV, CALCULATION_REPORT.json,
+          FINDINGS_REPORT.json/CSV, and CHECKSUMS.sha256.
+        - Verifies that actual file digests in the ZIP match CHECKSUMS.sha256 verbatim.
+    """
+    import zipfile
+    data = await _create_sample_project_graph(db_session)
+    compiler = BiocharVerificationPackageCompiler(db_session)
+    service = AuditorWorkspaceService(db_session)
+
+    start_date = (datetime.now(timezone.utc) - timedelta(days=30)).date()
+    end_date = (datetime.now(timezone.utc) + timedelta(days=5)).date()
+
+    pkg = await compiler.compile_package(
+        project_id=data["project_id"],
+        monitoring_period_start=start_date,
+        monitoring_period_end=end_date,
+        package_name="Export Bundle Archive Package",
+    )
+
+    zip_bytes, filename, checksums = await service.export_package_archive(package_id=pkg.id)
+    assert len(zip_bytes) > 0
+    assert filename.endswith(".zip")
+
+    # Inspect ZIP contents
+    with zipfile.ZipFile(io.BytesIO(zip_bytes), mode="r") as zf:
+        namelist = zf.namelist()
+        assert "MANIFEST.json" in namelist
+        assert "EVIDENCE_INDEX.json" in namelist
+        assert "EVIDENCE_INDEX.csv" in namelist
+        assert "CALCULATION_REPORT.json" in namelist
+        assert "FINDINGS_REPORT.json" in namelist
+        assert "FINDINGS_REPORT.csv" in namelist
+        assert "CHECKSUMS.sha256" in namelist
+
+        # Parse CHECKSUMS.sha256
+        checksum_text = zf.read("CHECKSUMS.sha256").decode("utf-8")
+        parsed_checksums = {}
+        for line in checksum_text.strip().split("\n"):
+            parts = line.split()
+            if len(parts) == 2:
+                parsed_checksums[parts[1]] = parts[0]
+
+        # Verify every file's actual digest matches CHECKSUMS.sha256
+        for name in namelist:
+            if name == "CHECKSUMS.sha256":
+                continue
+            file_bytes = zf.read(name)
+            computed_sha = hashlib.sha256(file_bytes).hexdigest()
+            assert name in parsed_checksums
+            assert parsed_checksums[name] == computed_sha
+            assert checksums[name] == computed_sha
+
+
+@pytest.mark.asyncio
+async def test_registry_neutral_non_puro_package_compiler(db_session: AsyncSession):
+    """
+    15. Registry-Neutral Architecture Test:
+        - Proves non-Puro packages (VERRA_VCS, GENERIC) compile cleanly without Puro-only models.
+    """
+    data = await _create_sample_project_graph(db_session)
+    compiler = BiocharVerificationPackageCompiler(db_session)
+
+    start_date = (datetime.now(timezone.utc) - timedelta(days=30)).date()
+    end_date = (datetime.now(timezone.utc) + timedelta(days=5)).date()
+
+    # Compile for Verra VCS
+    verra_pkg = await compiler.compile_package(
+        project_id=data["project_id"],
+        monitoring_period_start=start_date,
+        monitoring_period_end=end_date,
+        package_name="Verra VM0044 Biochar Audit Package",
+        registry_target="VERRA_VCS",
+        audit_type="ANNUAL_VERIFICATION",
+    )
+    assert verra_pkg is not None
+    assert verra_pkg.registry_target == "VERRA_VCS"
+    assert verra_pkg.package_version == 1
+    assert "puro_output_report" not in verra_pkg.manifest_json
+
+    # Compile for Generic Standard
+    generic_pkg = await compiler.compile_package(
+        project_id=data["project_id"],
+        monitoring_period_start=start_date,
+        monitoring_period_end=end_date,
+        package_name="Generic Sovereign Carbon Audit Package",
+        registry_target="GENERIC",
+        audit_type="PROJECT_VALIDATION",
+    )
+    assert generic_pkg is not None
+    assert generic_pkg.registry_target == "GENERIC"
+    assert generic_pkg.package_version == 1
+
+
+@pytest.mark.asyncio
+async def test_package_completeness_numerator_and_denominator(db_session: AsyncSession):
+    """
+    16. Completeness Gates Test:
+        - Asserts presence of completed_requirements, total_requirements, and blocker_reasons.
+    """
+    data = await _create_sample_project_graph(db_session)
+    compiler = BiocharVerificationPackageCompiler(db_session)
+
+    start_date = (datetime.now(timezone.utc) - timedelta(days=30)).date()
+    end_date = (datetime.now(timezone.utc) + timedelta(days=5)).date()
+
+    pkg = await compiler.compile_package(
+        project_id=data["project_id"],
+        monitoring_period_start=start_date,
+        monitoring_period_end=end_date,
+        package_name="Completeness Verification Package",
+    )
+
+    completeness = pkg.manifest_json["completeness"]
+    assert completeness["completed_requirements"] == 8
+    assert completeness["total_requirements"] == 8
+    assert completeness["score"] == 100.0
+    assert len(completeness["blocker_reasons"]) == 0
+    assert completeness["is_ready_for_audit"] is True
+

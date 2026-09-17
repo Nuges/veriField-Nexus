@@ -151,7 +151,7 @@ export const ROUTE_ACCESS_RULES: RouteRule[] = [
   },
   {
     pathPrefix: "/dashboard/verifications",
-    allowedRoles: ["SUPER_ADMIN", "VERIFIER", "AUDITOR", "QA_OFFICER"],
+    allowedRoles: ["SUPER_ADMIN", "ORG_ADMIN", "PROJECT_MANAGER", "VERIFIER", "AUDITOR", "QA_OFFICER"],
     label: "Verification & Audit",
   },
   {

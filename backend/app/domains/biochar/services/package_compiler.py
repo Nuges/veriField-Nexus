@@ -169,9 +169,10 @@ class BiocharVerificationPackageCompiler:
         evidence_records = self._extract_central_evidence_index(graph_data)
 
         # 6. Evaluate Completeness and Blocker Reasons
-        completeness_score, blocker_reasons = self._evaluate_completeness(
+        completeness_score, blocker_reasons, completed_reqs, total_reqs = self._evaluate_completeness(
             graph_data=graph_data,
             evidence_records=evidence_records,
+            registry_target=registry_target,
         )
 
         package_status = "READY_FOR_AUDIT" if completeness_score >= 100.0 else "DRAFT"
@@ -186,6 +187,32 @@ class BiocharVerificationPackageCompiler:
                 current_graph=graph_data,
                 current_trace=trace_trees,
             )
+
+        # Optional: Query linked PuroOutputReport for Puro registry target
+        puro_report_data = None
+        if registry_target in ("PURO_STANDARD", "PURO_EARTH"):
+            try:
+                from app.domains.biochar.puro_models import PuroOutputReport
+                stmt_puro = (
+                    select(PuroOutputReport)
+                    .where(PuroOutputReport.organization_id == organization.id)
+                    .order_by(PuroOutputReport.created_at.desc())
+                )
+                puro_res = await self.db.execute(stmt_puro)
+                puro_rep = puro_res.scalars().first()
+                if puro_rep:
+                    puro_report_data = {
+                        "id": str(puro_rep.id),
+                        "report_number": puro_rep.report_number,
+                        "report_version": puro_rep.report_version,
+                        "report_status": puro_rep.report_status,
+                        "total_eligible_biochar_mass_tonnes": float(puro_rep.total_eligible_biochar_mass_tonnes),
+                        "total_net_corcs": float(puro_rep.total_net_corcs),
+                        "manifest_hash": puro_rep.manifest_hash,
+                        "generated_at": puro_rep.generated_at.isoformat() if puro_rep.generated_at else None,
+                    }
+            except Exception as e:
+                logger.warning(f"Could not load PuroOutputReport: {e}")
 
         # 8. Assemble Deterministic Canonical Manifest
         manifest_payload = {
@@ -210,6 +237,8 @@ class BiocharVerificationPackageCompiler:
             "parent_package_id": str(parent_package_id) if parent_package_id else None,
             "completeness": {
                 "score": completeness_score,
+                "completed_requirements": completed_reqs,
+                "total_requirements": total_reqs,
                 "is_ready_for_audit": completeness_score >= 100.0 and len(blocker_reasons) == 0,
                 "blocker_reasons": blocker_reasons,
             },
@@ -232,6 +261,9 @@ class BiocharVerificationPackageCompiler:
             ],
             "diff_summary": diff_summary,
         }
+
+        if puro_report_data:
+            manifest_payload["puro_output_report"] = puro_report_data
 
         # Deterministic canonical JSON hash
         canonical_manifest_str = json.dumps(
@@ -1038,10 +1070,11 @@ class BiocharVerificationPackageCompiler:
         self,
         graph_data: Dict[str, Any],
         evidence_records: List[Dict[str, Any]],
-    ) -> Tuple[float, List[str]]:
+        registry_target: str = "PURO_STANDARD",
+    ) -> Tuple[float, List[str], int, int]:
         """
-        Evaluates completeness gates against official Puro Biochar 2025 V2 audit checklist.
-        Returns completeness score (0-100) and list of blocker reasons.
+        Evaluates completeness gates against official audit checklist.
+        Returns completeness score (0-100), list of blocker reasons, completed requirements count, and total requirements count.
         """
         blockers = []
         score_points = 0.0
@@ -1127,7 +1160,7 @@ class BiocharVerificationPackageCompiler:
             blockers.append("Central Evidence Index is empty.")
 
         completeness_pct = round((score_points / total_possible) * 100.0, 1)
-        return completeness_pct, blockers
+        return completeness_pct, blockers, int(score_points), int(total_possible)
 
     # ─── V1 -> V2 Package Diff Engine ───────────────────────────────────────────
 

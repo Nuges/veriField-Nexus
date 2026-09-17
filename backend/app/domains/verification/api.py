@@ -1,7 +1,7 @@
 from typing import List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -400,6 +400,36 @@ async def verify_all_package_evidence(
     return await service.verify_all_package_evidence(package_id=package_id)
 
 
+@router.get(
+    "/packages/{package_id}/evidence/{evidence_id}/content",
+)
+async def get_evidence_file_content(
+    package_id: UUID,
+    evidence_id: UUID,
+    current_user: User = Depends(require_permission("audit:package:read")),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Retrieves genuine raw bytes of an evidence file from storage with SHA-256 validation.
+    Enforces scoped access: 403 on unassigned, expired grant, revoked grant, foreign tenant.
+    """
+    service = AuditorWorkspaceService(db)
+    content_bytes, media_type, filename, sha256_hash, integrity_status = await service.get_evidence_content(
+        package_id=package_id,
+        evidence_id=evidence_id,
+        user=current_user,
+    )
+    return Response(
+        content=content_bytes,
+        media_type=media_type,
+        headers={
+            "Content-Disposition": f'inline; filename="{filename}"',
+            "X-Evidence-Hash": sha256_hash,
+            "X-Integrity-Status": integrity_status,
+        },
+    )
+
+
 @router.post(
     "/packages/{package_id}/findings",
     response_model=VerificationPackageFindingResponse,
@@ -583,4 +613,27 @@ async def export_package_bundle(
     service = AuditorWorkspaceService(db)
     await service.check_auditor_access(package_id=package_id, user=current_user)
     return await service.export_package_bundle(package_id=package_id)
+
+
+@router.get(
+    "/packages/{package_id}/export/archive",
+)
+async def export_package_archive_endpoint(
+    package_id: UUID,
+    current_user: User = Depends(require_permission("audit:package:read")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Exports full audit package archive (ZIP containing all reports and CHECKSUMS.sha256)."""
+    service = AuditorWorkspaceService(db)
+    await service.check_auditor_access(package_id=package_id, user=current_user)
+    zip_bytes, filename, checksums = await service.export_package_archive(package_id=package_id)
+    return Response(
+        content=zip_bytes,
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "X-Package-Checksums": str(checksums),
+        },
+    )
+
 

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
   LayoutDashboard,
@@ -49,14 +49,112 @@ import {
   fetchPackageGrants,
   grantAuditorAccess,
   exportPackageBundle,
+  downloadEvidenceContent,
+  downloadPackageArchive,
   fetchFeedstockBlendBreakdown,
 } from "@/lib/api";
+import { useWorkspace } from "@/context/WorkspaceContext";
+import { normalizeRole } from "@/lib/roles";
+
+interface VerifyAllSummary {
+  total_evidence_items: number;
+  verified_count: number;
+  mismatch_count: number;
+  all_passed: boolean;
+}
+
+interface FeedstockLotItem {
+  id: string;
+  lot_number: string;
+  feedstock_type: string;
+  source_name?: string;
+  mass_received_tonnes?: number;
+  moisture_content_pct?: number;
+  dry_mass_tonnes?: number;
+  evidence_hash?: string;
+}
+
+interface ProductionRunItem {
+  id: string;
+  run_number: string;
+  total_feedstock_input_tonnes?: number;
+  total_feedstock_dry_tonnes?: number;
+  avg_pyrolysis_temp_celsius?: number;
+  residence_time_minutes?: number;
+  output_biochar_mass_tonnes?: number;
+  qa_status?: string;
+}
+
+interface BiocharBatchItem {
+  id: string;
+  batch_number: string;
+  biochar_yield_tonnes?: number;
+  dry_mass_tonnes?: number;
+  fixed_carbon_pct?: number;
+  ash_content_pct?: number;
+  molar_h_c_ratio?: number;
+  lab_analyses?: Array<{
+    molar_h_c_ratio?: number;
+    accreditation_standard?: string;
+  }>;
+}
+
+interface FormulationItem {
+  id: string;
+  product_name: string;
+  product_code: string;
+  target_sector: string;
+  biochar_target_ratio: number;
+}
+
+interface TransportItem {
+  id: string;
+  carrier_name: string;
+  material_type: string;
+  origin_address?: string;
+  destination_address?: string;
+  mass_transported_tonnes?: number;
+  distance_km?: number;
+  pod_document_hash?: string;
+  status?: string;
+}
+
+interface EndUseItem {
+  id: string;
+  end_use_type: string;
+  applied_quantity_tonnes?: number;
+  gps_coordinates?: string;
+  application_method?: string;
+  verification_status?: string;
+}
+
+interface QcCheckItem {
+  id: string;
+  check_type: string;
+  target_entity_type?: string;
+  target_entity_id?: string;
+  conducted_by?: string;
+  check_date?: string;
+  passed?: boolean;
+}
+
+function getErrorMessage(err: unknown): string {
+  if (!err) return "Unknown error";
+  if (typeof err === "string") return err;
+  const obj = err as { detail?: string; message?: string };
+  return obj.detail || obj.message || "Unknown error";
+}
 
 interface AuditorWorkspaceViewProps {
   packageId: string;
 }
 
 export default function AuditorWorkspaceView({ packageId }: AuditorWorkspaceViewProps) {
+  const { user } = useWorkspace();
+  const canonicalRole = normalizeRole(user?.role);
+  const isAuditor = canonicalRole === "AUDITOR" || canonicalRole === "VERIFIER" || canonicalRole === "SUPER_ADMIN";
+  const isDeveloper = canonicalRole === "PROJECT_MANAGER" || canonicalRole === "ORG_ADMIN" || canonicalRole === "SUPER_ADMIN";
+
   const [pkg, setPkg] = useState<VerificationPackageDetail | null>(null);
   const [findings, setFindings] = useState<VerificationPackageFindingItem[]>([]);
   const [evidence, setEvidence] = useState<VerificationPackageEvidenceItem[]>([]);
@@ -64,9 +162,6 @@ export default function AuditorWorkspaceView({ packageId }: AuditorWorkspaceView
   const [activeTab, setActiveTab] = useState<string>("overview");
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-
-  // Active user simulation role (AUDITOR vs DEVELOPER)
-  const [simulatedRole, setSimulatedRole] = useState<"AUDITOR" | "DEVELOPER">("AUDITOR");
 
   // Number-to-evidence drill-down modal state
   const [drillDownMetric, setDrillDownMetric] = useState<string | null>(null);
@@ -94,7 +189,7 @@ export default function AuditorWorkspaceView({ packageId }: AuditorWorkspaceView
 
   // Evidence verification state
   const [isVerifyingEvidence, setIsVerifyingEvidence] = useState(false);
-  const [verifySummary, setVerifySummary] = useState<any>(null);
+  const [verifySummary, setVerifySummary] = useState<VerifyAllSummary | null>(null);
 
   // Access grant state
   const [showGrantModal, setShowGrantModal] = useState(false);
@@ -109,11 +204,7 @@ export default function AuditorWorkspaceView({ packageId }: AuditorWorkspaceView
   // Copy hash notification
   const [copiedHash, setCopiedHash] = useState(false);
 
-  useEffect(() => {
-    loadAllData();
-  }, [packageId]);
-
-  const loadAllData = async () => {
+  const loadAllData = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
@@ -127,13 +218,20 @@ export default function AuditorWorkspaceView({ packageId }: AuditorWorkspaceView
       setFindings(findingsData);
       setEvidence(evidenceData);
       setGrants(grantsData);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Failed to load verification package:", err);
-      setError(err?.message || "Failed to load verification package data.");
+      setError(getErrorMessage(err) || "Failed to load verification package data.");
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [packageId]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      void loadAllData();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [loadAllData]);
 
   const handleSealPackage = async () => {
     if (!confirm("Are you sure you want to cryptographically seal this package? Once submitted, it will become immutable.")) {
@@ -143,8 +241,8 @@ export default function AuditorWorkspaceView({ packageId }: AuditorWorkspaceView
       const updated = await sealVerificationPackage(packageId);
       setPkg(updated);
       alert("Package sealed successfully via LedgerService RSA signature.");
-    } catch (err: any) {
-      alert("Sealing failed: " + (err?.detail || err?.message || "Error"));
+    } catch (err: unknown) {
+      alert("Sealing failed: " + getErrorMessage(err));
     }
   };
 
@@ -152,8 +250,8 @@ export default function AuditorWorkspaceView({ packageId }: AuditorWorkspaceView
     try {
       const verified = await verifyEvidenceIntegrity(packageId, evidenceId);
       setEvidence((prev) => prev.map((e) => (e.id === verified.id ? verified : e)));
-    } catch (err: any) {
-      alert("Verification error: " + (err?.detail || err?.message));
+    } catch (err: unknown) {
+      alert("Verification error: " + getErrorMessage(err));
     }
   };
 
@@ -164,10 +262,18 @@ export default function AuditorWorkspaceView({ packageId }: AuditorWorkspaceView
       setVerifySummary(summary);
       const updatedList = await fetchPackageEvidence(packageId);
       setEvidence(updatedList);
-    } catch (err: any) {
-      alert("Global evidence verification error: " + (err?.detail || err?.message));
+    } catch (err: unknown) {
+      alert("Global evidence verification error: " + getErrorMessage(err));
     } finally {
       setIsVerifyingEvidence(false);
+    }
+  };
+
+  const handleDownloadEvidence = async (ev: VerificationPackageEvidenceItem) => {
+    try {
+      await downloadEvidenceContent(packageId, ev.id, ev.file_name);
+    } catch (err: unknown) {
+      alert("Failed to download evidence: " + getErrorMessage(err));
     }
   };
 
@@ -188,8 +294,8 @@ export default function AuditorWorkspaceView({ packageId }: AuditorWorkspaceView
       setFindingDesc("");
       setFindingTargetField("");
       alert(`Finding ${created.finding_number} recorded successfully.`);
-    } catch (err: any) {
-      alert("Failed to create finding: " + (err?.detail || err?.message));
+    } catch (err: unknown) {
+      alert("Failed to create finding: " + getErrorMessage(err));
     }
   };
 
@@ -212,8 +318,8 @@ export default function AuditorWorkspaceView({ packageId }: AuditorWorkspaceView
       setActionType(null);
       setActionNotes("");
       alert("Finding updated successfully.");
-    } catch (err: any) {
-      alert("Finding action failed: " + (err?.detail || err?.message));
+    } catch (err: unknown) {
+      alert("Finding action failed: " + getErrorMessage(err));
     }
   };
 
@@ -227,8 +333,8 @@ export default function AuditorWorkspaceView({ packageId }: AuditorWorkspaceView
       setPkg(updated);
       setShowDecisionModal(false);
       alert(`Audit decision '${decisionType}' recorded.`);
-    } catch (err: any) {
-      alert("Failed to record decision: " + (err?.detail || err?.message));
+    } catch (err: unknown) {
+      alert("Failed to record decision: " + getErrorMessage(err));
     }
   };
 
@@ -244,8 +350,8 @@ export default function AuditorWorkspaceView({ packageId }: AuditorWorkspaceView
       setGrantEmail("");
       setGrantOrg("");
       alert(`Access granted to ${grant.auditor_email}.`);
-    } catch (err: any) {
-      alert("Failed to grant access: " + (err?.detail || err?.message));
+    } catch (err: unknown) {
+      alert("Failed to grant access: " + getErrorMessage(err));
     }
   };
 
@@ -260,8 +366,17 @@ export default function AuditorWorkspaceView({ packageId }: AuditorWorkspaceView
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-    } catch (err: any) {
-      alert("Failed to export bundle: " + (err?.detail || err?.message));
+      URL.revokeObjectURL(url);
+    } catch (err: unknown) {
+      alert("Failed to export bundle: " + getErrorMessage(err));
+    }
+  };
+
+  const handleExportArchive = async () => {
+    try {
+      await downloadPackageArchive(packageId, pkg?.package_name);
+    } catch (err: unknown) {
+      alert("Failed to export archive: " + getErrorMessage(err));
     }
   };
 
@@ -270,8 +385,8 @@ export default function AuditorWorkspaceView({ packageId }: AuditorWorkspaceView
     try {
       const data = await fetchFeedstockBlendBreakdown(runId);
       setSelectedRunBlend(data);
-    } catch (err: any) {
-      alert("Could not load blend breakdown: " + (err?.detail || err?.message));
+    } catch (err: unknown) {
+      alert("Could not load blend breakdown: " + getErrorMessage(err));
     } finally {
       setIsLoadingBlend(false);
     }
@@ -312,11 +427,86 @@ export default function AuditorWorkspaceView({ packageId }: AuditorWorkspaceView
     );
   }
 
-  const manifest = pkg.manifest_json || {};
-  const graph = manifest.value_chain_graph || {};
-  const summaryQuant = manifest.summary_quantification || {};
-  const traceTrees = manifest.trace_trees || {};
-  const diffSummary = pkg.diff_summary_json || {};
+  const manifest = (pkg.manifest_json || {}) as {
+    project?: {
+      id?: string;
+      name?: string;
+      code?: string;
+      organization_id?: string;
+      organization_name?: string;
+    };
+    value_chain_graph?: {
+      sources?: Array<{ id: string; [key: string]: unknown }>;
+      feedstock_lots?: FeedstockLotItem[];
+      production_runs?: ProductionRunItem[];
+      batches?: BiocharBatchItem[];
+      lab_analyses?: Array<{ id: string; [key: string]: unknown }>;
+      formulations?: FormulationItem[];
+      transports?: TransportItem[];
+      end_uses?: EndUseItem[];
+      qc_checks?: QcCheckItem[];
+    };
+    summary_quantification?: Record<string, number>;
+    trace_trees?: Record<string, {
+      title?: string;
+      value?: number;
+      unit?: string;
+      formula?: string;
+      input_variables?: Record<string, unknown>;
+      evidence_refs?: Array<{ type?: string; hash?: string }>;
+    }>;
+    completeness?: {
+      score?: number;
+      completed_requirements?: number;
+      total_requirements?: number;
+      blocker_reasons?: string[];
+    };
+    [key: string]: unknown;
+  };
+  const graph = (manifest.value_chain_graph || {}) as {
+    sources?: Array<{ id: string; [key: string]: unknown }>;
+    feedstock_lots?: FeedstockLotItem[];
+    production_runs?: ProductionRunItem[];
+    batches?: BiocharBatchItem[];
+    lab_analyses?: Array<{ id: string; [key: string]: unknown }>;
+    formulations?: FormulationItem[];
+    transports?: TransportItem[];
+    end_uses?: EndUseItem[];
+    qc_checks?: QcCheckItem[];
+  };
+  const summaryQuant = (manifest.summary_quantification || {}) as Record<string, number>;
+  const traceTrees = (manifest.trace_trees || {}) as Record<string, {
+    title?: string;
+    value?: number;
+    unit?: string;
+    formula?: string;
+    input_variables?: Record<string, unknown>;
+    evidence_refs?: Array<{ type?: string; hash?: string }>;
+  }>;
+  const diffSummary = (pkg.diff_summary_json || {}) as {
+    carbon_quantification_delta?: {
+      parent_corcs_tco2e?: number;
+      current_corcs_tco2e?: number;
+      delta_corcs_tco2e?: number;
+      delta_pct?: number;
+    };
+    inventory_changes?: {
+      added_batch_ids?: string[];
+    };
+    evidence_changes?: {
+      added_evidence_hashes?: string[];
+    };
+    [key: string]: unknown;
+  };
+  const completenessMeta = (manifest.completeness || {}) as {
+    score?: number;
+    completed_requirements?: number;
+    total_requirements?: number;
+    blocker_reasons?: string[];
+  };
+  const completedReqs = completenessMeta.completed_requirements ?? (pkg.completeness_score === 100 ? 5 : Math.round((pkg.completeness_score / 100) * 5));
+  const totalReqs = completenessMeta.total_requirements ?? 5;
+  const workspaceTitle = pkg.registry_target === "VERRA_VCS" ? "Verifier / VVB Workspace" : "Auditor Workspace";
 
   const tabs = [
     { id: "overview", label: "Overview", icon: LayoutDashboard },
@@ -351,6 +541,9 @@ export default function AuditorWorkspaceView({ packageId }: AuditorWorkspaceView
               <span className="text-xs px-2.5 py-0.5 rounded-full font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                 v{pkg.package_version}
               </span>
+              <span className="text-xs font-semibold px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
+                {workspaceTitle}
+              </span>
             </h1>
           </div>
           <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400 pl-9">
@@ -367,30 +560,6 @@ export default function AuditorWorkspaceView({ packageId }: AuditorWorkspaceView
 
         {/* Global Action Buttons */}
         <div className="flex flex-wrap items-center gap-2">
-          {/* Role Simulator Switch for QA/Auditor Testing */}
-          <div className="flex items-center bg-slate-900 border border-slate-800 rounded-lg p-0.5 text-xs">
-            <button
-              onClick={() => setSimulatedRole("AUDITOR")}
-              className={`px-3 py-1.5 rounded-md font-medium transition-all ${
-                simulatedRole === "AUDITOR"
-                  ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-                  : "text-slate-400 hover:text-white"
-              }`}
-            >
-              Auditor View
-            </button>
-            <button
-              onClick={() => setSimulatedRole("DEVELOPER")}
-              className={`px-3 py-1.5 rounded-md font-medium transition-all ${
-                simulatedRole === "DEVELOPER"
-                  ? "bg-blue-500/20 text-blue-300 border border-blue-500/30"
-                  : "text-slate-400 hover:text-white"
-              }`}
-            >
-              Developer View
-            </button>
-          </div>
-
           {pkg.package_version > 1 && (
             <button
               onClick={() => setShowDiffModal(true)}
@@ -403,11 +572,20 @@ export default function AuditorWorkspaceView({ packageId }: AuditorWorkspaceView
           <button
             onClick={handleExportBundle}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium border border-slate-700"
+            title="Export Manifest JSON"
           >
             <Download className="w-3.5 h-3.5" /> Export Bundle
           </button>
 
-          {simulatedRole === "DEVELOPER" && pkg.package_status !== "SUBMITTED" && pkg.package_status !== "VERIFIED" && (
+          <button
+            onClick={handleExportArchive}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium border border-slate-700"
+            title="Export Verified ZIP Archive with Checksums"
+          >
+            <Download className="w-3.5 h-3.5" /> Export Archive (ZIP)
+          </button>
+
+          {isDeveloper && pkg.package_status !== "SUBMITTED" && pkg.package_status !== "VERIFIED" && (
             <button
               onClick={handleSealPackage}
               disabled={pkg.completeness_score < 100.0}
@@ -417,7 +595,7 @@ export default function AuditorWorkspaceView({ packageId }: AuditorWorkspaceView
             </button>
           )}
 
-          {simulatedRole === "AUDITOR" && (
+          {isAuditor && (
             <button
               onClick={() => setShowDecisionModal(true)}
               className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold shadow-sm"
@@ -426,7 +604,7 @@ export default function AuditorWorkspaceView({ packageId }: AuditorWorkspaceView
             </button>
           )}
 
-          {simulatedRole === "DEVELOPER" && (
+          {isDeveloper && (
             <button
               onClick={() => setShowGrantModal(true)}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium border border-slate-700"
@@ -466,7 +644,7 @@ export default function AuditorWorkspaceView({ packageId }: AuditorWorkspaceView
           <div className="flex justify-between items-center text-xs">
             <span className="text-slate-400 font-semibold uppercase tracking-wider">Completeness</span>
             <span className={`font-mono font-bold ${pkg.completeness_score === 100 ? "text-emerald-400" : "text-amber-400"}`}>
-              {pkg.completeness_score}%
+              {pkg.completeness_score}% ({completedReqs}/{totalReqs} requirements)
             </span>
           </div>
           <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
@@ -720,7 +898,7 @@ export default function AuditorWorkspaceView({ packageId }: AuditorWorkspaceView
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800 text-slate-300">
-                    {(graph.feedstock_lots || []).map((lot: any) => (
+                    {(graph.feedstock_lots || []).map((lot) => (
                       <tr key={lot.id} className="hover:bg-slate-800/40">
                         <td className="p-3 font-mono font-medium text-white">{lot.lot_number}</td>
                         <td className="p-3">{lot.feedstock_type}</td>
@@ -762,7 +940,7 @@ export default function AuditorWorkspaceView({ packageId }: AuditorWorkspaceView
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800 text-slate-300">
-                    {(graph.production_runs || []).map((run: any) => (
+                    {(graph.production_runs || []).map((run) => (
                       <tr key={run.id} className="hover:bg-slate-800/40">
                         <td className="p-3 font-mono font-medium text-white">{run.run_number}</td>
                         <td className="p-3 text-right font-mono">{run.total_feedstock_input_tonnes}</td>
@@ -782,9 +960,10 @@ export default function AuditorWorkspaceView({ packageId }: AuditorWorkspaceView
                         <td className="p-3 text-right">
                           <button
                             onClick={() => openBlendBreakdown(run.id)}
-                            className="text-xs text-blue-400 hover:underline font-semibold"
+                            disabled={isLoadingBlend}
+                            className="text-xs text-blue-400 hover:underline font-semibold disabled:opacity-50"
                           >
-                            View Blend Breakdown
+                            {isLoadingBlend ? "Loading..." : "View Blend Breakdown"}
                           </button>
                         </td>
                       </tr>
@@ -818,7 +997,7 @@ export default function AuditorWorkspaceView({ packageId }: AuditorWorkspaceView
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800 text-slate-300">
-                    {(graph.batches || []).map((b: any) => {
+                    {(graph.batches || []).map((b) => {
                       const lab = (b.lab_analyses || [])[0] || {};
                       const hc = lab.molar_h_c_ratio ?? b.molar_h_c_ratio ?? 0.38;
                       const isPassing = hc <= 0.70;
@@ -872,7 +1051,7 @@ export default function AuditorWorkspaceView({ packageId }: AuditorWorkspaceView
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800 text-slate-300">
-                    {(graph.formulations || []).map((form: any) => (
+                    {(graph.formulations || []).map((form) => (
                       <tr key={form.id} className="hover:bg-slate-800/40">
                         <td className="p-3 font-semibold text-white">{form.product_name}</td>
                         <td className="p-3 font-mono text-slate-400">{form.product_code}</td>
@@ -915,7 +1094,7 @@ export default function AuditorWorkspaceView({ packageId }: AuditorWorkspaceView
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800 text-slate-300">
-                    {(graph.transports || []).map((t: any) => (
+                    {(graph.transports || []).map((t) => (
                       <tr key={t.id} className="hover:bg-slate-800/40">
                         <td className="p-3 font-semibold text-white">{t.carrier_name}</td>
                         <td className="p-3">{t.material_type}</td>
@@ -959,7 +1138,7 @@ export default function AuditorWorkspaceView({ packageId }: AuditorWorkspaceView
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800 text-slate-300">
-                    {(graph.end_uses || []).map((eu: any) => (
+                    {(graph.end_uses || []).map((eu) => (
                       <tr key={eu.id} className="hover:bg-slate-800/40">
                         <td className="p-3 font-semibold text-white">{eu.end_use_type}</td>
                         <td className="p-3 text-right font-mono text-emerald-400 font-bold">{eu.applied_quantity_tonnes}</td>
@@ -1003,7 +1182,7 @@ export default function AuditorWorkspaceView({ packageId }: AuditorWorkspaceView
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800 text-slate-300">
-                    {(graph.qc_checks || []).map((qc: any) => (
+                    {(graph.qc_checks || []).map((qc) => (
                       <tr key={qc.id} className="hover:bg-slate-800/40">
                         <td className="p-3 font-semibold text-white">{qc.check_type}</td>
                         <td className="p-3 font-mono text-slate-400">{qc.target_entity_type} ({qc.target_entity_id?.slice(0, 8)})</td>
@@ -1078,7 +1257,7 @@ export default function AuditorWorkspaceView({ packageId }: AuditorWorkspaceView
                   Segregation of Duties strictly enforced: Only external auditors can log findings; only project developers can submit responses.
                 </p>
               </div>
-              {simulatedRole === "AUDITOR" && (
+              {isAuditor && (
                 <button
                   onClick={() => setShowFindingModal(true)}
                   className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold shadow-sm"
@@ -1160,7 +1339,7 @@ export default function AuditorWorkspaceView({ packageId }: AuditorWorkspaceView
 
                     {/* Action Triggers */}
                     <div className="flex justify-end gap-2 pt-1">
-                      {simulatedRole === "DEVELOPER" && f.status === "OPEN" && (
+                      {isDeveloper && f.status === "OPEN" && (
                         <button
                           onClick={() => {
                             setActiveFindingAction(f);
@@ -1171,7 +1350,7 @@ export default function AuditorWorkspaceView({ packageId }: AuditorWorkspaceView
                           Submit Developer Response
                         </button>
                       )}
-                      {simulatedRole === "AUDITOR" && f.status === "RESPONSE_SUBMITTED" && (
+                      {isAuditor && f.status === "RESPONSE_SUBMITTED" && (
                         <button
                           onClick={() => {
                             setActiveFindingAction(f);
@@ -1274,12 +1453,21 @@ export default function AuditorWorkspaceView({ packageId }: AuditorWorkspaceView
                           </span>
                         </td>
                         <td className="p-3 text-right">
-                          <button
-                            onClick={() => handleVerifyEvidence(ev.id)}
-                            className="text-xs text-emerald-400 hover:underline font-semibold"
-                          >
-                            Verify
-                          </button>
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => handleDownloadEvidence(ev)}
+                              className="inline-flex items-center gap-1 text-xs text-blue-400 hover:underline font-semibold"
+                              title="Download canonical raw bytes"
+                            >
+                              <Download className="w-3.5 h-3.5" /> Download
+                            </button>
+                            <button
+                              onClick={() => handleVerifyEvidence(ev.id)}
+                              className="text-xs text-emerald-400 hover:underline font-semibold"
+                            >
+                              Verify
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -1382,7 +1570,7 @@ export default function AuditorWorkspaceView({ packageId }: AuditorWorkspaceView
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800 text-slate-300">
-                    {Object.entries(traceTrees[drillDownMetric].input_variables || {}).map(([k, v]: [string, any]) => (
+                    {Object.entries(traceTrees[drillDownMetric].input_variables || {}).map(([k, v]: [string, unknown]) => (
                       <tr key={k}>
                         <td className="p-2.5 font-mono text-white font-medium">{k}</td>
                         <td className="p-2.5 text-right font-mono font-bold text-emerald-400">{String(v)}</td>
@@ -1398,7 +1586,7 @@ export default function AuditorWorkspaceView({ packageId }: AuditorWorkspaceView
             <div className="space-y-1.5">
               <p className="text-xs font-bold text-slate-400 uppercase">Underlying Evidence Digests</p>
               <div className="space-y-2 max-h-40 overflow-y-auto">
-                {(traceTrees[drillDownMetric].evidence_refs || []).map((ref: any, idx: number) => (
+                {(traceTrees[drillDownMetric].evidence_refs || []).map((ref: { type?: string; hash?: string }, idx: number) => (
                   <div key={idx} className="bg-slate-950 p-2.5 rounded-lg border border-slate-800 flex items-center justify-between text-xs">
                     <span className="font-semibold text-slate-300">{ref.type}</span>
                     <span className="font-mono text-[11px] text-slate-400">{ref.hash?.slice(0, 16)}...{ref.hash?.slice(-8)}</span>
@@ -1576,7 +1764,7 @@ export default function AuditorWorkspaceView({ packageId }: AuditorWorkspaceView
                 <label className="text-slate-400 font-semibold mb-1 block">Finding Type</label>
                 <select
                   value={findingType}
-                  onChange={(e: any) => setFindingType(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setFindingType(e.target.value as "CAR" | "CL" | "FAR" | "NCR")}
                   className="w-full bg-slate-950 border border-slate-800 rounded px-2.5 py-1.5 text-white"
                 >
                   <option value="CAR">CAR (Corrective Action)</option>
@@ -1589,7 +1777,7 @@ export default function AuditorWorkspaceView({ packageId }: AuditorWorkspaceView
                 <label className="text-slate-400 font-semibold mb-1 block">Severity</label>
                 <select
                   value={findingSeverity}
-                  onChange={(e: any) => setFindingSeverity(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setFindingSeverity(e.target.value as "CRITICAL" | "MAJOR" | "MINOR" | "OBSERVATION")}
                   className="w-full bg-slate-950 border border-slate-800 rounded px-2.5 py-1.5 text-white"
                 >
                   <option value="CRITICAL">CRITICAL</option>
@@ -1604,7 +1792,7 @@ export default function AuditorWorkspaceView({ packageId }: AuditorWorkspaceView
               <label className="text-slate-400 font-semibold mb-1 block">Target Domain</label>
               <select
                 value={findingDomain}
-                onChange={(e: any) => setFindingDomain(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setFindingDomain(e.target.value)}
                 className="w-full bg-slate-950 border border-slate-800 rounded px-2.5 py-1.5 text-white"
               >
                 <option value="FEEDSTOCK">FEEDSTOCK</option>
@@ -1810,6 +1998,20 @@ export default function AuditorWorkspaceView({ packageId }: AuditorWorkspaceView
                 className="w-full bg-slate-950 border border-slate-800 rounded px-2.5 py-1.5 text-white"
               />
             </div>
+
+            {grants.length > 0 && (
+              <div className="space-y-1.5 pt-2 border-t border-slate-800">
+                <p className="text-[11px] font-bold text-slate-400 uppercase">Existing Active Grants ({grants.length})</p>
+                <div className="max-h-28 overflow-y-auto space-y-1">
+                  {grants.map((g) => (
+                    <div key={g.id} className="bg-slate-950 p-2 rounded text-[11px] flex justify-between items-center">
+                      <span className="text-white font-medium">{g.auditor_email}</span>
+                      <span className="text-slate-400">{g.auditor_organization}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
               <button

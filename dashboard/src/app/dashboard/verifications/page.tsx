@@ -20,22 +20,18 @@ import { useEffect, useState } from "react";
 
 import Link from "next/link";
 import {
-  Bluetooth,
   MessageSquare,
   ShieldAlert,
   Plus,
   Loader2,
-  CheckCircle,
   Calendar,
   Layers,
   ArrowRight,
   Cpu,
-  FileText,
   AlertTriangle,
   ShieldCheck,
   PackageCheck,
   Lock,
-  ExternalLink,
   RefreshCw,
   X,
   Clock,
@@ -61,7 +57,39 @@ import { useToast } from "@/components/Toast";
 import { useWorkspace } from "@/context/WorkspaceContext";
 import VerificationPipelineStages, { PipelineStage } from "@/components/VerificationPipelineStages";
 
+interface SmsLogItem {
+  id: string;
+  user_name?: string;
+  phone_number?: string;
+  [key: string]: unknown;
+}
 
+interface SensorDeviceItem {
+  id: string;
+  device_id?: string;
+  battery_pct?: number | string;
+  last_ping?: string;
+  asset_id?: string;
+  [key: string]: unknown;
+}
+
+interface FlaggedActivityItem {
+  id: string;
+  activity_data?: {
+    stove_id?: string;
+    head_name?: string;
+    [key: string]: unknown;
+  };
+  activity_type?: string;
+  trust_score?: number | string;
+  agent_name?: string;
+  captured_at?: string;
+  latitude?: number;
+  longitude?: number;
+  status?: string;
+  trust_status?: string;
+  [key: string]: unknown;
+}
 
 export default function VerificationsPage() {
 
@@ -90,7 +118,7 @@ export default function VerificationsPage() {
 
   const [audits, setAudits] = useState<AuditTask[]>([]);
 
-  const [flaggedActivities, setFlaggedActivities] = useState<any[]>([]);
+  const [flaggedActivities, setFlaggedActivities] = useState<FlaggedActivityItem[]>([]);
 
   const [isGenerating, setIsGenerating] = useState(false);
 
@@ -100,16 +128,14 @@ export default function VerificationsPage() {
 
   // SMS Validation State
 
-  const [smsLogs, setSmsLogs] = useState<any[]>([]);
+  const [smsLogs, setSmsLogs] = useState<SmsLogItem[]>([]);
 
   const [isLoadingSms, setIsLoadingSms] = useState(false);
 
 
 
   // IoT Sensors State
-
-  const [sensorDevices, setSensorDevices] = useState<any[]>([]);
-
+  const [sensorDevices, setSensorDevices] = useState<SensorDeviceItem[]>([]);
   const [isLoadingSensors, setIsLoadingSensors] = useState(false);
 
 
@@ -137,11 +163,8 @@ export default function VerificationsPage() {
 
 
       const actsList = Array.isArray(activitiesRes) ? activitiesRes : (activitiesRes?.activities || []);
-
-      const flagged = actsList.filter((a: any) =>
-
-        a.status === "audit" || a.status === "review" || a.trust_status === "AUDIT" || (a.trust_score !== undefined && a.trust_score < 80)
-
+      const flagged = (actsList as FlaggedActivityItem[]).filter((a) =>
+        a.status === "audit" || a.status === "review" || a.trust_status === "AUDIT" || (typeof a.trust_score === "number" && a.trust_score < 80)
       );
 
       setFlaggedActivities(flagged);
@@ -170,7 +193,7 @@ export default function VerificationsPage() {
 
       const res = await fetchCommunityFeed(1, 10);
 
-      setSmsLogs(res.posts || []);
+      setSmsLogs((res.posts || []) as unknown as SmsLogItem[]);
 
     } catch (err) {
 
@@ -202,20 +225,15 @@ export default function VerificationsPage() {
 
       ]);
 
-      const devicesList = devicesRes.devices || [];
+      const devicesList = (devicesRes.devices || []) as SensorDeviceItem[];
 
       const propertiesList = propertiesRes.properties || [];
 
 
 
       const filteredProps = filterProperties(propertiesList);
-
       const filteredPropIds = new Set(filteredProps.map(p => p.id));
-
-
-
-      const activeDevices = devicesList.filter((dev: any) => filteredPropIds.has(dev.asset_id));
-
+      const activeDevices = devicesList.filter((dev) => filteredPropIds.has(String(dev.asset_id)));
       setSensorDevices(activeDevices);
 
     } catch (err) {
@@ -277,23 +295,27 @@ export default function VerificationsPage() {
       toast.success("Package Compiled", `Successfully compiled ${newPkg.package_name} v${newPkg.package_version}`);
       setShowCompileModal(false);
       await loadPackagesData();
-    } catch (err: any) {
-      toast.error("Compilation Failed", err.message || "Failed to compile verification package.");
+    } catch (err: unknown) {
+      const errorObj = err as { message?: string };
+      toast.error("Compilation Failed", errorObj?.message || "Failed to compile verification package.");
     } finally {
       setIsCompiling(false);
     }
   };
 
   useEffect(() => {
-    if (activeTab === 'packages') {
-      loadPackagesData();
-    } else if (activeTab === 'audits') {
-      loadAuditData();
-    } else if (activeTab === 'community') {
-      loadSmsData();
-    } else if (activeTab === 'sensors') {
-      loadSensorData();
-    }
+    const timer = setTimeout(() => {
+      if (activeTab === 'packages') {
+        void loadPackagesData();
+      } else if (activeTab === 'audits') {
+        void loadAuditData();
+      } else if (activeTab === 'community') {
+        void loadSmsData();
+      } else if (activeTab === 'sensors') {
+        void loadSensorData();
+      }
+    }, 0);
+    return () => clearTimeout(timer);
   }, [activeTab]);
 
 
@@ -434,10 +456,9 @@ export default function VerificationsPage() {
 
       );
 
-    } catch (err: any) {
-
-      toast.error("Allocation Failed", err.message || "Failed to commit verification task.");
-
+    } catch (err: unknown) {
+      const errorObj = err as { message?: string };
+      toast.error("Allocation Failed", errorObj?.message || "Failed to commit verification task.");
     } finally {
 
       setIsGenerating(false);
@@ -503,7 +524,7 @@ export default function VerificationsPage() {
               : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-background)]/50'
           }`}
         >
-          <Layers size={14} /> Audit Packages (CIOS)
+          <Layers size={14} /> Audit Packages
         </button>
 
         <button
@@ -554,7 +575,7 @@ export default function VerificationsPage() {
                 <div className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-[#00B47A] animate-pulse" />
                   <h3 className="text-sm font-bold uppercase tracking-wider text-[var(--color-text-primary)]">
-                    Automatic Verification Packages (CIOS Level 5)
+                    Automatic Verification Packages
                   </h3>
                 </div>
                 <p className="text-xs text-[var(--color-text-secondary)] mt-1 max-w-2xl">
@@ -854,7 +875,7 @@ export default function VerificationsPage() {
                         <div className="text-[10px] text-[var(--color-text-secondary)] space-y-1">
                           <p>Agent: <strong className="text-[var(--color-text-primary)]">{act.agent_name || "Field Agent"}</strong></p>
                           <p>Captured: <span className="font-mono">{act.captured_at ? new Date(act.captured_at).toLocaleDateString() : "—"}</span></p>
-                          {act.latitude && (
+                          {act.latitude !== undefined && act.longitude !== undefined && (
                             <p className="font-mono text-blue-400">GPS: {act.latitude.toFixed(5)}, {act.longitude.toFixed(5)}</p>
                           )}
                         </div>
@@ -1263,7 +1284,7 @@ export default function VerificationsPage() {
                     <option value="PURO_EARTH">Puro.earth (CORC)</option>
                     <option value="VERRA_VCS">Verra VCS</option>
                     <option value="GOLD_STANDARD">Gold Standard</option>
-                    <option value="GENERIC_CIOS">Generic CIOS Audit</option>
+                    <option value="GENERIC_CIOS">Generic Audit Package</option>
                   </select>
                 </div>
 
