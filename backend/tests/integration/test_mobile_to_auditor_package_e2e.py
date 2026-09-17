@@ -144,14 +144,32 @@ async def test_full_mobile_to_auditor_package_lifecycle_e2e(db_session: AsyncSes
         organization_id=org_id,
     )
 
+    auditor_org_id = uuid.uuid4()
+    auditor_org = Organization(
+        id=auditor_org_id,
+        name=f"Accredited Auditor Org {u_hex}",
+        org_type="AUDITOR",
+        licensed_sectors=["BIOCHAR"],
+    )
+    db_session.add(auditor_org)
+
     auditor_user_id = uuid.uuid4()
     auditor_user = User(
         id=auditor_user_id,
         email=f"auditor-{u_hex}@puro-auditors.org",
         full_name="Senior Accredited Auditor",
         role=ROLE_AUDITOR,
-        organization_id=None,
+        organization_id=auditor_org_id,
     )
+
+    foreign_org_id = uuid.uuid4()
+    foreign_org = Organization(
+        id=foreign_org_id,
+        name=f"Foreign Organization {u_hex}",
+        org_type="DEVELOPER",
+        licensed_sectors=["ENERGY"],
+    )
+    db_session.add(foreign_org)
 
     foreign_user_id = uuid.uuid4()
     foreign_user = User(
@@ -159,7 +177,7 @@ async def test_full_mobile_to_auditor_package_lifecycle_e2e(db_session: AsyncSes
         email=f"unauthorized-{u_hex}@random.org",
         full_name="Unauthorized Foreign Actor",
         role=ROLE_AUDITOR,
-        organization_id=uuid.uuid4(),
+        organization_id=foreign_org_id,
     )
     db_session.add_all([field_user, dev_user, auditor_user, foreign_user])
 
@@ -782,6 +800,45 @@ async def test_full_mobile_to_auditor_package_lifecycle_e2e(db_session: AsyncSes
         assert res_resolve.status_code == 200
         assert res_resolve.json()["status"] == "RESOLVED"
 
+        # Verify that closing the finding does NOT automatically make the package VERIFIED
+        await db_session.refresh(pkg_v2)
+        assert pkg_v2.package_status != "VERIFIED", "Package must not automatically become VERIFIED upon finding resolution alone."
+
+        # Negative test: Project Developer attempts to record verification decision (Separation of Duties violation)
+        res_dev_dec = await client.post(
+            f"/api/v1/verification/packages/{pkg_v2.id}/decision",
+            json={
+                "decision": "VERIFIED",
+                "decision_notes": "Attempted self-certification by project developer",
+            },
+            headers=dev_auth,
+        )
+        assert res_dev_dec.status_code == 403, f"Expected 403 for developer decision attempt, got {res_dev_dec.status_code}"
+
+        # Negative test: Foreign unauthorized actor attempts to record verification decision
+        res_for_dec = await client.post(
+            f"/api/v1/verification/packages/{pkg_v2.id}/decision",
+            json={
+                "decision": "VERIFIED",
+                "decision_notes": "Attempted certification by unauthorized foreign party",
+            },
+            headers=foreign_auth,
+        )
+        assert res_for_dec.status_code == 403, f"Expected 403 for foreign user, got {res_for_dec.status_code}"
+
+        # Positive test: Accredited Auditor records explicit verification decision
+        res_dec = await client.post(
+            f"/api/v1/verification/packages/{pkg_v2.id}/decision",
+            json={
+                "decision": "VERIFIED",
+                "decision_notes": "All findings resolved and corrected evidence verified against physical scale records.",
+            },
+            headers=auditor_auth,
+        )
+        assert res_dec.status_code == 200, f"Auditor decision failed: {res_dec.text}"
+        dec_resp = res_dec.json()
+        assert dec_resp["package_status"] == "VERIFIED"
+
         # Verify ZIP export archive generates valid checksums
         res_archive = await client.get(
             f"/api/v1/verification/packages/{pkg_v2.id}/export/archive",
@@ -791,11 +848,7 @@ async def test_full_mobile_to_auditor_package_lifecycle_e2e(db_session: AsyncSes
         assert res_archive.headers["Content-Type"] == "application/zip"
         assert len(res_archive.content) > 100
 
-    # Package v2 status updated to VERIFIED
-    pkg_v2.package_status = "VERIFIED"
-    await db_session.commit()
-
-    # Query final package state
+    # Query final package state in database
     await db_session.refresh(pkg_v1)
     await db_session.refresh(pkg_v2)
 
@@ -804,3 +857,4 @@ async def test_full_mobile_to_auditor_package_lifecycle_e2e(db_session: AsyncSes
     assert pkg_v2.package_version == 2
     assert pkg_v2.parent_package_id == pkg_v1.id
     assert pkg_v2.package_status == "VERIFIED"
+    assert pkg_v2.metadata_json.get("audit_decision") == "VERIFIED"

@@ -25,16 +25,12 @@ import { isDashboardRoleAllowed, isRouteAuthorized, normalizeRole } from "@/lib/
 import EnterpriseBreadcrumb from "@/components/EnterpriseBreadcrumb";
 
 import AINotificationCenter from "@/components/AINotificationCenter";
-
-import UniversalAIAssistant from "@/components/UniversalAIAssistant";
-
 import InlineGuidance from "@/components/InlineGuidance";
 import { fetchUsers } from "@/lib/api";
 import Link from "next/link";
 import { WorkspaceProvider, useWorkspace } from "@/context/WorkspaceContext";
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Bot } from "lucide-react";
 
 export default function DashboardLayout({
   children,
@@ -61,6 +57,7 @@ function DashboardLayoutContent({
   const [guidanceData, setGuidanceData] = useState<{ activeUsers?: number; pendingApprovals?: number }>({});
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsMounted(true);
   }, []);
 
@@ -231,14 +228,6 @@ function DashboardLayoutContent({
 
           {/* Inline Role Guidance */}
           <InlineGuidance role={user?.role} page={pathname} data={guidanceData} />
-
-
-
-          {/* Contextual AI Assistant Present Across Every Page */}
-
-          <UniversalAIAssistant />
-
-
 
           <div key={activeSector}>
 

@@ -99,6 +99,15 @@ async def _create_sample_project_graph(db_session: AsyncSession) -> dict:
     )
     db_session.add(org)
 
+    auditor_org_id = uuid.uuid4()
+    auditor_org = Organization(
+        id=auditor_org_id,
+        name=f"Third Party VCF Services {uuid.uuid4().hex[:6]}",
+        org_type="AUDITOR",
+        licensed_sectors=["BIOCHAR"],
+    )
+    db_session.add(auditor_org)
+
     proj_id = uuid.uuid4()
     developer_id = uuid.uuid4()
     dev_user = User(
@@ -334,6 +343,7 @@ async def _create_sample_project_graph(db_session: AsyncSession) -> dict:
         "batch": batch,
         "lab": lab,
         "end_use": end_use,
+        "auditor_org_id": auditor_org_id,
     }
 
 
@@ -726,6 +736,7 @@ async def test_auditor_findings_lifecycle_and_sod_enforcement(
         full_name="SGS Carbon Auditor",
         role=ROLE_AUDITOR,
         organization="SGS Carbon Assurance",
+        organization_id=data["auditor_org_id"],
     )
     db_session.add(auditor_user)
     await db_session.flush()
@@ -826,6 +837,7 @@ async def test_scoped_external_auditor_access_and_403_denial(
         full_name="Unassigned Auditor",
         role=ROLE_AUDITOR,
         organization="TUV NORD Cert",
+        organization_id=data["auditor_org_id"],
     )
     db_session.add(unassigned_auditor)
     await db_session.flush()
@@ -992,6 +1004,7 @@ async def test_developer_and_auditor_strict_rbac_matrix(db_session: AsyncSession
         full_name="Assurance Auditor",
         role=ROLE_AUDITOR,
         organization="Independent Assurance Corp",
+        organization_id=data["auditor_org_id"],
     )
     db_session.add(auditor_user)
     await db_session.flush()
@@ -1097,6 +1110,7 @@ async def test_evidence_content_retrieval_and_403_access_gates(db_session: Async
         email=f"unassigned-{uuid.uuid4().hex[:6]}@audits.com",
         full_name="Unassigned Auditor",
         role=ROLE_AUDITOR,
+        organization_id=data["auditor_org_id"],
     )
     db_session.add(unassigned)
     await db_session.flush()
@@ -1112,6 +1126,7 @@ async def test_evidence_content_retrieval_and_403_access_gates(db_session: Async
         email=expired_email,
         full_name="Expired Auditor",
         role=ROLE_AUDITOR,
+        organization_id=data["auditor_org_id"],
     )
     db_session.add(expired_auditor)
     grant_exp = VerificationAccessGrant(
@@ -1138,6 +1153,7 @@ async def test_evidence_content_retrieval_and_403_access_gates(db_session: Async
         email=revoked_email,
         full_name="Revoked Auditor",
         role=ROLE_AUDITOR,
+        organization_id=data["auditor_org_id"],
     )
     db_session.add(revoked_auditor)
     grant_rev = VerificationAccessGrant(
@@ -1180,6 +1196,7 @@ async def test_evidence_content_retrieval_and_403_access_gates(db_session: Async
         email=valid_email,
         full_name="Valid Auditor",
         role=ROLE_AUDITOR,
+        organization_id=data["auditor_org_id"],
     )
     db_session.add(valid_auditor)
     grant_valid = VerificationAccessGrant(

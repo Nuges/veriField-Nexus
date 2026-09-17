@@ -184,6 +184,9 @@ async def init_test_database():
                     CURRENT_TIMESTAMP
                 )
             """), {"admin_email": admin_email, "pw_hash": pw_hash})
+            await session.execute(text("""
+                DELETE FROM users WHERE role != 'SUPER_ADMIN' AND organization_id IS NULL
+            """))
         else:
             await session.execute(text("""
                 INSERT INTO users (id, email, full_name, role, status, is_active, password_hash, requires_password_change, version, is_deleted, created_at, updated_at)
