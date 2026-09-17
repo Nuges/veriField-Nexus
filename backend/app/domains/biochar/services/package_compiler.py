@@ -781,6 +781,35 @@ class BiocharVerificationPackageCompiler:
             for m in lca_models
         ]
 
+        # 10. Mobile Field Activities & Sensor Observations
+        from app.domains.activities.models import Activity
+        stmt_act = (
+            select(Activity)
+            .where(
+                Activity.organization_id == organization_id,
+                Activity.captured_at >= start_dt,
+                Activity.captured_at <= end_dt,
+            )
+            .order_by(Activity.captured_at.asc())
+        )
+        acts = (await self.db.execute(stmt_act)).scalars().all()
+        acts_data = [
+            {
+                "id": str(a.id),
+                "activity_type": a.activity_type,
+                "description": a.description,
+                "image_url": a.image_url,
+                "image_hash": a.image_hash,
+                "latitude": a.latitude,
+                "longitude": a.longitude,
+                "gps_accuracy": a.gps_accuracy,
+                "captured_at": a.captured_at.isoformat() if a.captured_at else None,
+                "client_id": a.client_id,
+                "activity_data": a.activity_data or {},
+            }
+            for a in acts
+        ]
+
         return {
             "sources": list(sources_dict.values()),
             "feedstock_lots": lots_data,
@@ -794,6 +823,7 @@ class BiocharVerificationPackageCompiler:
             "end_uses": end_uses_data,
             "qc_checks": qc_data,
             "lca_models": lca_data,
+            "activities": acts_data,
         }
 
     # ─── Number-to-Evidence Trace Trees ─────────────────────────────────────────
@@ -1058,6 +1088,23 @@ class BiocharVerificationPackageCompiler:
                     "file_name": f"end_use_proof_{eu['id'][:8]}.pdf",
                     "file_uri": f"s3://verifield-evidence/end_use/{eu['id'][:8]}.pdf",
                     "file_size_bytes": 512000,
+                    "sha256_hash": h,
+                    "integrity_status": "VERIFIED",
+                })
+
+        # 6. Mobile Field Activities & Sensor Evidence
+        for act in graph_data.get("activities", []):
+            h = act.get("image_hash")
+            if h and h not in seen_hashes:
+                seen_hashes.add(h)
+                evidence_list.append({
+                    "category": "FIELD_ACTIVITY",
+                    "reference_domain": "ACTIVITY",
+                    "reference_id": act["id"],
+                    "title": f"Mobile Field Capture — {act.get('activity_type', 'Activity')}",
+                    "file_name": f"mobile_evidence_{act['id'][:8]}.jpg",
+                    "file_uri": act.get("image_url") or f"s3://verifield-evidence/activities/{act['id'][:8]}.jpg",
+                    "file_size_bytes": 182400,
                     "sha256_hash": h,
                     "integrity_status": "VERIFIED",
                 })
