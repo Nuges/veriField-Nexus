@@ -75,8 +75,26 @@ jobs:
           JWT_SECRET: "ci-test-secret-key-32-chars-minimum"
           TESTING: "1"
         run: |
-          pytest tests/ -v --tb=short
+          python -c "import sys; print(sys.version)"
+          pip list --format=columns | grep -iE "sqlalchemy|aiosqlite|pytest|pydantic|fastapi|httpx"
+          pytest tests/ -v --tb=short > pytest_output.txt 2>&1
+          PYTEST_EXIT=$?
+          cat pytest_output.txt
+          if [ $PYTEST_EXIT -ne 0 ]; then
+            ERR=$(grep -E 'FAILED tests/|ERROR tests/' pytest_output.txt | head -30 | tr '\n' '; ')
+            if [ -z "$ERR" ]; then
+              ERR=$(tail -n 25 pytest_output.txt | tr '\n' ' ')
+            fi
+            echo "::error title=Pytest Failure::$ERR"
+            exit $PYTEST_EXIT
+          fi
 
+      - name: Upload Pytest Output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-output
+          path: backend/pytest_output.txt
   frontend-build:
     name: Dashboard Typecheck & Build
     runs-on: ubuntu-latest
