@@ -119,6 +119,7 @@ jobs:
           NEXT_TELEMETRY_DISABLED: 1
         run: npm run build
 
+  # CI quality gate verification
   sdk-check:
     name: SDK Typecheck
     runs-on: ubuntu-latest
