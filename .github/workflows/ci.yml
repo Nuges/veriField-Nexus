@@ -81,31 +81,7 @@ jobs:
           PYTEST_EXIT=$?
           cat pytest_output.txt
           if [ $PYTEST_EXIT -ne 0 ]; then
-            python3 -c "
-with open('pytest_output.txt') as f:
-    text = f.read()
-lines = text.splitlines()
-failures = [l for l in lines if l.startswith('FAILED ') or l.startswith('ERROR ')]
-for l in failures:
-    print(f'::error file=backend/tests/conftest.py,line=1::{l}')
-in_failure = False
-tb_lines = []
-for l in lines:
-    if '=== FAILURES ===' in l or '=== ERRORS ===' in l:
-        in_failure = True
-        continue
-    if in_failure and ('=== short test summary info ===' in l or l.startswith('=====')):
-        in_failure = False
-    if in_failure and len(tb_lines) < 30:
-        tb_lines.append(l)
-for l in tb_lines:
-    if l.strip():
-        print(f'::warning file=backend/tests/conftest.py,line=1::{l}')
-if not failures and not tb_lines:
-    for l in lines[-30:]:
-        if l.strip():
-            print(f'::error file=backend/tests/conftest.py,line=1::{l}')
-"
+            python scripts/ci_annotate_failures.py pytest_output.txt
             exit $PYTEST_EXIT
           fi
 
