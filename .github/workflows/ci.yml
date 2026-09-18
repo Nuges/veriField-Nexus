@@ -10,9 +10,6 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-permissions:
-  contents: write
-
 jobs:
   backend-test:
     name: Backend Pytest & Migrations
@@ -46,9 +43,6 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          fetch-depth: 0
 
       - name: Setup Python 3.12
         uses: actions/setup-python@v5
@@ -87,12 +81,31 @@ jobs:
           PYTEST_EXIT=$?
           cat pytest_output.txt
           if [ $PYTEST_EXIT -ne 0 ]; then
-            git config user.name "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-            git checkout -B ci-debug-log
-            git add pytest_output.txt
-            git commit -m "ci: debug log for failed run $GITHUB_RUN_ID" || true
-            git push origin ci-debug-log --force || true
+            python3 -c "
+with open('pytest_output.txt') as f:
+    text = f.read()
+lines = text.splitlines()
+failures = [l for l in lines if l.startswith('FAILED ') or l.startswith('ERROR ')]
+for l in failures:
+    print(f'::error file=backend/tests/conftest.py,line=1::{l}')
+in_failure = False
+tb_lines = []
+for l in lines:
+    if '=== FAILURES ===' in l or '=== ERRORS ===' in l:
+        in_failure = True
+        continue
+    if in_failure and ('=== short test summary info ===' in l or l.startswith('=====')):
+        in_failure = False
+    if in_failure and len(tb_lines) < 30:
+        tb_lines.append(l)
+for l in tb_lines:
+    if l.strip():
+        print(f'::warning file=backend/tests/conftest.py,line=1::{l}')
+if not failures and not tb_lines:
+    for l in lines[-30:]:
+        if l.strip():
+            print(f'::error file=backend/tests/conftest.py,line=1::{l}')
+"
             exit $PYTEST_EXIT
           fi
 
