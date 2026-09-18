@@ -14,6 +14,12 @@ jobs:
   backend-test:
     name: Backend Pytest & Migrations
     runs-on: ubuntu-latest
+    outputs:
+      fail1: ${{ steps.pytest_run.outputs.fail1 }}
+      fail2: ${{ steps.pytest_run.outputs.fail2 }}
+      tb1: ${{ steps.pytest_run.outputs.tb1 }}
+      tb2: ${{ steps.pytest_run.outputs.tb2 }}
+      summary: ${{ steps.pytest_run.outputs.summary }}
     services:
       postgres:
         image: postgres:15-alpine
@@ -84,34 +90,6 @@ jobs:
           python scripts/ci_annotate_failures.py pytest_output.txt "$GITHUB_OUTPUT"
           exit $PYTEST_EXIT
 
-      - name: "Fail 1: ${{ steps.pytest_run.outputs.fail1 }}"
-        if: always()
-        run: echo "Failure 1 recorded"
-
-      - name: "Fail 2: ${{ steps.pytest_run.outputs.fail2 }}"
-        if: always()
-        run: echo "Failure 2 recorded"
-
-      - name: "Fail 3: ${{ steps.pytest_run.outputs.fail3 }}"
-        if: always()
-        run: echo "Failure 3 recorded"
-
-      - name: "TB 1: ${{ steps.pytest_run.outputs.tb1 }}"
-        if: always()
-        run: echo "Traceback 1 recorded"
-
-      - name: "TB 2: ${{ steps.pytest_run.outputs.tb2 }}"
-        if: always()
-        run: echo "Traceback 2 recorded"
-
-      - name: "TB 3: ${{ steps.pytest_run.outputs.tb3 }}"
-        if: always()
-        run: echo "Traceback 3 recorded"
-
-      - name: "Summary: ${{ steps.pytest_run.outputs.summary }}"
-        if: always()
-        run: echo "Summary recorded"
-
       - name: Upload Pytest Output
         if: always()
         uses: actions/upload-artifact@v4
@@ -162,3 +140,28 @@ jobs:
       - name: Typecheck SDK
         working-directory: sdk
         run: npx -p typescript tsc --noEmit
+
+  report-failures:
+    name: "F1: ${{ needs.backend-test.outputs.fail1 }}"
+    needs: backend-test
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "F1=${{ needs.backend-test.outputs.fail1 }}"
+
+  report-traceback:
+    name: "TB: ${{ needs.backend-test.outputs.tb1 }}"
+    needs: backend-test
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "TB=${{ needs.backend-test.outputs.tb1 }}"
+
+  report-summary:
+    name: "SUM: ${{ needs.backend-test.outputs.summary }}"
+    needs: backend-test
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "SUM=${{ needs.backend-test.outputs.summary }}"
+

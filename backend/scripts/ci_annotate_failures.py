@@ -2,9 +2,24 @@ import os
 import sys
 
 
+def sanitize(s: str) -> str:
+    s = (
+        s.replace('"', "")
+        .replace("'", "")
+        .replace(":", "-")
+        .replace("\n", " ")
+        .replace("\r", "")
+        .replace("`", "")
+        .replace("$", "")
+    )
+    return s[:120].strip() or "none"
+
+
 def main():
     log_file = sys.argv[1] if len(sys.argv) > 1 else "pytest_output.txt"
-    github_output = sys.argv[2] if len(sys.argv) > 2 else os.environ.get("GITHUB_OUTPUT", "")
+    github_output = (sys.argv[2] if len(sys.argv) > 2 and sys.argv[2] else None) or os.environ.get(
+        "GITHUB_OUTPUT", ""
+    )
 
     try:
         with open(log_file) as f:
@@ -40,9 +55,6 @@ def main():
         if l.strip():
             print(f"::warning::{l}")
             print(f"::warning file=.github/workflows/ci.yml,line=1::{l}")
-
-    def sanitize(s):
-        return s.replace('"', "").replace("'", "").replace("\n", " ").replace("\r", "")[:200]
 
     if github_output:
         try:
