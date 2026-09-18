@@ -70,6 +70,7 @@ jobs:
       - name: Run Backend Pytest Suite
         working-directory: backend
         env:
+          DATABASE_URL: "sqlite+aiosqlite:///test_default.db"
           REDIS_URL: "redis://localhost:6379/0"
           JWT_SECRET: "ci-test-secret-key-32-chars-minimum"
           TESTING: "1"

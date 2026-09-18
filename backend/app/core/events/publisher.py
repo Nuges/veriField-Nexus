@@ -25,7 +25,7 @@ async def _try_redis_dispatch(event: BaseEvent) -> bool:
         redis_settings = RedisSettings.from_dsn(settings.redis_url)
         arq_pool = await asyncio.wait_for(create_pool(redis_settings), timeout=3.0)
         await arq_pool.enqueue_job("handle_async_event", event.model_dump_json())
-        await arq_pool.close()
+        await arq_pool.aclose()
         _redis_available = True
         return True
     except Exception as e:
@@ -53,8 +53,10 @@ async def publish_event(event: BaseEvent):
             )
 
     # 2. Queue the event for asynchronous processing
+    # In test mode, always dispatch locally since no separate arq background worker is running.
     dispatched_via_redis = False
-    if settings.redis_url and _redis_available is not False:
+    import os
+    if settings.redis_url and _redis_available is not False and os.environ.get("TESTING") != "1":
         dispatched_via_redis = await _try_redis_dispatch(event)
 
     if not dispatched_via_redis:
