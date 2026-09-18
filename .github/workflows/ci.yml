@@ -88,7 +88,7 @@ jobs:
           PYTEST_EXIT=$?
           cat pytest_output.txt
           python scripts/ci_annotate_failures.py pytest_output.txt "$GITHUB_OUTPUT"
-          exit $PYTEST_EXIT
+          echo "pytest_exit=$PYTEST_EXIT" >> $GITHUB_OUTPUT
 
       - name: Upload Pytest Output
         if: always()
@@ -96,6 +96,13 @@ jobs:
         with:
           name: pytest-output
           path: backend/pytest_output.txt
+
+      - name: Check Pytest Result
+        run: |
+          if [ "${{ steps.pytest_run.outputs.pytest_exit }}" != "0" ]; then
+            echo "Pytest failed with exit code ${{ steps.pytest_run.outputs.pytest_exit }}"
+            exit 1
+          fi
   frontend-build:
     name: Dashboard Typecheck & Build
     runs-on: ubuntu-latest
