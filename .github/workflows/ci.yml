@@ -68,6 +68,7 @@ jobs:
           alembic upgrade head
 
       - name: Run Backend Pytest Suite
+        id: pytest_run
         working-directory: backend
         env:
           DATABASE_URL: "sqlite+aiosqlite:///test_default.db"
@@ -80,10 +81,36 @@ jobs:
           pytest tests/ -v --tb=short > pytest_output.txt 2>&1
           PYTEST_EXIT=$?
           cat pytest_output.txt
-          if [ $PYTEST_EXIT -ne 0 ]; then
-            python scripts/ci_annotate_failures.py pytest_output.txt
-            exit $PYTEST_EXIT
-          fi
+          python scripts/ci_annotate_failures.py pytest_output.txt "$GITHUB_OUTPUT"
+          exit $PYTEST_EXIT
+
+      - name: "Fail 1: ${{ steps.pytest_run.outputs.fail1 }}"
+        if: always()
+        run: echo "Failure 1 recorded"
+
+      - name: "Fail 2: ${{ steps.pytest_run.outputs.fail2 }}"
+        if: always()
+        run: echo "Failure 2 recorded"
+
+      - name: "Fail 3: ${{ steps.pytest_run.outputs.fail3 }}"
+        if: always()
+        run: echo "Failure 3 recorded"
+
+      - name: "TB 1: ${{ steps.pytest_run.outputs.tb1 }}"
+        if: always()
+        run: echo "Traceback 1 recorded"
+
+      - name: "TB 2: ${{ steps.pytest_run.outputs.tb2 }}"
+        if: always()
+        run: echo "Traceback 2 recorded"
+
+      - name: "TB 3: ${{ steps.pytest_run.outputs.tb3 }}"
+        if: always()
+        run: echo "Traceback 3 recorded"
+
+      - name: "Summary: ${{ steps.pytest_run.outputs.summary }}"
+        if: always()
+        run: echo "Summary recorded"
 
       - name: Upload Pytest Output
         if: always()
