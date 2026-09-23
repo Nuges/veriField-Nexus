@@ -84,9 +84,13 @@ jobs:
         run: |
           python -c "import sys; print(sys.version)"
           pip list --format=columns | grep -iE "sqlalchemy|aiosqlite|pytest|pydantic|fastapi|httpx"
-          pytest tests/ -v --tb=short > pytest_output.txt 2>&1
-          PYTEST_EXIT=$?
-          cat pytest_output.txt
+          set +e
+          pytest tests/ -v --tb=long 2>&1 | tee pytest_output.txt
+          PYTEST_EXIT=${PIPESTATUS[0]}
+          set -e
+          echo "::group::Pytest Output (last 50 lines)"
+          tail -50 pytest_output.txt
+          echo "::endgroup::"
           python scripts/ci_annotate_failures.py pytest_output.txt "$GITHUB_OUTPUT"
           echo "pytest_exit=$PYTEST_EXIT" >> $GITHUB_OUTPUT
 
@@ -98,9 +102,14 @@ jobs:
           path: backend/pytest_output.txt
 
       - name: Check Pytest Result
+        if: always() && steps.pytest_run.outputs.pytest_exit != ''
         run: |
+          echo "Pytest exit code: ${{ steps.pytest_run.outputs.pytest_exit }}"
+          echo "Summary: ${{ steps.pytest_run.outputs.summary }}"
+          echo "Fail1: ${{ steps.pytest_run.outputs.fail1 }}"
+          echo "TB1: ${{ steps.pytest_run.outputs.tb1 }}"
           if [ "${{ steps.pytest_run.outputs.pytest_exit }}" != "0" ]; then
-            echo "Pytest failed with exit code ${{ steps.pytest_run.outputs.pytest_exit }}"
+            echo "::error::Pytest failed with exit code ${{ steps.pytest_run.outputs.pytest_exit }}"
             exit 1
           fi
   frontend-build:

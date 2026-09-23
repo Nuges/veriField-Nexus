@@ -36,6 +36,12 @@ def main():
 
     lines = text.splitlines()
     failures = [l.strip() for l in lines if l.startswith("FAILED ") or l.startswith("ERROR ")]
+    # Also capture import/collection errors that don't start with FAILED/ERROR
+    for l in lines:
+        stripped = l.strip()
+        if any(kw in stripped for kw in ["ImportError", "ModuleNotFoundError", "SyntaxError", "CollectionError"]):
+            if stripped not in failures:
+                failures.append(stripped)
     for l in failures:
         print(f"::error::{l}")
         print(f"::error file=.github/workflows/ci.yml,line=1::{l}")
