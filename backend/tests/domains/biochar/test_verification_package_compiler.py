@@ -1251,11 +1251,22 @@ async def test_evidence_integrity_with_physical_disk_mutation(db_session: AsyncS
     assert ev is not None
 
     # Ensure physical file exists initially matching hash
-    upload_dir = "/Users/segun/Documents/Verifield nexus/backend/static/uploads"
+    upload_dir = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))),
+        "static", "uploads",
+    )
     disk_path = os.path.join(upload_dir, f"{ev.sha256_hash}.pdf")
     os.makedirs(upload_dir, exist_ok=True)
+    # Determine correct canonical bytes from the evidence hash
+    _seed_map = {
+        hashlib.sha256(b"scale_ticket_lot1").hexdigest(): b"scale_ticket_lot1",
+        hashlib.sha256(b"scale_ticket_lot2").hexdigest(): b"scale_ticket_lot2",
+        hashlib.sha256(b"accredited_lab_coa_report").hexdigest(): b"accredited_lab_coa_report",
+        hashlib.sha256(b"transport_pod_receipt").hexdigest(): b"transport_pod_receipt",
+    }
+    canonical_bytes = _seed_map.get(ev.sha256_hash, b"scale_ticket_lot1")
     with open(disk_path, "wb") as f:
-        f.write(b"scale_ticket_lot1")
+        f.write(canonical_bytes)
 
     # Verify initial integrity passes
     ev_verified = await service.verify_evidence_integrity(package_id=pkg.id, evidence_id=ev.id)

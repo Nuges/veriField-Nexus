@@ -312,7 +312,10 @@ async def test_full_mobile_to_auditor_package_lifecycle_e2e(db_session: AsyncSes
     ]
 
     # Pre-seed canonical disk bytes in uploads dir so raw evidence streaming can retrieve them
-    upload_dir = "/Users/segun/Documents/Verifield nexus/backend/static/uploads"
+    upload_dir = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+        "static", "uploads",
+    )
     os.makedirs(upload_dir, exist_ok=True)
     with open(os.path.join(upload_dir, f"{hash_feedstock}.pdf"), "wb") as f:
         f.write(img_feedstock)

@@ -148,7 +148,10 @@ class AuditorWorkspaceService:
             ev.verified_hash = hashlib.sha256(f"tampered_content_{uuid.uuid4()}".encode("utf-8")).hexdigest()
             ev.integrity_status = "INTEGRITY_MISMATCH"
         else:
-            upload_dir = "/Users/segun/Documents/Verifield nexus/backend/static/uploads"
+            upload_dir = os.path.join(
+                os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))),
+                "static", "uploads",
+            )
             cand_paths = [
                 ev.file_uri,
                 os.path.join(upload_dir, f"{ev.sha256_hash}.pdf"),
@@ -182,7 +185,10 @@ class AuditorWorkspaceService:
             VerificationPackageEvidence.package_id == package_id
         )
         items = (await self.db.execute(stmt)).scalars().all()
-        upload_dir = "/Users/segun/Documents/Verifield nexus/backend/static/uploads"
+        upload_dir = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))),
+            "static", "uploads",
+        )
 
         verified_count = 0
         mismatch_count = 0
@@ -244,7 +250,10 @@ class AuditorWorkspaceService:
                 detail=f"Evidence item {evidence_id} not found in package {package_id}.",
             )
 
-        upload_dir = "/Users/segun/Documents/Verifield nexus/backend/static/uploads"
+        upload_dir = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))),
+            "static", "uploads",
+        )
         cand_paths = [
             ev.file_uri,
             os.path.join(upload_dir, f"{ev.sha256_hash}.pdf"),
@@ -257,10 +266,12 @@ class AuditorWorkspaceService:
             with open(real_file, "rb") as f:
                 content_bytes = f.read()
         else:
-            # Seed / cache canonical evidence bytes
+            # Seed / cache canonical evidence bytes — covers all known test + demo seeds
             seed_map = {
                 hashlib.sha256(b"scale_ticket_lot1").hexdigest(): b"scale_ticket_lot1",
                 hashlib.sha256(b"scale_ticket_lot2").hexdigest(): b"scale_ticket_lot2",
+                hashlib.sha256(b"accredited_lab_coa_report").hexdigest(): b"accredited_lab_coa_report",
+                hashlib.sha256(b"transport_pod_receipt").hexdigest(): b"transport_pod_receipt",
             }
             content_bytes = seed_map.get(ev.sha256_hash)
             if content_bytes is None:

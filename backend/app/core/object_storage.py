@@ -22,7 +22,10 @@ class S3StorageManager:
         self.access_key = settings.s3_access_key_id
         self.secret_key = settings.s3_secret_access_key
         self.region = settings.s3_region_name
-        self.local_dir = "/Users/segun/Documents/Verifield nexus/backend/static/uploads"
+        self.local_dir = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+            "static", "uploads",
+        )
 
         # Ensure local dir exists
         os.makedirs(self.local_dir, exist_ok=True)
