@@ -4,7 +4,10 @@ import io
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
-from app.domains.projects.models import CarbonCalculation
+from app.domains.organizations.models import Organization
+from app.domains.authentication.models import User
+from app.domains.projects.models import Project, CarbonCalculation
+from app.domains.activities.models import Activity
 
 @pytest.mark.asyncio
 async def test_profile_update_and_avatar_upload(async_client: AsyncClient, admin_token_headers: dict):
@@ -47,9 +50,29 @@ async def test_profile_update_and_avatar_upload(async_client: AsyncClient, admin
 
 @pytest.mark.asyncio
 async def test_carbon_calculation_db_unique_constraint(db_session: AsyncSession):
+    org_id = uuid.uuid4()
+    user_id = uuid.uuid4()
     proj_id = uuid.uuid4()
     act_id = uuid.uuid4()
-    
+
+    org = Organization(id=org_id, name=f"Unique Calc Org {org_id.hex[:6]}", org_type="DEVELOPER", status="ACTIVE")
+    user = User(
+        id=user_id,
+        email=f"unique_{uuid.uuid4().hex[:6]}@example.com",
+        full_name="Unique User",
+        role="ORG_ADMIN",
+        organization_id=org_id,
+        status="active",
+        is_active=True,
+    )
+    proj = Project(id=proj_id, organization_id=org_id, name=f"Unique Calc Project {proj_id.hex[:6]}")
+    from datetime import datetime, timezone
+    now_utc = datetime.now(timezone.utc)
+    act = Activity(id=act_id, organization_id=org_id, user_id=user_id, activity_type="MONITORING", captured_at=now_utc)
+
+    db_session.add_all([org, user, proj, act])
+    await db_session.commit()
+
     # 1. Add first calculation
     calc1 = CarbonCalculation(
         id=uuid.uuid4(),

@@ -23,94 +23,118 @@ from app.domains.projects.models import Project
 from app.domains.cookstoves.models import HouseholdBeneficiary, CookstoveDevice, UsageSurvey
 
 from app.domains.cookstoves.schemas import (
-
     HouseholdCreate,
-
+    HouseholdResponse,
     CookstoveDeviceCreate,
-
     UsageSurveyCreate,
-
     UsageSurveyResponse,
-
     CookstoveSummaryResponse,
-
+)
+from app.domains.cookstoves.service import CookstoveQuantificationEngine
+from app.core.rbac import (
+    ROLE_SUPER_ADMIN,
+    ROLE_ORG_ADMIN,
+    ROLE_PROJECT_MANAGER,
+    ROLE_FIELD_SUPERVISOR,
+    ROLE_FIELD_AGENT,
+    normalize_canonical_role,
 )
 
-from app.domains.cookstoves.service import CookstoveQuantificationEngine
-
-
+COOKSTOVE_OPERATIONAL_ROLES = {
+    ROLE_SUPER_ADMIN,
+    ROLE_ORG_ADMIN,
+    ROLE_PROJECT_MANAGER,
+    ROLE_FIELD_SUPERVISOR,
+    ROLE_FIELD_AGENT,
+}
 
 router = APIRouter()
 
 
-
-@router.post("/households", status_code=status.HTTP_201_CREATED)
-
+@router.post("/households", response_model=HouseholdResponse, status_code=status.HTTP_201_CREATED)
 async def register_household(
-
     data: HouseholdCreate,
-
     current_user: User = Depends(get_current_user),
-
     db: AsyncSession = Depends(get_db),
-
 ):
-
     abac = ABACEngine(db, current_user)
-
     await abac.enforce_project_access(data.project_id)
 
-
-
     hh = HouseholdBeneficiary(**data.model_dump())
-
     db.add(hh)
-
     await db.commit()
-
     await db.refresh(hh)
-
     return hh
 
 
-
-@router.get("/households")
-
+@router.get("/households", response_model=List[HouseholdResponse])
 async def list_households(
-
     project_id: Optional[UUID] = None,
-
     current_user: User = Depends(get_current_user),
-
     db: AsyncSession = Depends(get_db),
-
 ):
-
     stmt = select(HouseholdBeneficiary)
-
     if project_id:
-
         abac = ABACEngine(db, current_user)
-
         await abac.enforce_project_access(project_id)
-
         stmt = stmt.where(HouseholdBeneficiary.project_id == project_id)
-
     elif current_user.role != "SUPER_ADMIN":
-
         if not current_user.organization_id:
-
             return []
-
         org_projects = select(Project.id).where(Project.organization_id == current_user.organization_id)
-
         stmt = stmt.where(HouseholdBeneficiary.project_id.in_(org_projects))
 
-
-
     res = await db.execute(stmt)
+    households = res.scalars().all()
 
-    return res.scalars().all()
+    user_canonical_role = normalize_canonical_role(current_user.role)
+    is_operational_role = user_canonical_role in COOKSTOVE_OPERATIONAL_ROLES
+
+    response: List[HouseholdResponse] = []
+    for hh in households:
+        if is_operational_role:
+            response.append(
+                HouseholdResponse(
+                    id=hh.id,
+                    project_id=hh.project_id,
+                    household_code=hh.household_code,
+                    head_of_household=hh.head_of_household,
+                    phone_number=hh.phone_number,
+                    address=hh.address,
+                    community_name=hh.community_name,
+                    latitude=hh.latitude,
+                    longitude=hh.longitude,
+                    family_members_count=hh.family_members_count,
+                    baseline_fuel_type=hh.baseline_fuel_type,
+                    baseline_fuel_kg_per_day=hh.baseline_fuel_kg_per_day,
+                    is_active=hh.is_active,
+                    created_at=hh.created_at,
+                    is_coordinates_redacted=False,
+                )
+            )
+        else:
+            # Privacy-safe coordinate redaction for non-operational/general portfolio roles
+            response.append(
+                HouseholdResponse(
+                    id=hh.id,
+                    project_id=hh.project_id,
+                    household_code=hh.household_code,
+                    head_of_household=hh.head_of_household,
+                    phone_number=None,
+                    address="[PROTECTED HOUSEHOLD LOCATION]",
+                    community_name=hh.community_name,
+                    latitude=None,
+                    longitude=None,
+                    family_members_count=hh.family_members_count,
+                    baseline_fuel_type=hh.baseline_fuel_type,
+                    baseline_fuel_kg_per_day=hh.baseline_fuel_kg_per_day,
+                    is_active=hh.is_active,
+                    created_at=hh.created_at,
+                    is_coordinates_redacted=True,
+                )
+            )
+
+    return response
 
 
 

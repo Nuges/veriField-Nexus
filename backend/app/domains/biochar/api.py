@@ -1253,3 +1253,7 @@ async def list_product_batches(
 # Include Puro.earth Biochar Edition 2025 V2 Methodology Router
 from app.domains.biochar.puro_api import router as puro_router
 router.include_router(puro_router)
+
+# Include Verra VM0044 v1.2 Methodology Router
+from app.domains.biochar.vm0044_api import router as vm0044_router
+router.include_router(vm0044_router)

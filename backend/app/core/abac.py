@@ -222,7 +222,7 @@ class ABACEngine:
 
         review_roles = {"QA_OFFICER", "FIELD_SUPERVISOR", "PROJECT_MANAGER", "ORG_ADMIN", "SUPER_ADMIN", "ADMIN"}
 
-        audit_roles = {"VVB_AUDITOR", "COMPLIANCE_OFFICER", "SUPER_ADMIN"}
+        audit_roles = {"AUDITOR", "VERIFIER", "VVB_AUDITOR", "COMPLIANCE_OFFICER", "SUPER_ADMIN"}
 
 
 
@@ -278,7 +278,7 @@ class ABACEngine:
 
         privileged = {"SUPER_ADMIN", "ORG_ADMIN", "ADMIN", "COMPLIANCE_OFFICER"}
 
-        supervisor = {"FIELD_SUPERVISOR", "PROJECT_MANAGER", "QA_OFFICER", "VVB_AUDITOR"}
+        supervisor = {"FIELD_SUPERVISOR", "PROJECT_MANAGER", "QA_OFFICER", "AUDITOR", "VERIFIER", "VVB_AUDITOR"}
 
 
 

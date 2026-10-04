@@ -22,7 +22,7 @@ jobs:
       summary: ${{ steps.pytest_run.outputs.summary }}
     services:
       postgres:
-        image: postgres:15-alpine
+        image: postgis/postgis:15-3.4-alpine
         env:
           POSTGRES_DB: test_db
           POSTGRES_USER: test_user
@@ -30,8 +30,7 @@ jobs:
         ports:
           - 5432:5432
         options: >-
-          --health-cmd pg_isready
-          --health-cmd "pg_isready -U test_user -d test_db"
+          --health-cmd "pg_isready -U test_user -d test_db && psql -U test_user -d test_db -c 'SELECT PostGIS_Version();'"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -72,6 +71,15 @@ jobs:
         run: |
           alembic heads
           alembic upgrade head
+
+      - name: Run Authoritative PostGIS Integration Tests
+        working-directory: backend
+        env:
+          DATABASE_URL: "postgresql+asyncpg://test_user:test_password@localhost:5432/test_db"
+          JWT_SECRET: "ci-test-secret-key-32-chars-minimum"
+          TESTING: "1"
+        run: |
+          pytest tests/domains/earth_observation/test_postgis_authoritative_integration.py -v
 
       - name: Run Backend Pytest Suite
         id: pytest_run

@@ -170,7 +170,7 @@ function getGuidanceForRole(
       });
     }
 
-  } else if (r === "VVB_AUDITOR" || r === "vvb_auditor") {
+  } else if (r === "AUDITOR" || r === "auditor" || r === "VERIFIER" || r === "verifier" || r === "VVB_AUDITOR" || r === "vvb_auditor") {
 
     items.push({
 

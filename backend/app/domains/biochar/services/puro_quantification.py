@@ -447,12 +447,20 @@ class PuroCORCCalculator:
         c_loss: Decimal,
         e_project: Decimal,
         e_leakage: Decimal,
+        c_counterfactual: Decimal = Decimal("0.0"),
     ) -> Decimal:
         """
-        Puro Biochar Edition 2025 V2 Equation 5.1:
-        CORCs = max(0, Cstored - Cbaseline - Closs - Eproject - Eleakage)
+        Puro Biochar Edition 2025 V2 Equation 5.1 with Biomass Sourcing Criteria v1.3 Section 3:
+        CORCs = max(0, Cstored - Cbaseline - Closs - Eproject - Eleakage - Ccounterfactual)
         """
-        net = Decimal(str(c_stored)) - Decimal(str(c_baseline)) - Decimal(str(c_loss)) - Decimal(str(e_project)) - Decimal(str(e_leakage))
+        net = (
+            Decimal(str(c_stored))
+            - Decimal(str(c_baseline))
+            - Decimal(str(c_loss))
+            - Decimal(str(e_project))
+            - Decimal(str(e_leakage))
+            - Decimal(str(c_counterfactual or Decimal("0.0")))
+        )
         return max(Decimal("0.0"), net)
 
     @classmethod
@@ -482,6 +490,8 @@ class PuroCORCCalculator:
         feedstock_quantity_dry_tonnes: Decimal = Decimal("0.0"),
         feedstock_lhv_mj_kg: Decimal = Decimal("18.0"),
         end_use_corc_point_eligible: bool = True,
+        c_counterfactual: Decimal = Decimal("0.0"),
+        sourcing_criteria_version: str = "v1.3",
         calculation_mode: str = "AUTHORITATIVE",
         engine_version: str = "2.0.0",
         methodology_version: str = "PURO_BIOCHAR_2025_V2",
@@ -498,6 +508,8 @@ class PuroCORCCalculator:
                 "c_stored_tco2e": Decimal("0.0"),
                 "c_baseline_tco2e": Decimal("0.0"),
                 "c_loss_tco2e": Decimal("0.0"),
+                "c_counterfactual_tco2e": Decimal("0.0"),
+                "sourcing_criteria_version": sourcing_criteria_version,
                 "e_project_tco2e": Decimal("0.0"),
                 "e_leakage_tco2e": Decimal("0.0"),
                 "notes": "Point of Creation of CORC has not been reached. Durable end-use verification required.",
@@ -594,9 +606,10 @@ class PuroCORCCalculator:
         )
         e_leakage = leak_res["e_leakage_tco2e"]
 
-        # 6. Net CORCs Quantification
-        # CORCs = max(0, Cstored - Cbaseline - Closs - Eproject - Eleakage)
-        net_corcs = cls.calculate_net_corcs(c_stored, c_baseline, c_loss, e_project, e_leakage)
+        # 6. Net CORCs Quantification with Counterfactual Storage Deduction
+        # CORCs = max(0, Cstored - Cbaseline - Closs - Eproject - Eleakage - Ccounterfactual)
+        c_cf_val = Decimal(str(c_counterfactual or Decimal("0.0")))
+        net_corcs = cls.calculate_net_corcs(c_stored, c_baseline, c_loss, e_project, e_leakage, c_cf_val)
         final_corcs = net_corcs
 
         # 7. Uncertainty Quantification (Chapter 10)
@@ -621,6 +634,7 @@ class PuroCORCCalculator:
             "is_non_soil_durable": is_non_soil_durable,
             "c_stored_tco2e": f"{c_stored:.6f}",
             "c_loss_tco2e": f"{c_loss:.6f}",
+            "c_counterfactual_tco2e": f"{c_cf_val:.6f}",
             "persistence_fraction_pf": f"{persistence_fraction_pf:.4f}",
             "regression_m": f"{regression_m:.2f}" if regression_m else "0.0",
             "regression_a": f"{regression_a:.2f}" if regression_a else "0.0",
@@ -634,6 +648,7 @@ class PuroCORCCalculator:
             "reported_uncertainty_text": reported_uncertainty_text,
             "engine_version": engine_version,
             "methodology_version": methodology_version,
+            "sourcing_criteria_version": sourcing_criteria_version,
         }
         calc_hash = HashGenerator.generate_canonical_hash(manifest)
 
@@ -652,6 +667,8 @@ class PuroCORCCalculator:
             "c_stored_tco2e": c_stored,
             "c_baseline_tco2e": c_baseline,
             "c_loss_tco2e": c_loss,
+            "c_counterfactual_tco2e": c_cf_val,
+            "sourcing_criteria_version": sourcing_criteria_version,
             "e_project_tco2e": e_project,
             "e_ops_biomass_tco2e": proj_res["e_ops_biomass_tco2e"],
             "e_ops_production_tco2e": proj_res["e_ops_production_tco2e"],
@@ -711,10 +728,14 @@ class PuroAuthoritativeQuantificationService:
             PuroLCIEntry,
         )
 
-        # 1. Fetch batch
-        stmt_batch = select(BiocharBatch).where(
-            BiocharBatch.id == batch_id,
-            BiocharBatch.organization_id == organization_id,
+        # 1. Fetch batch with row lock
+        stmt_batch = (
+            select(BiocharBatch)
+            .where(
+                BiocharBatch.id == batch_id,
+                BiocharBatch.organization_id == organization_id,
+            )
+            .with_for_update()
         )
         res_batch = await db.execute(stmt_batch)
         batch = res_batch.scalar_one_or_none()
@@ -722,6 +743,57 @@ class PuroAuthoritativeQuantificationService:
             return {
                 "calculation_status": "FAIL_CLOSED",
                 "notes": f"Biochar batch {batch_id} not found for organization {organization_id}.",
+            }
+
+        # Check existing authoritative calculation (idempotency)
+        if mode.upper() == "AUTHORITATIVE":
+            stmt_existing = select(PuroCalculationExecution).where(
+                PuroCalculationExecution.batch_id == batch_id,
+                PuroCalculationExecution.calculation_mode == "AUTHORITATIVE",
+                PuroCalculationExecution.calculation_status == "SUCCESS",
+                PuroCalculationExecution.engine_version == "2.0.0",
+                PuroCalculationExecution.superseded_at.is_(None),
+            )
+            res_existing = await db.execute(stmt_existing)
+            existing_exec = res_existing.scalar_one_or_none()
+            if existing_exec:
+                details = existing_exec.calculation_details_json or {}
+                return {
+                    "calculation_status": "SUCCESS",
+                    "calculation_mode": "AUTHORITATIVE",
+                    "engine_version": existing_exec.engine_version or "2.0.0",
+                    "corc_point_status": "CORC_POINT_ELIGIBLE",
+                    "final_corcs_issuable": existing_exec.final_corcs_issuable,
+                    "c_stored_tco2e": existing_exec.c_stored_tco2e,
+                    "c_baseline_tco2e": existing_exec.c_baseline_tco2e,
+                    "c_loss_tco2e": existing_exec.c_loss_tco2e,
+                    "c_counterfactual_tco2e": existing_exec.c_counterfactual_tco2e,
+                    "net_corcs_calculated": existing_exec.net_corcs_calculated,
+                    "persistence_fraction_pf": existing_exec.persistence_fraction_pf,
+                    "durability_class": existing_exec.durability_class,
+                    "regression_m": details.get("regression_m"),
+                    "regression_a": details.get("regression_a"),
+                    "reported_uncertainty_text": details.get("reported_uncertainty_text"),
+                    "calculation_hash": existing_exec.calculation_hash,
+                    "execution_id": str(existing_exec.id),
+                    "notes": "Idempotent return of existing authoritative Puro calculation.",
+                }
+
+        # Double counting prevention: Check if already claimed under Verra VM0044
+        from app.domains.biochar.vm0044_models import VM0044CalculationExecution
+        stmt_vm = select(VM0044CalculationExecution).where(
+            VM0044CalculationExecution.batch_id == batch_id,
+            VM0044CalculationExecution.status.in_(["CALCULATED", "VERIFIED"]),
+        )
+        res_vm = await db.execute(stmt_vm)
+        if res_vm.scalar_one_or_none() or getattr(batch, "carbon_claim_registry", None) == "VERRA":
+            return {
+                "calculation_status": "DOUBLE_COUNTING_CONFLICT",
+                "corc_point_status": "FAIL_CLOSED",
+                "final_corcs_issuable": Decimal("0.0"),
+                "reason_code": "DOUBLE_COUNTING_CONFLICT",
+                "notes": "DOUBLE_COUNTING_CONFLICT: Batch already claimed under Verra VM0044. Simultaneous crediting under Puro.earth Standard is blocked.",
+                "calculation_hash": "",
             }
 
         # Dry mass resolution
@@ -864,6 +936,89 @@ class PuroAuthoritativeQuantificationService:
                 elif cat == "EMBODIED_DLUC":
                     e_dluc += ghg
 
+        # Sourcing, Counterfactual and Transition Gating for Authoritative calculations
+        c_counterfactual = Decimal("0.0")
+        sourcing_criteria_version = "v1.3"
+
+        if mode.upper() == "AUTHORITATIVE":
+            from app.domains.biochar.puro_models import PuroCreditingPeriod
+            from app.domains.biochar.puro_rules import evaluate_biomass_sourcing_applicability
+            from app.domains.biochar.services.puro_sourcing import (
+                PuroBiomassSourcingEngine,
+                PuroCounterfactualService,
+            )
+
+            # A. Facility Crediting Period & Transition Resolution
+            stmt_cp = (
+                select(PuroCreditingPeriod)
+                .where(
+                    PuroCreditingPeriod.facility_id == facility_id,
+                    PuroCreditingPeriod.organization_id == organization_id,
+                )
+                .order_by(PuroCreditingPeriod.sequence_number.asc())
+            )
+            res_cp = await db.execute(stmt_cp)
+            cp = res_cp.scalars().first()
+            if not cp or not cp.start_date:
+                return {
+                    "calculation_status": "DATA_REQUIRED",
+                    "corc_point_status": "DATA_REQUIRED",
+                    "final_corcs_issuable": Decimal("0.0"),
+                    "reason_code": "PURO_CREDITING_DATE_MISSING",
+                    "notes": f"Facility {facility_id} lacks registered crediting period start date. Fails closed.",
+                }
+
+            voluntary_early = bool((cp.metadata_json or {}).get("voluntary_early_adoption", False))
+            is_renewal = bool((cp.sequence_number or 1) > 1 or getattr(cp, "renewal_type", None) is not None)
+            applicability = evaluate_biomass_sourcing_applicability(
+                crediting_period_start_date=cp.start_date,
+                is_renewal=is_renewal,
+                voluntary_early_adoption=voluntary_early,
+            )
+            if applicability["status"] == "UNRESOLVED":
+                return {
+                    "calculation_status": "DATA_REQUIRED",
+                    "corc_point_status": "DATA_REQUIRED",
+                    "final_corcs_issuable": Decimal("0.0"),
+                    "reason_code": applicability.get("reason_code", "PURO_CREDITING_DATE_MISSING"),
+                    "notes": applicability.get("notes", "Crediting period applicability unresolved."),
+                }
+            sourcing_criteria_version = f"v{applicability.get('applicable_version') or '1.3'}"
+
+            # B. Biomass Sourcing Criteria Verification
+            sourcing_eval = await PuroBiomassSourcingEngine.evaluate_batch_sourcing_compliance(
+                db=db,
+                batch=batch,
+                organization_id=organization_id,
+            )
+            if not sourcing_eval["is_compliant"]:
+                blockers_str = "; ".join(sourcing_eval.get("blockers", []))
+                return {
+                    "calculation_status": "FAIL_CLOSED",
+                    "corc_point_status": "FAIL_CLOSED",
+                    "final_corcs_issuable": Decimal("0.0"),
+                    "reason_code": "PURO_BIOMASS_SOURCING_REQUIRED",
+                    "blockers": sourcing_eval.get("blockers", []),
+                    "notes": f"Batch {batch.batch_number} failed biomass sourcing criteria: {blockers_str}",
+                }
+
+            # C. Biomass Counterfactual Storage Assessment Verification
+            cf_assessment = await PuroCounterfactualService.get_assessment_for_batch(
+                db=db,
+                batch_id=batch_id,
+                organization_id=organization_id,
+            )
+            cf_eval = PuroCounterfactualService.evaluate_counterfactual(cf_assessment)
+            if not cf_eval["is_compliant"]:
+                return {
+                    "calculation_status": "FAIL_CLOSED",
+                    "corc_point_status": "FAIL_CLOSED",
+                    "final_corcs_issuable": Decimal("0.0"),
+                    "reason_code": cf_eval.get("reason_code", "PURO_COUNTERFACTUAL_ASSESSMENT_REQUIRED"),
+                    "notes": f"Batch {batch.batch_number} counterfactual storage evaluation failed: {cf_eval.get('notes')}",
+                }
+            c_counterfactual = cf_eval["deductible_counterfactual_tco2e"]
+
         # Execute quantification
         calc_result = PuroCORCCalculator.execute_quantification(
             eligible_dry_mass_tonnes=dry_mass,
@@ -882,6 +1037,8 @@ class PuroAuthoritativeQuantificationService:
             e_dluc=e_dluc,
             crediting_years=cred_years,
             end_use_corc_point_eligible=corc_point_eligible,
+            c_counterfactual=c_counterfactual,
+            sourcing_criteria_version=sourcing_criteria_version,
             calculation_mode=mode,
             engine_version="2.0.0",
         )
@@ -914,6 +1071,7 @@ class PuroAuthoritativeQuantificationService:
                 calculation_status="SUCCESS",
                 methodology_version="PURO_BIOCHAR_2025_V2",
                 coefficient_version="PURO_2025_V2_TABLE_6_1_INTEGER_LOOKUP",
+                sourcing_criteria_version=calc_result["sourcing_criteria_version"],
                 eligible_dry_biochar_mass_tonnes=dry_mass,
                 c_org_pct=float(c_org_pct),
                 molar_h_c=molar_h_c,
@@ -925,6 +1083,7 @@ class PuroAuthoritativeQuantificationService:
                 c_stored_tco2e=calc_result["c_stored_tco2e"],
                 c_baseline_tco2e=calc_result["c_baseline_tco2e"],
                 c_loss_tco2e=calc_result["c_loss_tco2e"],
+                c_counterfactual_tco2e=calc_result["c_counterfactual_tco2e"],
                 e_ops_biomass_tco2e=calc_result["e_ops_biomass_tco2e"],
                 e_ops_production_tco2e=calc_result["e_ops_production_tco2e"],
                 e_ops_use_tco2e=calc_result["e_ops_use_tco2e"],
@@ -946,6 +1105,12 @@ class PuroAuthoritativeQuantificationService:
                 calculation_hash=calc_result["calculation_hash"],
                 engine_version="2.0.0",
             )
+            # Update batch carbon claim to prevent multi-registry overlap
+            batch.carbon_claim_methodology = "PURO_BIOCHAR_2025_V2"
+            batch.carbon_claim_registry = "PURO_STANDARD"
+            batch.net_co2e_removed_tonnes = calc_result["final_corcs_issuable"]
+            batch.carbon_permanence_factor = float(calc_result["persistence_fraction_pf"]) / 100.0
+
             db.add(execution)
             await db.commit()
             calc_result["execution_id"] = str(execution.id)

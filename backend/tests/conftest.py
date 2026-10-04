@@ -35,6 +35,54 @@ async def init_test_database():
     async with engine.begin() as conn:
         await conn.run_sync(lambda sync_conn: Base.metadata.create_all(sync_conn, checkfirst=True))
 
+        if "sqlite" in str(engine.url):
+            for tbl, col, coltype in [
+                ("land_units", "geom", "BLOB"),
+                ("project_boundary_versions", "geom", "BLOB"),
+                ("eo_areas_of_interest", "geom", "BLOB"),
+                ("eo_observations", "footprint_geom", "BLOB"),
+                ("eo_spatial_anomalies", "geom", "BLOB"),
+                ("carbon_calculations", "methodology_version_id", "TEXT"),
+                ("carbon_calculations", "tco2e_yield", "REAL"),
+                ("carbon_calculations", "uncertainty", "REAL"),
+                ("carbon_calculations", "execution_inputs", "JSON"),
+                ("carbon_calculations", "execution_outputs", "JSON"),
+                ("carbon_calculations", "audit_replay", "JSON"),
+                ("carbon_calculations", "registry_references", "JSON"),
+                ("carbon_calculations", "executed_at", "DATETIME"),
+                ("agriculture_management_records", "corroboration", "TEXT DEFAULT 'NONE'"),
+                ("soil_samples", "physical_sample_id", "TEXT"),
+                ("sampling_points", "geom", "BLOB"),
+                ("sample_collection_events", "actual_geom", "BLOB"),
+                ("sampling_plan_versions", "plan_lock_snapshot", "JSON DEFAULT '{}'"),
+                ("sample_collection_events", "server_received_at", "DATETIME"),
+                ("laboratory_analyses", "accreditation_status", "TEXT DEFAULT 'UNVERIFIED'"),
+                ("laboratory_analyses", "accreditation_evidence_id", "TEXT"),
+                ("laboratory_results", "quantification_limit", "NUMERIC"),
+                ("laboratory_results", "normalization_version", "TEXT"),
+                ("laboratory_results", "supersedes_id", "TEXT"),
+                ("sampling_points", "soil_profile_id", "TEXT"),
+                ("physical_samples", "soil_profile_id", "TEXT"),
+                ("physical_samples", "core_count", "INTEGER DEFAULT 1"),
+                ("physical_samples", "sample_dry_mass_g", "NUMERIC"),
+                ("physical_samples", "core_diameter_mm", "NUMERIC"),
+                ("agriculture_soc_stock_results", "soil_profile_id", "TEXT"),
+                ("agriculture_soc_layer_results", "soil_mass_provenance", "TEXT DEFAULT 'CORE_BULK_DENSITY_DERIVED'"),
+                ("agriculture_soc_layer_results", "coarse_fragment_mass_g", "NUMERIC"),
+                ("agriculture_soc_layer_results", "fine_soil_mass_g", "NUMERIC"),
+                ("agriculture_soc_change_results", "baseline_soc_change_tco2e_yr", "NUMERIC DEFAULT 0.0000"),
+                ("agriculture_soc_change_results", "project_soc_change_tco2e_yr", "NUMERIC DEFAULT 0.0000"),
+                ("agriculture_soc_change_results", "qa2_net_soc_effect_tco2e_yr", "NUMERIC DEFAULT 0.0000"),
+                ("agriculture_soc_change_results", "uncertainty_adjusted_soc_effect_tco2e_yr", "NUMERIC DEFAULT 0.0000"),
+                ("agriculture_soc_change_results", "sign_indicator", "INTEGER DEFAULT 1"),
+                ("agriculture_soc_change_results", "eq44_eq45_status", "TEXT DEFAULT 'PARTIALLY_CONFIGURED_SOC_ONLY'"),
+                ("agriculture_soc_change_results", "df_estimator", "TEXT DEFAULT 'DEFAULT_STRATIFIED_RANDOM_DF_ESTIMATOR'"),
+            ]:
+                try:
+                    await conn.execute(text(f"ALTER TABLE {tbl} ADD COLUMN {col} {coltype};"))
+                except Exception:
+                    pass
+
         await conn.execute(text("""
             CREATE TABLE IF NOT EXISTS access_requests (
                 id TEXT PRIMARY KEY,
@@ -126,6 +174,8 @@ async def init_test_database():
                 ("puro_calculation_executions", "superseded_at", "TIMESTAMP"),
                 ("puro_calculation_executions", "superseded_reason", "TEXT"),
                 ("puro_calculation_executions", "replacement_engine_version", "TEXT"),
+                ("puro_calculation_executions", "c_counterfactual_tco2e", "FLOAT DEFAULT 0.0"),
+                ("puro_calculation_executions", "sourcing_criteria_version", "TEXT DEFAULT 'v1.3'"),
             ]:
                 try:
                     await conn.execute(text(f"ALTER TABLE {col_def[0]} ADD COLUMN {col_def[1]} {col_def[2]}"))

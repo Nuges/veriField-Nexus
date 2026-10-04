@@ -652,6 +652,7 @@ class PuroCalculationExecution(Base):
     calculation_timestamp = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
     methodology_version = Column(String(50), nullable=False, default="PURO_BIOCHAR_2025_V2")
     coefficient_version = Column(String(50), nullable=False, default="PURO_2025_V2_PERSISTENCE_MATRIX")
+    sourcing_criteria_version = Column(String(50), nullable=False, default="v1.3")
     calculation_status = Column(String(50), nullable=False, default="SUCCESS")  # SUCCESS, FAIL_CLOSED, DATA_REQUIRED
 
     # Core Quantities (tCO2e / Decimal precision)
@@ -669,6 +670,7 @@ class PuroCalculationExecution(Base):
     c_stored_tco2e = Column(Numeric(18, 6), nullable=False)
     c_baseline_tco2e = Column(Numeric(18, 6), nullable=False, default=0.0)
     c_loss_tco2e = Column(Numeric(18, 6), nullable=False)
+    c_counterfactual_tco2e = Column(Numeric(18, 6), nullable=False, default=0.0)
 
     # Project LCA Emissions Breakdown (Section 7)
     e_ops_biomass_tco2e = Column(Numeric(18, 6), nullable=False, default=0.0)
@@ -942,4 +944,42 @@ class PuroCoProductAllocation(Base):
     justification = Column(Text, nullable=True)
 
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), server_default=func.now())
+
+
+class PuroCounterfactualStorageAssessment(Base):
+    """
+    Biomass Counterfactual Storage Assessment (Puro Biomass Sourcing Criteria v1.3 Section 3).
+    Determines plausible fate of biomass in baseline scenario:
+    - Path A: Negligible storage (open burning, rapid decay, uncaptured landfill). Requires substantive evidence.
+    - Path B: Material storage (wood products, deep burial, material use). Requires quantified deduction.
+    """
+    __tablename__ = "puro_counterfactual_storage_assessments"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    project_id = Column(UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
+    facility_id = Column(UUID(as_uuid=True), ForeignKey("biochar_production_facilities.id", ondelete="CASCADE"), nullable=False, index=True)
+    batch_id = Column(UUID(as_uuid=True), ForeignKey("biochar_batches.id", ondelete="CASCADE"), nullable=True, index=True)
+    feedstock_lot_id = Column(UUID(as_uuid=True), ForeignKey("biochar_feedstock_lots.id", ondelete="SET NULL"), nullable=True, index=True)
+
+    criteria_version = Column(String(50), nullable=False, default="v1.3")  # v1.3, Edition 2025
+    counterfactual_path = Column(String(50), nullable=False)  # PATH_A_NEGLIGIBLE_STORAGE, PATH_B_MATERIAL_STORAGE
+    baseline_fate = Column(String(100), nullable=False)  # OPEN_BURNING, RAPID_DECAY, DISPOSAL_WITHOUT_METHANE_CAPTURE, INCINERATION_WITHOUT_ENERGY_RECOVERY, LONG_TERM_WOOD_PRODUCTS, DEEP_BURIAL_ANAEROBIC, LONG_TERM_MATERIAL_USE, OTHER
+    evidence_status = Column(String(50), nullable=False, default="PENDING")  # VERIFIED, SUBMITTED, MISSING, REJECTED
+    evidence_reference = Column(String(255), nullable=True)
+    evidence_hash = Column(String(64), nullable=True)
+    counterfactual_carbon_stored_tco2e = Column(Numeric(18, 6), nullable=False, default=0.0)
+    assessment_status = Column(String(50), nullable=False, default="PENDING")  # COMPLIANT, NON_COMPLIANT, EVIDENCE_REQUIRED, DEDUCTION_REQUIRED
+    reason_code = Column(String(100), nullable=True)
+    notes = Column(Text, nullable=True)
+    metadata_json = Column(JSON, default=dict)
+    evaluated_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), server_default=func.now())
+
+    # Relationships
+    organization = relationship("Organization")
+    project = relationship("Project")
+    facility = relationship("ProductionFacility")
+    batch = relationship("BiocharBatch")
+    feedstock_lot = relationship("FeedstockLot")
 

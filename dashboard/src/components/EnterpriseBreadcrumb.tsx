@@ -64,6 +64,7 @@ export default function EnterpriseBreadcrumb() {
         {/* Sector Selector */}
         <div className="flex items-center gap-1 bg-[var(--color-background)] border border-[var(--color-border)] rounded-md px-2 py-1 shrink-0">
           <select
+            data-testid="sector-selector"
             value={activeSector}
             onChange={(e) => changeSector(e.target.value)}
             className="bg-transparent text-[11px] font-semibold text-[var(--color-text-primary)] focus:outline-none cursor-pointer pr-1 max-w-[105px] sm:max-w-none truncate"
@@ -79,6 +80,7 @@ export default function EnterpriseBreadcrumb() {
         {/* Project Selector (Desktop) */}
         <div className="hidden sm:flex items-center gap-1 bg-[var(--color-background)] border border-[var(--color-border)] rounded-md px-2 py-1 shrink-0">
           <select
+            data-testid="project-selector"
             value={activeProject || ""}
             onChange={(e) => changeProject(e.target.value || null)}
             className="bg-transparent text-[11px] font-medium text-[var(--color-text-primary)] focus:outline-none cursor-pointer max-w-[140px] truncate pr-1"

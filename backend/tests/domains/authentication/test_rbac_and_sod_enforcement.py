@@ -283,8 +283,14 @@ async def test_inactive_suspended_deleted_user_token_rejections(db_session):
     import jwt as pyjwt
     from app.core.config import settings
 
+    from app.domains.organizations.models import Organization
+
     uid_suffix = uuid.uuid4().hex[:8]
     test_org_id = uuid.uuid4()
+    org = Organization(id=test_org_id, name=f"Test Org {uid_suffix}")
+    db_session.add(org)
+    await db_session.flush()
+
     # 1. User with is_active = False
     inactive_user = User(
         id=uuid.uuid4(),

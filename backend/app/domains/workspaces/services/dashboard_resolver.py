@@ -317,7 +317,8 @@ class DashboardResolverService:
             if sector_code == "AGRICULTURE_LAND_USE":
                 try:
                     from app.domains.agriculture.models import LandUnit
-                    lu_stmt = select(LandUnit).where(LandUnit.is_active.is_(True))
+                    from sqlalchemy.orm import defer
+                    lu_stmt = select(LandUnit).options(defer(LandUnit.geom)).where(LandUnit.is_active.is_(True))
                     if org_uuid:
                         lu_stmt = lu_stmt.where(LandUnit.organization_id == org_uuid)
                     if project_id and str(project_id).strip() and str(project_id).strip().lower() not in ["all", "-- all projects --"]:
@@ -572,6 +573,12 @@ class DashboardResolverService:
             try:
                 from app.domains.verification.models import VerificationTask
                 vt_stmt = select(VerificationTask).where(VerificationTask.status.in_(["ASSIGNED", "IN_PROGRESS"]))
+                if org_uuid:
+                    vt_stmt = vt_stmt.where(
+                        VerificationTask.project_id.in_(
+                            select(Project.id).where(Project.organization_id == org_uuid)
+                        )
+                    )
                 if project_id and str(project_id).strip() and str(project_id).strip().lower() not in ["all", "-- all projects --"]:
                     try:
                         vt_stmt = vt_stmt.where(VerificationTask.project_id == UUID(str(project_id).strip()))
@@ -611,6 +618,12 @@ class DashboardResolverService:
                 chk_stmt = select(func.count(VerificationTask.id)).where(
                     VerificationTask.status.in_(["COMPLETED", "APPROVED", "REJECTED"])
                 )
+                if org_uuid:
+                    chk_stmt = chk_stmt.where(
+                        VerificationTask.project_id.in_(
+                            select(Project.id).where(Project.organization_id == org_uuid)
+                        )
+                    )
                 if project_id and str(project_id).strip() and str(project_id).strip().lower() not in ["all", "-- all projects --"]:
                     try:
                         chk_stmt = chk_stmt.where(VerificationTask.project_id == UUID(str(project_id).strip()))

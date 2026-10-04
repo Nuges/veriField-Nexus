@@ -112,8 +112,9 @@ async def get_project(
 
     repo = ProjectRepository(db)
     service = ProjectService(repo)
+    from app.core.rbac import normalize_canonical_role, ROLE_SUPER_ADMIN
     org_id = (
-        current_user.organization_id if current_user.role != "SUPER_ADMIN" else None
+        current_user.organization_id if normalize_canonical_role(current_user.role) != ROLE_SUPER_ADMIN else None
     )
     project = await service.get_project(project_id, org_id)
     if not project:

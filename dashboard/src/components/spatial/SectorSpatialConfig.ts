@@ -67,9 +67,15 @@ export interface SectorSpatialConfig {
   emptySubtitle: string;
   availableLayers: LayerDefinition[];
   legend: LegendItem[];
+  supportedBasemaps: BasemapType[];
   supportsEarthObservation: boolean;
   allowedEOProviders: string[];
+  allowedDerivedLayers: string[];
+  supportsVegetationIndices: boolean;
+  supportedFeatureTypes: string[];
+  sectorDisclaimer: string;
   privacySafeClustering: boolean;
+  allowCrossSectorLinking?: boolean;
 }
 
 const AGRICULTURE_CONFIG: SectorSpatialConfig = {
@@ -79,9 +85,23 @@ const AGRICULTURE_CONFIG: SectorSpatialConfig = {
   assetPlural: "Land Units",
   emptyTitle: "No land boundaries registered.",
   emptySubtitle: "Add or capture a land unit to establish the project map.",
+  supportedBasemaps: ["map", "satellite"],
   supportsEarthObservation: true,
   allowedEOProviders: ["SENTINEL_2", "SENTINEL_1", "LANDSAT_8_9"],
+  allowedDerivedLayers: ["NDVI", "EVI", "NDWI", "CHANGE_DETECTION"],
+  supportsVegetationIndices: true,
   privacySafeClustering: false,
+  supportedFeatureTypes: [
+    "Project Boundary",
+    "Land Units",
+    "Strata",
+    "Soil Samples",
+    "Tree Observations",
+    "Field Activities",
+    "Monitoring Points",
+  ],
+  sectorDisclaimer:
+    "Spectral indices (NDVI/EVI) indicate photosynthetic vigor and canopy structure; SAR is a radar reflectivity proxy. Neither directly quantifies carbon stocks without a calibrated biogeochemical or allometric model.",
   availableLayers: [
     {
       id: "boundaries",
@@ -176,9 +196,23 @@ const BIOCHAR_CONFIG: SectorSpatialConfig = {
   assetPlural: "Facilities",
   emptyTitle: "No biochar facilities registered.",
   emptySubtitle: "Add or capture a production facility to establish the project map.",
+  supportedBasemaps: ["map", "satellite"],
   supportsEarthObservation: true,
-  allowedEOProviders: ["SENTINEL_2"], // Contextual optical only
+  allowedEOProviders: ["SENTINEL_2", "LANDSAT_8_9"],
+  allowedDerivedLayers: [],
+  supportsVegetationIndices: false,
+  allowCrossSectorLinking: true,
   privacySafeClustering: false,
+  supportedFeatureTypes: [
+    "Project Boundary",
+    "Production Facilities",
+    "Feedstock Sources",
+    "Storage Locations",
+    "End-Use Locations",
+    "Linked Agriculture Land Units",
+  ],
+  sectorDisclaimer:
+    "Satellite imagery provides facility perimeter, feedstock source, and application land context only. Satellite observation cannot determine batch mass, feedstock mass, carbon content, H/Corg ratio, production temperature, CORCs, or VCUs.",
   availableLayers: [
     {
       id: "facilities",
@@ -235,6 +269,16 @@ const BIOCHAR_CONFIG: SectorSpatialConfig = {
       requiresData: true,
       dataProvider: "Copernicus Sentinel-2",
     },
+    {
+      id: "landsat",
+      name: "Historical Land Context (Landsat)",
+      category: "EARTH_OBSERVATION",
+      description: "Longitudinal optical context for facility and application site history",
+      color: "#F59E0B",
+      enabledByDefault: false,
+      requiresData: true,
+      dataProvider: "USGS Landsat Collection 2",
+    },
   ],
   legend: [
     { id: "facility", label: "Production Facility", color: "#8B5CF6", shape: "circle" },
@@ -252,9 +296,23 @@ const HYBRID_ENERGY_CONFIG: SectorSpatialConfig = {
   assetPlural: "Energy Systems",
   emptyTitle: "No energy assets registered.",
   emptySubtitle: "Add or capture a generation asset to establish the project map.",
+  supportedBasemaps: ["map", "satellite"],
   supportsEarthObservation: true,
-  allowedEOProviders: ["SENTINEL_2"], // Contextual optical only
+  allowedEOProviders: ["SENTINEL_2", "LANDSAT_8_9"],
+  allowedDerivedLayers: [],
+  supportsVegetationIndices: false,
   privacySafeClustering: false,
+  supportedFeatureTypes: [
+    "Project Site",
+    "Facility Boundary",
+    "Solar Installation",
+    "Generator",
+    "Inverter",
+    "Meter",
+    "Sensor Assets",
+  ],
+  sectorDisclaimer:
+    "Satellite imagery provides facility perimeter, solar array footprint, and concession site context. Satellite data cannot determine kWh generated, diesel consumption, generator runtime, or emission reductions.",
   availableLayers: [
     {
       id: "generation_assets",
@@ -292,6 +350,26 @@ const HYBRID_ENERGY_CONFIG: SectorSpatialConfig = {
       enabledByDefault: true,
       requiresData: true,
     },
+    {
+      id: "sentinel_2",
+      name: "Site Context (Sentinel-2)",
+      category: "EARTH_OBSERVATION",
+      description: "Optical footprint context for generation and concession facilities",
+      color: "#10B981",
+      enabledByDefault: false,
+      requiresData: true,
+      dataProvider: "Copernicus Sentinel-2",
+    },
+    {
+      id: "landsat",
+      name: "Historical Baseline Context (Landsat)",
+      category: "EARTH_OBSERVATION",
+      description: "Historical surface baseline for facility development",
+      color: "#F59E0B",
+      enabledByDefault: false,
+      requiresData: true,
+      dataProvider: "USGS Landsat Collection 2",
+    },
   ],
   legend: [
     { id: "solar", label: "Solar / Generation Asset", color: "#3B82F6", shape: "circle" },
@@ -308,9 +386,20 @@ const EV_MOBILITY_CONFIG: SectorSpatialConfig = {
   assetPlural: "Charging Stations",
   emptyTitle: "No charging stations registered.",
   emptySubtitle: "Add or capture a charging station to establish the project map.",
-  supportsEarthObservation: false,
-  allowedEOProviders: [],
+  supportedBasemaps: ["map", "satellite"],
+  supportsEarthObservation: true,
+  allowedEOProviders: ["SENTINEL_2"],
+  allowedDerivedLayers: [],
+  supportsVegetationIndices: false,
   privacySafeClustering: true,
+  supportedFeatureTypes: [
+    "Charging Sites",
+    "Charger Assets",
+    "Operating Sites",
+    "Transit Routes",
+  ],
+  sectorDisclaimer:
+    "Satellite imagery provides charging hub and fleet depot site context. Satellite data cannot determine charging sessions, energy dispensed, distance travelled, or emission reductions.",
   availableLayers: [
     {
       id: "charging_stations",
@@ -339,6 +428,16 @@ const EV_MOBILITY_CONFIG: SectorSpatialConfig = {
       enabledByDefault: false,
       requiresData: true,
     },
+    {
+      id: "sentinel_2",
+      name: "Hub Site Context (Sentinel-2)",
+      category: "EARTH_OBSERVATION",
+      description: "Optical site context for charging stations, interchange hubs, and depots",
+      color: "#10B981",
+      enabledByDefault: false,
+      requiresData: true,
+      dataProvider: "Copernicus Sentinel-2",
+    },
   ],
   legend: [
     { id: "station", label: "Charging Station", color: "#10B981", shape: "circle" },
@@ -354,9 +453,21 @@ const COOKSTOVES_CONFIG: SectorSpatialConfig = {
   assetPlural: "Cookstoves",
   emptyTitle: "No cookstove devices registered.",
   emptySubtitle: "Add or capture a device to establish the project map.",
-  supportsEarthObservation: false,
-  allowedEOProviders: [],
+  supportedBasemaps: ["map", "satellite"],
+  supportsEarthObservation: true,
+  allowedEOProviders: ["SENTINEL_2"],
+  allowedDerivedLayers: [],
+  supportsVegetationIndices: false,
   privacySafeClustering: true, // Privacy rule: Cluster points to prevent household coordinate leakage
+  supportedFeatureTypes: [
+    "Programme Boundary",
+    "Deployment Zones",
+    "Distribution Clusters",
+    "Monitoring Clusters",
+    "Field Activities",
+  ],
+  sectorDisclaimer:
+    "Household deployment coordinates are protected via privacy-safe spatial clustering. Satellite context cannot determine stove usage hours, fuel consumption, thermal efficiency, or emission reductions.",
   availableLayers: [
     {
       id: "deployment_clusters",
@@ -384,6 +495,16 @@ const COOKSTOVES_CONFIG: SectorSpatialConfig = {
       color: "#3B82F6",
       enabledByDefault: false,
       requiresData: true,
+    },
+    {
+      id: "sentinel_2",
+      name: "Regional Context (Sentinel-2)",
+      category: "EARTH_OBSERVATION",
+      description: "Regional programme boundary and deployment zone terrain context",
+      color: "#10B981",
+      enabledByDefault: false,
+      requiresData: true,
+      dataProvider: "Copernicus Sentinel-2",
     },
   ],
   legend: [

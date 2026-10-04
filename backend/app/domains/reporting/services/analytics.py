@@ -82,7 +82,7 @@ class AnalyticsService:
 
         ast_query = select(func.count(Asset.id))
 
-        cbn_query = select(func.sum(CarbonCalculation.tco2e_generated))
+        cbn_query = select(func.sum(func.coalesce(CarbonCalculation.tco2e_yield, CarbonCalculation.tco2e_generated, 0.0)))
 
 
 
@@ -133,25 +133,70 @@ class AnalyticsService:
 
 
         total_sub = await self.db.scalar(act_query) or 0
-
         total_ver = await self.db.scalar(ver_query) or 0
-
         total_ast = await self.db.scalar(ast_query) or 0
-
         total_cbn = await self.db.scalar(cbn_query) or 0.0
 
+        avg_trust = None
+        try:
+            avg_trust_query = select(func.avg(Activity.trust_score))
+            if org_id:
+                avg_trust_query = avg_trust_query.where(Activity.organization_id == org_id)
+            avg_trust = await self.db.scalar(avg_trust_query)
+        except Exception:
+            pass
 
+        active_orgs = 0
+        try:
+            from app.domains.organizations.models import Organization
+            org_query = select(func.count(Organization.id)).where(Organization.status == "ACTIVE")
+            if org_id:
+                org_query = org_query.where(Organization.id == org_id)
+            active_orgs = await self.db.scalar(org_query) or 0
+        except Exception:
+            pass
+
+        methodologies = {
+            "AMS-II.G": 0,
+            "AMS-I.F": 0,
+            "BIOCHAR-V1": 0,
+            "EV-MOBILITY": 0
+        }
+        try:
+            import json
+            from app.domains.organizations.models import Organization
+            m_query = select(Organization.licensed_methodologies)
+            if org_id:
+                m_query = m_query.where(Organization.id == org_id)
+            orgs_res = await self.db.execute(m_query)
+            for (lm,) in orgs_res.all():
+                if not lm:
+                    continue
+                meth_list = lm if isinstance(lm, list) else json.loads(lm) if isinstance(lm, str) else []
+                for m in meth_list:
+                    m_code = str(m).upper()
+                    if m_code in methodologies:
+                        methodologies[m_code] += 1
+                    else:
+                        methodologies[m_code] = 1
+        except Exception:
+            pass
 
         return {
-
             "primary_kpi_1": {"label": "Total Submissions", "value": total_sub},
-
             "primary_kpi_2": {"label": "Verified Submissions", "value": total_ver},
-
             "primary_kpi_3": {"label": "Total Assets", "value": total_ast},
-
-            "primary_kpi_4": {"label": "Est. tCO2e", "value": round(float(total_cbn), 2)}
-
+            "primary_kpi_4": {"label": "Est. tCO2e", "value": round(float(total_cbn), 2)},
+            # Top-level platform summaries for Super Admin dashboard compatibility
+            "installations": total_sub,
+            "avgTrust": round(float(avg_trust), 1) if avg_trust is not None else None,
+            "tCO2": round(float(total_cbn), 2),
+            "activeOrgs": active_orgs,
+            "methodologies": methodologies,
+            # AnalyticsOverview compatibility
+            "total_submissions": total_sub,
+            "total_properties": total_ast,
+            "avg_trust_score": round(float(avg_trust), 1) if avg_trust is not None else None,
         }
 
 
@@ -202,7 +247,7 @@ class AnalyticsService:
 
         try:
 
-            tco2 = await self.db.scalar(select(func.sum(CarbonCalculation.tco2e_generated))) or 0.0
+            tco2 = await self.db.scalar(select(func.sum(func.coalesce(CarbonCalculation.tco2e_yield, CarbonCalculation.tco2e_generated, 0.0)))) or 0.0
 
         except Exception:
 

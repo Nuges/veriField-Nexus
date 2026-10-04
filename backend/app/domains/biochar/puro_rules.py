@@ -722,30 +722,256 @@ TABLE_3_2_CATEGORIES: List[Dict[str, Any]] = [
 ]
 
 # ---------------------------------------------------------------------------
+# Official Puro Framework Version Constants (2026 Standards Stack)
+# ---------------------------------------------------------------------------
+OFFICIAL_PURO_BIOCHAR_METHODOLOGY_CODE = "PURO_BIOCHAR_2025_V2"
+OFFICIAL_PURO_BIOCHAR_METHODOLOGY_EDITION = "Edition 2025 v2"
+
+OFFICIAL_PURO_GENERAL_RULES_V4_3 = "4.3"
+OFFICIAL_PURO_GENERAL_RULES_V4_4 = "4.4"
+SUPPORTED_PURO_GENERAL_RULES_VERSIONS = ["4.3", "4.4"]
+
+OFFICIAL_PURO_BIOMASS_SOURCING_V1_3 = "1.3"
+PURO_V1_3_MANDATORY_CUTOFF_DATE = date(2029, 1, 1)
+
+OFFICIAL_PURO_VVR_V1_3 = "1.3"
+OFFICIAL_PURO_VVR_ISSUED = "March 2026"
+
+# Prohibited feedstocks under Puro Biomass Sourcing Criteria (immediate fail-closed)
+PURO_PROHIBITED_FEEDSTOCK_CATEGORIES = {
+    "MIXED_MUNICIPAL_SOLID_WASTE",
+    "TREATED_WOOD_PRESERVED",
+    "CONTAMINATED_WASTE",
+    "HAZARDOUS_BIOMASS",
+    "PRIMARY_FOREST_DEFORESTATION",
+    "PEATLAND_DRAINAGE",
+}
+
+# Permitted Feedstock Categories under Puro Biomass Sourcing Criteria v1.3
+PURO_PERMITTED_FEEDSTOCK_CATEGORIES = {
+    "AGRICULTURAL_RESIDUE",
+    "FORESTRY_RESIDUE",
+    "BIOGENIC_PROCESSING_WASTE",
+    "INDUSTRIAL_BIOGENIC",
+    "URBAN_GREEN_WASTE",
+    "PURPOSE_GROWN_BIOMASS",
+}
+
+# Counterfactual baseline fates per Section 3 of v1.3
+PURO_NEGLIGIBLE_STORAGE_FATES = {
+    "OPEN_BURNING",
+    "RAPID_DECAY",
+    "DISPOSAL_WITHOUT_METHANE_CAPTURE",
+    "DISPOSAL_TO_LANDFILL_WITHOUT_METHANE_CAPTURE",
+    "INCINERATION_WITHOUT_ENERGY_RECOVERY",
+}
+
+PURO_MATERIAL_STORAGE_FATES = {
+    "LONG_TERM_WOOD_PRODUCTS",
+    "DEEP_BURIAL_ANAEROBIC",
+    "LONG_TERM_MATERIAL_USE",
+    "OTHER_STORED",
+}
+
+
+def evaluate_biomass_sourcing_applicability(
+    crediting_period_start_date: Optional[date],
+    is_renewal: bool = False,
+    voluntary_early_adoption: bool = False,
+) -> Dict[str, Any]:
+    """
+    Evaluates Biomass Sourcing Criteria v1.3 applicability per official transition rules:
+    - Facilities with crediting period start date >= January 1, 2029: MANDATORY v1.3 from first audit.
+    - Existing facilities (start date < 2029-01-01): MANDATORY on Crediting Period Renewal.
+    - Existing facilities electing early adoption: VOLUNTARY_EARLY_ADOPTION (v1.3 applies).
+    - Existing facilities pre-renewal without early adoption: NOT_YET_MANDATORY (earlier 2025 criteria apply).
+    - Missing crediting period start date: UNRESOLVED (Fail closed). No guessing.
+    """
+    if crediting_period_start_date is None:
+        return {
+            "status": "UNRESOLVED",
+            "applicable_version": None,
+            "transition_category": "MISSING_CREDITING_DATES",
+            "is_v1_3_mandatory": False,
+            "is_v1_3_applicable": False,
+            "reason_code": "PURO_CREDITING_DATE_MISSING",
+            "notes": "Crediting period start date is missing; applicability cannot be determined. Fails closed.",
+        }
+
+    cutoff = PURO_V1_3_MANDATORY_CUTOFF_DATE  # 2029-01-01
+
+    if crediting_period_start_date >= cutoff:
+        return {
+            "status": "RESOLVED",
+            "applicable_version": "1.3",
+            "transition_category": "MANDATORY_NEW_FACILITY",
+            "is_v1_3_mandatory": True,
+            "is_v1_3_applicable": True,
+            "reason_code": "PURO_V1_3_MANDATORY_POST_2029",
+            "notes": f"Crediting period start date {crediting_period_start_date.isoformat()} >= 2029-01-01. Biomass Sourcing Criteria v1.3 is MANDATORY.",
+        }
+    elif is_renewal:
+        return {
+            "status": "RESOLVED",
+            "applicable_version": "1.3",
+            "transition_category": "MANDATORY_ON_RENEWAL",
+            "is_v1_3_mandatory": True,
+            "is_v1_3_applicable": True,
+            "reason_code": "PURO_V1_3_MANDATORY_RENEWAL",
+            "notes": "Crediting period renewal audit. Biomass Sourcing Criteria v1.3 is MANDATORY.",
+        }
+    elif voluntary_early_adoption:
+        return {
+            "status": "RESOLVED",
+            "applicable_version": "1.3",
+            "transition_category": "VOLUNTARY_EARLY_ADOPTION",
+            "is_v1_3_mandatory": False,
+            "is_v1_3_applicable": True,
+            "reason_code": "PURO_V1_3_VOLUNTARY_EARLY_ADOPTION",
+            "notes": "Facility elected voluntary early adoption of Biomass Sourcing Criteria v1.3.",
+        }
+    else:
+        return {
+            "status": "RESOLVED",
+            "applicable_version": "2025",
+            "transition_category": "NOT_YET_MANDATORY",
+            "is_v1_3_mandatory": False,
+            "is_v1_3_applicable": False,
+            "reason_code": "PURO_2025_TRANSITIONAL_APPLICABLE",
+            "notes": f"Crediting period start date {crediting_period_start_date.isoformat()} < 2029-01-01 and not yet renewed. Earlier 2025 criteria apply until renewal.",
+        }
+
+
+def resolve_puro_standard_configuration(
+    methodology_code: Optional[str] = None,
+    general_rules_version: Optional[str] = None,
+    sourcing_criteria_version: Optional[str] = None,
+    crediting_period_start_date: Optional[date] = None,
+    is_renewal: bool = False,
+    voluntary_early_adoption: bool = False,
+) -> Dict[str, Any]:
+    """
+    Authoritative resolution of the Puro.earth standards stack.
+    Fails closed if methodology code is missing or unsupported.
+    """
+    if not methodology_code:
+        return {
+            "status": "FAIL_CLOSED",
+            "reason_code": "PURO_METHODOLOGY_VERSION_MISSING",
+            "notes": "Methodology version code was not supplied. Fails closed.",
+            "is_valid": False,
+        }
+
+    norm_meth = methodology_code.strip().upper()
+    if norm_meth != OFFICIAL_PURO_BIOCHAR_METHODOLOGY_CODE:
+        return {
+            "status": "FAIL_CLOSED",
+            "reason_code": "PURO_UNSUPPORTED_METHODOLOGY_VERSION",
+            "notes": f"Methodology '{methodology_code}' is not supported. Supported: '{OFFICIAL_PURO_BIOCHAR_METHODOLOGY_CODE}'.",
+            "is_valid": False,
+        }
+
+    # Resolve General Rules version
+    gr_ver = general_rules_version or OFFICIAL_PURO_GENERAL_RULES_V4_3
+    if gr_ver not in SUPPORTED_PURO_GENERAL_RULES_VERSIONS and gr_ver != "4.0":
+        return {
+            "status": "FAIL_CLOSED",
+            "reason_code": "PURO_UNSUPPORTED_GENERAL_RULES_VERSION",
+            "notes": f"General Rules version '{gr_ver}' is not supported. Supported: {SUPPORTED_PURO_GENERAL_RULES_VERSIONS}.",
+            "is_valid": False,
+        }
+
+    # Resolve transition applicability if sourcing criteria version not explicitly provided
+    applicability = evaluate_biomass_sourcing_applicability(
+        crediting_period_start_date=crediting_period_start_date,
+        is_renewal=is_renewal,
+        voluntary_early_adoption=voluntary_early_adoption,
+    )
+
+    resolved_sourcing_ver = sourcing_criteria_version or applicability.get("applicable_version") or "1.3"
+
+    return {
+        "status": "SUCCESS" if applicability["status"] != "UNRESOLVED" else "FAIL_CLOSED",
+        "methodology_code": OFFICIAL_PURO_BIOCHAR_METHODOLOGY_CODE,
+        "methodology_edition": OFFICIAL_PURO_BIOCHAR_METHODOLOGY_EDITION,
+        "general_rules_version": gr_ver,
+        "sourcing_criteria_version": resolved_sourcing_ver,
+        "applicability": applicability,
+        "is_valid": applicability["status"] != "UNRESOLVED",
+        "reason_code": applicability.get("reason_code") if applicability["status"] == "UNRESOLVED" else "CONFIG_RESOLVED",
+        "notes": "Official Puro standards stack resolved successfully." if applicability["status"] != "UNRESOLVED" else applicability["notes"],
+    }
+
+
+# ---------------------------------------------------------------------------
 # Normative External Dependencies
 # ---------------------------------------------------------------------------
 NORMATIVE_DEPENDENCIES = [
+    {
+        "code": "PURO_GENERAL_RULES_V4_3",
+        "title": "Puro Standard General Rules v4.3 (March 2026)",
+        "version": "4.3",
+        "document_type": "NORMATIVE_STANDARD",
+        "status": "ACTIVE",
+        "effective_date": date(2026, 3, 1),
+        "source_reference": "https://puro.earth/standards/general-rules/",
+        "required_by_rules": ["PURO-BIOCHAR-2.1", "PURO-BIOCHAR-2.2", "PURO-BIOCHAR-11.1"],
+        "implementation_state": "DEPENDENCY_REQUIRED",
+    },
+    {
+        "code": "PURO_GENERAL_RULES_V4_4",
+        "title": "Puro Standard General Rules v4.4 (May 2026)",
+        "version": "4.4",
+        "document_type": "NORMATIVE_STANDARD",
+        "status": "ACTIVE",
+        "effective_date": date(2026, 5, 1),
+        "source_reference": "https://puro.earth/standards/general-rules/",
+        "required_by_rules": ["PURO-BIOCHAR-2.1", "PURO-BIOCHAR-2.2", "PURO-BIOCHAR-11.1"],
+        "implementation_state": "DEPENDENCY_REQUIRED",
+    },
+    {
+        "code": "PURO_BIOMASS_SOURCING_CRITERIA_V1_3",
+        "title": "Puro.earth Biomass Sourcing Criteria v1.3 (September 2026)",
+        "version": "1.3",
+        "document_type": "CRITERIA",
+        "status": "ACTIVE",
+        "effective_date": date(2026, 9, 23),
+        "source_reference": "https://puro.earth/standards/biomass-sourcing-criteria/",
+        "required_by_rules": ["PURO-BIOCHAR-3.1", "PURO-BIOCHAR-3.5"],
+        "implementation_state": "DEPENDENCY_REQUIRED",
+    },
+    {
+        "code": "PURO_VVR_V1_3",
+        "title": "Puro.earth Validation & Verification Requirements v1.3 (March 2026)",
+        "version": "1.3",
+        "document_type": "NORMATIVE_STANDARD",
+        "status": "ACTIVE",
+        "effective_date": date(2026, 3, 1),
+        "source_reference": "https://puro.earth/standards/vvr/",
+        "required_by_rules": ["PURO-BIOCHAR-10.1", "PURO-BIOCHAR-11.1", "PURO-BIOCHAR-11.2"],
+        "implementation_state": "DEPENDENCY_REQUIRED",
+    },
     {
         "code": "PURO_GENERAL_RULES_V4",
         "title": "Puro Standard General Rules v4.0",
         "version": "4.0",
         "document_type": "NORMATIVE_STANDARD",
-        "status": "ACTIVE",
+        "status": "SUPERSEDED",
         "effective_date": date(2025, 1, 1),
         "source_reference": "https://puro.earth/standards/general-rules/",
         "required_by_rules": ["PURO-BIOCHAR-2.1", "PURO-BIOCHAR-2.2", "PURO-BIOCHAR-11.1"],
-        "implementation_state": "DEPENDENCY_REQUIRED",
+        "implementation_state": "SUPERSEDED",
     },
     {
         "code": "PURO_BIOMASS_SOURCING_CRITERIA_2025",
         "title": "Puro.earth Biomass Sourcing Criteria Edition 2025",
         "version": "2025",
         "document_type": "CRITERIA",
-        "status": "ACTIVE",
+        "status": "TRANSITIONAL",
         "effective_date": date(2025, 1, 1),
         "source_reference": "https://puro.earth/standards/biomass-sourcing-criteria/",
         "required_by_rules": ["PURO-BIOCHAR-3.1", "PURO-BIOCHAR-3.5"],
-        "implementation_state": "DEPENDENCY_REQUIRED",
+        "implementation_state": "TRANSITIONAL",
     },
     {
         "code": "PURO_ADDITIONALITY_QUESTIONNAIRE_2025",
@@ -1101,6 +1327,11 @@ async def seed_puro_biochar_normative_metadata(db: AsyncSession) -> Any:
             db.add(dep)
         else:
             existing_dep.title = dep_data["title"]
+            existing_dep.version = dep_data["version"]
+            existing_dep.status = dep_data["status"]
+            existing_dep.effective_date = dep_data["effective_date"]
+            existing_dep.source_reference = dep_data["source_reference"]
+            existing_dep.implementation_state = dep_data["implementation_state"]
             existing_dep.required_by_rules = dep_data["required_by_rules"]
 
     # 3. Seed Rule Definitions

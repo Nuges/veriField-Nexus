@@ -1,0 +1,55 @@
+{
+  "certificate_type": "SYNTHETIC_LABORATORY_ANALYSIS_CERTIFICATE",
+  "version": "1.0",
+  "laboratory": {
+    "name": "Synthetic Analytical Laboratory Alpha",
+    "accreditation_standard": "ISO/IEC 17025:2017",
+    "accreditation_body": "International Accreditation Service (Synthetic)",
+    "accreditation_id": "SYN-ACC-17025-9921",
+    "status": "VERIFIED",
+    "expiry_date": "2028-12-31"
+  },
+  "sample": {
+    "sample_code": "SYN-SAM-2026-001",
+    "qr_barcode": "VF-SOIL-SYN-001",
+    "intake_timestamp": "2026-01-03T10:00:00Z",
+    "condition_at_receipt": "INTACT_SEALED",
+    "depth_interval_cm": {
+      "min": 0.0,
+      "max": 30.0
+    }
+  },
+  "analytical_assays": [
+    {
+      "analyte": "SOC_CONCENTRATION",
+      "method": "DRY_COMBUSTION",
+      "instrument": "Elementar Vario MAX Cube",
+      "raw_value": 1.8500,
+      "raw_unit": "%",
+      "normalized_value": 18.5000,
+      "normalized_unit": "g/kg",
+      "detection_limit": 0.0100,
+      "quantification_limit": 0.0500,
+      "measurement_uncertainty_pct": 2.5
+    },
+    {
+      "analyte": "BULK_DENSITY_G_CM3",
+      "method": "CORE_CYLINDER_OVEN_DRY",
+      "raw_value": 1.2500,
+      "raw_unit": "g/cm3",
+      "normalized_value": 1.2500,
+      "normalized_unit": "g/cm3",
+      "measurement_uncertainty_pct": 3.0
+    }
+  ],
+  "batch_metadata": {
+    "batch_id": "SYN-BATCH-2026-01-A",
+    "qc_blanks_passed": true,
+    "certified_reference_material": "NIST SRM 2709a (San Joaquin Soil)",
+    "recovery_rate_pct": 99.4
+  },
+  "signoff": {
+    "authorized_analyst": "Analyst A",
+    "signoff_timestamp": "2026-01-04T16:30:00Z"
+  }
+}

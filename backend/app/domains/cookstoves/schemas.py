@@ -33,6 +33,26 @@ class HouseholdCreate(BaseModel):
     baseline_fuel_kg_per_day: float = 7.5
 
 
+class HouseholdResponse(BaseModel):
+    id: UUID
+    project_id: UUID
+    household_code: str
+    head_of_household: str
+    phone_number: Optional[str] = None
+    address: str
+    community_name: str
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    family_members_count: int = 5
+    baseline_fuel_type: str = "WOOD_FIRE"
+    baseline_fuel_kg_per_day: float = 7.5
+    is_active: bool = True
+    created_at: Optional[datetime] = None
+    is_coordinates_redacted: bool = False
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 
 class CookstoveDeviceCreate(BaseModel):
 

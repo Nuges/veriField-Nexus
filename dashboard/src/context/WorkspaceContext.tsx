@@ -220,7 +220,17 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
 
 
-  const [activeProject, setActiveProject] = useState<string | null>(null);
+  const [activeProject, setActiveProject] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const urlProj = params.get("project");
+      if (urlProj) return urlProj;
+      return safeStorage.getItem("vf_active_project_id");
+    } catch {
+      return null;
+    }
+  });
 
   const [moduleRegistry, setModuleRegistry] = useState<Record<string, any>>({});
 

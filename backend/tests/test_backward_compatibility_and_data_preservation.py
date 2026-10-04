@@ -134,6 +134,10 @@ async def test_legacy_asset_remains_intact_with_arbitrary_json(db_session):
     remain queryable and do not fail Pydantic model validation.
     """
     org_id = uuid.uuid4()
+    org = Organization(id=org_id, name=f"Legacy Asset Org {org_id.hex[:6]}")
+    db_session.add(org)
+    await db_session.flush()
+
     proj_id = uuid.uuid4()
     proj = Project(
         id=proj_id,
@@ -171,6 +175,10 @@ async def test_idempotent_package_generation_reproducibility(db_session):
     existing project produces deterministic files and structure.
     """
     org_id = uuid.uuid4()
+    org = Organization(id=org_id, name=f"Idempotent Pkg Org {org_id.hex[:6]}")
+    db_session.add(org)
+    await db_session.flush()
+
     proj_id = uuid.uuid4()
 
     proj = Project(

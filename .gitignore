@@ -137,3 +137,5 @@ static/
 backend/app/static/keys/*
 !backend/app/static/keys/.gitkeep
 test-results/
+backend/test_results.xml
+dashboard/tests/screenshots/

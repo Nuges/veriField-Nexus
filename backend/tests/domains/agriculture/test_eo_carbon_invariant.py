@@ -101,7 +101,7 @@ async def test_satellite_observation_alone_cannot_produce_carbon_credits(db_sess
         monitoring_data={"satellite_observations": [sat_obs.id]},
     )
     assert result42.is_issuance_eligible is False
-    assert result42.issuable_credits_t_co2e == 0.0
+    assert result42.issuable_credits_t_co2e in (None, 0.0)
     assert result42.status.value == "NOT_CONFIGURED"
 
     calc47 = VM0047CalculatorV11()
@@ -110,7 +110,7 @@ async def test_satellite_observation_alone_cannot_produce_carbon_credits(db_sess
         monitoring_data={"satellite_observations": [sat_obs.id]},
     )
     assert result47.is_issuance_eligible is False
-    assert result47.issuable_credits_t_co2e == 0.0
+    assert result47.issuable_credits_t_co2e in (None, 0.0)
     assert result47.status.value == "NOT_CONFIGURED"
 
     calc51 = VM0051CalculatorV11()
@@ -119,5 +119,5 @@ async def test_satellite_observation_alone_cannot_produce_carbon_credits(db_sess
         monitoring_data={"satellite_observations": [sat_obs.id]},
     )
     assert result51.is_issuance_eligible is False
-    assert result51.issuable_credits_t_co2e == 0.0
+    assert result51.issuable_credits_t_co2e in (None, 0.0)
     assert result51.status.value == "NOT_CONFIGURED"

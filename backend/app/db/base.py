@@ -58,3 +58,4 @@ from app.domains.documents.models import *
 from app.domains.agriculture.models import *
 from app.domains.biochar.models import *
 from app.domains.biochar.puro_models import *
+from app.domains.earth_observation.models import *

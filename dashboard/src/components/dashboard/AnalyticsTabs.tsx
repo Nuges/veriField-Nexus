@@ -7,6 +7,7 @@ import Link from "next/link";
 import { Flame, Shield, AlertTriangle, Users, RefreshCw, UserPlus, Layers } from "lucide-react";
 import ChartRenderer, { type ChartConfig } from "./ChartRenderer";
 import BiocharValueChainView from "./BiocharValueChainView";
+import AgricultureFoundationView from "./AgricultureFoundationView";
 import { canonicalSectorCode } from "@/lib/moduleRegistry";
 import type { PipelineActivityItem } from "../VerificationPipelineStages";
 
@@ -23,13 +24,19 @@ export default function AnalyticsTabs({
 }) {
   const canonical = canonicalSectorCode(sectorCode || "").toUpperCase();
   const [activeTab, setActiveTab] = useState(
-    canonical === "BIOCHAR" ? "biochar_value_chain" : "reductions"
+    canonical === "BIOCHAR"
+      ? "biochar_value_chain"
+      : canonical === "AGRICULTURE_LAND_USE"
+      ? "agri_foundation_workflow"
+      : "reductions"
   );
   const displayActivities = activities || [];
 
   useEffect(() => {
     if (canonical === "BIOCHAR") {
       setActiveTab("biochar_value_chain");
+    } else if (canonical === "AGRICULTURE_LAND_USE") {
+      setActiveTab("agri_foundation_workflow");
     } else {
       setActiveTab("reductions");
     }
@@ -50,6 +57,9 @@ export default function AnalyticsTabs({
   const tabs = [
     ...(canonical === "BIOCHAR"
       ? [{ id: "biochar_value_chain", label: "Biochar Operations & Value Chain", icon: Layers }]
+      : []),
+    ...(canonical === "AGRICULTURE_LAND_USE"
+      ? [{ id: "agri_foundation_workflow", label: "Agriculture Foundation & MRV Workflow", icon: Layers }]
       : []),
     { id: "reductions", label: canonical === "AGRICULTURE_LAND_USE" ? "Agriculture & Land Use Overview" : `Offset Reductions & ${sectorTitle}`, icon: Flame },
     { id: "trust", label: "Evidence Trust", icon: Shield },
@@ -79,6 +89,7 @@ export default function AnalyticsTabs({
             <button
 
               key={t.id}
+              data-testid={`analytics-tab-${t.id}`}
 
               onClick={() => setActiveTab(t.id)}
 
@@ -112,6 +123,10 @@ export default function AnalyticsTabs({
 
       {activeTab === "biochar_value_chain" && canonical === "BIOCHAR" && (
         <BiocharValueChainView projectId={projectId} />
+      )}
+
+      {activeTab === "agri_foundation_workflow" && canonical === "AGRICULTURE_LAND_USE" && (
+        <AgricultureFoundationView projectId={projectId} />
       )}
 
       {activeTab === "reductions" && (

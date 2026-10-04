@@ -276,7 +276,8 @@ async def list_activities(
 
 
 
-    org_id = current_user.organization_id if current_user.role != "SUPER_ADMIN" else None
+    from app.core.rbac import normalize_canonical_role, ROLE_SUPER_ADMIN
+    org_id = current_user.organization_id if normalize_canonical_role(current_user.role) != ROLE_SUPER_ADMIN else None
 
 
 
@@ -871,8 +872,7 @@ async def update_activity_status_patch(
                 from app.domains.assets.schemas import AssetCreate
 
 
-
-                project_id = activity.organization_id # Fallback
+                project_id = None
 
                 if activity.property_id:
 
@@ -883,6 +883,40 @@ async def update_activity_status_patch(
                     if workspace and workspace.project_id:
 
                         project_id = workspace.project_id
+
+                if not project_id and activity.activity_data and activity.activity_data.get("project_id"):
+
+                    try:
+
+                        project_id = uuid.UUID(str(activity.activity_data["project_id"]))
+
+                    except (ValueError, TypeError):
+
+                        pass
+
+                if not project_id:
+
+                    from app.domains.projects.models import Project
+
+                    project_id = (await db.execute(select(Project.id).where(Project.organization_id == activity.organization_id))).scalars().first()
+
+                if not project_id:
+
+                    from app.domains.projects.models import Project
+
+                    new_proj = Project(
+
+                        name="Default Activity Project",
+
+                        organization_id=activity.organization_id,
+
+                    )
+
+                    db.add(new_proj)
+
+                    await db.flush()
+
+                    project_id = new_proj.id
 
 
 

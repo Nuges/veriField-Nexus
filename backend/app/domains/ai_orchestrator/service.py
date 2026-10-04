@@ -1402,6 +1402,14 @@ class AIOrchestratorService:
 
             "VVB_AUDITOR": ["Review Immutable Audit Trail", "Execute Spot Check Sampling", "Issue Verification Report"],
 
+            "auditor": ["Review Immutable Audit Trail", "Execute Spot Check Sampling", "Issue Verification Report"],
+
+            "AUDITOR": ["Review Immutable Audit Trail", "Execute Spot Check Sampling", "Issue Verification Report"],
+
+            "verifier": ["Review Immutable Audit Trail", "Validate MRV Evidence", "Issue Verification Report"],
+
+            "VERIFIER": ["Review Immutable Audit Trail", "Validate MRV Evidence", "Issue Verification Report"],
+
             "registry_manager": ["Generate Registry Export Package", "Validate Serial Numbers", "Export Credit Bundle"],
 
             "REGISTRY_MANAGER": ["Generate Registry Export Package", "Validate Serial Numbers", "Export Credit Bundle"],

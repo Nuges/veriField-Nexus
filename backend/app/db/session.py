@@ -99,6 +99,17 @@ if not (is_testing or is_pooler or is_sqlite):
 
 engine = create_async_engine(db_url, **engine_kwargs)
 
+if is_sqlite:
+    from sqlalchemy import event
+
+    @event.listens_for(engine.sync_engine, "connect")
+    def _sqlite_register_spatial_funcs(dbapi_con, connection_record):
+        if hasattr(dbapi_con, "create_function"):
+            dbapi_con.create_function("AsEWKB", 1, lambda x: x)
+            dbapi_con.create_function("GeomFromEWKT", 1, lambda x: x.encode("utf-8") if isinstance(x, str) else x)
+            dbapi_con.create_function("GeomFromWKB", 1, lambda x: x)
+            dbapi_con.create_function("GeomFromWKB", 2, lambda x, srid: x)
+
 
 
 

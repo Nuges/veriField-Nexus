@@ -1,5 +1,6 @@
 import { strict as assert } from 'assert';
-import { resolveSectorWithPrecedence } from '../src/lib/moduleRegistry';
+// @ts-expect-error Node strip-types requires explicit .ts extension at runtime
+import { resolveSectorWithPrecedence } from '../src/lib/moduleRegistry.ts';
 
 // Test 1: Explicit project.sector wins over compound display names
 const testCases = [

@@ -53,7 +53,7 @@ async def test_biochar_tenant_isolation_and_idor_protection(db_session: AsyncSes
     proj_a = Project(
         id=uuid.uuid4(),
         name="Project A",
-        project_code=f"PRJ-A-{uuid.uuid4().hex[:4].upper()}",
+        project_code=f"PRJ-A-{uuid.uuid4().hex[:8].upper()}",
         organization_id=org_a.id,
         country="Kenya",
     )
@@ -74,7 +74,7 @@ async def test_biochar_tenant_isolation_and_idor_protection(db_session: AsyncSes
     proj_b = Project(
         id=uuid.uuid4(),
         name="Project B",
-        project_code=f"PRJ-B-{uuid.uuid4().hex[:4].upper()}",
+        project_code=f"PRJ-B-{uuid.uuid4().hex[:8].upper()}",
         organization_id=org_b.id,
         country="Uganda",
     )
@@ -193,14 +193,15 @@ async def test_biochar_large_volume_pagination(db_session: AsyncSession):
     )
     db_session.add(source)
 
-    # Bulk insert 105 Feedstock Lots
+    # Bulk insert 105 Feedstock Lots with run-unique prefix
+    run_prefix = uuid.uuid4().hex[:6]
     lots = [
         FeedstockLot(
             id=uuid.uuid4(),
             organization_id=org.id,
             project_id=proj.id,
             source_id=source.id,
-            lot_number=f"LOT-P-{i:04d}-{uuid.uuid4().hex[:4]}",
+            lot_number=f"LOT-{run_prefix}-{i:04d}",
             feedstock_type="BAGASSE",
             mass_received_tonnes=10.0,
             moisture_content_pct=15.0,
@@ -212,6 +213,7 @@ async def test_biochar_large_volume_pagination(db_session: AsyncSession):
     ]
     db_session.add_all(lots)
     await db_session.commit()
+
 
     token = _create_token(user.id, user.email, user.role, org.id)
     headers = {"Authorization": f"Bearer {token}"}

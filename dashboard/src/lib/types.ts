@@ -384,3 +384,28 @@ export interface StandardApiResponse<T = unknown> {
   };
   metadata?: Record<string, unknown>;
 }
+
+export interface VerificationTask {
+  id: string;
+  project_id?: string | null;
+  asset_id?: string | null;
+  verifier_id?: string | null;
+  assigned_agent?: string | null;
+  status: string;
+  deadline?: string | null;
+  property_name?: string | null;
+  property_address?: string | null;
+  property_type?: string | null;
+  agent_name?: string | null;
+  findings?: Record<string, unknown>;
+  created_at?: string | null;
+  updated_at?: string | null;
+}
+
+export interface VerificationTasksResponse {
+  tasks: VerificationTask[];
+  audits?: VerificationTask[];
+  total: number;
+  page?: number;
+  per_page?: number;
+}

@@ -34,8 +34,15 @@ from app.domains.biochar.models import (
     BiocharBatch,
     BiocharEndUseRecord,
     BiocharLabAnalysis,
+    FeedstockLot,
+    FeedstockSource,
     ProductionFacility,
     ProductionRun,
+)
+from app.domains.biochar.puro_models import (
+    PuroBiomassSourceDeclaration,
+    PuroCounterfactualStorageAssessment,
+    PuroCreditingPeriod,
 )
 from app.domains.biochar.services.puro_quantification import PuroAuthoritativeQuantificationService
 from app.domains.methodologies.models.base_registry import Methodology, MethodologyRegistry, MethodologyFamily
@@ -215,7 +222,69 @@ async def test_authoritative_lab_provenance_vs_field_estimates(db_session: Async
         event_date=datetime.now(timezone.utc),
     )
 
-    db_session.add_all([org, reg, fam, meth, project, facility, run, batch, lab, end_use])
+    cp = PuroCreditingPeriod(
+        id=uuid.uuid4(),
+        organization_id=org_id,
+        facility_id=facility.id,
+        sequence_number=1,
+        start_date=date(2026, 1, 1),
+        end_date=date(2036, 1, 1),
+        crediting_duration_years=10,
+        status="ACTIVE",
+    )
+    src = FeedstockSource(
+        id=uuid.uuid4(),
+        organization_id=org_id,
+        project_id=proj_id,
+        source_code=f"SRC-{u[:6]}",
+        source_name="Pine Forest Residuals",
+        source_type="FORESTRY_RESIDUE",
+        biomass_type="WOOD_CHIPS",
+        origin_location="Savonlinna, Finland",
+        waste_status="CONFIRMED_WASTE_BIOMASS",
+        baseline_fate="OPEN_BURNING",
+    )
+    lot = FeedstockLot(
+        id=uuid.uuid4(),
+        organization_id=org_id,
+        project_id=proj_id,
+        source_id=src.id,
+        lot_number=f"LOT-{u[:6]}",
+        feedstock_type="WOOD_CHIPS",
+        mass_received_tonnes=Decimal("100.0"),
+        moisture_content_pct=Decimal("10.0"),
+        dry_mass_tonnes=Decimal("90.0"),
+        chain_of_custody_ref="COC-FIN-002",
+    )
+    decl = PuroBiomassSourceDeclaration(
+        id=uuid.uuid4(),
+        organization_id=org_id,
+        feedstock_source_id=src.id,
+        source_declaration_code=f"DECL-{u[:6]}",
+        declared_validity_start=date(2025, 1, 1),
+        declared_validity_end=date(2030, 1, 1),
+        puro_category_ref="FORESTRY_RESIDUE",
+        risk_classification="LOW_RISK",
+        is_active=True,
+    )
+    batch.metadata_json = {"feedstock_lot_id": str(lot.id)}
+
+    cf = PuroCounterfactualStorageAssessment(
+        id=uuid.uuid4(),
+        organization_id=org_id,
+        project_id=proj_id,
+        facility_id=facility.id,
+        batch_id=batch.id,
+        counterfactual_path="PATH_A_NEGLIGIBLE_STORAGE",
+        baseline_fate="OPEN_BURNING",
+        evidence_status="VERIFIED",
+        counterfactual_carbon_stored_tco2e=Decimal("0.0"),
+        assessment_status="COMPLIANT",
+    )
+
+    db_session.add_all([org, reg, fam, meth, project, facility])
+    await db_session.flush()
+    db_session.add_all([cp, src, lot, decl, cf, run, batch, lab, end_use])
     await db_session.commit()
 
     calc_res = await PuroAuthoritativeQuantificationService.resolve_and_execute(

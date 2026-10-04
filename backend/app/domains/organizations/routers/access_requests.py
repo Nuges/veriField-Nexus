@@ -82,6 +82,29 @@ class AccessRequestCreate(BaseModel):
             raise ValueError("Invalid email address format.")
         return clean
 
+    @field_validator("sector_id")
+    @classmethod
+    def validate_canonical_sector(cls, v: Optional[Union[uuid.UUID, str]]) -> Optional[str]:
+        if v is None:
+            return None
+        raw_str = str(v).strip()
+        if not raw_str:
+            return None
+        from app.core.sectors import normalize_to_canonical_sector, CANONICAL_SECTOR_CODES
+        canonical = normalize_to_canonical_sector(raw_str)
+        if canonical:
+            return canonical.value
+
+        # Check if caller passed a valid UUID string
+        try:
+            return str(uuid.UUID(raw_str))
+        except (ValueError, TypeError, AttributeError):
+            pass
+
+        raise ValueError(
+            f"Invalid primary operating sector: '{v}'. Primary Operating Sector must be one of the canonical platform sectors: {', '.join(CANONICAL_SECTOR_CODES)}. Methodology families, test fixtures, and arbitrary strings are strictly rejected."
+        )
+
 
 
 @router.post("/access-requests")
@@ -126,7 +149,28 @@ async def create_access_request(
 
             raise HTTPException(status_code=400, detail="An account with this email already exists.")
 
-
+        # Validate and resolve canonical sector
+        resolved_sector_code = None
+        if payload.sector_id:
+            from app.core.sectors import CANONICAL_SECTOR_SET, CANONICAL_SECTOR_CODES
+            if payload.sector_id in CANONICAL_SECTOR_SET:
+                resolved_sector_code = payload.sector_id
+            else:
+                # payload.sector_id is a UUID; verify against DB that it belongs strictly to a canonical family
+                clean_id = str(uuid.UUID(str(payload.sector_id)))
+                hex_id = clean_id.replace("-", "")
+                res_fam = await db.execute(
+                    text("SELECT code, name FROM methodology_families WHERE id = :val_uuid OR id = :hex_uuid"),
+                    {"val_uuid": clean_id, "hex_uuid": hex_id}
+                )
+                fam_row = res_fam.fetchone()
+                if not fam_row or fam_row[0] not in CANONICAL_SECTOR_SET:
+                    fam_desc = fam_row[1] if fam_row else payload.sector_id
+                    raise HTTPException(
+                        status_code=422,
+                        detail=f"Invalid primary operating sector: '{fam_desc}'. Primary Operating Sector must be one of the canonical platform sectors: {', '.join(CANONICAL_SECTOR_CODES)}. Methodology families and test fixtures are strictly rejected."
+                    )
+                resolved_sector_code = fam_row[0]
 
         import json
 
@@ -134,7 +178,7 @@ async def create_access_request(
 
             "use_case": payload.use_case,
 
-            "sector_id": str(payload.sector_id) if payload.sector_id else None,
+            "sector_id": resolved_sector_code,
 
             "methodology_id": str(payload.methodology_id) if payload.methodology_id else None,
 
@@ -452,46 +496,32 @@ async def approve_access_request(
     target_sec_id = None
     target_meth_id = None
 
-    # Step 1: Resolve Sector from request metadata or use case text
+    # Step 1: Resolve Sector from request metadata or use case text using canonical taxonomy
     if sector_id_str:
-        clean_sec = str(sector_id_str).strip().lower()
-        alias_code = None
-        if "hybrid" in clean_sec or "energy" in clean_sec or "solar" in clean_sec:
-            alias_code = "HYBRID_ENERGY"
-        elif "ev" in clean_sec or "mobility" in clean_sec or "electric" in clean_sec:
-            alias_code = "EV_MOBILITY"
-        elif "biochar" in clean_sec:
-            alias_code = "BIOCHAR"
-        elif "cook" in clean_sec or "stove" in clean_sec:
-            alias_code = "COOKSTOVES"
-        elif "agri" in clean_sec or "land_use" in clean_sec or "farm" in clean_sec or "afolu" in clean_sec or "soil" in clean_sec or "rice" in clean_sec:
-            alias_code = "AGRICULTURE_LAND_USE"
+        from app.core.sectors import normalize_to_canonical_sector
+        canon = normalize_to_canonical_sector(str(sector_id_str).strip())
+        if canon:
+            res_sec = await db.execute(
+                text("SELECT id, code FROM methodology_families WHERE UPPER(code) = UPPER(:val_code) LIMIT 1"),
+                {"val_code": canon.value}
+            )
+            sec_row = res_sec.fetchone()
         else:
-            alias_code = clean_sec.upper()
-
-        sec_is_uuid = False
-        try:
-            uuid.UUID(str(sector_id_str).strip())
-            sec_is_uuid = True
-        except (ValueError, TypeError, AttributeError):
             sec_is_uuid = False
+            try:
+                uuid.UUID(str(sector_id_str).strip())
+                sec_is_uuid = True
+            except (ValueError, TypeError, AttributeError):
+                sec_is_uuid = False
 
-        if sec_is_uuid:
-            clean_sec = str(uuid.UUID(str(sector_id_str).strip()))
-            hex_sec = clean_sec.replace("-", "")
-            res_sec = await db.execute(
-                text("SELECT id, code FROM methodology_families WHERE id = :val_uuid OR id = :hex_uuid"),
-                {"val_uuid": clean_sec, "hex_uuid": hex_sec}
-            )
-        else:
-            res_sec = await db.execute(
-                text("""
-                    SELECT id, code FROM methodology_families
-                    WHERE UPPER(code) = UPPER(:val_code) OR UPPER(code) = UPPER(:alias)
-                """),
-                {"val_code": str(sector_id_str).strip(), "alias": alias_code or str(sector_id_str).strip()}
-            )
-        sec_row = res_sec.fetchone()
+            if sec_is_uuid:
+                clean_sec = str(uuid.UUID(str(sector_id_str).strip()))
+                hex_sec = clean_sec.replace("-", "")
+                res_sec = await db.execute(
+                    text("SELECT id, code FROM methodology_families WHERE id = :val_uuid OR id = :hex_uuid"),
+                    {"val_uuid": clean_sec, "hex_uuid": hex_sec}
+                )
+                sec_row = res_sec.fetchone()
 
     if not sec_row:
         combined_text = f"{use_case or ''} {req.organization_name or ''} {str(use_case_data or '')}".lower()

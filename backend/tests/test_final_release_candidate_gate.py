@@ -234,6 +234,12 @@ async def test_carbon_calculation_concurrency_and_idempotency():
     org_id = uuid.uuid4()
 
     async with async_session_factory() as session:
+        org = Organization(id=org_id, name=f"Carbon Idempotency Org {org_id.hex[:6]}")
+        proj = Project(id=proj_id, organization_id=org_id, name=f"Carbon Proj {proj_id.hex[:6]}")
+        session.add(org)
+        session.add(proj)
+        await session.flush()
+
         repo = CarbonCalculationRepository(session)
 
         # Launch multiple sequential/parallel calculation insertions
@@ -275,9 +281,16 @@ async def test_document_integrity_stream_and_tampering():
     with open(file_path, "wb") as f:
         f.write(content)
 
-    user_obj = User(id=uploader_id, email=f"uploader_{uuid.uuid4().hex[:6]}@test.com", role="ORG_ADMIN", organization_id=org_id, is_active=True, status="active")
+    user_obj = User(id=uploader_id, email=f"uploader_{uuid.uuid4().hex[:6]}@test.com", full_name="Uploader Admin", role="ORG_ADMIN", organization_id=org_id, is_active=True, status="active")
 
     async with async_session_factory() as session:
+        org = Organization(id=org_id, name=f"Doc Integrity Org {org_id.hex[:6]}")
+        proj = Project(id=proj_id, organization_id=org_id, name=f"Doc Proj {proj_id.hex[:6]}")
+        session.add(org)
+        session.add(proj)
+        session.add(user_obj)
+        await session.flush()
+
         doc = ProjectDocument(
             id=doc_id,
             project_id=proj_id,

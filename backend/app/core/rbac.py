@@ -274,6 +274,7 @@ ROLE_PERMISSIONS: Dict[str, Set[str]] = {
     },
     ROLE_FIELD_AGENT: {
         "org:read",
+        "project:read",
         "activity:create",
         "activity:read",
         "asset:read",

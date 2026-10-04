@@ -268,17 +268,17 @@ async def get_carbon_ledger(
 
             "methodology": methodology_code,
 
-            "tco2e": calc.tco2e_generated,
+            "tco2e": calc.tco2e_yield if calc.tco2e_yield is not None else (calc.tco2e_generated or 0.0),
 
-            "estimated_value": float(calc.tco2e_generated) * price,
+            "estimated_value": float(calc.tco2e_yield if calc.tco2e_yield is not None else (calc.tco2e_generated or 0.0)) * price,
 
             "unit_price": price,
 
-            "uncertainty": 0,
+            "uncertainty": calc.uncertainty or 0.0,
 
-            "status": "calculated",
+            "status": calc.status or "calculated",
 
-            "date": calc.created_at.isoformat()
+            "date": (calc.created_at or calc.executed_at).isoformat() if (calc.created_at or calc.executed_at) else datetime.now(timezone.utc).isoformat()
 
         })
 
@@ -310,9 +310,12 @@ async def get_anomalies(
 
     stmt = select(Activity).where(Activity.status == "flagged")
 
-    if current_user.role not in ("SUPER_ADMIN",):
-
-        stmt = stmt.where(Activity.organization_id == current_user.organization_id)
+    from app.core.rbac import normalize_canonical_role, ROLE_SUPER_ADMIN
+    if normalize_canonical_role(current_user.role) != ROLE_SUPER_ADMIN:
+        if current_user.organization_id:
+            stmt = stmt.where(Activity.organization_id == current_user.organization_id)
+        else:
+            stmt = stmt.where(Activity.organization_id.is_(None))
 
 
 
@@ -397,12 +400,19 @@ async def resolve_anomaly(
         )
 
     from app.domains.activities.models import Activity
-    act = await db.get(Activity, flag_id)
+    from sqlalchemy import select
+    try:
+        flag_uuid = UUID(str(flag_id).strip())
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Activity not found")
+    act_res = await db.execute(select(Activity).where(Activity.id == flag_uuid))
+    act = act_res.scalar_one_or_none()
     if not act:
         raise HTTPException(status_code=404, detail="Activity not found")
 
     # Tenant isolation check
-    if current_user.role != "SUPER_ADMIN":
+    from app.core.rbac import normalize_canonical_role, ROLE_SUPER_ADMIN
+    if normalize_canonical_role(current_user.role) != ROLE_SUPER_ADMIN:
         if not current_user.organization_id or str(act.organization_id).lower() != str(current_user.organization_id).lower():
             raise HTTPException(
                 status_code=403,

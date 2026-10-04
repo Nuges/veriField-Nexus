@@ -53,10 +53,11 @@ import {
   type PuroOutputReportRecord,
   type PuroRegistryReadiness,
 } from "@/lib/api";
+import BiocharVM0044View from "./BiocharVM0044View";
 
 export default function BiocharValueChainView({ projectId }: { projectId?: string }) {
   const [activeSection, setActiveSection] = useState<
-    "batches" | "feedstock" | "runs" | "mass_balance" | "custody" | "puro"
+    "batches" | "feedstock" | "runs" | "mass_balance" | "custody" | "puro" | "vm0044"
   >("batches");
   const [batches, setBatches] = useState<BiocharBatchRecord[]>([]);
   const [lots, setLots] = useState<FeedstockLotRecord[]>([]);
@@ -116,14 +117,18 @@ export default function BiocharValueChainView({ projectId }: { projectId?: strin
           fetchBiocharSummary(projectId),
           fetchProductionFacilities(projectId),
         ]);
-        setBatches(batchesRes || []);
-        setLots(lotsRes || []);
-        setRuns(runsRes || []);
-        setFacilities(facilitiesRes || []);
+        const bList = Array.isArray(batchesRes) ? batchesRes : (Array.isArray((batchesRes as any)?.items) ? (batchesRes as any).items : []);
+        const lList = Array.isArray(lotsRes) ? lotsRes : (Array.isArray((lotsRes as any)?.items) ? (lotsRes as any).items : []);
+        const rList = Array.isArray(runsRes) ? runsRes : (Array.isArray((runsRes as any)?.items) ? (runsRes as any).items : []);
+        const fList = Array.isArray(facilitiesRes) ? facilitiesRes : (Array.isArray((facilitiesRes as any)?.items) ? (facilitiesRes as any).items : []);
+        setBatches(bList);
+        setLots(lList);
+        setRuns(rList);
+        setFacilities(fList);
         setSummary(summaryRes || null);
-        if (batchesRes && batchesRes.length > 0) {
-          setSelectedBatch(batchesRes[0]);
-          setQuantBatchId(batchesRes[0].id);
+        if (bList.length > 0) {
+          setSelectedBatch(bList[0]);
+          setQuantBatchId(bList[0].id);
         }
 
         // Load Puro metadata
@@ -321,6 +326,18 @@ export default function BiocharValueChainView({ projectId }: { projectId?: strin
           <Award size={14} />
           <span>Puro 2025 V2</span>
         </button>
+        <button
+          data-testid="tab-vm0044"
+          onClick={() => setActiveSection("vm0044")}
+          className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
+            activeSection === "vm0044"
+              ? "bg-blue-500/10 text-blue-400 border border-blue-500/30"
+              : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
+          }`}
+        >
+          <Calculator size={14} />
+          <span>Verra VM0044 v1.2</span>
+        </button>
       </div>
 
       {/* Batches Table & Selection */}
@@ -355,7 +372,7 @@ export default function BiocharValueChainView({ projectId }: { projectId?: strin
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[var(--color-border)]">
-                  {batches.length === 0 ? (
+                  {!Array.isArray(batches) || batches.length === 0 ? (
                     <tr>
                       <td colSpan={7} className="py-6 text-center text-xs text-[var(--color-text-secondary)]">
                         No biochar batches registered for this project.
@@ -823,6 +840,7 @@ export default function BiocharValueChainView({ projectId }: { projectId?: strin
                         Select Verified Batch
                       </label>
                       <select
+                        data-testid="puro-batch-select"
                         value={quantBatchId}
                         onChange={(e) => {
                           setQuantBatchId(e.target.value);
@@ -1046,6 +1064,7 @@ export default function BiocharValueChainView({ projectId }: { projectId?: strin
                 )}
 
                 <button
+                  data-testid="puro-btn-execute-quantification"
                   onClick={handleQuantify}
                   disabled={quantLoading || (quantMode === "authoritative" && batches.length === 0)}
                   className={`w-full py-2.5 px-4 rounded-lg text-white text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-xs ${
@@ -1528,6 +1547,10 @@ export default function BiocharValueChainView({ projectId }: { projectId?: strin
             </div>
           </div>
         </div>
+      )}
+
+      {activeSection === "vm0044" && (
+        <BiocharVM0044View projectId={projectId} batches={batches} />
       )}
     </div>
   );

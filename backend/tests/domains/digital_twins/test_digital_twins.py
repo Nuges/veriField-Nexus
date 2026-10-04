@@ -3,6 +3,9 @@ from datetime import datetime, timezone
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
+from app.domains.organizations.models import Organization
+from app.domains.projects.models import Project
+from app.domains.assets.models import Asset
 from app.domains.digital_twins.models.twin import DigitalTwin, DigitalTwinState
 
 
@@ -10,6 +13,16 @@ from app.domains.digital_twins.models.twin import DigitalTwin, DigitalTwinState
 async def test_digital_twin_lifecycle(async_client: AsyncClient, admin_token_headers: dict, db_session: AsyncSession):
     twin_id = uuid.uuid4()
     asset_id = uuid.uuid4()
+    org_id = uuid.uuid4()
+    proj_id = uuid.uuid4()
+
+    org = Organization(id=org_id, name=f"Twin Org {twin_id.hex[:8]}")
+    proj = Project(id=proj_id, organization_id=org_id, name=f"Twin Proj {twin_id.hex[:8]}")
+    asset = Asset(id=asset_id, organization_id=org_id, project_id=proj_id, name="Test Asset")
+    db_session.add(org)
+    db_session.add(proj)
+    db_session.add(asset)
+    await db_session.flush()
 
     twin = DigitalTwin(
         id=twin_id,

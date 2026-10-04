@@ -121,12 +121,27 @@ async def sync_bundle_to_registry(
     idempotency_key = f"sync-{bundle_id}-{uuid.uuid4().hex[:8]}"
 
     # 3. Create a RegistrySyncLog in DB
+    reg_cfg_stmt = select(RegistryConfig).where(RegistryConfig.adapter_type == provider_name)
+    reg_cfg = (await db.execute(reg_cfg_stmt)).scalar_one_or_none()
+    if not reg_cfg:
+        reg_cfg = (await db.execute(select(RegistryConfig))).scalars().first()
+    if not reg_cfg:
+        reg_cfg = RegistryConfig(
+            name=f"{provider_name.capitalize()} Registry",
+            adapter_type=provider_name,
+            base_url=f"https://api.{provider_name}.org",
+            credentials={"mode": "local"},
+            is_active=True,
+        )
+        db.add(reg_cfg)
+        await db.flush()
+
     sync_log = RegistrySyncLog(
         project_id=project_uuid,
         action="submit_bundle",
         status="Queued",
         idempotency_key=idempotency_key,
-        registry_id=uuid.uuid4(),
+        registry_id=reg_cfg.id,
     )
     db.add(sync_log)
     await db.commit()

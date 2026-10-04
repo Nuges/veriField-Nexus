@@ -112,17 +112,14 @@ class ProjectRepository:
 
         conditions = []
 
-        role_upper = (user_role or "").upper().replace(" ", "_")
+        from app.core.rbac import normalize_canonical_role, ROLE_SUPER_ADMIN
+        role_canonical = normalize_canonical_role(user_role)
 
-        if role_upper not in ["SUPER_ADMIN", "ADMIN"]:
-
+        if role_canonical != ROLE_SUPER_ADMIN:
             if organization_id:
-
-                from sqlalchemy import or_
-
-                conditions.append(or_(Project.organization_id == organization_id, Project.organization_id.is_(None)))
-
-            # If no org_id, don't filter out unassigned projects
+                conditions.append(Project.organization_id == organization_id)
+            else:
+                conditions.append(Project.organization_id.is_(None))
 
 
 
@@ -226,8 +223,15 @@ class CarbonCalculationRepository:
             res = await self.db.execute(stmt)
             existing = res.scalars().first()
             if existing:
-                existing.tco2e_generated = calc_dict.get("tco2e_generated", existing.tco2e_generated)
-                existing.calculation_log = calc_dict.get("calculation_log", existing.calculation_log)
+                yield_val = calc_dict.get("tco2e_yield", calc_dict.get("tco2e_generated", existing.tco2e_yield if existing.tco2e_yield is not None else existing.tco2e_generated))
+                existing.tco2e_yield = yield_val
+                existing.tco2e_generated = yield_val
+                if "calculation_log" in calc_dict:
+                    existing.calculation_log = calc_dict["calculation_log"]
+                if "execution_outputs" in calc_dict:
+                    existing.execution_outputs = calc_dict["execution_outputs"]
+                if "execution_inputs" in calc_dict:
+                    existing.execution_inputs = calc_dict["execution_inputs"]
                 existing.status = calc_dict.get("status", existing.status)
                 await self.db.flush()
                 return existing

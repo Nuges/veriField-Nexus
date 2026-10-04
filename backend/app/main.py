@@ -112,6 +112,7 @@ from app.domains.authentication.routers.mfa import router as mfa_router
 from app.domains.authentication.routers.sso import router as sso_router
 from app.domains.documents.api import router as documents_router
 from app.domains.agriculture.api import router as agriculture_router
+from app.domains.earth_observation.api import router as earth_observation_router
 
 
 
@@ -240,6 +241,28 @@ async def lifespan(app: FastAPI):
 
             session = async_session_factory()
             try:
+                # Detect and validate spatial backend capability
+                try:
+                    from app.domains.earth_observation.services.geospatial_engine import (
+                        geospatial_engine,
+                        SpatialBackendState,
+                    )
+                    spatial_info = await geospatial_engine.detect_spatial_backend(session)
+                    if spatial_info.get("state") == SpatialBackendState.POSTGIS_ACTIVE.value:
+                        logger.info("Spatial Backend: POSTGIS_ACTIVE (PostGIS %s, GiST indexes enabled)", spatial_info.get("postgis_version"))
+                    else:
+                        err_msg = (
+                            f"CRITICAL: PostGIS extension is REQUIRED for PostgreSQL deployments. "
+                            f"State: {spatial_info.get('state')}. PostGIS is not installed or enabled. "
+                            f"PostgreSQL without PostGIS is unsupported because spatial models require PostGIS functions (ST_AsEWKB)."
+                        )
+                        logger.critical(err_msg)
+                        raise RuntimeError(err_msg)
+                except Exception as sp_err:
+                    if isinstance(sp_err, RuntimeError) and "PostGIS extension is REQUIRED" in str(sp_err):
+                        raise
+                    logger.warning("Could not complete spatial backend diagnostic: %s", sp_err)
+
                 await session.execute(text("SET lock_timeout = '3000ms'"))
 
                 await session.execute(text("ALTER TABLE methodology_families ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true"))
@@ -2279,6 +2302,7 @@ app.include_router(mfa_router, prefix="/api/v1", tags=["Multi-Factor Authenticat
 app.include_router(sso_router, prefix="/api/v1", tags=["Enterprise SSO"])
 app.include_router(documents_router, prefix="/api/v1", tags=["Document Intelligence"])
 app.include_router(agriculture_router, prefix="/api/v1", tags=["Agriculture & Land Use MRV"])
+app.include_router(earth_observation_router, prefix="/api/v1", tags=["Earth Observation & Satellite MRV"])
 
 
 

@@ -1,6 +1,6 @@
 import uuid
 from decimal import Decimal
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -33,7 +33,10 @@ from app.domains.biochar.models import (
     ProductionFacility,
 )
 from app.domains.biochar.puro_models import (
+    PuroBiomassSourceDeclaration,
     PuroCalculationExecution,
+    PuroCounterfactualStorageAssessment,
+    PuroCreditingPeriod,
     PuroLCAModel,
     PuroCoProductAllocation,
 )
@@ -507,6 +510,7 @@ async def test_puro_authoritative_resolver_and_legacy_superseding(db_session: As
         org_type="SUPPLIER",
     )
     db_session.add(org)
+    await db_session.flush()
 
     proj_id = uuid.uuid4()
     proj = Project(
@@ -565,6 +569,75 @@ async def test_puro_authoritative_resolver_and_legacy_superseding(db_session: As
         qa_status="VERIFIED",
     )
     db_session.add(lab)
+
+    # Add Crediting Period for Facility
+    cp = PuroCreditingPeriod(
+        id=uuid.uuid4(),
+        organization_id=org_id,
+        facility_id=fac_id,
+        sequence_number=1,
+        start_date=date(2026, 1, 1),
+        end_date=date(2036, 1, 1),
+        crediting_duration_years=10,
+        status="ACTIVE",
+    )
+    db_session.add(cp)
+
+    # Add Feedstock Source, Lot, and Declaration
+    src = FeedstockSource(
+        id=uuid.uuid4(),
+        organization_id=org_id,
+        project_id=proj_id,
+        source_code=f"SRC-{uuid.uuid4().hex[:4]}",
+        source_name="Pine Forest Residuals",
+        source_type="FORESTRY_RESIDUE",
+        biomass_type="WOOD_CHIPS",
+        origin_location="Helsinki, Finland",
+        waste_status="CONFIRMED_WASTE_BIOMASS",
+        baseline_fate="OPEN_BURNING",
+    )
+    lot = FeedstockLot(
+        id=uuid.uuid4(),
+        organization_id=org_id,
+        project_id=proj_id,
+        source_id=src.id,
+        lot_number=f"LOT-{uuid.uuid4().hex[:4]}",
+        feedstock_type="WOOD_CHIPS",
+        mass_received_tonnes=Decimal("50.0"),
+        moisture_content_pct=Decimal("10.0"),
+        dry_mass_tonnes=Decimal("45.0"),
+        chain_of_custody_ref="COC-FIN-001",
+    )
+    decl = PuroBiomassSourceDeclaration(
+        id=uuid.uuid4(),
+        organization_id=org_id,
+        feedstock_source_id=src.id,
+        source_declaration_code=f"DECL-{uuid.uuid4().hex[:4]}",
+        declared_validity_start=date(2025, 1, 1),
+        declared_validity_end=date(2030, 1, 1),
+        puro_category_ref="FORESTRY_RESIDUE",
+        risk_classification="LOW_RISK",
+        is_active=True,
+    )
+    batch.metadata_json = {"feedstock_lot_id": str(lot.id)}
+
+    # Add Counterfactual Storage Assessment
+    cf = PuroCounterfactualStorageAssessment(
+        id=uuid.uuid4(),
+        organization_id=org_id,
+        project_id=proj_id,
+        facility_id=fac_id,
+        batch_id=batch_id,
+        counterfactual_path="PATH_A_NEGLIGIBLE_STORAGE",
+        baseline_fate="OPEN_BURNING",
+        evidence_status="VERIFIED",
+        counterfactual_carbon_stored_tco2e=Decimal("0.0"),
+        assessment_status="COMPLIANT",
+    )
+    db_session.add(src)
+    await db_session.flush()
+    db_session.add_all([lot, decl, cf])
+    await db_session.flush()
 
     # Add a legacy v1.0.0 execution record that must be superseded
     legacy_exec_id = uuid.uuid4()

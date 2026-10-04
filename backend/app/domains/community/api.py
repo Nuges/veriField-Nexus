@@ -40,7 +40,7 @@ async def get_community_feed(page: int = 1, per_page: int = 20, db: AsyncSession
         SELECT cv.id, cv.response, cv.timestamp, cv.upvotes, cv.asset_id,
                u.full_name as user_name, u.role as user_role
         FROM community_validations cv
-        LEFT JOIN users u ON cv.validator_id = CAST(u.id AS VARCHAR) OR cv.validator_id = u.id
+        LEFT JOIN users u ON cv.validator_id = CAST(u.id AS VARCHAR)
         ORDER BY cv.timestamp DESC
         LIMIT :limit OFFSET :offset
     """)
@@ -55,7 +55,7 @@ async def get_community_feed(page: int = 1, per_page: int = 20, db: AsyncSession
         c_query = text("""
             SELECT cc.id, cc.comment, cc.timestamp, u.full_name as user_name, u.role as user_role 
             FROM community_comments cc
-            LEFT JOIN users u ON cc.user_id = CAST(u.id AS VARCHAR) OR cc.user_id = u.id
+            LEFT JOIN users u ON cc.user_id = CAST(u.id AS VARCHAR)
             WHERE cc.validation_id = :val_id
             ORDER BY cc.timestamp ASC
         """)

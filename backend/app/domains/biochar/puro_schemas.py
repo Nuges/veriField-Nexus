@@ -286,7 +286,7 @@ class PuroEndUseRecordLinkResponse(BaseModel):
 
 
 class PuroQuantificationRequest(BaseModel):
-    batch_id: uuid.UUID
+    batch_id: Optional[uuid.UUID] = None
     soil_temperature_celsius: float = 15.0  # Mean annual soil temperature (Celsius)
     dry_mass_override_tonnes: Optional[float] = None
     impurity_pct: float = 0.0  # Dry-basis impurities percentage
@@ -566,4 +566,95 @@ class PuroRegistryReadinessResponse(BaseModel):
     issuance_status: str = "NOT_ISSUED"
     corc_point_verified_batches_count: int = 0
     total_eligible_batches_count: int = 0
+    evaluated_at: datetime
+
+
+class PuroStandardConfigResponse(BaseModel):
+    methodology_code: str
+    methodology_edition: str
+    general_rules_version: str
+    sourcing_criteria_version: str
+    is_valid: bool
+    status: str
+    reason_code: str
+    applicability: Dict[str, Any]
+    notes: Optional[str] = None
+
+
+class PuroBiomassSourceDeclarationCreate(BaseModel):
+    feedstock_source_id: uuid.UUID
+    source_declaration_code: str
+    declared_validity_start: date
+    declared_validity_end: date
+    puro_category_ref: str
+    risk_classification: str = "LOW_RISK"
+    sustainability_certification_scheme: Optional[str] = None
+    sustainability_certificate_ref: Optional[str] = None
+    is_active: bool = True
+    metadata_json: Dict[str, Any] = {}
+
+
+class PuroBiomassSourceDeclarationResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    organization_id: uuid.UUID
+    feedstock_source_id: uuid.UUID
+    source_declaration_code: str
+    declared_validity_start: date
+    declared_validity_end: date
+    puro_category_ref: str
+    risk_classification: str
+    sustainability_certification_scheme: Optional[str] = None
+    sustainability_certificate_ref: Optional[str] = None
+    is_active: bool
+    created_at: datetime
+
+
+class PuroCounterfactualAssessmentCreate(BaseModel):
+    counterfactual_path: str  # PATH_A_NEGLIGIBLE_STORAGE, PATH_B_MATERIAL_STORAGE
+    baseline_fate: str
+    evidence_status: str = "PENDING"  # VERIFIED, SUBMITTED, MISSING, REJECTED
+    evidence_reference: Optional[str] = None
+    evidence_hash: Optional[str] = None
+    counterfactual_carbon_stored_tco2e: Decimal = Decimal("0.0")
+    notes: Optional[str] = None
+    criteria_version: str = "v1.3"
+
+
+class PuroCounterfactualAssessmentResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    organization_id: uuid.UUID
+    project_id: uuid.UUID
+    facility_id: uuid.UUID
+    batch_id: Optional[uuid.UUID] = None
+    feedstock_lot_id: Optional[uuid.UUID] = None
+    criteria_version: str
+    counterfactual_path: str
+    baseline_fate: str
+    evidence_status: str
+    evidence_reference: Optional[str] = None
+    evidence_hash: Optional[str] = None
+    counterfactual_carbon_stored_tco2e: Decimal
+    assessment_status: str
+    reason_code: Optional[str] = None
+    notes: Optional[str] = None
+    evaluated_at: Optional[datetime] = None
+    created_at: datetime
+
+
+class PuroBatchSourcingComplianceResponse(BaseModel):
+    batch_id: uuid.UUID
+    batch_number: str
+    is_compliant: bool
+    compliance_state: str  # COMPLIANT, INCOMPLETE, FAILED, REVIEW_REQUIRED, NOT_APPLICABLE
+    criteria_version: str
+    feedstock_sources: List[Dict[str, Any]] = []
+    feedstock_category: Optional[str] = None
+    sourcing_evaluation: Dict[str, Any]
+    counterfactual_assessment: Optional[Dict[str, Any]] = None
+    deductible_counterfactual_tco2e: Decimal = Decimal("0.0")
+    blockers: List[str] = []
     evaluated_at: datetime

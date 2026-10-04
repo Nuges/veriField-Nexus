@@ -505,11 +505,12 @@ export default function EnterpriseDashboard() {
         {/* Middle Grid: Spatial Validation (8/12 Cols) & Certified Registry Manifests (4/12 Cols) */}
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-
-          <div className="lg:col-span-8 flex flex-col">
-
-            <SpatialModule sectorCode={sectorCode} assets={dashboardData?.assets} />
-
+          <div className="lg:col-span-8">
+            <SpatialModule
+              sectorCode={sectorCode}
+              assets={dashboardData?.assets}
+              projectId={activeProject || dashboardData?.project?.id || undefined}
+            />
           </div>
 
           <div className="lg:col-span-4 flex flex-col">

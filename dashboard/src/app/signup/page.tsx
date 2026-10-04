@@ -2,15 +2,12 @@
 
 
 
-import { useState, useEffect } from "react";
-
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
-
 import Link from "next/link";
-
 import { ShieldCheck, Mail, User, Building, Loader2, Sparkles, MapPin, Activity, ChevronDown } from "lucide-react";
-
-import { createAccessRequest, fetchMethodologyFamilies } from "@/lib/api";
+import { createAccessRequest } from "@/lib/api";
+import { getCanonicalOperatingSectors } from "@/lib/sectors";
 import { ThemeLogo } from "@/components/common/ThemeLogo";
 
 
@@ -35,65 +32,50 @@ export default function SignupPage() {
 
 
 
-  const [families, setFamilies] = useState<any[]>([]);
-
+  const canonicalSectors = useMemo(() => getCanonicalOperatingSectors(), []);
   const [methodologies, setMethodologies] = useState<any[]>([]);
-
   const [isLoading, setIsLoading] = useState(false);
-
   const [error, setError] = useState("");
-
   const [success, setSuccess] = useState(false);
-
-
-
   const [allMethodologies, setAllMethodologies] = useState<any[]>([]);
 
-
-
   useEffect(() => {
-
     async function loadData() {
-
       try {
-
-        const { fetchMethodologyFamilies, fetchMethodologies } = await import("@/lib/api");
-
-        const [famsRes, methsRes] = await Promise.all([
-
-          fetchMethodologyFamilies().catch(() => []),
-
-          fetchMethodologies().catch(() => []),
-
-        ]);
-
-
-
-        const filteredFams = Array.isArray(famsRes)
-
-          ? famsRes.filter(f => !["SYS_DEFAULT", "FAM-464d9f"].includes(f.code))
-
-          : [];
-
-        setFamilies(filteredFams);
-
-
-
+        const { fetchMethodologies } = await import("@/lib/api");
+        const methsRes = await fetchMethodologies().catch(() => []);
         const methList = Array.isArray(methsRes) ? methsRes : (methsRes?.modules || []);
-
         setAllMethodologies(methList);
-
       } catch (err) {
-
         console.error("Failed to load signup metadata", err);
-
       }
-
     }
-
     loadData();
-
   }, []);
+
+  const matchesSector = (m: any, sectorCode: string): boolean => {
+    const sec = (sectorCode || "").toUpperCase();
+    const famCode = (m.family?.code || m.family_code || "").toUpperCase();
+    const famName = (m.family?.name || "").toUpperCase();
+    const methCode = (m.code || "").toUpperCase();
+
+    if (sec === "COOKSTOVES") {
+      return famCode === "COOKSTOVES" || famName.includes("COOK") || methCode.includes("AMS-II.G") || methCode.includes("COOK");
+    }
+    if (sec === "HYBRID_ENERGY") {
+      return famCode === "HYBRID_ENERGY" || famName.includes("ENERGY") || methCode.includes("ACM0002") || methCode.includes("ENERGY") || methCode.includes("MINIGRID");
+    }
+    if (sec === "BIOCHAR") {
+      return famCode.includes("BIOCHAR") || famName.includes("BIOCHAR") || methCode.includes("VM0044") || methCode.includes("PURO") || methCode.includes("BIOCHAR");
+    }
+    if (sec === "EV_MOBILITY") {
+      return famCode === "EV_MOBILITY" || famName.includes("MOBILITY") || famName.includes("EV") || methCode.includes("AMS-III.C") || methCode.includes("EV");
+    }
+    if (sec === "AGRICULTURE_LAND_USE") {
+      return famCode === "AGRICULTURE_LAND_USE" || famCode.includes("AGRI") || famName.includes("AGRICULTURE") || methCode.includes("VM0042") || methCode.includes("AGRI");
+    }
+    return famCode === sec;
+  };
 
 
 
@@ -328,10 +310,13 @@ export default function SignupPage() {
 
 
                 <div>
-                  <label className="text-sm font-bold text-[var(--color-text-secondary)] mb-1.5 block">Primary Operating Sector</label>
+                  <label htmlFor="primary-operating-sector" className="text-sm font-bold text-[var(--color-text-secondary)] mb-1.5 block">Primary Operating Sector</label>
                   <div className="relative">
                     <Activity size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] pointer-events-none" />
                     <select
+                      id="primary-operating-sector"
+                      data-testid="primary-operating-sector-select"
+                      aria-label="Primary Operating Sector"
                       value={sectorId}
                       onChange={(e) => {
                         const newSectorId = e.target.value;
@@ -339,9 +324,7 @@ export default function SignupPage() {
                         setMethodologyId("");
 
                         const matched = allMethodologies.filter((m: any) =>
-                          (m.family && (m.family.id === newSectorId || m.family.code === newSectorId)) ||
-                          m.family_id === newSectorId ||
-                          m.family_code === newSectorId
+                          matchesSector(m, newSectorId)
                         );
 
                         // If matched list is not empty use it, otherwise show all active as fallback
@@ -351,9 +334,9 @@ export default function SignupPage() {
                       className="w-full pl-10 pr-10 py-3 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text-primary)] text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 appearance-none cursor-pointer"
                     >
                       <option value="" disabled>Select a sector...</option>
-                      {families.map((fam) => (
-                        <option key={fam.id} value={fam.id}>
-                          {fam.name}
+                      {canonicalSectors.map((sec) => (
+                        <option key={sec.code} value={sec.code}>
+                          {sec.label}
                         </option>
                       ))}
                     </select>

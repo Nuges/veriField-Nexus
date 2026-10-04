@@ -170,41 +170,27 @@ class ActivityRepository:
 
         # Multi-tenancy Scoping
 
-        if user_role == "SUPER_ADMIN":
+        from app.core.rbac import normalize_canonical_role, ROLE_SUPER_ADMIN, ROLE_ORG_ADMIN
+        role_canonical = normalize_canonical_role(user_role)
 
+        if role_canonical == ROLE_SUPER_ADMIN:
             if user_id:
-
                 conditions.append(Activity.user_id == user_id)
-
-        elif user_role in ("admin", "ORG_ADMIN"):
-
+        elif role_canonical == ROLE_ORG_ADMIN or (user_role and user_role.upper() in ("ADMIN", "ORG_ADMIN")):
             if organization_id is not None:
-
                 conditions.append(Activity.organization_id == organization_id)
-
             else:
-
-                conditions.append(Activity.organization_id == None)
-
+                conditions.append(Activity.organization_id.is_(None))
             if user_id:
-
                 conditions.append(Activity.user_id == user_id)
-
         else:
-
             # Field Agent or other roles scope to own submissions
-
             if requesting_user_id:
-
                 conditions.append(Activity.user_id == requesting_user_id)
-
             if organization_id is not None:
-
                 conditions.append(Activity.organization_id == organization_id)
-
             else:
-
-                conditions.append(Activity.organization_id == None)
+                conditions.append(Activity.organization_id.is_(None))
 
 
 

@@ -38,6 +38,8 @@ from .schemas import (
     VerificationPackageFindingUpdate,
     VerificationPackageResponse,
     VerificationTaskCreate,
+    VerificationTaskListItem,
+    VerificationTaskListResponse,
     VerificationTaskResponse,
 )
 from .service import VerificationService
@@ -64,10 +66,10 @@ async def create_verification_task(
     return await service.create_verification_task(data, actor_id=current_user.id, db=db)
 
 
-@router.get("", response_model=None)
-@router.get("/", response_model=None)
-@router.get("/tasks", response_model=None)
-@router.get("/audits", response_model=None)
+@router.get("", response_model=VerificationTaskListResponse)
+@router.get("/", response_model=VerificationTaskListResponse)
+@router.get("/tasks", response_model=VerificationTaskListResponse)
+@router.get("/audits", response_model=VerificationTaskListResponse)
 async def get_audits_endpoint(
     status: Optional[str] = None,
     per_page: int = 50,
@@ -84,7 +86,6 @@ async def get_audits_endpoint(
     if user_canonical != ROLE_SUPER_ADMIN and current_user.organization_id:
         proj_stmt = select(Project.id).where(
             Project.organization_id == current_user.organization_id,
-            Project.is_deleted == False,
         )
         proj_res = await db.execute(proj_stmt)
         permitted_project_ids = {row[0] for row in proj_res.fetchall()}
@@ -103,23 +104,26 @@ async def get_audits_endpoint(
                 continue
 
         audits.append({
-            "id": str(t.id),
+            "id": t.id,
             "status": t.status or "pending",
-            "deadline": t.deadline.isoformat() if t.deadline else None,
+            "deadline": t.deadline,
             "property_name": "Registered Carbon Asset",
             "property_address": "Federal Capital Territory, Nigeria",
             "property_type": "Clean Energy",
             "agent_name": "Field Auditor",
             "assigned_agent": str(t.verifier_id) if t.verifier_id else None,
+            "verifier_id": t.verifier_id,
+            "project_id": t.project_id,
+            "asset_id": t.asset_id,
             "findings": t.findings or {},
-            "created_at": t.created_at.isoformat() if t.created_at else None
+            "created_at": t.created_at,
+            "updated_at": t.updated_at,
         })
-    return {"audits": audits, "total": len(audits), "page": page, "per_page": per_page}
+    return {"audits": audits, "tasks": audits, "total": len(audits), "page": page, "per_page": per_page}
 
 
 @router.get("/tasks/{task_id}")
 @router.get("/audits/{task_id}")
-@router.get("/{task_id}")
 async def get_audit_by_id(
     task_id: UUID,
     db: AsyncSession = Depends(get_db),
@@ -131,7 +135,7 @@ async def get_audit_by_id(
         raise HTTPException(status_code=404, detail="Audit task not found")
 
     # Scoping / BOLA / IDOR protection
-    if current_user.role != "SUPER_ADMIN":
+    if normalize_canonical_role(current_user.role) != ROLE_SUPER_ADMIN:
         is_assigned_verifier = task.verifier_id and str(task.verifier_id).lower() == str(current_user.id).lower()
         has_org_access = False
         if task.project_id:
@@ -169,7 +173,6 @@ class TaskUpdate(BaseModel):
 
 @router.patch("/tasks/{task_id}")
 @router.patch("/audits/{task_id}")
-@router.patch("/{task_id}")
 async def update_verification_task(
     task_id: UUID,
     data: TaskUpdate,
@@ -292,13 +295,29 @@ async def list_verification_packages(
     current_user: User = Depends(require_permission("audit:package:read")),
     db: AsyncSession = Depends(get_db),
 ):
-    """Lists verification packages accessible to the user."""
+    """Lists verification packages accessible to the user with strict tenant isolation."""
     stmt = select(VerificationPackage).order_by(VerificationPackage.created_at.desc())
+    canonical_role = normalize_canonical_role(current_user.role)
+    if canonical_role != ROLE_SUPER_ADMIN:
+        from sqlalchemy import false, or_
+        access_conditions = []
+        if current_user.organization_id:
+            access_conditions.append(VerificationPackage.organization_id == current_user.organization_id)
+
+        grant_subq = select(VerificationAccessGrant.package_id).where(
+            (VerificationAccessGrant.auditor_user_id == current_user.id)
+            | (VerificationAccessGrant.auditor_email == current_user.email),
+            VerificationAccessGrant.is_active == True,
+        )
+        access_conditions.append(VerificationPackage.id.in_(grant_subq))
+
+        if access_conditions:
+            stmt = stmt.where(or_(*access_conditions))
+        else:
+            stmt = stmt.where(false())
+
     if project_id:
         stmt = stmt.where(VerificationPackage.project_id == project_id)
-    elif normalize_canonical_role(current_user.role) != ROLE_SUPER_ADMIN:
-        if current_user.organization_id:
-            stmt = stmt.where(VerificationPackage.organization_id == current_user.organization_id)
 
     res = await db.execute(stmt)
     return res.scalars().all()
@@ -637,3 +656,28 @@ async def export_package_archive_endpoint(
     )
 
 
+# ---------------------------------------------------------------------------
+# Backward Compatibility Fallbacks (Declared LAST so static routes take precedence)
+# ---------------------------------------------------------------------------
+
+@router.get("/{task_id}")
+async def get_audit_by_id_legacy(
+    task_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_permission("audit:read")),
+    service: VerificationService = Depends(get_verification_service),
+):
+    """Legacy dynamic task lookup fallback. Preceded by all static routes."""
+    return await get_audit_by_id(task_id=task_id, db=db, current_user=current_user, service=service)
+
+
+@router.patch("/{task_id}")
+async def update_verification_task_legacy(
+    task_id: UUID,
+    data: TaskUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_permission("audit:write")),
+    service: VerificationService = Depends(get_verification_service),
+):
+    """Legacy dynamic task patch fallback. Preceded by all static routes."""
+    return await update_verification_task(task_id=task_id, data=data, db=db, current_user=current_user, service=service)

@@ -83,11 +83,11 @@ def run_migrations_online() -> None:
                 statement.replace("DEFAULT gen_random_uuid()", "")
                 .replace("DEFAULT now()", "DEFAULT CURRENT_TIMESTAMP")
                 .replace("JSONB", "JSON")
-                .replace("DROP INDEX IF EXISTS ", "DROP INDEX IF EXISTS ")
-                .replace("DROP INDEX ", "DROP INDEX IF EXISTS ")
-                .replace("DROP TABLE IF EXISTS ", "DROP TABLE IF EXISTS ")
-                .replace("DROP TABLE ", "DROP TABLE IF EXISTS ")
             )
+            if "DROP INDEX IF EXISTS " not in cleaned:
+                cleaned = cleaned.replace("DROP INDEX ", "DROP INDEX IF EXISTS ")
+            if "DROP TABLE IF EXISTS " not in cleaned:
+                cleaned = cleaned.replace("DROP TABLE ", "DROP TABLE IF EXISTS ")
             cleaned = re.sub(r"::[a-zA-Z0-9_]+", "", cleaned)
             return cleaned, parameters
         elif connectable.dialect.name == "postgresql":
@@ -95,18 +95,17 @@ def run_migrations_online() -> None:
                 statement = f"DO $$ BEGIN {statement}; EXCEPTION WHEN duplicate_object THEN NULL; END $$;"
                 return statement, parameters
 
-            cleaned = (
-                statement.replace("DROP INDEX IF EXISTS ", "DROP INDEX IF EXISTS ")
-                .replace("DROP INDEX ", "DROP INDEX IF EXISTS ")
-                .replace("DROP TABLE IF EXISTS ", "DROP TABLE IF EXISTS ")
-                .replace("DROP TABLE ", "DROP TABLE IF EXISTS ")
-                .replace("DROP CONSTRAINT IF EXISTS ", "DROP CONSTRAINT IF EXISTS ")
-                .replace("DROP CONSTRAINT ", "DROP CONSTRAINT IF EXISTS ")
-                .replace("DROP COLUMN IF EXISTS ", "DROP COLUMN IF EXISTS ")
-                .replace("DROP COLUMN ", "DROP COLUMN IF EXISTS ")
-                .replace("ADD COLUMN IF NOT EXISTS ", "ADD COLUMN IF NOT EXISTS ")
-                .replace("ADD COLUMN ", "ADD COLUMN IF NOT EXISTS ")
-            )
+            cleaned = statement
+            if "DROP INDEX IF EXISTS " not in cleaned:
+                cleaned = cleaned.replace("DROP INDEX ", "DROP INDEX IF EXISTS ")
+            if "DROP TABLE IF EXISTS " not in cleaned:
+                cleaned = cleaned.replace("DROP TABLE ", "DROP TABLE IF EXISTS ")
+            if "DROP CONSTRAINT IF EXISTS " not in cleaned:
+                cleaned = cleaned.replace("DROP CONSTRAINT ", "DROP CONSTRAINT IF EXISTS ")
+            if "DROP COLUMN IF EXISTS " not in cleaned:
+                cleaned = cleaned.replace("DROP COLUMN ", "DROP COLUMN IF EXISTS ")
+            if "ADD COLUMN IF NOT EXISTS " not in cleaned:
+                cleaned = cleaned.replace("ADD COLUMN ", "ADD COLUMN IF NOT EXISTS ")
             return cleaned, parameters
         return statement, parameters
 

@@ -26,9 +26,11 @@ import type {
   LedgerTransaction,
   CarbonMintResponse,
   StandardApiResponse,
+  VerificationTask,
+  VerificationTasksResponse,
 } from "./types";
 
-export type { CarbonMintResponse, LedgerTransaction, Project };
+export type { CarbonMintResponse, LedgerTransaction, Project, VerificationTask, VerificationTasksResponse };
 
 import { safeStorage } from "./storage";
 
@@ -949,36 +951,60 @@ export async function fetchCommunityValidations(assetId: string): Promise<Commun
 
 
 
-export async function fetchMyAuditTasks(): Promise<AuditTask[]> {
-
+export async function fetchVerificationTasks(params?: {
+  status?: string;
+  page?: number;
+  per_page?: number;
+}): Promise<VerificationTasksResponse> {
   try {
-
-    const res = await apiFetch<any>("/verification/tasks");
-
-    const tasks = Array.isArray(res) ? res : (res?.tasks || []);
-
-    return tasks.map((t: any) => ({
-
-      id: t.id,
-
-      asset_id: t.asset_id,
-
-      status: t.status,
-
-      assigned_agent: t.verifier_id || t.assigned_agent,
-
-      deadline: t.deadline
-
-    })) as AuditTask[];
-
+    const q = new URLSearchParams();
+    if (params?.status) q.set("status", params.status);
+    if (params?.page) q.set("page", String(params.page));
+    if (params?.per_page) q.set("per_page", String(params.per_page));
+    const qs = q.toString() ? `?${q.toString()}` : "";
+    const res = await apiFetch<VerificationTasksResponse | VerificationTask[]>(`/verification/tasks${qs}`);
+    if (Array.isArray(res)) {
+      return {
+        tasks: res,
+        audits: res,
+        total: res.length,
+        page: 1,
+        per_page: res.length,
+      };
+    }
+    const taskList = Array.isArray(res?.tasks) ? res.tasks : (Array.isArray(res?.audits) ? res.audits : []);
+    return {
+      tasks: taskList,
+      audits: taskList,
+      total: typeof res?.total === "number" ? res.total : taskList.length,
+      page: res?.page ?? 1,
+      per_page: res?.per_page ?? 50,
+    };
   } catch (err) {
-
-    console.error("Failed to fetch audit tasks:", err);
-
-    return [];
-
+    console.error("Failed to fetch verification tasks:", err);
+    return { tasks: [], audits: [], total: 0, page: 1, per_page: 50 };
   }
+}
 
+export async function fetchMyAuditTasks(): Promise<AuditTask[]> {
+  try {
+    const res = await fetchVerificationTasks();
+    return res.tasks.map((t: any) => ({
+      id: t.id,
+      asset_id: t.asset_id,
+      status: t.status,
+      assigned_agent: t.verifier_id || t.assigned_agent,
+      deadline: t.deadline,
+      created_at: t.created_at || "",
+      property_name: t.property_name,
+      property_address: t.property_address,
+      property_type: t.property_type,
+      agent_name: t.agent_name,
+    })) as AuditTask[];
+  } catch (err) {
+    console.error("Failed to fetch audit tasks:", err);
+    return [];
+  }
 }
 
 
@@ -1058,25 +1084,25 @@ export async function resolveAnomaly(flagId: string, action: "verify" | "reject"
 
 
 export async function fetchAudits(sector_id?: string): Promise<{ audits: any[], total: number }> {
-
-  const tasks = await apiFetch<any[]>("/verification/tasks");
-
-  const audits = tasks.map(t => ({
-
-    id: t.id,
-
-    asset_id: t.asset_id,
-
-    status: t.status,
-
-    assigned_agent: t.verifier_id,
-
-    deadline: t.deadline
-
-  }));
-
-  return { audits, total: audits.length };
-
+  try {
+    const res = await fetchVerificationTasks();
+    const audits = res.tasks.map((t: any) => ({
+      id: t.id,
+      asset_id: t.asset_id,
+      status: t.status,
+      assigned_agent: t.verifier_id || t.assigned_agent,
+      deadline: t.deadline,
+      created_at: t.created_at || "",
+      property_name: t.property_name,
+      property_address: t.property_address,
+      property_type: t.property_type,
+      agent_name: t.agent_name,
+    }));
+    return { audits, total: res.total };
+  } catch (err) {
+    console.error("Failed to fetch audits:", err);
+    return { audits: [], total: 0 };
+  }
 }
 
 
@@ -2905,6 +2931,8 @@ export interface BiocharBatchRecord {
   feedstock_weight_tonnes: number;
   biochar_yield_tonnes: number;
   dry_mass_tonnes?: number;
+  pyrolysis_temp_celsius?: number;
+  residence_time_minutes?: number;
   fixed_carbon_pct: number;
   molar_h_c_ratio: number;
   carbon_permanence_factor: number;
@@ -3407,7 +3435,7 @@ export async function executePuroQuantification(
   return apiFetch<PuroQuantificationBreakdown>(`/biochar/puro/batches/${batchId}/quantification`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload || {}),
+    body: JSON.stringify({ batch_id: batchId, ...(payload || {}) }),
   });
 }
 
@@ -3441,6 +3469,231 @@ export async function fetchPuroRegistryReadiness(
   return apiFetch<PuroRegistryReadiness>(`/biochar/puro/projects/${projectId}/readiness${q}`);
 }
 
+// ─── Verra VM0044 v1.2 Biochar Quantification Engine Endpoints ───────────────
+
+export interface VM0044MethodologyVersionRecord {
+  id: string;
+  code: string;
+  name: string;
+  version: string;
+  status: string;
+  sectoral_scope: string;
+  activity_type: string;
+  release_date: string;
+  ccp_eligible: boolean;
+  ccp_approval_date?: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface VM0044RuleDefinitionRecord {
+  id: string;
+  rule_id: string;
+  section: string;
+  title: string;
+  requirement_type: string;
+  summary: string;
+  mandatory: boolean;
+  fail_closed_condition: string;
+}
+
+export interface VM0044NormativeDependencyRecord {
+  id: string;
+  dependency_code: string;
+  title: string;
+  normative_role: string;
+  mandatory: boolean;
+  active_version: string;
+}
+
+export interface VM0044ApplicabilityEvaluateRequest {
+  project_id: string;
+  facility_id?: string;
+  feedstock_source_ids?: string[];
+  batch_id?: string;
+  end_use_record_ids?: string[];
+}
+
+export interface VM0044ApplicabilityResponse {
+  status: "ELIGIBLE" | "INELIGIBLE";
+  facility_check: { passed: boolean; details: string[] };
+  feedstock_check: { passed: boolean; details: string[] };
+  process_check: { passed: boolean; details: string[] };
+  end_use_check: { passed: boolean; details: string[] };
+  blocking_findings: string[];
+  evaluated_at: string;
+}
+
+export interface VM0044AdditionalityEvaluateRequest {
+  project_id: string;
+  regulatory_surplus_demonstrated: boolean;
+  analysis_option: "OPTION_1_INVESTMENT_COMPARISON" | "OPTION_2_BENCHMARK_ANALYSIS";
+  project_irr_pct?: number;
+  benchmark_irr_pct?: number;
+  benchmark_source?: string;
+  financial_model_hash?: string;
+}
+
+export interface VM0044AdditionalityResponse {
+  status: "COMPLETE" | "NOT_ADDITIONAL";
+  step1_regulatory_surplus: boolean;
+  step2_positive_list: boolean;
+  step3_investment_analysis: boolean;
+  findings: string[];
+  evaluated_at: string;
+}
+
+export interface VM0044SnapshotRequest {
+  project_id: string;
+  batch_id: string;
+  end_use_record_id?: string;
+  technology_class?: "HIGH_TECHNOLOGY" | "LOW_TECHNOLOGY";
+  grid_electricity_kwh?: number;
+  fossil_fuel_litres?: number;
+  biomass_transport_distance_km?: number;
+  biochar_transport_distance_km?: number;
+  uncertainty_pct?: number;
+}
+
+export interface VM0044SnapshotResponse {
+  snapshot_id: string;
+  snapshot_hash: string;
+  batch_id: string;
+  project_id: string;
+  technology_class: string;
+  created_at: string;
+}
+
+export interface VM0044CalculationRequest {
+  project_id: string;
+  batch_id: string;
+  end_use_record_id?: string;
+  technology_class?: "HIGH_TECHNOLOGY" | "LOW_TECHNOLOGY";
+  grid_electricity_kwh?: number;
+  fossil_fuel_litres?: number;
+  biomass_transport_distance_km?: number;
+  biochar_transport_distance_km?: number;
+  uncertainty_pct?: number;
+  preview?: boolean;
+}
+
+export interface VM0044EquationBreakdown {
+  biochar_dry_mass_tonnes: number;
+  c_org_fraction: number;
+  permanence_factor_pr_de: number;
+  organic_carbon_stored_cc_tonnes: number;
+  gross_co2e_stored_tonnes: number;
+  er_ss_tonnes: number;
+  pe_d_tonnes: number;
+  pe_p_tonnes: number;
+  pe_c_tonnes: number;
+  pe_ps_total_tonnes: number;
+  er_ps_tonnes: number;
+  pe_as_tonnes: number;
+  e_p_tonnes: number;
+  le_ts_tonnes: number;
+  le_tap_tonnes: number;
+  le_total_tonnes: number;
+  er_gross_removals_tonnes: number;
+  uncertainty_pct: number;
+  uncertainty_deduction_tonnes: number;
+  er_net_removals_tonnes: number;
+}
+
+export interface VM0044CalculationResponse {
+  calculation_id: string;
+  project_id: string;
+  batch_id: string;
+  end_use_record_id: string;
+  status: "CALCULATED" | "PREVIEW" | "FAILED";
+  methodology_version: string;
+  technology_class: string;
+  equation_breakdown: VM0044EquationBreakdown;
+  net_removal_tco2e: number;
+  is_issuable: boolean;
+  snapshot_hash: string;
+  calculation_hash: string;
+  calculated_at: string;
+}
+
+export interface VM0044CalculationExecutionRecord {
+  id: string;
+  project_id: string;
+  batch_id: string;
+  end_use_record_id: string;
+  status: string;
+  engine_version: string;
+  technology_class: string;
+  net_removal_tco2e: number;
+  is_issuable: boolean;
+  snapshot_hash: string;
+  calculation_hash: string;
+  created_at: string;
+}
+
+export async function fetchVM0044Version(): Promise<VM0044MethodologyVersionRecord> {
+  return apiFetch<VM0044MethodologyVersionRecord>("/biochar/vm0044/version");
+}
+
+export async function fetchVM0044Rules(): Promise<VM0044RuleDefinitionRecord[]> {
+  return apiFetch<VM0044RuleDefinitionRecord[]>("/biochar/vm0044/rules");
+}
+
+export async function fetchVM0044Dependencies(): Promise<VM0044NormativeDependencyRecord[]> {
+  return apiFetch<VM0044NormativeDependencyRecord[]>("/biochar/vm0044/dependencies");
+}
+
+export async function evaluateVM0044Applicability(
+  req: VM0044ApplicabilityEvaluateRequest
+): Promise<VM0044ApplicabilityResponse> {
+  return apiFetch<VM0044ApplicabilityResponse>("/biochar/vm0044/applicability/evaluate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(req),
+  });
+}
+
+export async function evaluateVM0044Additionality(
+  req: VM0044AdditionalityEvaluateRequest
+): Promise<VM0044AdditionalityResponse> {
+  return apiFetch<VM0044AdditionalityResponse>("/biochar/vm0044/additionality/evaluate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(req),
+  });
+}
+
+export async function createVM0044Snapshot(
+  req: VM0044SnapshotRequest
+): Promise<VM0044SnapshotResponse> {
+  return apiFetch<VM0044SnapshotResponse>("/biochar/vm0044/snapshots", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(req),
+  });
+}
+
+export async function executeVM0044Calculation(
+  req: VM0044CalculationRequest
+): Promise<VM0044CalculationResponse> {
+  return apiFetch<VM0044CalculationResponse>("/biochar/vm0044/calculate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(req),
+  });
+}
+
+export async function fetchVM0044Executions(
+  projectId?: string,
+  batchId?: string
+): Promise<VM0044CalculationExecutionRecord[]> {
+  const query = new URLSearchParams();
+  if (projectId) query.set("project_id", projectId);
+  if (batchId) query.set("batch_id", batchId);
+  const qs = query.toString() ? `?${query.toString()}` : "";
+  return apiFetch<VM0044CalculationExecutionRecord[]>(`/biochar/vm0044/executions${qs}`);
+}
+
 // ─── Earth Observation & Agriculture Spatial Endpoints ──────────────────────
 
 export interface SatelliteObservationRecord {
@@ -3466,15 +3719,22 @@ export interface LandUnitRecord {
   id: string;
   organization_id: string;
   project_id: string;
+  parent_id?: string | null;
   name: string;
+  code?: string | null;
   unit_type: string;
   area_ha: number;
   perimeter_m?: number;
   boundary_geojson: any;
+  boundary_source?: string;
   centroid_lat?: number;
   centroid_lon?: number;
+  land_use_category?: string | null;
+  soil_type?: string | null;
+  slope_pct?: number | null;
   is_active: boolean;
   stratum_id?: string | null;
+  properties?: Record<string, any>;
 }
 
 export interface SoilSampleRecord {
@@ -3532,6 +3792,1642 @@ export async function fetchTreeObservations(projectId?: string, landUnitId?: str
   const qs = params.toString() ? `?${params.toString()}` : "";
   return apiFetch<TreeObservationRecord[]>(`/agriculture/tree-observations${qs}`).catch(() => []);
 }
+
+// ─── Agriculture MRV Phase 1: Foundation, Strata, Management History & Readiness ───
+
+export interface StratumRecord {
+  id: string;
+  organization_id: string;
+  project_id: string;
+  code: string;
+  name: string;
+  description?: string | null;
+  stratum_type: string;
+  area_ha: number;
+  is_active: boolean;
+  properties?: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+  member_count: number;
+  land_unit_ids: string[];
+}
+
+export interface ManagementRecordItem {
+  id: string;
+  organization_id: string;
+  project_id: string;
+  land_unit_id?: string | null;
+  record_type: string;
+  practice_category: string;
+  event_date: string;
+  end_date?: string | null;
+  data_source: string;
+  details: Record<string, unknown>;
+  evidence_id?: string | null;
+  entered_by_id?: string | null;
+  qa_status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProjectFoundationData {
+  project_id: string;
+  project_name: string;
+  project_code?: string | null;
+  sector: { id?: string; code: string; name: string };
+  methodology: { id?: string; code?: string; name?: string; version_id?: string; version?: string };
+  methodology_lock_status: string;
+  locked_methodology_snapshot?: Record<string, unknown> | null;
+  crediting_period: { start?: string | null; end?: string | null };
+  baseline_parameters: Record<string, unknown>;
+  authoritative_boundary?: {
+    id: string;
+    version_number: number;
+    effective_date: string;
+    area_ha: number;
+    perimeter_m?: number | null;
+    source: string;
+    crs: string;
+    boundary_geojson: Record<string, unknown>;
+  } | null;
+  land_units_count: number;
+  strata_count: number;
+  management_records_count: number;
+}
+
+export interface ComponentReadinessItem {
+  status: "COMPLETE" | "INCOMPLETE" | "NEEDS_REVIEW" | "NOT_CONFIGURED";
+  message: string;
+  details: Record<string, unknown>;
+}
+
+export interface FoundationReadinessData {
+  project_id: string;
+  overall_status: "COMPLETE" | "INCOMPLETE" | "NEEDS_REVIEW" | "NOT_CONFIGURED";
+  components: {
+    project_configuration: ComponentReadinessItem;
+    methodology_lock: ComponentReadinessItem;
+    authoritative_boundary: ComponentReadinessItem;
+    land_units: ComponentReadinessItem;
+    stratification: ComponentReadinessItem;
+    management_baseline: ComponentReadinessItem;
+  };
+  evaluated_at: string;
+}
+
+export async function fetchProjectFoundation(projectId: string): Promise<ProjectFoundationData | null> {
+  return apiFetch<ProjectFoundationData>(`/agriculture/projects/${projectId}/foundation`).catch(() => null);
+}
+
+export async function lockProjectMethodology(projectId: string, notes?: string): Promise<Record<string, unknown>> {
+  return apiFetch<Record<string, unknown>>(`/agriculture/projects/${projectId}/lock-methodology`, {
+    method: "POST",
+    body: JSON.stringify({ notes }),
+  });
+}
+
+export async function linkProjectBoundary(
+  projectId: string,
+  payload: { boundary_geojson: Record<string, unknown>; source?: string; reason?: string; effective_date?: string }
+): Promise<Record<string, unknown>> {
+  return apiFetch<Record<string, unknown>>(`/agriculture/projects/${projectId}/link-boundary`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function fetchProjectStrata(projectId: string, asOfDate?: string): Promise<StratumRecord[]> {
+  const query = asOfDate ? `?as_of_date=${asOfDate}` : "";
+  return apiFetch<StratumRecord[]>(`/agriculture/projects/${projectId}/strata${query}`).catch(() => []);
+}
+
+export async function createProjectStratum(
+  projectId: string,
+  payload: { code: string; name: string; description?: string; stratum_type?: string; area_ha?: number }
+): Promise<StratumRecord> {
+  return apiFetch<StratumRecord>(`/agriculture/projects/${projectId}/strata`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function addStratumMemberships(
+  projectId: string,
+  stratumId: string,
+  memberships: Array<{ land_unit_id: string; valid_from: string; valid_to?: string; status?: string }>
+): Promise<StratumRecord> {
+  return apiFetch<StratumRecord>(`/agriculture/projects/${projectId}/strata/${stratumId}/members`, {
+    method: "POST",
+    body: JSON.stringify({ memberships }),
+  });
+}
+
+export async function fetchProjectManagementRecords(
+  projectId: string,
+  params?: { landUnitId?: string; practiceCategory?: string; recordType?: string }
+): Promise<ManagementRecordItem[]> {
+  const q = new URLSearchParams();
+  if (params?.landUnitId) q.set("land_unit_id", params.landUnitId);
+  if (params?.practiceCategory) q.set("practice_category", params.practiceCategory);
+  if (params?.recordType) q.set("record_type", params.recordType);
+  const qs = q.toString() ? `?${q.toString()}` : "";
+  return apiFetch<ManagementRecordItem[]>(`/agriculture/projects/${projectId}/management-records${qs}`).catch(() => []);
+}
+
+export async function createProjectManagementRecord(
+  projectId: string,
+  payload: {
+    record_type: string;
+    practice_category?: string;
+    event_date: string;
+    end_date?: string;
+    data_source?: string;
+    corroboration?: string;
+    details?: Record<string, unknown>;
+    land_unit_id?: string;
+    qa_status?: string;
+  }
+): Promise<ManagementRecordItem> {
+  return apiFetch<ManagementRecordItem>(`/agriculture/projects/${projectId}/management-records`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function fetchFoundationReadiness(projectId: string): Promise<FoundationReadinessData | null> {
+  return apiFetch<FoundationReadinessData>(`/agriculture/projects/${projectId}/foundation-readiness`).catch(() => null);
+}
+
+// ─── Agriculture MRV Phase 2: Ground Sampling, Field Collection, Chain of Custody & Lab Assays ───
+
+export interface SamplingCampaignRecord {
+  id: string;
+  project_id: string;
+  organization_id: string;
+  campaign_code: string;
+  name: string;
+  description?: string;
+  planned_start_date: string;
+  planned_end_date?: string;
+  actual_start_date?: string;
+  actual_end_date?: string;
+  status: string;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SamplingPlanVersionRecord {
+  id: string;
+  campaign_id: string;
+  project_id: string;
+  organization_id: string;
+  version_number: number;
+  effective_as_of_date: string;
+  is_locked: boolean;
+  locked_at?: string;
+  locked_by_id?: string;
+  stratification_snapshot: Record<string, unknown>;
+  allocation_parameters: Record<string, unknown>;
+  notes?: string;
+  created_at: string;
+}
+
+export interface SamplingPointRecord {
+  id: string;
+  campaign_id: string;
+  plan_version_id: string;
+  project_id: string;
+  organization_id: string;
+  land_unit_id: string;
+  stratum_id?: string;
+  point_code: string;
+  planned_lat: number;
+  planned_lon: number;
+  target_depth_from_cm: number;
+  target_depth_to_cm: number;
+  is_composite: boolean;
+  subsample_count: number;
+  notes?: string;
+  status: string;
+  created_at: string;
+}
+
+export interface SampleCollectionEventRecord {
+  id: string;
+  physical_sample_id: string;
+  sampling_point_id: string;
+  actual_lat: number;
+  actual_lon: number;
+  deviation_distance_m: number;
+  deviation_reason?: string;
+  collection_timestamp: string;
+  collector_id?: string;
+  collector_name: string;
+  actual_depth_from_cm: number;
+  actual_depth_to_cm: number;
+  sample_condition: string;
+  notes?: string;
+  photo_evidence_id?: string;
+  photo_hash?: string;
+  device_metadata: Record<string, unknown>;
+  idempotency_key?: string;
+  sync_timestamp?: string;
+  created_at: string;
+}
+
+export interface ChainOfCustodyEventRecord {
+  id: string;
+  physical_sample_id: string;
+  event_type: string;
+  event_timestamp: string;
+  custodian_id?: string;
+  custodian_name: string;
+  custodian_organization: string;
+  from_location?: string;
+  to_location?: string;
+  condition: string;
+  seal_intact: boolean;
+  seal_identifier?: string;
+  notes?: string;
+  evidence_id?: string;
+  created_at: string;
+}
+
+export interface LaboratoryReceiptRecord {
+  id: string;
+  physical_sample_id: string;
+  laboratory_name: string;
+  laboratory_id_ref?: string;
+  received_at: string;
+  received_by_name: string;
+  condition_on_receipt: string;
+  seal_status: string;
+  intake_status: string;
+  rejection_reason?: string;
+  receipt_evidence_id?: string;
+  notes?: string;
+  created_at: string;
+}
+
+export interface LaboratoryResultRecord {
+  id: string;
+  analysis_id: string;
+  physical_sample_id: string;
+  analyte: string;
+  raw_value: number | string;
+  raw_unit: string;
+  normalized_value?: number | string;
+  normalized_unit?: string;
+  normalization_method?: string;
+  detection_limit?: number | string;
+  uncertainty_pct?: number | string;
+  qualifier: string;
+  is_superseded: boolean;
+  superseded_by_id?: string;
+  revision_reason?: string;
+  created_at: string;
+}
+
+export interface LaboratoryAnalysisRecord {
+  id: string;
+  physical_sample_id: string;
+  laboratory_name: string;
+  laboratory_accreditation?: string;
+  analysis_batch_id?: string;
+  analytical_method: string;
+  method_standard_code?: string;
+  analysis_date: string;
+  report_reference_number?: string;
+  analyst_name?: string;
+  qa_status: string;
+  evidence_id?: string;
+  created_at: string;
+  results: LaboratoryResultRecord[];
+}
+
+export interface SampleQAReviewRecord {
+  id: string;
+  physical_sample_id: string;
+  reviewer_id?: string;
+  reviewer_name: string;
+  review_date: string;
+  overall_qa_status: string;
+  location_verified: boolean;
+  deviation_acceptable: boolean;
+  depth_valid: boolean;
+  custody_complete: boolean;
+  lab_receipt_verified: boolean;
+  required_assays_present: boolean;
+  notes?: string;
+  created_at: string;
+}
+
+export interface PhysicalSampleRecord {
+  id: string;
+  sample_code: string;
+  project_id: string;
+  campaign_id: string;
+  plan_version_id: string;
+  sampling_point_id: string;
+  organization_id: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  sampling_point?: SamplingPointRecord;
+  collection_event?: SampleCollectionEventRecord;
+  custody_events?: ChainOfCustodyEventRecord[];
+  laboratory_receipt?: LaboratoryReceiptRecord;
+  laboratory_analyses?: LaboratoryAnalysisRecord[];
+  qa_review?: SampleQAReviewRecord;
+}
+
+export interface GroundEvidenceReadinessComponent {
+  status: "COMPLETE" | "INCOMPLETE" | "NEEDS_REVIEW" | "NOT_CONFIGURED";
+  message: string;
+  details: Record<string, unknown>;
+}
+
+export interface GroundEvidenceReadinessData {
+  project_id: string;
+  overall_status: "COMPLETE" | "INCOMPLETE" | "NEEDS_REVIEW" | "NOT_CONFIGURED";
+  components: {
+    sampling_campaign: GroundEvidenceReadinessComponent;
+    sampling_plan: GroundEvidenceReadinessComponent;
+    stratum_coverage: GroundEvidenceReadinessComponent;
+    sampling_points: GroundEvidenceReadinessComponent;
+    field_collection: GroundEvidenceReadinessComponent;
+    chain_of_custody: GroundEvidenceReadinessComponent;
+    lab_receipt: GroundEvidenceReadinessComponent;
+    required_assays: GroundEvidenceReadinessComponent;
+    qa_review: GroundEvidenceReadinessComponent;
+  };
+  evaluated_at: string;
+}
+
+export async function fetchSamplingCampaigns(
+  projectId: string,
+  status?: string
+): Promise<SamplingCampaignRecord[]> {
+  const query = status ? `?status=${status}` : "";
+  return apiFetch<SamplingCampaignRecord[]>(`/agriculture/projects/${projectId}/sampling-campaigns${query}`).catch(() => []);
+}
+
+export async function createSamplingCampaign(
+  projectId: string,
+  payload: {
+    campaign_code: string;
+    name: string;
+    description?: string;
+    planned_start_date: string;
+    planned_end_date?: string;
+    notes?: string;
+  }
+): Promise<SamplingCampaignRecord> {
+  return apiFetch<SamplingCampaignRecord>(`/agriculture/projects/${projectId}/sampling-campaigns`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function fetchSamplingPlanVersions(
+  projectId: string,
+  campaignId: string
+): Promise<SamplingPlanVersionRecord[]> {
+  return apiFetch<SamplingPlanVersionRecord[]>(
+    `/agriculture/projects/${projectId}/sampling-campaigns/${campaignId}/plan-versions`
+  ).catch(() => []);
+}
+
+export async function createSamplingPlanVersion(
+  projectId: string,
+  campaignId: string,
+  payload: {
+    effective_as_of_date: string;
+    allocation_parameters?: Record<string, unknown>;
+    notes?: string;
+  }
+): Promise<SamplingPlanVersionRecord> {
+  return apiFetch<SamplingPlanVersionRecord>(
+    `/agriculture/projects/${projectId}/sampling-campaigns/${campaignId}/plan-versions`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }
+  );
+}
+
+export async function lockSamplingPlanVersion(
+  projectId: string,
+  campaignId: string,
+  versionId: string,
+  payload?: { notes?: string }
+): Promise<SamplingPlanVersionRecord> {
+  return apiFetch<SamplingPlanVersionRecord>(
+    `/agriculture/projects/${projectId}/sampling-campaigns/${campaignId}/plan-versions/${versionId}/lock`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload || {}),
+    }
+  );
+}
+
+export async function fetchSamplingPoints(
+  projectId: string,
+  campaignId: string,
+  planVersionId?: string
+): Promise<SamplingPointRecord[]> {
+  const query = planVersionId ? `?plan_version_id=${planVersionId}` : "";
+  return apiFetch<SamplingPointRecord[]>(
+    `/agriculture/projects/${projectId}/sampling-campaigns/${campaignId}/points${query}`
+  ).catch(() => []);
+}
+
+export async function createSamplingPoints(
+  projectId: string,
+  campaignId: string,
+  versionId: string,
+  payload: {
+    points: Array<{
+      point_code: string;
+      land_unit_id: string;
+      stratum_id?: string;
+      planned_lat: number;
+      planned_lon: number;
+      depth_from_cm?: number;
+      depth_to_cm?: number;
+      target_depth_from_cm?: number;
+      target_depth_to_cm?: number;
+      is_composite?: boolean;
+      subsample_count?: number;
+      notes?: string;
+    }>;
+  }
+): Promise<SamplingPointRecord[]> {
+  return apiFetch<SamplingPointRecord[]>(
+    `/agriculture/projects/${projectId}/sampling-campaigns/${campaignId}/plan-versions/${versionId}/points`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }
+  );
+}
+
+export async function fetchPhysicalSamples(
+  projectId: string,
+  params?: { campaignId?: string; status?: string }
+): Promise<PhysicalSampleRecord[]> {
+  const q = new URLSearchParams();
+  if (params?.campaignId) q.set("campaign_id", params.campaignId);
+  if (params?.status) q.set("status", params.status);
+  const qs = q.toString() ? `?${q.toString()}` : "";
+  return apiFetch<PhysicalSampleRecord[]>(`/agriculture/projects/${projectId}/physical-samples${qs}`).catch(() => []);
+}
+
+export async function fetchPhysicalSample(
+  projectId: string,
+  sampleId: string
+): Promise<PhysicalSampleRecord | null> {
+  return apiFetch<PhysicalSampleRecord>(`/agriculture/projects/${projectId}/physical-samples/${sampleId}`).catch(() => null);
+}
+
+export async function recordSampleCollection(
+  projectId: string,
+  sampleId: string,
+  payload: {
+    actual_lat: number;
+    actual_lon: number;
+    deviation_reason?: string;
+    collection_timestamp: string;
+    collector_name: string;
+    actual_depth_from_cm?: number;
+    actual_depth_to_cm?: number;
+    sample_condition?: string;
+    notes?: string;
+    photo_evidence_id?: string;
+    photo_hash?: string;
+    device_metadata?: Record<string, unknown>;
+    idempotency_key?: string;
+  }
+): Promise<SampleCollectionEventRecord> {
+  return apiFetch<SampleCollectionEventRecord>(
+    `/agriculture/projects/${projectId}/physical-samples/${sampleId}/collection`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }
+  );
+}
+
+export async function recordSampleCustodyEvent(
+  projectId: string,
+  sampleId: string,
+  payload: {
+    event_type: string;
+    event_timestamp: string;
+    custodian_name: string;
+    custodian_organization: string;
+    from_location?: string;
+    to_location?: string;
+    condition?: string;
+    seal_intact?: boolean;
+    seal_identifier?: string;
+    notes?: string;
+    evidence_id?: string;
+  }
+): Promise<ChainOfCustodyEventRecord> {
+  return apiFetch<ChainOfCustodyEventRecord>(
+    `/agriculture/projects/${projectId}/physical-samples/${sampleId}/custody-events`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }
+  );
+}
+
+export async function recordSampleLaboratoryReceipt(
+  projectId: string,
+  sampleId: string,
+  payload: {
+    laboratory_name: string;
+    laboratory_id_ref?: string;
+    received_at: string;
+    received_by_name: string;
+    condition_on_receipt?: string;
+    seal_status?: string;
+    intake_status?: string;
+    rejection_reason?: string;
+    receipt_evidence_id?: string;
+    notes?: string;
+  }
+): Promise<LaboratoryReceiptRecord> {
+  return apiFetch<LaboratoryReceiptRecord>(
+    `/agriculture/projects/${projectId}/physical-samples/${sampleId}/lab-receipt`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }
+  );
+}
+
+export async function recordSampleLaboratoryAnalysis(
+  projectId: string,
+  sampleId: string,
+  payload: {
+    laboratory_name: string;
+    laboratory_accreditation?: string;
+    analysis_batch_id?: string;
+    analytical_method?: string;
+    method_standard_code?: string;
+    analysis_date: string;
+    report_reference_number?: string;
+    analyst_name?: string;
+    evidence_id?: string;
+    results: Array<{
+      analyte: string;
+      raw_value: number;
+      raw_unit: string;
+      normalized_value?: number;
+      normalized_unit?: string;
+      normalization_method?: string;
+      detection_limit?: number;
+      uncertainty_pct?: number;
+      qualifier?: string;
+    }>;
+  }
+): Promise<LaboratoryAnalysisRecord> {
+  return apiFetch<LaboratoryAnalysisRecord>(
+    `/agriculture/projects/${projectId}/physical-samples/${sampleId}/lab-analyses`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }
+  );
+}
+
+export async function reviseLaboratoryResult(
+  projectId: string,
+  resultId: string,
+  payload: {
+    new_raw_value: number;
+    new_raw_unit: string;
+    revision_reason: string;
+    new_normalized_value?: number;
+    new_normalized_unit?: string;
+    normalization_method?: string;
+    detection_limit?: number;
+    uncertainty_pct?: number;
+    qualifier?: string;
+  }
+): Promise<LaboratoryResultRecord> {
+  return apiFetch<LaboratoryResultRecord>(
+    `/agriculture/projects/${projectId}/laboratory-results/${resultId}/revise`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }
+  );
+}
+
+export async function recordSampleQAReview(
+  projectId: string,
+  sampleId: string,
+  payload: {
+    reviewer_name: string;
+    review_date?: string;
+    overall_qa_status: string;
+    location_verified?: boolean;
+    deviation_acceptable?: boolean;
+    depth_valid?: boolean;
+    custody_complete?: boolean;
+    lab_receipt_verified?: boolean;
+    required_assays_present?: boolean;
+    notes?: string;
+  }
+): Promise<SampleQAReviewRecord> {
+  return apiFetch<SampleQAReviewRecord>(
+    `/agriculture/projects/${projectId}/physical-samples/${sampleId}/qa-review`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }
+  );
+}
+
+export async function fetchGroundEvidenceReadiness(
+  projectId: string
+): Promise<GroundEvidenceReadinessData | null> {
+  return apiFetch<GroundEvidenceReadinessData>(
+    `/agriculture/projects/${projectId}/ground-evidence-readiness`
+  ).catch(() => null);
+}
+
+// ---------------------------------------------------------------------------
+// Phase 3A: Quantification Readiness & Calculation Input Contract Types & APIs
+// ---------------------------------------------------------------------------
+
+export interface QuantificationReadinessDimension {
+  dimension: string;
+  status: "COMPLETE" | "INCOMPLETE" | "NEEDS_REVIEW" | "NOT_CONFIGURED" | "NOT_APPLICABLE";
+  message: string;
+  evaluated_at?: string;
+  details?: Record<string, unknown>;
+}
+
+export interface QuantificationReadinessData {
+  project_id: string;
+  overall_status: "COMPLETE" | "INCOMPLETE" | "NEEDS_REVIEW" | "NOT_CONFIGURED";
+  dimensions: Record<string, QuantificationReadinessDimension>;
+  evaluated_at: string;
+}
+
+export interface QuantificationMeasurementItem {
+  physical_sample_id: string;
+  sample_code: string;
+  sampling_point_id: string;
+  point_code: string;
+  land_unit_id: string;
+  land_unit_code: string;
+  stratum_id?: string | null;
+  stratum_code?: string | null;
+  laboratory_result_id: string;
+  analyte: string;
+  raw_value: number;
+  raw_unit: string;
+  normalized_value: number;
+  normalized_unit: string;
+  provenance_class: string;
+  sampling_date: string;
+  sample_depth_from_cm: number;
+  sample_depth_to_cm: number;
+  standard_depth_from_cm: number;
+  standard_depth_to_cm: number;
+  depth_alignment_status: "MATCH" | "PARTIAL_COVERAGE" | "OVERLAPPING_INTERVAL" | "OUT_OF_SCOPE" | "NEEDS_REVIEW";
+  bulk_density_status: "PRESENT" | "MISSING" | "NOT_APPLICABLE";
+  bulk_density_normalized_value?: number | null;
+  bulk_density_normalized_unit?: string | null;
+  coarse_fragments_status: "MEASURED_ZERO" | "MEASURED" | "NOT_MEASURED" | "NOT_APPLICABLE";
+  coarse_fragments_fraction?: number | null;
+  measurement_uncertainty?: number | null;
+}
+
+export interface ExcludedMeasurementItem {
+  physical_sample_id: string;
+  sample_code: string;
+  sampling_point_id?: string | null;
+  point_code?: string | null;
+  land_unit_id?: string | null;
+  land_unit_code?: string | null;
+  exclusion_reasons: string[];
+  rejection_details: Record<string, unknown>;
+}
+
+export interface EligibleMeasurementSetData {
+  project_id: string;
+  total_candidates: number;
+  total_eligible: number;
+  total_excluded: number;
+  baseline_measurements: QuantificationMeasurementItem[];
+  project_measurements: QuantificationMeasurementItem[];
+  excluded_measurements: ExcludedMeasurementItem[];
+  rule_set_version: string;
+  methodology_code: string;
+  methodology_version: string;
+  boundary_version_id?: string | null;
+  evaluated_at: string;
+}
+
+export interface QuantificationSnapshotItem {
+  id: string;
+  organization_id: string;
+  project_id: string;
+  snapshot_code: string;
+  status: string;
+  context: "BASELINE" | "MONITORING";
+  period_start?: string | null;
+  period_end?: string | null;
+  methodology_code: string;
+  methodology_version: string;
+  rule_set_version: string;
+  snapshot_hash: string;
+  is_locked: boolean;
+  locked_at?: string | null;
+  locked_by_id?: string | null;
+  created_by_id?: string | null;
+  total_eligible_measurements: number;
+  total_excluded_measurements: number;
+  readiness_summary: Record<string, unknown>;
+  input_package: Record<string, unknown>;
+  source_evidence_ids: string[];
+  notes?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function fetchQuantificationReadiness(
+  projectId: string
+): Promise<QuantificationReadinessData | null> {
+  return apiFetch<QuantificationReadinessData>(
+    `/agriculture/projects/${projectId}/quantification-readiness`
+  ).catch(() => null);
+}
+
+export async function fetchEligibleMeasurements(
+  projectId: string,
+  campaignId?: string
+): Promise<EligibleMeasurementSetData | null> {
+  const query = campaignId ? `?campaign_id=${encodeURIComponent(campaignId)}` : "";
+  return apiFetch<EligibleMeasurementSetData>(
+    `/agriculture/projects/${projectId}/eligible-measurements${query}`
+  ).catch(() => null);
+}
+
+export async function createQuantificationSnapshot(
+  projectId: string,
+  payload: {
+    context: "BASELINE" | "MONITORING";
+    period_start?: string;
+    period_end?: string;
+    campaign_id?: string;
+    notes?: string;
+  }
+): Promise<QuantificationSnapshotItem> {
+  return apiFetch<QuantificationSnapshotItem>(
+    `/agriculture/projects/${projectId}/quantification-input-snapshots`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }
+  );
+}
+
+export async function fetchQuantificationSnapshots(
+  projectId: string
+): Promise<QuantificationSnapshotItem[]> {
+  return apiFetch<QuantificationSnapshotItem[]>(
+    `/agriculture/projects/${projectId}/quantification-input-snapshots`
+  ).catch(() => []);
+}
+
+export async function fetchQuantificationSnapshotDetail(
+  projectId: string,
+  snapshotId: string
+): Promise<QuantificationSnapshotItem | null> {
+  return apiFetch<QuantificationSnapshotItem>(
+    `/agriculture/projects/${projectId}/quantification-input-snapshots/${snapshotId}`
+  ).catch(() => null);
+}
+
+// ---------------------------------------------------------------------------
+// Agriculture Phase 3B-0 Methodology Prerequisite Types & Client APIs
+// ---------------------------------------------------------------------------
+
+export interface PrerequisiteDimensionItem {
+  status: "READY" | "INCOMPLETE" | "BLOCKED" | "NOT_APPLICABLE" | "NOT_CONFIGURED";
+  requirement: "REQUIRED" | "OPTIONAL" | "CONDITIONAL";
+  blocking: boolean;
+  finding_type: "BLOCKING" | "NON_BLOCKING_ADVISORY" | "NOT_APPLICABLE";
+  reason_code: string;
+  message: string;
+  details: Record<string, any>;
+}
+
+export interface PrerequisiteEvaluationData {
+  project_id: string;
+  overall_status: "READY" | "READY_WITH_ADVISORY" | "INCOMPLETE" | "BLOCKED";
+  methodology_code: string;
+  methodology_version: string;
+  corrections_clarifications_version: string;
+  rule_set_version: string;
+  vcs_standard_version: string;
+  governing_vcs_standard?: string;
+  v5_template_variant?: string;
+  project_description_template?: string;
+  dimensions: Record<string, PrerequisiteDimensionItem>;
+  blocking_reasons: string[];
+  advisory_notes: string[];
+  total_dimensions: number;
+  evaluated_at: string;
+  evaluation_hash: string;
+}
+
+export interface PrerequisiteAssessmentItem {
+  id: string;
+  organization_id: string;
+  project_id: string;
+  snapshot_id?: string | null;
+  assessment_code: string;
+  version: number;
+  status: "PREVIEW" | "LOCKED" | "ARCHIVED" | "SUPERSEDED";
+  overall_readiness: "READY" | "READY_WITH_ADVISORY" | "INCOMPLETE" | "BLOCKED";
+  methodology_code: string;
+  methodology_version: string;
+  corrections_clarifications_version: string;
+  rule_set_version: string;
+  vcs_standard_version: string;
+  governing_vcs_standard?: string;
+  v5_template_variant?: string;
+  project_description_template?: string;
+  vcs_resolution_metadata: Record<string, any>;
+  quantification_route_map: Record<string, any>;
+  esm_input_dossier: Record<string, any>;
+  sampling_design_assessment: Record<string, any>;
+  uncertainty_input_readiness: Record<string, any>;
+  baseline_monitoring_pairing: Record<string, any>;
+  dimensions: Record<string, any>;
+  blocking_reasons: string[];
+  advisory_notes: string[];
+  assessment_hash: string;
+  is_locked: boolean;
+  locked_at?: string | null;
+  locked_by_id?: string | null;
+  created_by_id?: string | null;
+  superseded_by_id?: string | null;
+  notes?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function fetchPrerequisiteReadiness(
+  projectId: string,
+  runPowerAnalysis: boolean = false,
+  targetMdd?: number
+): Promise<PrerequisiteEvaluationData | null> {
+  const params = new URLSearchParams();
+  if (runPowerAnalysis) params.append("run_power_analysis", "true");
+  if (targetMdd !== undefined) params.append("target_mdd", String(targetMdd));
+  const query = params.toString() ? `?${params.toString()}` : "";
+  return apiFetch<PrerequisiteEvaluationData>(
+    `/agriculture/projects/${projectId}/prerequisites/readiness${query}`
+  ).catch(() => null);
+}
+
+export async function evaluatePrerequisites(
+  projectId: string,
+  payload?: { run_power_analysis?: boolean; target_mdd?: number }
+): Promise<PrerequisiteEvaluationData> {
+  return apiFetch<PrerequisiteEvaluationData>(
+    `/agriculture/projects/${projectId}/prerequisites/evaluate`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload || {}),
+    }
+  );
+}
+
+export async function lockPrerequisiteAssessment(
+  projectId: string,
+  payload: {
+    snapshot_id?: string;
+    notes?: string;
+    run_power_analysis?: boolean;
+    target_mdd?: number;
+  }
+): Promise<PrerequisiteAssessmentItem> {
+  return apiFetch<PrerequisiteAssessmentItem>(
+    `/agriculture/projects/${projectId}/prerequisites/lock`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }
+  );
+}
+
+export async function fetchPrerequisiteAssessments(
+  projectId: string
+): Promise<PrerequisiteAssessmentItem[]> {
+  return apiFetch<PrerequisiteAssessmentItem[]>(
+    `/agriculture/projects/${projectId}/prerequisites/assessments`
+  ).catch(() => []);
+}
+
+export async function fetchPrerequisiteAssessmentDetail(
+  projectId: string,
+  assessmentId: string
+): Promise<PrerequisiteAssessmentItem | null> {
+  return apiFetch<PrerequisiteAssessmentItem>(
+    `/agriculture/projects/${projectId}/prerequisites/assessments/${assessmentId}`
+  ).catch(() => null);
+}
+
+// ---------------------------------------------------------------------------
+// Agriculture Phase 3B-1 SOC Stock & Equivalent Soil Mass Engine Types & APIs
+// ---------------------------------------------------------------------------
+
+export interface SOCLayerResultItem {
+  id: string;
+  stock_result_id: string;
+  sample_id?: string | null;
+  layer_index: number;
+  depth_upper_cm: number | string;
+  depth_lower_cm: number | string;
+  layer_thickness_cm: number | string;
+  bulk_density_g_cm3?: number | string | null;
+  bulk_density_provenance: string;
+  coarse_fragment_fraction?: number | string | null;
+  coarse_fragment_provenance: string;
+  soc_concentration_g_kg: number | string;
+  laboratory_result_id?: string | null;
+  layer_soil_mass_t_ha: number | string;
+  layer_soc_mass_t_c_ha: number | string;
+  cumulative_soil_mass_t_ha: number | string;
+  cumulative_soc_mass_t_c_ha: number | string;
+  fraction_in_reference_mass?: number | string | null;
+  included_soil_mass_t_ha?: number | string | null;
+  included_soc_mass_t_c_ha?: number | string | null;
+  created_at: string;
+}
+
+export interface SOCStockResultItem {
+  id: string;
+  organization_id: string;
+  project_id: string;
+  quantification_unit_id?: string | null;
+  stratum_id?: string | null;
+  sampling_point_id?: string | null;
+  campaign_id?: string | null;
+  prerequisite_assessment_id: string;
+  input_snapshot_id?: string | null;
+  stock_snapshot_id?: string | null;
+  result_code: string;
+  measurement_period_type: "BASELINE" | "MONITORING";
+  aggregation_level: "SAMPLE_POINT" | "STRATUM" | "QUANTIFICATION_UNIT" | "PROJECT";
+  methodology_version: string;
+  corrections_clarifications_version: string;
+  calculation_engine_version: string;
+  esm_algorithm: string;
+  reference_soil_mass_t_ha: number | string;
+  reference_depth_cm: number | string;
+  equivalent_depth_cm?: number | string | null;
+  total_sampled_soil_mass_t_ha?: number | string | null;
+  max_sampled_depth_cm?: number | string | null;
+  soc_stock_t_c_per_ha: number | string;
+  unadjusted_stock_t_c_per_ha?: number | string | null;
+  shallow_soil_exception_applied: boolean;
+  depth_sufficiency_status: string;
+  area_ha?: number | string | null;
+  sample_count: number;
+  strata_weights: Record<string, any>;
+  component_breakdown: Record<string, any>;
+  result_status: string;
+  calculation_hash: string;
+  input_snapshot_hash: string;
+  created_by_id?: string | null;
+  superseded_by_id?: string | null;
+  notes?: string | null;
+  created_at: string;
+  updated_at: string;
+  layers?: SOCLayerResultItem[];
+}
+
+export interface SOCStockEvaluationData {
+  project_id: string;
+  prerequisite_assessment_id: string;
+  measurement_period_type: "BASELINE" | "MONITORING";
+  status: "EVALUATED" | "BLOCKED";
+  esm_algorithm: string;
+  reference_soil_mass_t_ha: number | string;
+  reference_depth_cm: number | string;
+  sample_point_results: any[];
+  stratum_results: any[];
+  project_soc_stock_t_c_per_ha?: number | string | null;
+  total_area_ha?: number | string | null;
+  carbon_accounting_status: string;
+  net_tco2e_removals: null;
+  blocking_reasons: string[];
+  advisory_notes: string[];
+  evaluation_hash: string;
+}
+
+export async function evaluateSOCStock(
+  projectId: string,
+  payload: {
+    prerequisite_assessment_id?: string;
+    snapshot_id?: string;
+    measurement_period_type?: "BASELINE" | "MONITORING";
+    reference_depth_cm?: number;
+    reference_soil_mass_t_ha?: number;
+    esm_algorithm?: string;
+  }
+): Promise<SOCStockEvaluationData> {
+  return apiFetch<SOCStockEvaluationData>(
+    `/agriculture/projects/${projectId}/soc-stock/evaluate`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }
+  );
+}
+
+export async function calculateSOCStock(
+  projectId: string,
+  payload: {
+    prerequisite_assessment_id: string;
+    snapshot_id?: string;
+    measurement_period_type?: "BASELINE" | "MONITORING";
+    reference_depth_cm?: number;
+    reference_soil_mass_t_ha?: number;
+    esm_algorithm?: string;
+    notes?: string;
+  }
+): Promise<SOCStockResultItem> {
+  return apiFetch<SOCStockResultItem>(
+    `/agriculture/projects/${projectId}/soc-stock/calculate`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }
+  );
+}
+
+export async function fetchSOCStockResults(
+  projectId: string,
+  periodType?: "BASELINE" | "MONITORING",
+  aggregationLevel?: string
+): Promise<SOCStockResultItem[]> {
+  const params = new URLSearchParams();
+  if (periodType) params.append("measurement_period_type", periodType);
+  if (aggregationLevel) params.append("aggregation_level", aggregationLevel);
+  const q = params.toString() ? `?${params.toString()}` : "";
+  return apiFetch<SOCStockResultItem[]>(
+    `/agriculture/projects/${projectId}/soc-stock/results${q}`
+  ).catch(() => []);
+}
+
+export async function fetchSOCStockResultDetail(
+  projectId: string,
+  resultId: string
+): Promise<SOCStockResultItem | null> {
+  return apiFetch<SOCStockResultItem>(
+    `/agriculture/projects/${projectId}/soc-stock/results/${resultId}`
+  ).catch(() => null);
+}
+
+export async function fetchSOCStockResultComponents(
+  projectId: string,
+  resultId: string
+): Promise<Record<string, any> | null> {
+  return apiFetch<Record<string, any>>(
+    `/agriculture/projects/${projectId}/soc-stock/results/${resultId}/components`
+  ).catch(() => null);
+}
+
+// ---------------------------------------------------------------------------
+// Phase 3B-2: SOC Stock Change & Uncertainty Quantification Types & API
+// ---------------------------------------------------------------------------
+
+export interface SOCChangeResultItem {
+  id: string;
+  organization_id: string;
+  project_id: string;
+  baseline_stock_result_id: string;
+  monitoring_stock_result_id: string;
+  prerequisite_assessment_id: string;
+  result_code: string;
+  methodology_version: string;
+  corrections_clarifications_version: string;
+  calculation_engine_version: string;
+  quantification_approach: string;
+  t_start: string;
+  t_final: string;
+  elapsed_years: number | string;
+  esm_algorithm: string;
+  reference_soil_mass_t_ha: number | string;
+  reference_depth_cm: number | string;
+  total_project_area_ha: number | string;
+  baseline_mean_soc_t_c_per_ha: number | string;
+  monitoring_mean_soc_t_c_per_ha: number | string;
+  delta_soc_project_t_c_ha_yr: number | string;
+  delta_soc_baseline_t_c_ha_yr: number | string;
+  delta_soc_net_t_c_ha_yr: number | string;
+  delta_co2_project_tco2e_ha_yr: number | string;
+  delta_co2_baseline_tco2e_ha_yr: number | string;
+  delta_co2_net_tco2e_ha_yr: number | string;
+  total_project_delta_co2_tco2e_yr: number | string;
+  total_baseline_delta_co2_tco2e_yr: number | string;
+  total_net_delta_co2_tco2e_yr: number | string;
+  baseline_soc_change_tco2e_yr: number | string;
+  project_soc_change_tco2e_yr: number | string;
+  qa2_net_soc_effect_tco2e_yr: number | string;
+  uncertainty_adjusted_soc_effect_tco2e_yr: number | string;
+  sign_indicator: number;
+  eq44_eq45_status: string;
+  df_estimator: string;
+  co2_to_c_ratio: number | string;
+  variance_delta_soc_project: number | string;
+  variance_delta_soc_baseline: number | string;
+  total_variance_delta_soc: number | string;
+  standard_error_delta_soc_t_c_ha_yr: number | string;
+  standard_error_tco2e_yr: number | string;
+  degrees_of_freedom: number;
+  student_t_value_0667: number | string;
+  relative_uncertainty_pct: number | string;
+  allowable_uncertainty_pct: number | string;
+  uncertainty_deduction_pct: number | string;
+  uncertainty_deduction_fraction: number | string;
+  adjusted_net_delta_co2_tco2e_yr: number | string;
+  measurement_error_status: string;
+  measurement_error_router: string;
+  strata_results: any[];
+  component_breakdown: Record<string, any>;
+  carbon_accounting_status: string;
+  ledger_status: string;
+  result_status: string;
+  calculation_hash: string;
+  input_snapshot_hash: string;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SOCChangeEvaluationData {
+  project_id: string;
+  status: "EVALUATED" | "BLOCKED";
+  baseline_stock_result_id: string;
+  monitoring_stock_result_id: string;
+  elapsed_years: number | string;
+  t_start: string;
+  t_final: string;
+  total_project_area_ha: number | string;
+  delta_soc_project_t_c_ha_yr: number | string;
+  delta_soc_baseline_t_c_ha_yr: number | string;
+  delta_soc_net_t_c_ha_yr: number | string;
+  delta_co2_net_tco2e_ha_yr: number | string;
+  total_net_delta_co2_tco2e_yr: number | string;
+  baseline_soc_change_tco2e_yr?: number | string;
+  project_soc_change_tco2e_yr?: number | string;
+  qa2_net_soc_effect_tco2e_yr?: number | string;
+  uncertainty_adjusted_soc_effect_tco2e_yr?: number | string;
+  sign_indicator?: number;
+  eq44_eq45_status?: string;
+  df_estimator?: string;
+  adjusted_net_delta_co2_tco2e_yr: number | string;
+  degrees_of_freedom: number;
+  student_t_value_0667: number | string;
+  relative_uncertainty_pct: number | string;
+  uncertainty_deduction_pct: number | string;
+  uncertainty_deduction_fraction: number | string;
+  uncertainty_status: string;
+  measurement_error_status: string;
+  strata_results: any[];
+  blocking_reasons: string[];
+  evaluation_hash: string;
+}
+
+export async function evaluateSOCChange(
+  projectId: string,
+  payload: {
+    baseline_stock_result_id: string;
+    monitoring_stock_result_id: string;
+    prerequisite_assessment_id?: string;
+    laboratory_method?: string;
+    lab_qa_verified?: boolean;
+    active_lab_proficiency?: boolean;
+    notes?: string;
+  }
+): Promise<SOCChangeEvaluationData> {
+  return apiFetch<SOCChangeEvaluationData>(
+    `/agriculture/projects/${projectId}/soc-change/evaluate`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }
+  );
+}
+
+export async function finalizeSOCChange(
+  projectId: string,
+  payload: {
+    baseline_stock_result_id: string;
+    monitoring_stock_result_id: string;
+    prerequisite_assessment_id: string;
+    laboratory_method?: string;
+    lab_qa_verified?: boolean;
+    active_lab_proficiency?: boolean;
+    notes?: string;
+  }
+): Promise<SOCChangeResultItem> {
+  return apiFetch<SOCChangeResultItem>(
+    `/agriculture/projects/${projectId}/soc-change/finalize`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }
+  );
+}
+
+export async function fetchSOCChangeResults(
+  projectId: string
+): Promise<SOCChangeResultItem[]> {
+  return apiFetch<SOCChangeResultItem[]>(
+    `/agriculture/projects/${projectId}/soc-change/results`
+  ).catch(() => []);
+}
+
+export async function fetchSOCChangeResultDetail(
+  projectId: string,
+  resultId: string
+): Promise<SOCChangeResultItem | null> {
+  return apiFetch<SOCChangeResultItem>(
+    `/agriculture/projects/${projectId}/soc-change/results/${resultId}`
+  ).catch(() => null);
+}
+
+export async function fetchSOCChangeResultComponents(
+  projectId: string,
+  resultId: string
+): Promise<Record<string, any> | null> {
+  return apiFetch<Record<string, any>>(
+    `/agriculture/projects/${projectId}/soc-change/results/${resultId}/components`
+  ).catch(() => null);
+}
+
+// ---------------------------------------------------------------------------
+// Phase 3B-3: Net GHG Reductions & Removals & Section 8.7 VCU Readiness Types & API
+// ---------------------------------------------------------------------------
+
+export interface AgricultureVintageGHGResultItem {
+  id: string;
+  net_ghg_result_id: string;
+  vintage_year: number;
+  gross_reductions_er_tco2e: number | string;
+  gross_removals_cr_tco2e: number | string;
+  leakage_tco2e: number | string;
+  leakage_er_lker_tco2e: number | string;
+  leakage_cr_lkcr_tco2e: number | string;
+  net_reductions_ernet_tco2e: number | string;
+  net_removals_crnet_tco2e: number | string;
+  total_net_ghg_errnet_tco2e: number | string;
+  buffer_deduction_reductions_tco2e?: number | string | null;
+  buffer_deduction_removals_tco2e?: number | string | null;
+  total_buffer_deduction_tco2e?: number | string | null;
+  internal_vcu_eligible_reductions_tco2e?: number | string | null;
+  internal_vcu_eligible_removals_tco2e?: number | string | null;
+  internal_vcu_eligible_total_tco2e?: number | string | null;
+  vcu_readiness_status: string;
+  vintage_details?: Record<string, any>;
+  created_at: string;
+}
+
+export interface AgricultureNetGHGResultItem {
+  id: string;
+  organization_id: string;
+  project_id: string;
+  soc_change_result_id?: string | null;
+  prerequisite_assessment_id: string;
+  result_code: string;
+  methodology_version: string;
+  corrections_clarifications_version: string;
+  calculation_engine_version: string;
+  ruleset_version: string;
+  verification_period_start: string;
+  verification_period_end: string;
+  elapsed_years: number | string;
+  applicability_matrix: Record<string, any>;
+  total_baseline_emissions_tco2e: number | string;
+  total_project_emissions_tco2e: number | string;
+  total_emission_reductions_from_sources_tco2e: number | string;
+  eq44_baseline_total_carbon_stock_change_tco2e: number | string;
+  eq45_project_total_carbon_stock_change_tco2e: number | string;
+  eq44_eq45_status: string;
+  gross_reductions_er_tco2e: number | string;
+  gross_removals_cr_tco2e: number | string;
+  total_leakage_tco2e: number | string;
+  leakage_allocation_er_lker_tco2e: number | string;
+  leakage_allocation_cr_lkcr_tco2e: number | string;
+  net_reductions_ernet_tco2e: number | string;
+  net_removals_crnet_tco2e: number | string;
+  total_net_ghg_errnet_tco2e: number | string;
+  npr_rating_pct?: number | string | null;
+  risk_assessment_id?: string | null;
+  buffer_deduction_reductions_tco2e?: number | string | null;
+  buffer_deduction_removals_tco2e?: number | string | null;
+  total_buffer_deduction_tco2e?: number | string | null;
+  internal_vcu_eligible_reductions_tco2e?: number | string | null;
+  internal_vcu_eligible_removals_tco2e?: number | string | null;
+  internal_vcu_eligible_total_tco2e?: number | string | null;
+  vcu_readiness_status: string;
+  internal_mrv_status: string;
+  vvb_status: string;
+  registry_status: string;
+  ledger_status: string;
+  result_status: string;
+  calculation_hash: string;
+  input_snapshot_hash: string;
+  created_by_id?: string | null;
+  superseded_by_id?: string | null;
+  notes?: string | null;
+  component_breakdown: Record<string, any>;
+  vintages: AgricultureVintageGHGResultItem[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface NetGHGEvaluationData {
+  project_id: string;
+  status: "EVALUATED" | "BLOCKED";
+  verification_period_start: string;
+  verification_period_end: string;
+  elapsed_years: number | string;
+  applicability_matrix: Record<string, any>;
+  total_baseline_emissions_tco2e: number | string;
+  total_project_emissions_tco2e: number | string;
+  total_emission_reductions_from_sources_tco2e: number | string;
+  eq44_baseline_total_carbon_stock_change_tco2e: number | string;
+  eq45_project_total_carbon_stock_change_tco2e: number | string;
+  gross_reductions_er_tco2e: number | string;
+  gross_removals_cr_tco2e: number | string;
+  total_leakage_tco2e: number | string;
+  leakage_allocation_er_lker_tco2e: number | string;
+  leakage_allocation_cr_lkcr_tco2e: number | string;
+  net_reductions_ernet_tco2e: number | string;
+  net_removals_crnet_tco2e: number | string;
+  total_net_ghg_errnet_tco2e: number | string;
+  npr_rating_pct?: number | string | null;
+  buffer_deduction_reductions_tco2e?: number | string | null;
+  buffer_deduction_removals_tco2e?: number | string | null;
+  total_buffer_deduction_tco2e?: number | string | null;
+  internal_vcu_eligible_reductions_tco2e?: number | string | null;
+  internal_vcu_eligible_removals_tco2e?: number | string | null;
+  internal_vcu_eligible_total_tco2e?: number | string | null;
+  vcu_readiness_status: string;
+  vintages: any[];
+  blocking_reasons: string[];
+  evaluation_hash: string;
+  component_breakdown?: Record<string, any>;
+}
+
+export async function evaluateNetGHG(
+  projectId: string,
+  payload: Record<string, any>
+): Promise<NetGHGEvaluationData> {
+  return apiFetch<NetGHGEvaluationData>(
+    `/agriculture/projects/${projectId}/net-ghg/evaluate`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }
+  );
+}
+
+export async function finalizeNetGHG(
+  projectId: string,
+  payload: Record<string, any>
+): Promise<AgricultureNetGHGResultItem> {
+  return apiFetch<AgricultureNetGHGResultItem>(
+    `/agriculture/projects/${projectId}/net-ghg/finalize`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }
+  );
+}
+
+export async function fetchNetGHGResults(
+  projectId: string
+): Promise<AgricultureNetGHGResultItem[]> {
+  return apiFetch<AgricultureNetGHGResultItem[]>(
+    `/agriculture/projects/${projectId}/net-ghg/results`
+  ).catch(() => []);
+}
+
+export async function fetchNetGHGResultDetail(
+  projectId: string,
+  resultId: string
+): Promise<AgricultureNetGHGResultItem | null> {
+  return apiFetch<AgricultureNetGHGResultItem>(
+    `/agriculture/projects/${projectId}/net-ghg/results/${resultId}`
+  ).catch(() => null);
+}
+
+export async function fetchNetGHGResultComponents(
+  projectId: string,
+  resultId: string
+): Promise<Record<string, any> | null> {
+  return apiFetch<Record<string, any>>(
+    `/agriculture/projects/${projectId}/net-ghg/results/${resultId}/components`
+  ).catch(() => null);
+}
+
+
+
+// ---------------------------------------------------------------------------
+// Agriculture Laboratory Bulk Data Import Types & Client APIs
+// ---------------------------------------------------------------------------
+
+export interface LaboratoryImportRowItem {
+  id: string;
+  import_batch_id: string;
+  organization_id: string;
+  project_id: string;
+  source_sheet_name?: string;
+  source_row_number: number;
+  raw_row_payload: Record<string, any>;
+  mapped_payload: Record<string, any>;
+  validation_status: "VALID" | "WARNING" | "ERROR" | "SKIPPED";
+  validation_messages: Array<{ severity: "ERROR" | "WARNING"; code: string; message: string }>;
+  matched_sample_id?: string;
+  matched_sample_code?: string;
+  canonical_analyte?: string;
+  raw_value?: number;
+  raw_unit?: string;
+  normalized_value?: number;
+  normalized_unit?: string;
+  resulting_lab_result_id?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LaboratoryImportBatchItem {
+  id: string;
+  organization_id: string;
+  project_id: string;
+  sampling_campaign_id?: string;
+  laboratory_name?: string;
+  original_filename: string;
+  file_type: string;
+  file_size_bytes: number;
+  file_sha256: string;
+  evidence_id?: string;
+  status: "UPLOADED" | "MAPPED" | "VALIDATED" | "VALIDATED_WITH_ERRORS" | "IMPORTED" | "PARTIALLY_IMPORTED" | "FAILED";
+  source_type: string;
+  uploaded_by?: string;
+  uploaded_at: string;
+  mapping_version: string;
+  mapping_config: Record<string, any>;
+  total_rows: number;
+  valid_rows: number;
+  warning_rows: number;
+  error_rows: number;
+  imported_rows: number;
+  skipped_rows: number;
+  error_summary: Array<{ row: number; sample_code: string; code: string; message: string }>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LaboratoryImportValidationResult {
+  batch_id: string;
+  status: string;
+  total_rows: number;
+  valid_rows: number;
+  warning_rows: number;
+  error_rows: number;
+  can_commit: boolean;
+  preview_rows: LaboratoryImportRowItem[];
+  error_summary: Array<{ row: number; sample_code: string; code: string; message: string }>;
+}
+
+export interface LaboratoryImportCommitResult {
+  batch_id: string;
+  status: string;
+  imported_rows: number;
+  skipped_rows: number;
+  analyses_created: number;
+  results_created: number;
+  samples_analyzed: number;
+  message: string;
+}
+
+export async function fetchLaboratoryImportBatches(
+  projectId: string
+): Promise<LaboratoryImportBatchItem[]> {
+  return apiFetch<LaboratoryImportBatchItem[]>(
+    `/agriculture/projects/${projectId}/laboratory-import/batches`
+  ).catch(() => []);
+}
+
+export async function fetchLaboratoryImportBatch(
+  projectId: string,
+  batchId: string
+): Promise<LaboratoryImportBatchItem | null> {
+  return apiFetch<LaboratoryImportBatchItem>(
+    `/agriculture/projects/${projectId}/laboratory-import/batches/${batchId}`
+  ).catch(() => null);
+}
+
+export async function fetchLaboratoryImportRows(
+  projectId: string,
+  batchId: string,
+  validationStatus?: string
+): Promise<LaboratoryImportRowItem[]> {
+  const query = validationStatus ? `?validation_status=${encodeURIComponent(validationStatus)}` : "";
+  return apiFetch<LaboratoryImportRowItem[]>(
+    `/agriculture/projects/${projectId}/laboratory-import/batches/${batchId}/rows${query}`
+  ).catch(() => []);
+}
+
+export async function uploadLaboratoryBulkFile(
+  projectId: string,
+  file: File,
+  laboratoryName?: string,
+  campaignId?: string
+): Promise<LaboratoryImportBatchItem> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const params = new URLSearchParams();
+  if (laboratoryName) params.append("laboratory_name", laboratoryName);
+  if (campaignId) params.append("sampling_campaign_id", campaignId);
+  const qStr = params.toString() ? `?${params.toString()}` : "";
+
+  return apiFetch<LaboratoryImportBatchItem>(
+    `/agriculture/projects/${projectId}/laboratory-import/upload${qStr}`,
+    {
+      method: "POST",
+      body: formData,
+    }
+  );
+}
+
+export async function validateLaboratoryImportBatch(
+  projectId: string,
+  batchId: string,
+  payload: {
+    mapping_config?: Record<string, any>;
+    laboratory_name?: string;
+    sampling_campaign_id?: string;
+  }
+): Promise<LaboratoryImportValidationResult> {
+  return apiFetch<LaboratoryImportValidationResult>(
+    `/agriculture/projects/${projectId}/laboratory-import/batches/${batchId}/validate`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }
+  );
+}
+
+export async function commitLaboratoryImportBatch(
+  projectId: string,
+  batchId: string,
+  payload: {
+    import_valid_only?: boolean;
+    laboratory_name?: string;
+    notes?: string;
+    import_as_revision?: boolean;
+    revision_reason?: string;
+  }
+): Promise<LaboratoryImportCommitResult> {
+  return apiFetch<LaboratoryImportCommitResult>(
+    `/agriculture/projects/${projectId}/laboratory-import/batches/${batchId}/commit`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }
+  );
+}
+
+export function getLaboratoryImportTemplateUrl(projectId: string, format: "csv" | "xlsx" = "csv"): string {
+  const base = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+  return `${base}/api/v1/agriculture/projects/${projectId}/laboratory-import/template?format=${format}`;
+}
+
+export function getLaboratoryImportErrorsUrl(projectId: string, batchId: string): string {
+  const base = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+  return `${base}/api/v1/agriculture/projects/${projectId}/laboratory-import/batches/${batchId}/errors.csv`;
+}
+
 
 // ---------------------------------------------------------------------------
 // Verification Packages & Auditor Workspace Types & Client APIs
@@ -3929,4 +5825,279 @@ export async function createProductBatch(data: {
     method: "POST",
     body: JSON.stringify(data),
   });
+}
+
+// ─── Earth Observation & Satellite MRV API ───
+
+export interface EOProviderCapabilityInfo {
+  provider_code: string;
+  capability: string;
+  is_configured: boolean;
+}
+
+export interface EOProviderMatrixResponse {
+  providers: Record<string, EOProviderCapabilityInfo>;
+}
+
+export interface ProjectAOIResponse {
+  status: "NO_AOI" | "CONFIGURED";
+  message?: string;
+  aoi?: {
+    id: string;
+    project_id: string;
+    name: string;
+    aoi_type: string;
+    boundary_version_id?: string;
+    geometry_geojson: any;
+    bbox: { min_lon: number; min_lat: number; max_lon: number; max_lat: number };
+    area_ha: number;
+    crs: string;
+    is_active: boolean;
+    created_at: string;
+  };
+}
+
+export interface ProjectBoundaryVersionItem {
+  id: string;
+  project_id: string;
+  version_number: number;
+  effective_date: string;
+  source: string;
+  reason?: string;
+  area_ha: number;
+  perimeter_m?: number;
+  centroid_lat?: number;
+  centroid_lon?: number;
+  crs: string;
+  created_at: string;
+}
+
+export interface EOObservationItem {
+  id: string;
+  project_id: string;
+  aoi_id?: string;
+  provider_code: string;
+  platform: string;
+  sensor: string;
+  product_code: string;
+  scene_id: string;
+  acquisition_timestamp: string;
+  spatial_resolution_m: number;
+  cloud_cover_pct?: number;
+  quality_status: string;
+  observation_type: string;
+  processing_level: string;
+  provenance_hash: string;
+  is_baseline: boolean;
+  geometry_geojson?: any;
+  bbox?: Record<string, number>;
+  raw_band_uris?: Record<string, string>;
+  asset_uri?: string;
+  quality_flags?: Record<string, any>;
+  created_at: string;
+}
+
+export interface EODerivedLayerItem {
+  id: string;
+  project_id: string;
+  observation_id: string;
+  aoi_id?: string;
+  layer_type: string;
+  formula_identifier: string;
+  formula: string;
+  band_mapping: Record<string, any>;
+  processor_version: string;
+  spatial_resolution_m: number;
+  statistics: { mean?: number; min?: number; max?: number; std?: number };
+  quality_status: string;
+  provenance_hash: string;
+  created_at: string;
+}
+
+export interface EOSpatialAnomalyItem {
+  id: string;
+  project_id: string;
+  aoi_id?: string;
+  observation_id?: string;
+  anomaly_type: string;
+  severity: string;
+  status: string;
+  description: string;
+  review_recommendation: string;
+  comparison_metric?: string;
+  delta_value?: number;
+  detected_at: string;
+  corroborated_at?: string;
+  corroboration_notes?: string;
+}
+
+export async function fetchEOProviders(): Promise<EOProviderMatrixResponse> {
+  return apiFetch<EOProviderMatrixResponse>("/earth-observation/providers").catch(() => ({
+    providers: {},
+  }));
+}
+
+export async function fetchProjectActiveAOI(projectId: string): Promise<ProjectAOIResponse> {
+  return apiFetch<ProjectAOIResponse>(`/earth-observation/projects/${projectId}/aoi`).catch(() => ({
+    status: "NO_AOI",
+    message: "No boundary configured.",
+  }));
+}
+
+export async function setProjectBoundary(
+  projectId: string,
+  data: {
+    name?: string;
+    geometry_geojson: any;
+    source?: string;
+    reason?: string;
+  }
+): Promise<any> {
+  return apiFetch<any>(`/earth-observation/projects/${projectId}/boundary`, {
+    method: "POST",
+    body: JSON.stringify({
+      name: data.name || "Project Boundary",
+      geometry_geojson: data.geometry_geojson,
+      source: data.source || "DECLARED",
+      reason: data.reason,
+    }),
+  });
+}
+
+export async function fetchBoundaryHistory(projectId: string): Promise<ProjectBoundaryVersionItem[]> {
+  return apiFetch<ProjectBoundaryVersionItem[]>(
+    `/earth-observation/projects/${projectId}/boundary-history`
+  ).catch(() => []);
+}
+
+export async function fetchProjectObservations(
+  projectId: string,
+  params?: {
+    aoi_id?: string;
+    is_baseline?: boolean;
+    provider_code?: string;
+    limit?: number;
+  }
+): Promise<EOObservationItem[]> {
+  const query = new URLSearchParams();
+  if (params?.aoi_id) query.set("aoi_id", params.aoi_id);
+  if (params?.is_baseline !== undefined) query.set("is_baseline", String(params.is_baseline));
+  if (params?.provider_code) query.set("provider_code", params.provider_code);
+  if (params?.limit) query.set("limit", String(params.limit));
+  const qs = query.toString() ? `?${query.toString()}` : "";
+  return apiFetch<EOObservationItem[]>(
+    `/earth-observation/projects/${projectId}/observations${qs}`
+  ).catch(() => []);
+}
+
+export async function fetchDerivedLayers(
+  projectId: string,
+  params?: {
+    observation_id?: string;
+    layer_type?: string;
+  }
+): Promise<EODerivedLayerItem[]> {
+  const query = new URLSearchParams();
+  if (params?.observation_id) query.set("observation_id", params.observation_id);
+  if (params?.layer_type) query.set("layer_type", params.layer_type);
+  const qs = query.toString() ? `?${query.toString()}` : "";
+  return apiFetch<EODerivedLayerItem[]>(
+    `/earth-observation/projects/${projectId}/derived-layers${qs}`
+  ).catch(() => []);
+}
+
+export async function computeDerivedLayer(
+  projectId: string,
+  data: {
+    observation_id: string;
+    layer_type: string;
+    statistics: Record<string, number>;
+    asset_uri?: string;
+  }
+): Promise<EODerivedLayerItem> {
+  return apiFetch<EODerivedLayerItem>(
+    `/earth-observation/projects/${projectId}/derived-layers`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    }
+  );
+}
+
+export async function fetchProjectSpatialAnomalies(
+  projectId: string,
+  params?: {
+    status?: string;
+    severity?: string;
+  }
+): Promise<EOSpatialAnomalyItem[]> {
+  const query = new URLSearchParams();
+  if (params?.status) query.set("status", params.status);
+  if (params?.severity) query.set("severity", params.severity);
+  const qs = query.toString() ? `?${query.toString()}` : "";
+  return apiFetch<EOSpatialAnomalyItem[]>(
+    `/earth-observation/projects/${projectId}/anomalies${qs}`
+  ).catch(() => []);
+}
+
+export async function corroborateSpatialAnomaly(
+  anomalyId: string,
+  data: {
+    corroborated: boolean;
+    notes: string;
+    verification_task_id?: string;
+  }
+): Promise<EOSpatialAnomalyItem> {
+  return apiFetch<EOSpatialAnomalyItem>(
+    `/earth-observation/anomalies/${anomalyId}/corroborate`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    }
+  );
+}
+
+export async function compileBaselinePackage(
+  projectId: string,
+  data?: { notes?: string }
+): Promise<any> {
+  return apiFetch<any>(
+    `/earth-observation/projects/${projectId}/baseline-package`,
+    {
+      method: "POST",
+      body: JSON.stringify(data || {}),
+    }
+  );
+}
+
+export async function fetchMRVManifest(projectId: string): Promise<any> {
+  return apiFetch<any>(`/earth-observation/projects/${projectId}/manifest`);
+}
+
+export async function verifyCOGAsset(
+  projectId: string,
+  observationId: string,
+  assetKey: string = "visual"
+): Promise<{
+  asset_url: string;
+  http_status: number;
+  is_partial_content: boolean;
+  content_range?: string;
+  content_type?: string;
+  bytes_read?: number;
+  magic_bytes_hex?: string;
+  is_valid_geotiff_header: boolean;
+  observation_id: string;
+  asset_key: string;
+  project_id: string;
+  ssrf_blocked?: boolean;
+  verified_at: string;
+}> {
+  const params = new URLSearchParams({
+    observation_id: observationId,
+    asset_key: assetKey,
+  });
+  return apiFetch<any>(
+    `/earth-observation/projects/${projectId}/verify-cog-asset?${params.toString()}`
+  );
 }

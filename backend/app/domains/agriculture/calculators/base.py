@@ -41,12 +41,12 @@ class CalculationResult:
     version: str
     status: CalculationStatus
     is_issuance_eligible: bool
-    total_net_removals_t_co2e: float = 0.0
-    total_net_reductions_t_co2e: float = 0.0
-    total_net_t_co2e: float = 0.0
-    uncertainty_deduction_pct: float = 0.0
-    buffer_pool_contribution_t_co2e: float = 0.0
-    issuable_credits_t_co2e: float = 0.0
+    total_net_removals_t_co2e: Optional[float] = None
+    total_net_reductions_t_co2e: Optional[float] = None
+    total_net_t_co2e: Optional[float] = None
+    uncertainty_deduction_pct: Optional[float] = None
+    buffer_pool_contribution_t_co2e: Optional[float] = None
+    issuable_credits_t_co2e: Optional[float] = None
     breakdown_by_management_unit: Dict[str, Any] = field(default_factory=dict)
     warnings: List[str] = field(default_factory=list)
     compliance_notes: str = ""

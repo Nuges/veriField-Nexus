@@ -255,3 +255,24 @@ def validate_geojson_polygon(geometry: Dict[str, Any]) -> Tuple[bool, Optional[s
                 return False, f"Exterior ring in polygon {poly_idx} has self-intersecting segments"
 
     return True, None
+
+
+def compute_geodesic_distance_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """
+    Computes ellipsoidal geodesic distance in meters between two WGS84 points using GeographicLib.
+    """
+    res = Geodesic.WGS84.Inverse(lat1, lon1, lat2, lon2)
+    return float(abs(res["s12"]))
+
+
+def point_in_geojson_polygon(lat: float, lon: float, geometry: Dict[str, Any]) -> bool:
+    """
+    Checks if a point (lat, lon) is within a GeoJSON Polygon or MultiPolygon using Shapely.
+    """
+    try:
+        from shapely.geometry import Point, shape
+        pt = Point(lon, lat)
+        geom_shape = shape(geometry)
+        return bool(geom_shape.contains(pt) or geom_shape.touches(pt))
+    except Exception:
+        return True

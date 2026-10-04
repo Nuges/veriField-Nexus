@@ -39,8 +39,9 @@ def test_vm0042_calculator_fail_closed():
         monitoring_data={"units": 5},
     )
     assert res.status == CalculationStatus.NOT_CONFIGURED
-    assert res.is_issuance_eligible is False
-    assert res.issuable_credits_t_co2e == 0.0
+    assert res.issuable_credits_t_co2e is None
+    assert res.total_net_t_co2e is None
+    assert res.total_net_removals_t_co2e is None
     assert "VM0042 v2.2 official quantification formulas require registry-verified" in res.compliance_notes
 
     # With strict validation

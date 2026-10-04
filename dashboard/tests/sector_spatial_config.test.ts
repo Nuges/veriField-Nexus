@@ -71,12 +71,16 @@ test("SectorSpatialConfig - EV Mobility", () => {
   const config = getSectorSpatialConfig("EV_MOBILITY");
   assert.equal(config.sectorCode, "EV_MOBILITY");
   assert.equal(config.emptyTitle, "No charging stations registered.");
-  assert.equal(config.supportsEarthObservation, false);
+  assert.equal(config.supportsEarthObservation, true);
+  assert.equal(config.supportsVegetationIndices, false);
+  assert.deepEqual(config.allowedDerivedLayers, []);
+  assert.ok(config.sectorDisclaimer.includes("cannot determine charging sessions"));
 
   const layerIds = config.availableLayers.map(l => l.id);
   assert.ok(layerIds.includes("charging_stations"));
   assert.ok(layerIds.includes("chargers"));
   assert.ok(layerIds.includes("operating_sites"));
+  assert.ok(layerIds.includes("sentinel_2"));
 });
 
 test("SectorSpatialConfig - Clean Cookstoves & Privacy Safe Clustering", () => {
@@ -84,10 +88,14 @@ test("SectorSpatialConfig - Clean Cookstoves & Privacy Safe Clustering", () => {
   assert.equal(config.sectorCode, "COOKSTOVES");
   assert.equal(config.emptyTitle, "No cookstove devices registered.");
   assert.equal(config.privacySafeClustering, true, "Must enforce privacy-safe clustering for households");
-  assert.equal(config.supportsEarthObservation, false);
+  assert.equal(config.supportsEarthObservation, true);
+  assert.equal(config.supportsVegetationIndices, false);
+  assert.deepEqual(config.allowedDerivedLayers, []);
+  assert.ok(config.sectorDisclaimer.includes("cannot determine stove usage"));
 
   const layerIds = config.availableLayers.map(l => l.id);
   assert.ok(layerIds.includes("deployment_clusters"));
   assert.ok(layerIds.includes("devices"));
   assert.ok(layerIds.includes("field_activities"));
+  assert.ok(layerIds.includes("sentinel_2"));
 });

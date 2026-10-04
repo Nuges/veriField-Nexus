@@ -36,10 +36,14 @@ import uuid
 async def test_execute_carbon_minting_endpoint(db_session):
     from app.domains.ledger.api import execute_carbon_minting, MintRequest
     from app.domains.authentication.models import User
+    from app.domains.organizations.models import Organization
     from app.domains.projects.models import Project, CarbonCalculation
 
     org_id = uuid.uuid4()
     proj_id = uuid.uuid4()
+
+    org = Organization(id=org_id, name=f"Solana Org {org_id.hex[:6]}", org_type="DEVELOPER")
+    db_session.add(org)
 
     proj = Project(
         id=proj_id,
@@ -48,6 +52,7 @@ async def test_execute_carbon_minting_endpoint(db_session):
         country="Nigeria",
     )
     db_session.add(proj)
+
 
     calc = CarbonCalculation(
         id=uuid.uuid4(),

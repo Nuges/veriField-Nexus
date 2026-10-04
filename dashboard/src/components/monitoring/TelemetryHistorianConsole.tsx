@@ -80,34 +80,8 @@ export function TelemetryHistorianConsole({
 
   // Transform raw data into structured time-series data points
   const chartData = useMemo(() => {
-    // If backend returned empty activities during testing, generate dynamic fallback time series based on date window
     if (!rawActivities || rawActivities.length === 0) {
-      const pointsCount = timeWindow === "24h" ? 24 : timeWindow === "7d" ? 14 : 30;
-      const result = [];
-      const now = new Date();
-
-      for (let i = pointsCount - 1; i >= 0; i--) {
-        const d = new Date(now.getTime() - (i * (timeWindow === "24h" ? 3600000 : 86400000)));
-        const timestampLabel = timeWindow === "24h"
-          ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-          : d.toLocaleDateString([], { month: 'short', day: 'numeric' });
-
-        const baseCo2 = 45 + Math.sin(i * 0.5) * 15 + (i % 3) * 4;
-        const baseEnergy = 120 + Math.cos(i * 0.4) * 35;
-        const baseHours = 4.5 + (i % 5) * 0.8;
-        const baseTrust = 94 + (i % 4) * 1.5;
-
-        result.push({
-          timestamp: timestampLabel,
-          rawDate: d.toISOString(),
-          co2_reduction: Number(baseCo2.toFixed(1)),
-          energy_power: Number(baseEnergy.toFixed(1)),
-          operating_hours: Number(baseHours.toFixed(1)),
-          trust_score: Number(Math.min(100, baseTrust).toFixed(1)),
-          hash_verified: true
-        });
-      }
-      return result;
+      return [];
     }
 
     // Filter by timestamp cutoff
@@ -116,6 +90,10 @@ export function TelemetryHistorianConsole({
       const d = new Date(a.created_at || a.timestamp);
       return d >= cutoffDate;
     });
+
+    if (filtered.length === 0) {
+      return [];
+    }
 
     // Map to chart format
     return filtered.map((item, idx) => {
@@ -127,18 +105,18 @@ export function TelemetryHistorianConsole({
       return {
         timestamp: timestampLabel,
         rawDate: d.toISOString(),
-        co2_reduction: Number(item.carbon_saved_kg || item.co2_avoided_kg || 25 + (idx % 7) * 5),
-        energy_power: Number(item.energy_kwh || item.power_kw || 85 + (idx % 5) * 10),
-        operating_hours: Number(item.usage_hours || item.hours || 3 + (idx % 4) * 0.5),
-        trust_score: Number(item.trust_score || 96),
-        hash_verified: true
+        co2_reduction: Number(item.carbon_saved_kg || item.co2_avoided_kg || item.co2_reduced || 0),
+        energy_power: Number(item.energy_kwh || item.power_kw || 0),
+        operating_hours: Number(item.usage_hours || item.hours || 0),
+        trust_score: Number(item.trust_score || 0),
+        hash_verified: Boolean(item.hash_verified || item.hash)
       };
     });
   }, [rawActivities, timeWindow, cutoffDate]);
 
   // Derived stats
   const stats = useMemo(() => {
-    if (!chartData || chartData.length === 0) return { total: 0, avg: 0, peak: 0, trustAvg: 100 };
+    if (!chartData || chartData.length === 0) return { total: 0, avg: 0, peak: 0, trustAvg: 0 };
     
     let key: keyof typeof chartData[0] = selectedMetric;
     const values = chartData.map((d) => Number(d[key]) || 0);
@@ -332,7 +310,13 @@ export function TelemetryHistorianConsole({
                 <Icon size={14} style={{ color: cfg.stroke }} />
               </div>
               <p className="text-lg font-bold text-[var(--color-text-primary)] tracking-tight mt-1.5">
-                {key === "co2_reduction" ? `${stats.total} kg` : key === "energy_power" ? `${stats.total} kWh` : key === "operating_hours" ? `${stats.total} hrs` : `${stats.trustAvg}%`}
+                {key === "trust_score"
+                  ? (chartData.length > 0 ? `${stats.trustAvg}%` : "N/A")
+                  : key === "co2_reduction"
+                  ? `${stats.total} kg`
+                  : key === "energy_power"
+                  ? `${stats.total} kWh`
+                  : `${stats.total} hrs`}
               </p>
             </button>
           );
@@ -349,9 +333,9 @@ export function TelemetryHistorianConsole({
             </span>
           </div>
           <div className="flex items-center gap-4 text-[10px] font-mono text-[var(--color-text-secondary)]">
-            <span>Peak: <strong className="text-[var(--color-text-primary)]">{stats.peak} {activeConfig.unit}</strong></span>
-            <span>Average: <strong className="text-[var(--color-text-primary)]">{stats.avg} {activeConfig.unit}</strong></span>
-            <span>Trust Integrity: <strong className="text-emerald-400">{stats.trustAvg}% Verified</strong></span>
+            <span>Peak: <strong className="text-[var(--color-text-primary)]">{chartData.length > 0 ? `${stats.peak} ${activeConfig.unit}` : "0"}</strong></span>
+            <span>Average: <strong className="text-[var(--color-text-primary)]">{chartData.length > 0 ? `${stats.avg} ${activeConfig.unit}` : "0"}</strong></span>
+            <span>Trust Integrity: <strong className="text-emerald-400">{chartData.length > 0 ? `${stats.trustAvg}% Verified` : "N/A"}</strong></span>
           </div>
         </div>
 
@@ -360,6 +344,12 @@ export function TelemetryHistorianConsole({
             <div className="h-full flex items-center justify-center space-y-2 flex-col">
               <RefreshCw size={20} className="animate-spin text-[#00B47A]" />
               <span className="text-xs font-mono text-zinc-500">Querying historian telemetry streams...</span>
+            </div>
+          ) : chartData.length === 0 ? (
+            <div className="h-full flex items-center justify-center space-y-2 flex-col text-center p-4">
+              <Activity size={24} className="text-zinc-500" />
+              <span className="text-xs font-semibold text-[var(--color-text-secondary)]">No historical telemetry recorded for this workspace</span>
+              <span className="text-[11px] text-[var(--color-text-muted)]">Telemetry streams will populate dynamically once device activities are ingested.</span>
             </div>
           ) : (
             <ResponsiveContainer width="100%" height="100%">

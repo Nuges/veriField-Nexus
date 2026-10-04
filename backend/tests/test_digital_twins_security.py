@@ -67,7 +67,7 @@ async def test_digital_twins_security_and_engine():
 
     project_a = Project(
         id=uuid.uuid4(),
-        project_code=f"PRJ-A-{uuid.uuid4().hex[:4]}",
+        project_code=f"PRJ-A-{uuid.uuid4().hex}",
         name="Project A",
         country="Kenya",
         organization_id=org_a_id,

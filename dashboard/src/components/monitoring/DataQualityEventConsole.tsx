@@ -44,67 +44,8 @@ interface DataQualityEventConsoleProps {
   subtitle?: string;
 }
 
-const DEFAULT_EVENTS: DataQualityEvent[] = [
-  {
-    id: "EVT-2026-091",
-    eventType: "TELEMETRY_SILENCE",
-    severity: "CRITICAL",
-    status: "ACTIVE",
-    assetName: "Kano Solar Array Inverter 04",
-    assetId: "AST-SOL-004",
-    projectName: "Northern Nigeria Solar Mini-Grid",
-    description: "No heartbeat telemetry payload received for > 45 minutes during peak irradiance hours.",
-    timestamp: "2026-08-09T18:40:00Z",
-    trustScoreImpact: -15,
-    payloadSnippet: '{"inverter_id": "AST-SOL-004", "status": "OFFLINE", "last_ping": "18:40:00"}'
-  },
-  {
-    id: "EVT-2026-090",
-    eventType: "GPS_SPATIAL_OUTLIER",
-    severity: "WARNING",
-    status: "ACTIVE",
-    assetName: "Clean Stove Device CS-892",
-    assetId: "AST-STV-892",
-    projectName: "Kano Clean Cooking Expansion",
-    description: "Usage survey GPS coordinates deviate by 12.4 km from registered household boundary.",
-    timestamp: "2026-08-09T17:15:20Z",
-    trustScoreImpact: -8,
-    payloadSnippet: '{"lat": 12.0021, "lng": 8.5920, "expected_lat": 11.8921, "expected_lng": 8.5120}'
-  },
-  {
-    id: "EVT-2026-089",
-    eventType: "CALIBRATION_DRIFT",
-    severity: "WARNING",
-    status: "ACKNOWLEDGED",
-    assetName: "Lekki EV Fast Charger Station 02",
-    assetId: "AST-EV-002",
-    projectName: "Lagos Urban EV Corridor",
-    description: "Meter power factor variance of +4.2% exceeds ISO 14064-3 calibration threshold.",
-    timestamp: "2026-08-09T14:30:00Z",
-    trustScoreImpact: -5,
-    acknowledgedBy: "QA Officer Oluwaseun",
-    acknowledgedAt: "2026-08-09T15:10:00Z",
-    payloadSnippet: '{"power_factor": 0.992, "calibrated_baseline": 0.950, "variance": 0.042}'
-  },
-  {
-    id: "EVT-2026-088",
-    eventType: "DUPLICATE_PAYLOAD_PREVENTED",
-    severity: "INFO",
-    status: "RESOLVED",
-    assetName: "Biochar Kiln Temperature Sensor 01",
-    assetId: "AST-BIO-001",
-    projectName: "Oyo Sustainable Biochar Removal",
-    description: "Identical MQTT telemetry payload detected within 500ms; duplicate suppressed cleanly.",
-    timestamp: "2026-08-09T11:05:12Z",
-    trustScoreImpact: 0,
-    acknowledgedBy: "System Auditor Bot",
-    acknowledgedAt: "2026-08-09T11:05:15Z",
-    payloadSnippet: '{"hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}'
-  }
-];
-
 export function DataQualityEventConsole({
-  events: initialEvents = DEFAULT_EVENTS,
+  events: initialEvents = [],
   title = "Data Quality & Verification Event Stream",
   subtitle = "Real-time anomaly monitoring, automated trust score penalties, and audit trail resolution."
 }: DataQualityEventConsoleProps) {
@@ -124,7 +65,7 @@ export function DataQualityEventConsole({
       const realItems = res?.anomalies || (Array.isArray(res) ? res : []);
       if (realItems.length > 0) {
         const mapped: DataQualityEvent[] = realItems.map((item: any, idx: number) => ({
-          id: item.id || `EVT-2026-${idx + 100}`,
+          id: item.id || `EVT-${item.activity_id ? String(item.activity_id).substring(0, 8) : idx + 1}`,
           eventType: (item.flag_type || "DATA_QUALITY_ALERT").toUpperCase(),
           severity: (item.severity || "WARNING").toUpperCase() as EventSeverity,
           status: item.resolved ? "RESOLVED" : "ACTIVE",
@@ -139,9 +80,12 @@ export function DataQualityEventConsole({
           acknowledgedAt: item.resolved_at || undefined
         }));
         setEventList(mapped);
+      } else {
+        setEventList([]);
       }
     } catch (err) {
       console.error("Error loading backend anomalies:", err);
+      setEventList([]);
     } finally {
       setIsLoading(false);
     }

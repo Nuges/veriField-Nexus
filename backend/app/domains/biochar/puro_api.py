@@ -26,9 +26,11 @@ from app.domains.biochar.puro_models import (
     PuroAuditFinding,
     PuroAuditWorkflow,
     PuroBaselineAssessment,
+    PuroBiomassSourceDeclaration,
     PuroCalculationExecution,
     PuroCharStreamRecord,
     PuroCoProductAllocation,
+    PuroCounterfactualStorageAssessment,
     PuroCreditingPeriod,
     PuroCutoffDecision,
     PuroEndUseCategory,
@@ -47,6 +49,9 @@ from app.domains.biochar.puro_rules import (
     TABLE_3_2_CATEGORIES,
     NORMATIVE_DEPENDENCIES,
     METHODOLOGY_RULES_CATALOG,
+    OFFICIAL_PURO_BIOMASS_SOURCING_V1_3,
+    evaluate_biomass_sourcing_applicability,
+    resolve_puro_standard_configuration,
     seed_puro_biochar_normative_metadata,
 )
 from app.domains.biochar.puro_schemas import (
@@ -57,10 +62,15 @@ from app.domains.biochar.puro_schemas import (
     PuroAuthoritativeRequest,
     PuroBaselineAssessmentCreate,
     PuroBaselineAssessmentResponse,
+    PuroBatchSourcingComplianceResponse,
+    PuroBiomassSourceDeclarationCreate,
+    PuroBiomassSourceDeclarationResponse,
     PuroCharStreamRecordCreate,
     PuroCharStreamRecordResponse,
     PuroCoProductAllocationCreate,
     PuroCoProductAllocationResponse,
+    PuroCounterfactualAssessmentCreate,
+    PuroCounterfactualAssessmentResponse,
     PuroCreditingPeriodCreate,
     PuroCreditingPeriodResponse,
     PuroCutoffDecisionCreate,
@@ -83,6 +93,7 @@ from app.domains.biochar.puro_schemas import (
     PuroRegistryReadinessResponse,
     PuroRuleDefinitionSchema,
     PuroSimulationRequest,
+    PuroStandardConfigResponse,
     PuroSupplierProfileCreate,
     PuroSupplierProfileResponse,
 )
@@ -94,6 +105,10 @@ from app.domains.biochar.services.puro_compliance import (
 from app.domains.biochar.services.puro_quantification import (
     PuroAuthoritativeQuantificationService,
     PuroCORCCalculator,
+)
+from app.domains.biochar.services.puro_sourcing import (
+    PuroBiomassSourcingEngine,
+    PuroCounterfactualService,
 )
 from app.domains.projects.models import Project
 
@@ -1145,4 +1160,216 @@ async def get_project_readiness(
         db=db,
         project_id=project_id,
         facility_id=facility_id,
+    )
+
+
+# ---------------------------------------------------------------------------
+# 11. Puro 2026 Standards Closure & Sourcing Criteria v1.3
+# ---------------------------------------------------------------------------
+
+@router.get("/standard-config", response_model=PuroStandardConfigResponse)
+async def get_puro_standard_config(
+    methodology_code: str = Query("PURO_BIOCHAR_2025_V2"),
+    general_rules_version: Optional[str] = Query(None),
+    sourcing_criteria_version: Optional[str] = Query(None),
+    crediting_period_start_date: Optional[date] = Query(None),
+    is_renewal: bool = Query(False),
+    voluntary_early_adoption: bool = Query(False),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Resolves official Puro standard configuration, normative versions, and transition applicability."""
+    await seed_puro_biochar_normative_metadata(db)
+    config = resolve_puro_standard_configuration(
+        methodology_code=methodology_code,
+        general_rules_version=general_rules_version,
+        sourcing_criteria_version=sourcing_criteria_version,
+        crediting_period_start_date=crediting_period_start_date,
+        is_renewal=is_renewal,
+        voluntary_early_adoption=voluntary_early_adoption,
+    )
+    return PuroStandardConfigResponse(
+        methodology_code=config.get("methodology_code", methodology_code),
+        methodology_edition=config.get("methodology_edition", "Edition 2025 v2"),
+        general_rules_version=config.get("general_rules_version", "4.3"),
+        sourcing_criteria_version=config.get("sourcing_criteria_version", "1.3"),
+        is_valid=config.get("is_valid", False),
+        status=config.get("status", "FAIL_CLOSED"),
+        reason_code=config.get("reason_code", "UNKNOWN"),
+        applicability=config.get("applicability", {}),
+        notes=config.get("notes"),
+    )
+
+
+@router.post("/facilities/{facility_id}/sourcing-declarations", response_model=PuroBiomassSourceDeclarationResponse, status_code=status.HTTP_201_CREATED)
+async def create_sourcing_declaration(
+    facility_id: UUID,
+    data: PuroBiomassSourceDeclarationCreate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Registers a Biomass Sourcing Declaration under Puro Biomass Sourcing Criteria v1.3."""
+    stmt_fac = select(ProductionFacility).where(ProductionFacility.id == facility_id)
+    res_fac = await db.execute(stmt_fac)
+    fac = res_fac.scalar_one_or_none()
+    if not fac:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Production facility not found.")
+    _check_org_access(current_user, fac.organization_id)
+
+    stmt_src = select(FeedstockSource).where(
+        FeedstockSource.id == data.feedstock_source_id,
+        FeedstockSource.organization_id == fac.organization_id,
+    )
+    res_src = await db.execute(stmt_src)
+    src = res_src.scalar_one_or_none()
+    if not src:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Feedstock source not found in organization.")
+
+    # Check existing declaration with same code
+    stmt_ex = select(PuroBiomassSourceDeclaration).where(
+        PuroBiomassSourceDeclaration.source_declaration_code == data.source_declaration_code
+    )
+    res_ex = await db.execute(stmt_ex)
+    if res_ex.scalar_one_or_none():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Declaration code {data.source_declaration_code} already exists.")
+
+    decl = PuroBiomassSourceDeclaration(
+        organization_id=fac.organization_id,
+        feedstock_source_id=data.feedstock_source_id,
+        source_declaration_code=data.source_declaration_code,
+        declared_validity_start=data.declared_validity_start,
+        declared_validity_end=data.declared_validity_end,
+        puro_category_ref=data.puro_category_ref,
+        risk_classification=data.risk_classification,
+        sustainability_certification_scheme=data.sustainability_certification_scheme,
+        sustainability_certificate_ref=data.sustainability_certificate_ref,
+        is_active=data.is_active,
+        metadata_json=data.metadata_json,
+    )
+    db.add(decl)
+    await db.commit()
+    await db.refresh(decl)
+    return decl
+
+
+@router.post("/batches/{batch_id}/counterfactual", response_model=PuroCounterfactualAssessmentResponse, status_code=status.HTTP_201_CREATED)
+async def create_counterfactual_assessment(
+    batch_id: UUID,
+    data: PuroCounterfactualAssessmentCreate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Records a Biomass Counterfactual Storage Assessment (Puro Biomass Sourcing Criteria v1.3 Section 3)."""
+    stmt_b = select(BiocharBatch).where(BiocharBatch.id == batch_id)
+    res_b = await db.execute(stmt_b)
+    batch = res_b.scalar_one_or_none()
+    if not batch:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Biochar batch not found.")
+    _check_org_access(current_user, batch.organization_id)
+
+    # Resolve facility_id
+    facility_id = getattr(batch, "facility_id", None)
+    if not facility_id and batch.production_run_id:
+        stmt_run = select(ProductionRun).where(ProductionRun.id == batch.production_run_id)
+        res_run = await db.execute(stmt_run)
+        run = res_run.scalar_one_or_none()
+        if run:
+            facility_id = run.facility_id
+    if not facility_id:
+        stmt_f = select(ProductionFacility.id).where(ProductionFacility.project_id == batch.project_id).limit(1)
+        res_f = await db.execute(stmt_f)
+        facility_id = res_f.scalar_one_or_none()
+    if not facility_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Batch cannot be mapped to an authorized facility.")
+
+    # Evaluate assessment compliance state
+    temp_assessment = PuroCounterfactualStorageAssessment(
+        counterfactual_path=data.counterfactual_path,
+        baseline_fate=data.baseline_fate,
+        evidence_status=data.evidence_status,
+        counterfactual_carbon_stored_tco2e=data.counterfactual_carbon_stored_tco2e,
+    )
+    eval_res = PuroCounterfactualService.evaluate_counterfactual(temp_assessment)
+
+    assessment = PuroCounterfactualStorageAssessment(
+        organization_id=batch.organization_id,
+        project_id=batch.project_id,
+        facility_id=facility_id,
+        batch_id=batch_id,
+        criteria_version=data.criteria_version,
+        counterfactual_path=data.counterfactual_path,
+        baseline_fate=data.baseline_fate,
+        evidence_status=data.evidence_status,
+        evidence_reference=data.evidence_reference,
+        evidence_hash=data.evidence_hash,
+        counterfactual_carbon_stored_tco2e=data.counterfactual_carbon_stored_tco2e,
+        assessment_status="COMPLIANT" if eval_res["is_compliant"] else "NON_COMPLIANT",
+        reason_code=eval_res.get("reason_code"),
+        notes=data.notes or eval_res.get("notes"),
+        evaluated_at=datetime.now(timezone.utc),
+    )
+    db.add(assessment)
+    await db.commit()
+    await db.refresh(assessment)
+    return assessment
+
+
+@router.get("/batches/{batch_id}/sourcing-compliance", response_model=PuroBatchSourcingComplianceResponse)
+async def get_batch_sourcing_compliance(
+    batch_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Audits and returns complete Biomass Sourcing Criteria v1.3 and Counterfactual Storage compliance for a batch."""
+    stmt_b = select(BiocharBatch).where(BiocharBatch.id == batch_id)
+    res_b = await db.execute(stmt_b)
+    batch = res_b.scalar_one_or_none()
+    if not batch:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Biochar batch not found.")
+    _check_org_access(current_user, batch.organization_id)
+
+    sourcing_res = await PuroBiomassSourcingEngine.evaluate_batch_sourcing_compliance(
+        db=db,
+        batch=batch,
+        organization_id=batch.organization_id,
+    )
+
+    cf_assessment = await PuroCounterfactualService.get_assessment_for_batch(
+        db=db,
+        batch_id=batch_id,
+        organization_id=batch.organization_id,
+    )
+    cf_eval = PuroCounterfactualService.evaluate_counterfactual(cf_assessment)
+
+    all_blockers = list(sourcing_res.get("blockers", []))
+    if not cf_eval["is_compliant"]:
+        all_blockers.append(f"Counterfactual: {cf_eval.get('notes')}")
+
+    overall_compliant = sourcing_res["is_compliant"] and cf_eval["is_compliant"]
+    state = "COMPLIANT" if overall_compliant else ("INCOMPLETE" if not cf_assessment else "FAILED")
+
+    cf_dict = None
+    if cf_assessment:
+        cf_dict = {
+            "id": str(cf_assessment.id),
+            "counterfactual_path": cf_assessment.counterfactual_path,
+            "baseline_fate": cf_assessment.baseline_fate,
+            "evidence_status": cf_assessment.evidence_status,
+            "counterfactual_carbon_stored_tco2e": float(cf_assessment.counterfactual_carbon_stored_tco2e or 0.0),
+            "is_compliant": cf_eval["is_compliant"],
+            "reason_code": cf_eval.get("reason_code"),
+        }
+
+    return PuroBatchSourcingComplianceResponse(
+        batch_id=batch.id,
+        batch_number=batch.batch_number,
+        is_compliant=overall_compliant,
+        compliance_state=state,
+        criteria_version=OFFICIAL_PURO_BIOMASS_SOURCING_V1_3,
+        feedstock_sources=sourcing_res.get("feedstock_sources", []),
+        sourcing_evaluation=sourcing_res.get("sourcing_evaluation", {}),
+        counterfactual_assessment=cf_dict,
+        deductible_counterfactual_tco2e=cf_eval.get("deductible_counterfactual_tco2e", Decimal("0.0")),
+        blockers=all_blockers,
+        evaluated_at=datetime.now(timezone.utc),
     )

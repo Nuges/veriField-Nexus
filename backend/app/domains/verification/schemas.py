@@ -26,6 +26,33 @@ class VerificationTaskResponse(VerificationTaskBase):
     model_config = ConfigDict(from_attributes=True)
 
 
+class VerificationTaskListItem(BaseModel):
+    id: UUID
+    status: str
+    deadline: Optional[datetime] = None
+    property_name: Optional[str] = "Registered Carbon Asset"
+    property_address: Optional[str] = "Federal Capital Territory, Nigeria"
+    property_type: Optional[str] = "Clean Energy"
+    agent_name: Optional[str] = "Field Auditor"
+    assigned_agent: Optional[str] = None
+    verifier_id: Optional[UUID] = None
+    project_id: Optional[UUID] = None
+    asset_id: Optional[UUID] = None
+    findings: Dict[str, Any] = {}
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class VerificationTaskListResponse(BaseModel):
+    tasks: List[VerificationTaskListItem] = []
+    audits: List[VerificationTaskListItem] = []  # backward compatibility alias
+    total: int = 0
+    page: int = 1
+    per_page: int = 50
+
+
 class AuditReportBase(BaseModel):
     project_id: UUID
     vvb_org_id: UUID

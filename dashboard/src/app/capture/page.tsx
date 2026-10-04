@@ -21,13 +21,15 @@ import {
   Zap,
   Wifi,
   WifiOff,
+  TestTube,
 } from "lucide-react";
 import { useToast } from "@/components/Toast";
-import { createActivity, uploadProof, fetchProjects } from "@/lib/api";
+import { createActivity, uploadProof, fetchProjects, recordSampleCollection } from "@/lib/api";
 import type { Activity, Project } from "@/lib/types";
 
 const SECTORS = [
   { id: "cookstoves", name: "Clean Cooking (AMS-II.G / TPDDTEC)", icon: Flame, unit: "Daily Cooking Hours" },
+  { id: "agriculture_soil", name: "Agriculture MRV Soil Sample (VM0042)", icon: TestTube, unit: "Core Depth (cm)" },
   { id: "ev_mobility", name: "Electric Mobility (AMS-III.C)", icon: Zap, unit: "Kilometers / kWh Charged" },
   { id: "biochar", name: "Biochar Carbon Removal (C-Sink)", icon: Leaf, unit: "Kilograms Biochar Produced" },
   { id: "hybrid_energy", name: "Solar Mini-Grid (AMS-I.F)", icon: Globe, unit: "Total kWh Delivered" },
@@ -40,6 +42,9 @@ export default function GenericCapturePage() {
   const [selectedSector, setSelectedSector] = useState("cookstoves");
   const [assetId, setAssetId] = useState("");
   const [metricValue, setMetricValue] = useState("");
+  const [collectorName, setCollectorName] = useState("Field Agent");
+  const [sampleCondition, setSampleCondition] = useState("GOOD");
+  const [deviationReason, setDeviationReason] = useState("");
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
   const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
@@ -143,7 +148,11 @@ export default function GenericCapturePage() {
     const successfullySynced: string[] = [];
     for (const item of offlineQueue) {
       try {
-        await createActivity(item);
+        if (item.sector === "agriculture_soil") {
+          await recordSampleCollection(item.project_id, item.sample_id, item.collection_payload);
+        } else {
+          await createActivity(item);
+        }
         successfullySynced.push(item.client_id);
       } catch (err: any) {
         console.warn("Failed syncing offline record:", item.client_id, err);
@@ -165,15 +174,76 @@ export default function GenericCapturePage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!assetId.trim()) {
-      toast.error("Validation Error", "Please provide a valid Asset ID or Serial Number.");
+      toast.error("Validation Error", "Please provide a valid Asset ID, Serial Number, or Sample Code.");
       return;
     }
     if (!metricValue.trim()) {
-      toast.error("Validation Error", "Please enter the observed metric quantity.");
+      toast.error("Validation Error", "Please enter the observed metric quantity or target depth.");
       return;
     }
 
     setSubmitting(true);
+
+    const clientId = (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : `pwa-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    const capturedAt = new Date().toISOString();
+
+    if (selectedSector === "agriculture_soil" && selectedProjectId && assetId.trim()) {
+      const soilPayload = {
+        client_id: clientId,
+        sector: "agriculture_soil",
+        project_id: selectedProjectId,
+        sample_id: assetId.trim(),
+        captured_at: capturedAt,
+        collection_payload: {
+          actual_lat: latitude || 28.505,
+          actual_lon: longitude || 77.105,
+          deviation_reason: deviationReason.trim() || undefined,
+          collection_timestamp: capturedAt,
+          collector_name: collectorName.trim() || "Field Agent",
+          actual_depth_from_cm: 0,
+          actual_depth_to_cm: parseFloat(metricValue) || 30,
+          sample_condition: sampleCondition,
+          notes: notes.trim() || undefined,
+          idempotency_key: clientId,
+        },
+      };
+
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        const updatedQueue = [...offlineQueue, soilPayload];
+        setOfflineQueue(updatedQueue);
+        if (typeof window !== "undefined") {
+          localStorage.setItem("verifield_pwa_offline_queue", JSON.stringify(updatedQueue));
+        }
+        toast.success("Saved to Offline Queue", "Network is offline. Soil sample collection queued locally in browser storage.");
+        setSubmittedActivity({
+          id: clientId,
+          activity_type: "soil_sample_collection",
+          status: "QUEUED_OFFLINE",
+          trust_score: 90,
+          created_at: capturedAt,
+        } as any);
+        setSubmitting(false);
+        return;
+      }
+
+      try {
+        const colRes = await recordSampleCollection(selectedProjectId, assetId.trim(), soilPayload.collection_payload);
+        toast.success("Soil Sample Collected", `Collection recorded for sample with deviation ${colRes.deviation_distance_m}m.`);
+        setSubmittedActivity({
+          id: colRes.id,
+          activity_type: "soil_sample_collection",
+          status: "VERIFIED",
+          trust_score: 95,
+          created_at: colRes.collection_timestamp,
+        } as any);
+        setSubmitting(false);
+        return;
+      } catch (colErr: any) {
+        toast.error("Collection Failed", colErr.message || "Failed recording ground collection.");
+        setSubmitting(false);
+        return;
+      }
+    }
     let proofUrl = "/static/proofs/sample_field_capture.jpg";
     if (imageFile) {
       try {
@@ -185,8 +255,6 @@ export default function GenericCapturePage() {
         console.warn("Direct proof upload fallback:", uploadErr);
       }
     }
-
-    const clientId = (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : `pwa-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
     const payload = {
       client_id: clientId,
@@ -422,13 +490,21 @@ export default function GenericCapturePage() {
 
             {/* Asset Identifier */}
             <div>
-              <label className="text-xs font-semibold text-zinc-300 mb-1.5 block">Asset ID / Serial / Device Tag</label>
+              <label className="text-xs font-semibold text-zinc-300 mb-1.5 block">
+                {selectedSector === "agriculture_soil"
+                  ? "Physical Sample ID or Code (e.g. UUID or AG-SAMPLE-...)"
+                  : "Asset ID / Serial / Device Tag"}
+              </label>
               <input
                 type="text"
                 required
                 value={assetId}
                 onChange={(e) => setAssetId(e.target.value)}
-                placeholder="e.g. STOVE-9042, EV-FLEET-08, PYRO-B3"
+                placeholder={
+                  selectedSector === "agriculture_soil"
+                    ? "e.g. AG-CAMP-01-P1 or Sample UUID"
+                    : "e.g. STOVE-9042, EV-FLEET-08, PYRO-B3"
+                }
                 className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-white text-sm focus:border-emerald-500 focus:outline-none"
               />
             </div>
@@ -436,7 +512,9 @@ export default function GenericCapturePage() {
             {/* Metric Input */}
             <div>
               <label className="text-xs font-semibold text-zinc-300 mb-1.5 block">
-                Observed Quantity ({SECTORS.find((s) => s.id === selectedSector)?.unit})
+                {selectedSector === "agriculture_soil"
+                  ? "Target Core Depth (cm)"
+                  : `Observed Quantity (${SECTORS.find((s) => s.id === selectedSector)?.unit})`}
               </label>
               <input
                 type="number"
@@ -444,10 +522,53 @@ export default function GenericCapturePage() {
                 required
                 value={metricValue}
                 onChange={(e) => setMetricValue(e.target.value)}
-                placeholder="e.g. 4.5"
+                placeholder={selectedSector === "agriculture_soil" ? "30" : "e.g. 4.5"}
                 className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-white text-sm focus:border-emerald-500 focus:outline-none"
               />
             </div>
+
+            {/* Agriculture Soil Additional Fields */}
+            {selectedSector === "agriculture_soil" && (
+              <div className="p-3.5 rounded-xl bg-zinc-900 border border-zinc-800 space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-xs font-semibold text-zinc-300 mb-1 block">Collector Name</label>
+                    <input
+                      type="text"
+                      value={collectorName}
+                      onChange={(e) => setCollectorName(e.target.value)}
+                      placeholder="e.g. Field Officer"
+                      className="w-full px-2.5 py-1.5 rounded-lg bg-zinc-950 border border-zinc-800 text-white text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-zinc-300 mb-1 block">Sample Condition</label>
+                    <select
+                      value={sampleCondition}
+                      onChange={(e) => setSampleCondition(e.target.value)}
+                      className="w-full px-2.5 py-1.5 rounded-lg bg-zinc-950 border border-zinc-800 text-white text-xs"
+                    >
+                      <option value="GOOD">GOOD (Moist / Intact)</option>
+                      <option value="ACCEPTABLE">ACCEPTABLE</option>
+                      <option value="DEGRADED">DEGRADED</option>
+                      <option value="COMPACTED">COMPACTED</option>
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-zinc-300 mb-1 block">
+                    Deviation Reason (Mandatory if &gt; 50m from planned point)
+                  </label>
+                  <input
+                    type="text"
+                    value={deviationReason}
+                    onChange={(e) => setDeviationReason(e.target.value)}
+                    placeholder="e.g. Rock outcrop at planned point, relocated 12m south"
+                    className="w-full px-2.5 py-1.5 rounded-lg bg-zinc-950 border border-zinc-800 text-white text-xs"
+                  />
+                </div>
+              </div>
+            )}
 
             {/* GPS Location Component */}
             <div className="p-3.5 rounded-xl bg-zinc-900 border border-zinc-800 space-y-2">

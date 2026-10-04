@@ -247,8 +247,11 @@ class ProjectService:
             project.crediting_end = payload.crediting_end
 
         if payload.baseline_parameters is not None:
-
-            project.baseline_parameters = payload.baseline_parameters
+            existing_locked = (project.baseline_parameters or {}).get("locked_methodology_version")
+            new_params = dict(payload.baseline_parameters)
+            if existing_locked and existing_locked.get("status") == "LOCKED":
+                new_params["locked_methodology_version"] = existing_locked
+            project.baseline_parameters = new_params
 
 
 
