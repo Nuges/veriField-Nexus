@@ -7,7 +7,6 @@ import {
   getCanonicalMethodologiesForSector,
   isMethodologyCompatibleWithSector,
   normalizeToCanonicalSectorCode,
-  CANONICAL_SECTOR_METHODOLOGIES,
   DISALLOWED_PRIMARY_METHODOLOGY_CODES,
   UNCONFIGURED_METHODOLOGY_CODES,
   CanonicalSectorCode,
@@ -68,21 +67,34 @@ test("Onboarding Methodology Scoping: isMethodologyCompatibleWithSector validati
 
   // Biochar tests
   assert.equal(isMethodologyCompatibleWithSector("BIOCHAR", "VM0044"), true);
-  assert.equal(isMethodologyCompatibleWithSector("BIOCHAR", "BIOCHAR_C_SINK"), true);
   assert.equal(isMethodologyCompatibleWithSector("BIOCHAR", "PURO_BIOCHAR_2025"), true);
+  assert.equal(isMethodologyCompatibleWithSector("BIOCHAR", "BIOCHAR_C_SINK"), false);
+  assert.equal(isMethodologyCompatibleWithSector("BIOCHAR", "EBC_BIOCHAR"), false);
+  assert.equal(isMethodologyCompatibleWithSector("BIOCHAR", "GS_BIOCHAR"), false);
   assert.equal(isMethodologyCompatibleWithSector("BIOCHAR", "VM0042"), false);
   assert.equal(isMethodologyCompatibleWithSector("BIOCHAR", "AMS_I_F"), false);
 
   // Hybrid Energy tests
   assert.equal(isMethodologyCompatibleWithSector("HYBRID_ENERGY", "AMS_I_F"), true);
+  assert.equal(isMethodologyCompatibleWithSector("HYBRID_ENERGY", "ACM0002"), false);
+  assert.equal(isMethodologyCompatibleWithSector("HYBRID_ENERGY", "CI_GRID_DISPLACEMENT"), false);
+  assert.equal(isMethodologyCompatibleWithSector("HYBRID_ENERGY", "ENERGY_DISPLACEMENT"), false);
+  assert.equal(isMethodologyCompatibleWithSector("HYBRID_ENERGY", "MINIGRID_DIESEL_DISPLACEMENT"), false);
+  assert.equal(isMethodologyCompatibleWithSector("HYBRID_ENERGY", "SHS_RENEWABLE_DISPLACEMENT"), false);
   assert.equal(isMethodologyCompatibleWithSector("HYBRID_ENERGY", "VM0042"), false);
 
   // EV Mobility tests
-  assert.equal(isMethodologyCompatibleWithSector("EV_MOBILITY", "EV_DISPLACEMENT"), true);
+  assert.equal(isMethodologyCompatibleWithSector("EV_MOBILITY", "AMS_III_C"), true);
+  assert.equal(isMethodologyCompatibleWithSector("EV_MOBILITY", "EV_DISPLACEMENT"), false);
+  assert.equal(isMethodologyCompatibleWithSector("EV_MOBILITY", "VM0038"), false);
   assert.equal(isMethodologyCompatibleWithSector("EV_MOBILITY", "VM0042"), false);
 
   // Cookstoves tests
   assert.equal(isMethodologyCompatibleWithSector("COOKSTOVES", "AMS_II_G"), true);
+  assert.equal(isMethodologyCompatibleWithSector("COOKSTOVES", "VM0006"), false);
+  assert.equal(isMethodologyCompatibleWithSector("COOKSTOVES", "VMR0050"), false);
+  assert.equal(isMethodologyCompatibleWithSector("COOKSTOVES", "GS_TPDDTEC"), false);
+  assert.equal(isMethodologyCompatibleWithSector("COOKSTOVES", "GS_MECD"), false);
   assert.equal(isMethodologyCompatibleWithSector("COOKSTOVES", "VM0042"), false);
 });
 

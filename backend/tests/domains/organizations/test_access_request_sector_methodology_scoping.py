@@ -32,7 +32,7 @@ async def test_list_methodologies_scoped_to_agriculture(async_client: AsyncClien
 
 @pytest.mark.asyncio
 async def test_list_methodologies_scoped_to_biochar(async_client: AsyncClient):
-    """Verifies GET /api/v1/methodologies?sector=BIOCHAR returns only Biochar methodologies."""
+    """Verifies GET /api/v1/methodologies?sector=BIOCHAR returns only proven Biochar methodologies."""
     response = await async_client.get("/api/v1/methodologies?sector=BIOCHAR")
     assert response.status_code == 200
     data = response.json()
@@ -42,7 +42,42 @@ async def test_list_methodologies_scoped_to_biochar(async_client: AsyncClient):
     codes = [m["code"] for m in data]
     assert "VM0042" not in codes
     assert "AMS_I_F" not in codes
-    assert any(c in codes for c in ["VM0044", "BIOCHAR_C_SINK", "PURO_BIOCHAR_2025"])
+    assert "VM0044" in codes
+    assert "PURO_BIOCHAR_2025" in codes
+    # Unconfigured / reference-only codes must be absent
+    assert "BIOCHAR_C_SINK" not in codes
+    assert "EBC_BIOCHAR" not in codes
+    assert "GS_BIOCHAR" not in codes
+
+
+@pytest.mark.asyncio
+async def test_list_methodologies_scoped_to_other_sectors(async_client: AsyncClient):
+    """Verifies each other sector returns only its proven production methodologies."""
+    # Cookstoves
+    cs_resp = await async_client.get("/api/v1/methodologies?sector=COOKSTOVES")
+    assert cs_resp.status_code == 200
+    cs_codes = [m["code"] for m in cs_resp.json()]
+    assert "AMS_II_G" in cs_codes
+    assert "VM0006" not in cs_codes
+    assert "VMR0050" not in cs_codes
+    assert "GS_TPDDTEC" not in cs_codes
+    assert "GS_MECD" not in cs_codes
+
+    # Hybrid Energy
+    he_resp = await async_client.get("/api/v1/methodologies?sector=HYBRID_ENERGY")
+    assert he_resp.status_code == 200
+    he_codes = [m["code"] for m in he_resp.json()]
+    assert "AMS_I_F" in he_codes
+    assert "ACM0002" not in he_codes
+    assert "CI_GRID_DISPLACEMENT" not in he_codes
+
+    # EV Mobility
+    ev_resp = await async_client.get("/api/v1/methodologies?sector=EV_MOBILITY")
+    assert ev_resp.status_code == 200
+    ev_codes = [m["code"] for m in ev_resp.json()]
+    assert "AMS_III_C" in ev_codes
+    assert "EV_DISPLACEMENT" not in ev_codes
+    assert "VM0038" not in ev_codes
 
 
 @pytest.mark.asyncio

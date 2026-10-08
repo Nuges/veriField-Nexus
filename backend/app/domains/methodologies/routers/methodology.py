@@ -157,11 +157,17 @@ async def list_methodologies(
             for m in get_production_methodologies_for_sector(canonical_sector)
         ]
 
-    # No sector filter provided: return all active primary methodologies from DB
+    # No sector filter provided: return all active production methodologies across canonical sectors
+    all_production_codes = {
+        code
+        for sector in CanonicalSector
+        for code in get_canonical_methodology_codes_for_sector(sector)
+    }
     all_db = await service.list_methodologies(family_id=None, is_active=is_active)
     result_list = [
         m for m in all_db
-        if m.code.upper() not in DISALLOWED_PRIMARY_METHODOLOGY_CODES
+        if m.code.upper() in all_production_codes
+        and m.code.upper() not in DISALLOWED_PRIMARY_METHODOLOGY_CODES
         and m.code.upper() not in UNCONFIGURED_METHODOLOGY_CODES
     ]
     codes_present = {m.code.upper() for m in result_list}
