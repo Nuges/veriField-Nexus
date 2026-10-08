@@ -1004,27 +1004,33 @@ export function RolePermissionConsole({
                     key: "actions",
                     label: "Actions",
                     render: (row: UserItem) => (
-                      <div className="flex items-center gap-1.5 justify-end">
+                      <div className="flex items-center gap-2 justify-end">
                         <button
+                          type="button"
                           onClick={() => handleOpenEditUser(row)}
-                          className="px-2.5 py-1 rounded bg-blue-50 hover:bg-blue-600 hover:text-white text-blue-700 border border-blue-300 text-[11px] font-bold flex items-center gap-1 transition-colors cursor-pointer shadow-xs"
+                          aria-label={`Edit role for ${row.full_name}`}
+                          className="bg-transparent text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline hover:text-blue-700 dark:hover:text-blue-300 flex items-center gap-1 transition-colors cursor-pointer px-1.5 py-1 focus-visible:ring-2 focus-visible:ring-blue-500 rounded-xs outline-none"
                           title="Edit User Role & Organization"
                         >
                           <Edit3 size={12} /> Edit Role
                         </button>
                         <button
+                          type="button"
                           onClick={() => handleResetPassword(row)}
-                          className="p-1.5 rounded bg-[var(--color-surface)] hover:bg-[var(--color-surface-subtle)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] border border-[var(--color-border)] text-xs transition-colors cursor-pointer shadow-xs"
+                          aria-label={`Reset password for ${row.full_name}`}
+                          className="bg-transparent p-1 text-[var(--color-text-muted)] hover:text-amber-600 dark:hover:text-amber-400 transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-amber-500 rounded-xs outline-none"
                           title="Reset User Password"
                         >
                           <Key size={12} />
                         </button>
                         <button
+                          type="button"
                           onClick={() => handleSuspendToggle(row)}
-                          className={`p-1.5 rounded text-xs transition-colors border font-bold cursor-pointer shadow-xs ${
+                          aria-label={`${row.status === "suspended" ? "Reactivate" : "Suspend"} account for ${row.full_name}`}
+                          className={`bg-transparent p-1 transition-colors cursor-pointer focus-visible:ring-2 rounded-xs outline-none ${
                             row.status === "suspended"
-                              ? "bg-emerald-50 hover:bg-emerald-600 hover:text-white text-emerald-800 border-emerald-300"
-                              : "bg-red-50 hover:bg-red-600 hover:text-white text-red-700 border-red-300"
+                              ? "text-[var(--color-text-muted)] hover:text-emerald-600 dark:hover:text-emerald-400 focus-visible:ring-emerald-500"
+                              : "text-[var(--color-text-muted)] hover:text-red-600 dark:hover:text-red-400 focus-visible:ring-red-500"
                           }`}
                           title={row.status === "suspended" ? "Reactivate Account" : "Suspend Account"}
                         >
@@ -1507,38 +1513,46 @@ export function RolePermissionConsole({
                     key: "actions",
                     label: "Actions",
                     render: (row: UserItem) => (
-                      <div className="flex items-center gap-1.5 justify-end">
+                      <div className="flex items-center gap-2 justify-end">
                         <button
+                          type="button"
                           onClick={() => setInspectingUser(row)}
-                          className="px-2.5 py-1 rounded bg-[var(--color-surface)] hover:bg-[var(--color-surface-subtle)] text-[var(--color-text-primary)] border border-[var(--color-border)] text-[11px] font-bold flex items-center gap-1 transition-colors cursor-pointer shadow-xs"
+                          aria-label={`Inspect account hierarchy for ${row.full_name}`}
+                          className="bg-transparent text-xs font-semibold text-[var(--color-text-secondary)] hover:underline hover:text-[var(--color-text-primary)] flex items-center gap-1 transition-colors cursor-pointer px-1.5 py-1 focus-visible:ring-2 focus-visible:ring-[#008A5E] rounded-xs outline-none"
                           title="Inspect Account Hierarchy & Traceability"
                         >
                           <Info size={12} className="text-[#008A5E]" /> Inspect
                         </button>
                         <button
+                          type="button"
                           onClick={() => handleOpenEditUser(row)}
-                          className="px-2.5 py-1 rounded bg-blue-50 hover:bg-blue-600 hover:text-white text-blue-700 border border-blue-300 text-[11px] font-bold flex items-center gap-1 transition-colors cursor-pointer shadow-xs"
+                          aria-label={`Edit role for ${row.full_name}`}
+                          className="bg-transparent text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline hover:text-blue-700 dark:hover:text-blue-300 flex items-center gap-1 transition-colors cursor-pointer px-1.5 py-1 focus-visible:ring-2 focus-visible:ring-blue-500 rounded-xs outline-none"
                         >
                           <Edit3 size={12} /> Edit Role
                         </button>
                         {isSuperAdmin && (
                           <button
+                            type="button"
                             onClick={() => {
                               setCustomResetUser(row);
                               setCustomNewPassword("");
                             }}
-                            className="px-2.5 py-1 rounded bg-purple-50 hover:bg-purple-600 hover:text-white text-purple-700 border border-purple-300 text-[11px] font-bold flex items-center gap-1 transition-colors cursor-pointer shadow-xs"
+                            aria-label={`Reset password for ${row.full_name}`}
+                            className="bg-transparent text-xs font-semibold text-purple-600 dark:text-purple-400 hover:underline hover:text-purple-700 dark:hover:text-purple-300 flex items-center gap-1 transition-colors cursor-pointer px-1.5 py-1 focus-visible:ring-2 focus-visible:ring-purple-500 rounded-xs outline-none"
                             title="Super Admin Secure Password Reset"
                           >
                             <Key size={12} /> Reset Password
                           </button>
                         )}
                         <button
+                          type="button"
                           onClick={() => handleSuspendToggle(row)}
-                          className={`px-2.5 py-1 rounded text-[11px] font-bold border transition-colors cursor-pointer shadow-xs ${
+                          aria-label={`${row.status === "suspended" ? "Reactivate" : "Suspend"} account for ${row.full_name}`}
+                          className={`bg-transparent text-xs font-semibold hover:underline transition-colors cursor-pointer px-1.5 py-1 focus-visible:ring-2 rounded-xs outline-none ${
                             row.status === "suspended"
-                              ? "bg-emerald-50 hover:bg-emerald-600 hover:text-white text-emerald-800 border-emerald-300"
-                              : "bg-amber-50 hover:bg-amber-600 hover:text-white text-amber-800 border-amber-300"
+                              ? "text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 focus-visible:ring-emerald-500"
+                              : "text-amber-600 dark:text-amber-400 hover:text-amber-700 focus-visible:ring-amber-500"
                           }`}
                         >
                           {row.status === "suspended" ? "Reactivate" : "Suspend"}

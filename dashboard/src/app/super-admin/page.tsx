@@ -978,31 +978,38 @@ function SuperAdminDashboard() {
                             </span>
                           </td>
                           <td className="py-3.5 px-4 text-right">
-                            <div className="flex justify-end gap-2 items-center whitespace-nowrap">
+                            <div className="flex justify-end gap-3 items-center whitespace-nowrap">
                               {req.status === "PENDING" ? (
                                 <>
                                   <button
+                                    type="button"
                                     onClick={() => handleReject(req.id)}
                                     disabled={processingId !== null}
-                                    className="px-2.5 py-1 text-xs font-medium rounded-md border border-red-200 dark:border-red-900/60 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors cursor-pointer"
+                                    aria-label={`Reject access request for ${req.full_name}`}
+                                    className="bg-transparent text-xs font-medium text-red-600 dark:text-red-400 hover:underline hover:text-red-700 dark:hover:text-red-300 transition-colors cursor-pointer disabled:opacity-50 px-1.5 py-1 focus-visible:ring-2 focus-visible:ring-red-500 rounded-xs outline-none"
                                     title="Reject Lead"
                                   >
                                     Reject
                                   </button>
                                   <button
+                                    type="button"
                                     onClick={() => handleApprove(req.id)}
                                     disabled={processingId !== null}
-                                    className="px-3 py-1 bg-[#008A5E] hover:bg-[#00734E] text-white text-xs font-medium rounded-md transition-colors shadow-xs cursor-pointer flex items-center gap-1.5"
+                                    aria-label={`Approve access request for ${req.full_name}`}
+                                    className="bg-transparent text-xs font-semibold text-[#008A5E] dark:text-emerald-400 hover:underline hover:text-[#00734E] dark:hover:text-emerald-300 transition-colors cursor-pointer disabled:opacity-50 px-1.5 py-1 focus-visible:ring-2 focus-visible:ring-[#008A5E] rounded-xs outline-none inline-flex items-center gap-1.5"
+                                    title="Approve Lead"
                                   >
-                                    {processingId === req.id && <Loader2 size={12} className="animate-spin" />}
+                                    {processingId === req.id && <Loader2 size={12} className="animate-spin text-[#008A5E]" />}
                                     <span>Approve</span>
                                   </button>
                                 </>
                               ) : (
                                 <button
+                                  type="button"
                                   onClick={() => handleDeleteAccessRequest(req.id)}
                                   disabled={processingId !== null}
-                                  className="p-1.5 rounded-md border border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-red-600 hover:border-red-300 dark:hover:border-red-800 transition-colors cursor-pointer"
+                                  aria-label={`Delete access request for ${req.full_name}`}
+                                  className="bg-transparent p-1 text-[var(--color-text-muted)] hover:text-red-600 dark:hover:text-red-400 transition-colors cursor-pointer disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-red-500 rounded-xs outline-none inline-flex items-center justify-center"
                                   title="Delete Lead Record"
                                 >
                                   <Trash2 size={14} />
@@ -1040,22 +1047,26 @@ function SuperAdminDashboard() {
                         </span>
                         <div className="flex items-center gap-1.5">
                           <button
+                            type="button"
                             onClick={(e) => {
                               e.stopPropagation();
                               setSelectedOrgForPasswordReset(org);
                             }}
-                            className="p-1.5 bg-amber-50 dark:bg-amber-950/50 hover:bg-amber-100 rounded-md border border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300 transition-all shadow-xs cursor-pointer"
+                            aria-label={`Change passwords for ${org.name}`}
+                            className="bg-transparent p-1 text-[var(--color-text-muted)] hover:text-amber-600 dark:hover:text-amber-400 transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-amber-500 rounded-xs outline-none"
                             title="Change User Passwords"
                           >
                             <Key size={13} />
                           </button>
                           <button
+                            type="button"
                             onClick={(e) => {
                               e.stopPropagation();
                               handleDeleteOrg(org.id, org.name);
                             }}
                             disabled={processingId !== null}
-                            className="p-1.5 bg-red-50 dark:bg-red-950/50 hover:bg-red-100 rounded-md border border-red-300 dark:border-red-700 text-red-600 dark:text-red-300 transition-all shadow-xs cursor-pointer"
+                            aria-label={`Delete organization ${org.name}`}
+                            className="bg-transparent p-1 text-[var(--color-text-muted)] hover:text-red-600 dark:hover:text-red-400 transition-colors cursor-pointer disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-red-500 rounded-xs outline-none"
                             title="Delete Organization"
                           >
                             <Trash2 size={13} />
@@ -1207,13 +1218,15 @@ function SuperAdminDashboard() {
                             </span>
                           </td>
                           <td className="py-3.5 px-4 text-right">
-                            <div className="flex justify-end items-center gap-1.5 whitespace-nowrap">
+                            <div className="flex justify-end items-center gap-2 whitespace-nowrap">
                               <button
+                                type="button"
                                 onClick={() => {
                                   setSelectedUserForDetails(u);
                                   openAccount360(u.id);
                                 }}
-                                className="p-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-md border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 transition-all shadow-xs cursor-pointer"
+                                aria-label={`Inspect account for ${u.full_name}`}
+                                className="bg-transparent p-1 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-[#008A5E] rounded-xs outline-none"
                                 title="Inspect Account 360 & Activity Log"
                               >
                                 <Eye size={14} />
@@ -1221,34 +1234,40 @@ function SuperAdminDashboard() {
                               {u.role !== "SUPER_ADMIN" && (
                                 <>
                                   <button
+                                    type="button"
                                     onClick={() => {
                                       const userOrg = orgs.find(o => o.name === u.organization || o.id === u.organization_id) || { id: u.organization_id || "default", name: u.organization || "System Default" };
                                       setSelectedOrgForPasswordReset(userOrg);
                                       setResetPasswordUserId(u.id);
                                     }}
-                                    className="p-1.5 bg-amber-50 dark:bg-amber-950/50 hover:bg-amber-100 rounded-md border border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300 transition-all shadow-xs cursor-pointer"
+                                    aria-label={`Reset password for ${u.full_name}`}
+                                    className="bg-transparent p-1 text-[var(--color-text-muted)] hover:text-amber-600 dark:hover:text-amber-400 transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-amber-500 rounded-xs outline-none"
                                     title="Reset Password"
                                   >
                                     <Key size={14} />
                                   </button>
                                   <button
+                                    type="button"
                                     onClick={() => handleDeleteUserAccount(u.id, u.email || "")}
                                     disabled={processingId === u.id}
-                                    className="p-1.5 bg-red-50 dark:bg-red-950/50 hover:bg-red-100 rounded-md border border-red-300 dark:border-red-700 text-red-600 dark:text-red-300 transition-all shadow-xs cursor-pointer"
+                                    aria-label={`Delete account for ${u.full_name}`}
+                                    className="bg-transparent p-1 text-[var(--color-text-muted)] hover:text-red-600 dark:hover:text-red-400 transition-colors cursor-pointer disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-red-500 rounded-xs outline-none"
                                     title="Delete / Deactivate User Account"
                                   >
                                     <Trash2 size={14} />
                                   </button>
                                   <button
+                                    type="button"
                                     onClick={() => handleToggleSuspension(u)}
                                     disabled={processingId !== null}
-                                    className={`py-1 px-3 rounded-md border text-[10px] font-bold uppercase transition-all shadow-xs cursor-pointer ${
+                                    aria-label={`${isUserActive(u) ? "Suspend" : "Activate"} account for ${u.full_name}`}
+                                    className={`bg-transparent text-xs font-semibold hover:underline transition-colors cursor-pointer px-1.5 py-1 focus-visible:ring-2 rounded-xs outline-none disabled:opacity-50 ${
                                       isUserActive(u)
-                                        ? "bg-red-50 hover:bg-red-600 hover:text-white dark:bg-red-950/50 border-red-300 dark:border-red-700 text-red-700 dark:text-red-300"
-                                        : "bg-emerald-50 hover:bg-[#008A5E] hover:text-white dark:bg-emerald-950/50 border-emerald-300 dark:border-emerald-700 text-emerald-800 dark:text-emerald-300"
+                                        ? "text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 focus-visible:ring-red-500"
+                                        : "text-[#008A5E] dark:text-emerald-400 hover:text-[#00734E] dark:hover:text-emerald-300 focus-visible:ring-[#008A5E]"
                                     }`}
                                   >
-                                    {processingId === u.id ? <Loader2 size={11} className="animate-spin" /> : isUserActive(u) ? "Suspend" : "Activate"}
+                                    {processingId === u.id ? <Loader2 size={11} className="animate-spin inline mr-1" /> : isUserActive(u) ? "Suspend" : "Activate"}
                                   </button>
                                 </>
                               )}
