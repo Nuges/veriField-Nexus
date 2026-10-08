@@ -338,31 +338,51 @@ async def get_access_requests(
 
 
 
-            s_id = meta.get("sector_id") or meta.get("sector")
+            s_raw = (
+                meta.get("sector_id")
+                or meta.get("SECTOR_ID")
+                or meta.get("sector")
+                or meta.get("SECTOR")
+                or meta.get("sector_code")
+                or meta.get("SECTOR_CODE")
+                or meta.get("sector_name")
+                or meta.get("SECTOR_NAME")
+            )
 
-            m_id = meta.get("methodology_id") or meta.get("methodology")
+            m_raw = (
+                meta.get("methodology_id")
+                or meta.get("METHODOLOGY_ID")
+                or meta.get("methodology")
+                or meta.get("METHODOLOGY")
+                or meta.get("methodology_code")
+                or meta.get("METHODOLOGY_CODE")
+            )
 
-
-
-            norm_sid = str(s_id).replace("-", "").lower() if s_id else ""
-
-            norm_mid = str(m_id).replace("-", "").lower() if m_id else ""
-
-
+            norm_sid = str(s_raw).replace("-", "").lower() if s_raw else ""
+            norm_mid = str(m_raw).replace("-", "").lower() if m_raw else ""
 
             sec_info = sec_map.get(norm_sid) if norm_sid else None
-
             meth_info = meth_map.get(norm_mid) if norm_mid else None
 
-
-
             sector_name = sec_info["name"] if sec_info else None
-
             sector_code = sec_info["code"] if sec_info else None
-
             methodology_name = meth_info["name"] if meth_info else None
-
             methodology_code = meth_info["code"] if meth_info else None
+
+            # Fallback to canonical platform taxonomy
+            if not sector_name and s_raw:
+                from app.core.sectors import normalize_to_canonical_sector, get_canonical_sector_label
+                canon_sec = normalize_to_canonical_sector(str(s_raw))
+                if canon_sec:
+                    sector_name = get_canonical_sector_label(canon_sec)
+                    sector_code = canon_sec.value
+
+            if not sector_name and row.use_case and isinstance(row.use_case, str) and not row.use_case.startswith("{"):
+                from app.core.sectors import normalize_to_canonical_sector, get_canonical_sector_label
+                canon_sec = normalize_to_canonical_sector(row.use_case.split(" - ")[0])
+                if canon_sec:
+                    sector_name = get_canonical_sector_label(canon_sec)
+                    sector_code = canon_sec.value
 
 
 
@@ -483,10 +503,22 @@ async def approve_access_request(
                 meta = {"use_case": str(use_case_data)}
 
         if isinstance(meta, dict):
-            sector_id_str = meta.get("sector_id") or meta.get("sector")
-            methodology_id_str = meta.get("methodology_id") or meta.get("methodology")
-            use_case = meta.get("use_case")
-            project_name = meta.get("project_name")
+            sector_id_str = (
+                meta.get("sector_id")
+                or meta.get("SECTOR_ID")
+                or meta.get("sector")
+                or meta.get("SECTOR")
+                or meta.get("sector_code")
+                or meta.get("SECTOR_CODE")
+            )
+            methodology_id_str = (
+                meta.get("methodology_id")
+                or meta.get("METHODOLOGY_ID")
+                or meta.get("methodology")
+                or meta.get("METHODOLOGY")
+            )
+            use_case = meta.get("use_case") or meta.get("USE_CASE")
+            project_name = meta.get("project_name") or meta.get("PROJECT_NAME")
 
     # Resolve methodologies to populate licensed_methodologies and licensed_sectors
     licensed_methodologies = []

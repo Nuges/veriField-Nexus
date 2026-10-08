@@ -38,6 +38,7 @@ import {
 import { DataTable } from "@/components/common/DataTable";
 import { useToast } from "@/components/Toast";
 import { ROLE_ORDER, getRolePriority } from "@/lib/roles";
+import { resolveCanonicalSectorLabel } from "@/lib/sectors";
 import { apiFetch, fetchGovernanceAuditLogs, adminResetUserPassword, fetchOrganizationProjects } from "@/lib/api";
 import { useWorkspace } from "@/context/WorkspaceContext";
 
@@ -975,10 +976,10 @@ export function RolePermissionConsole({
                         <div className="flex flex-col items-start gap-1">
                           <span className="text-[var(--color-text-primary)] font-semibold text-xs">{orgName}</span>
                           {sectors.length > 0 && (
-                            <div className="flex flex-wrap gap-1">
+                            <div className="flex flex-wrap gap-1.5">
                               {sectors.map(sec => (
-                                <span key={sec} className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700">
-                                  {sec}
+                                <span key={sec} className="text-xs text-[var(--color-text-secondary)] font-medium">
+                                  {resolveCanonicalSectorLabel(sec)}
                                 </span>
                               ))}
                             </div>
@@ -992,10 +993,10 @@ export function RolePermissionConsole({
                     label: "Status",
                     sortable: true,
                     render: (row: UserItem) => (
-                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                        row.status === "suspended" ? "bg-red-100 dark:bg-red-950/60 text-red-800 dark:text-red-300 border border-red-300 dark:border-red-700" : "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700"
+                      <span className={`text-xs font-semibold whitespace-nowrap ${
+                        row.status === "suspended" ? "text-red-700 dark:text-red-400" : "text-emerald-700 dark:text-emerald-400"
                       }`}>
-                        {row.status || "active"}
+                        {row.status ? row.status.charAt(0).toUpperCase() + row.status.slice(1) : "Active"}
                       </span>
                     )
                   },
@@ -1495,10 +1496,10 @@ export function RolePermissionConsole({
                     label: "Status",
                     sortable: true,
                     render: (row: UserItem) => (
-                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                        row.status === "suspended" ? "bg-red-100 dark:bg-red-950/60 text-red-800 dark:text-red-300 border border-red-300 dark:border-red-700" : "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700"
+                      <span className={`text-xs font-semibold whitespace-nowrap ${
+                        row.status === "suspended" ? "text-red-700 dark:text-red-400" : "text-emerald-700 dark:text-emerald-400"
                       }`}>
-                        {row.status || "active"}
+                        {row.status ? row.status.charAt(0).toUpperCase() + row.status.slice(1) : "Active"}
                       </span>
                     )
                   },

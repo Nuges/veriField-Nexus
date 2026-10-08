@@ -33,6 +33,7 @@ import type {
 export type { CarbonMintResponse, LedgerTransaction, Project, VerificationTask, VerificationTasksResponse };
 
 import { safeStorage } from "./storage";
+import { resolveCanonicalSectorLabel } from "./sectors";
 
 
 
@@ -1929,11 +1930,15 @@ export async function createAccessRequest(payload: {
 
 
 export async function fetchAccessRequests(params?: { status?: string }) {
-
   const query = params?.status ? `?status=${params.status}` : "";
-
-  return apiFetch<any[]>(`/access-requests${query}`);
-
+  const list = await apiFetch<any[]>(`/access-requests${query}`);
+  if (Array.isArray(list)) {
+    return list.map((req) => ({
+      ...req,
+      sector_name: resolveCanonicalSectorLabel(req),
+    }));
+  }
+  return list;
 }
 
 

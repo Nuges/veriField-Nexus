@@ -50,6 +50,7 @@ import {
 
 import { WorkspaceProvider, useWorkspace } from "@/context/WorkspaceContext";
 import { safeStorage } from "@/lib/storage";
+import { resolveCanonicalSectorLabel } from "@/lib/sectors";
 
 import {
   fetchAccessRequests,
@@ -809,10 +810,6 @@ function SuperAdminDashboard() {
           </div>
 
           <div className="flex items-center gap-2.5">
-            <div className="flex items-center gap-1.5 text-xs font-semibold text-[var(--color-text-secondary)]">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#008A5E]" />
-              <span>Super Admin</span>
-            </div>
 
             <button
               onClick={loadData}
@@ -944,7 +941,7 @@ function SuperAdminDashboard() {
                         <th className="py-3 px-4 w-[24%]">Applicant / Organization</th>
                         <th className="py-3 px-4 w-[22%]">Contact</th>
                         <th className="py-3 px-4 w-[14%]">Region</th>
-                        <th className="py-3 px-4 w-[16%]">Methodology Sector</th>
+                        <th className="py-3 px-4 w-[16%]">Sector</th>
                         <th className="py-3 px-4 w-[10%]">Status</th>
                         <th className="py-3 px-4 w-[14%] text-right">Actions</th>
                       </tr>
@@ -966,62 +963,46 @@ function SuperAdminDashboard() {
                               {req.country || "Unspecified"}
                             </span>
                           </td>
-                          <td className="py-3.5 px-4">
-                            <span className="inline-block text-[10px] font-bold uppercase bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 px-2 py-0.5 rounded">
-                              {(() => {
-                                if (req.sector_name) return req.sector_name;
-                                if (req.sector_code) return req.sector_code;
-                                if (!req.use_case) return "Clean Cookstoves";
-                                if (typeof req.use_case === "string" && req.use_case.startsWith("{")) {
-                                  try {
-                                    const parsed = JSON.parse(req.use_case);
-                                    if (parsed && typeof parsed === "object") {
-                                      const sid = parsed.sector_id || parsed.SECTOR_ID;
-                                      if (sid === "dff43d66-631b-4f08-8763-aaab12d0d5ee" || sid === "dff43d66631b4f088763aaab12d0d5ee") return "Clean Cookstoves";
-                                      if (sid === "7f12bfe9-b81c-442d-ad52-3e9318adafaa" || sid === "7f12bfe9b81c442dad523e9318adafaa") return "Hybrid Energy";
-                                      if (sid === "e6db7fbe-9430-4ff5-9904-6caed0b94cce" || sid === "e6db7fbe94304ff599046caed0b94cce") return "Biochar Removal";
-                                      if (sid === "867f684f-722c-4d2f-8734-113f4976840e" || sid === "867f684f722c4d2f8734113f4976840e") return "EV Mobility";
-                                    }
-                                  } catch {}
-                                }
-                                return req.use_case?.split(" - ")[0] || "Clean Cookstoves";
-                              })()}
-                            </span>
+                          <td className="py-3.5 px-4 text-xs font-medium text-[var(--color-text-primary)]">
+                            {resolveCanonicalSectorLabel(req)}
                           </td>
                           <td className="py-3.5 px-4">
-                            <span className={`inline-block whitespace-nowrap px-2.5 py-0.5 rounded-full text-[10px] font-bold border uppercase ${
-                              req.status === "PENDING" ? "bg-amber-100 dark:bg-amber-950/60 border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-200" :
-                              req.status === "APPROVED" ? "bg-emerald-100 dark:bg-emerald-950/60 border-emerald-300 dark:border-emerald-700 text-emerald-800 dark:text-emerald-200" :
-                              "bg-red-100 dark:bg-red-950/60 border-red-300 dark:border-red-700 text-red-800 dark:text-red-200"
+                            <span className={`text-xs font-semibold whitespace-nowrap ${
+                              req.status === "PENDING"
+                                ? "text-amber-700 dark:text-amber-400"
+                                : req.status === "APPROVED"
+                                ? "text-emerald-700 dark:text-emerald-400"
+                                : "text-red-700 dark:text-red-400"
                             }`}>
                               {req.status}
                             </span>
                           </td>
                           <td className="py-3.5 px-4 text-right">
-                            <div className="flex justify-end gap-1.5 items-center whitespace-nowrap">
+                            <div className="flex justify-end gap-2 items-center whitespace-nowrap">
                               {req.status === "PENDING" ? (
                                 <>
                                   <button
                                     onClick={() => handleReject(req.id)}
                                     disabled={processingId !== null}
-                                    className="p-1.5 bg-red-50 hover:bg-red-600 hover:text-white border border-red-300 rounded-md text-red-600 transition-all cursor-pointer"
+                                    className="px-2.5 py-1 text-xs font-medium rounded-md border border-red-200 dark:border-red-900/60 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors cursor-pointer"
                                     title="Reject Lead"
                                   >
-                                    <XCircle size={15} />
+                                    Reject
                                   </button>
                                   <button
                                     onClick={() => handleApprove(req.id)}
                                     disabled={processingId !== null}
-                                    className="py-1.5 px-3 bg-[#008A5E] hover:bg-[#00734E] text-white border border-[#008A5E] text-[10px] font-bold uppercase rounded-md transition-all shadow-xs cursor-pointer"
+                                    className="px-3 py-1 bg-[#008A5E] hover:bg-[#00734E] text-white text-xs font-medium rounded-md transition-colors shadow-xs cursor-pointer flex items-center gap-1.5"
                                   >
-                                    {processingId === req.id ? <Loader2 size={12} className="animate-spin" /> : "Approve"}
+                                    {processingId === req.id && <Loader2 size={12} className="animate-spin" />}
+                                    <span>Approve</span>
                                   </button>
                                 </>
                               ) : (
                                 <button
                                   onClick={() => handleDeleteAccessRequest(req.id)}
                                   disabled={processingId !== null}
-                                  className="p-1.5 bg-red-50 hover:bg-red-100 border border-red-300 rounded-md text-red-600 transition-all cursor-pointer"
+                                  className="p-1.5 rounded-md border border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-red-600 hover:border-red-300 dark:hover:border-red-800 transition-colors cursor-pointer"
                                   title="Delete Lead Record"
                                 >
                                   <Trash2 size={14} />
@@ -1054,7 +1035,7 @@ function SuperAdminDashboard() {
                       className="p-5 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] hover:border-[#008A5E] transition-all shadow-xs cursor-pointer space-y-4 group relative"
                     >
                       <div className="flex items-center justify-between" onClick={(e) => e.stopPropagation()}>
-                        <span className="px-2.5 py-0.5 bg-emerald-100 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-700 text-emerald-800 dark:text-emerald-200 text-[10px] font-bold rounded-full">
+                        <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">
                           {org.status || "ACTIVE"}
                         </span>
                         <div className="flex items-center gap-1.5">
@@ -1201,13 +1182,13 @@ function SuperAdminDashboard() {
                                     {orgName || "System Default"}
                                   </span>
                                   {sectors.length > 0 && (
-                                    <div className="flex flex-wrap gap-1">
+                                    <div className="flex flex-wrap gap-1.5">
                                       {sectors.map((sec: string) => (
                                         <span
                                           key={sec}
-                                          className="px-2 py-0.5 rounded-md text-[9px] font-mono font-bold uppercase bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 whitespace-nowrap"
+                                          className="text-xs text-[var(--color-text-secondary)] font-medium"
                                         >
-                                          {sec}
+                                          {resolveCanonicalSectorLabel(sec)}
                                         </span>
                                       ))}
                                     </div>
@@ -1217,10 +1198,10 @@ function SuperAdminDashboard() {
                             })()}
                           </td>
                           <td className="py-3.5 px-4">
-                            <span className={`inline-block whitespace-nowrap px-2.5 py-0.5 rounded-full text-[10px] font-bold border uppercase ${
+                            <span className={`text-xs font-semibold whitespace-nowrap ${
                               isUserActive(u)
-                                ? "bg-emerald-100 dark:bg-emerald-950/60 border-emerald-300 dark:border-emerald-700 text-emerald-800 dark:text-emerald-200"
-                                : "bg-red-100 dark:bg-red-950/60 border-red-300 dark:border-red-700 text-red-800 dark:text-red-200"
+                                ? "text-emerald-700 dark:text-emerald-400"
+                                : "text-red-700 dark:text-red-400"
                             }`}>
                               {isUserActive(u) ? "Active" : "Suspended"}
                             </span>

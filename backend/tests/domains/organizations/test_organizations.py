@@ -92,3 +92,28 @@ async def test_delete_organization(
         f"/api/v1/organizations/{org_id}", headers=admin_token_headers
     )
     assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_access_request_sector_resolution(
+    async_client: AsyncClient, admin_token_headers: dict
+):
+    unique_email = f"lead_{uuid.uuid4().hex[:8]}@example.com"
+    req_payload = {
+        "full_name": "Agric Lead",
+        "email": unique_email,
+        "organization_name": "Agric Test Org",
+        "country": "Nigeria",
+        "sector_id": "AGRICULTURE_LAND_USE",
+        "project_name": "Agric Pilot",
+    }
+    post_res = await async_client.post("/api/v1/access-requests", json=req_payload)
+    assert post_res.status_code == 200, post_res.text
+
+    get_res = await async_client.get("/api/v1/access-requests", headers=admin_token_headers)
+    assert get_res.status_code == 200, get_res.text
+    items = get_res.json()
+    match = next((item for item in items if item["email"] == unique_email), None)
+    assert match is not None
+    assert match["sector_name"] == "Agriculture & Land Use"
+    assert match["sector_code"] == "AGRICULTURE_LAND_USE"
