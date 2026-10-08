@@ -187,42 +187,9 @@ CANONICAL_SECTOR_PRODUCTION_METHODOLOGIES: Dict[CanonicalSector, List[Dict[str, 
             "description": "Engineered biochar carbon removal crediting under the Puro Standard.",
         },
     ],
-    CanonicalSector.COOKSTOVES: [
-        {
-            "id": "4685d816-3d51-4cdd-85f1-8c6aab3c50a1",
-            "code": "AMS_II_G",
-            "name": "Energy Efficiency in Thermal Applications",
-            "registry_code": "CDM",
-            "registry_name": "Clean Development Mechanism",
-            "document_type": "METHODOLOGY",
-            "version": "1.0.0",
-            "description": "CDM methodology for energy efficiency in thermal applications including household improved cookstoves.",
-        },
-    ],
-    CanonicalSector.HYBRID_ENERGY: [
-        {
-            "id": "e1074ae1-c76c-47c7-a5de-0241d44031f1",
-            "code": "AMS_I_F",
-            "name": "Renewable Electricity for Captive Use",
-            "registry_code": "CDM",
-            "registry_name": "Clean Development Mechanism",
-            "document_type": "METHODOLOGY",
-            "version": "1.0.0",
-            "description": "Renewable electricity generation displacing fossil fuel generators and captive mini-grids.",
-        },
-    ],
-    CanonicalSector.EV_MOBILITY: [
-        {
-            "id": "30592386-cdc7-4c42-a003-bc8aa7191aa2",
-            "code": "AMS_III_C",
-            "name": "Emission Reductions by Low-GHG Vehicles",
-            "registry_code": "CDM",
-            "registry_name": "Clean Development Mechanism",
-            "document_type": "METHODOLOGY",
-            "version": "1.0.0",
-            "description": "Low-greenhouse gas emission vehicles for public and commercial transport fleets.",
-        },
-    ],
+    CanonicalSector.COOKSTOVES: [],
+    CanonicalSector.HYBRID_ENERGY: [],
+    CanonicalSector.EV_MOBILITY: [],
 }
 
 # Supporting modules and tools that must NEVER be surfaced as primary project methodologies
@@ -249,17 +216,20 @@ UNCONFIGURED_METHODOLOGY_CODES: Set[str] = {
     "GS_BIOCHAR",
     "GS_PARC",
     # Cookstoves
+    "AMS_II_G",      # Gated pending official standards & IoT telemetry closure
     "VM0006",
     "VMR0050",
     "GS_TPDDTEC",
     "GS_MECD",
     # Hybrid Energy
+    "AMS_I_F",       # Gated pending double-counting fix & revenue meter lineage closure
     "ACM0002",
     "CI_GRID_DISPLACEMENT",
     "ENERGY_DISPLACEMENT",
     "MINIGRID_DIESEL_DISPLACEMENT",
     "SHS_RENEWABLE_DISPLACEMENT",
     # EV Mobility
+    "AMS_III_C",     # Gated pending fleet boundary vs VM0038 charging alignment
     "VM0038",
     "EV_DISPLACEMENT",
 }

@@ -76,7 +76,10 @@ async def test_all_five_sectors_exist_and_wired(
             if (m.get("family_id") and str(m["family_id"]).replace("-", "").lower() == str(fam_id).replace("-", "").lower())
             or (m.get("family") and m["family"].get("code") == sector_code)
         ]
-        assert len(matching) > 0, f"No methodologies found for sector {sector_code} (family_id={fam_id})"
+        if sector_code in ["AGRICULTURE_LAND_USE", "BIOCHAR"]:
+            assert len(matching) > 0, f"Expected production methodologies for sector {sector_code}"
+        else:
+            assert len(matching) == 0, f"Expected unclosed sector {sector_code} to be gated with 0 methodologies"
 
     # 3. Super Admin setup for approvals
     sa_email = "superadmin.sector.audit@verifield.com"
@@ -103,7 +106,7 @@ async def test_all_five_sectors_exist_and_wired(
     sa_token = login_resp.json()["access_token"]
     sa_headers = {"Authorization": f"Bearer {sa_token}"}
 
-    # 4. Test E2E Onboarding Flow for EVERY sector
+    # 4. Test E2E Onboarding Flow for Production-Ready Sectors and Fail-Closed for Gated Sectors
     for sector_code, sector_name in EXPECTED_SECTORS:
         fam_id = fams_by_code[sector_code]["id"]
         matching_meths = [
@@ -111,6 +114,22 @@ async def test_all_five_sectors_exist_and_wired(
             if (m.get("family_id") and str(m["family_id"]).replace("-", "").lower() == str(fam_id).replace("-", "").lower())
             or (m.get("family") and m["family"].get("code") == sector_code)
         ]
+
+        # For gated sectors without production closure, verify fail-closed behavior
+        if sector_code not in ["AGRICULTURE_LAND_USE", "BIOCHAR"]:
+            fail_payload = {
+                "full_name": f"Lead {sector_name}",
+                "email": f"fail.{sector_code.lower()}@example.com",
+                "organization_name": f"Org {sector_code}",
+                "country": "Kenya",
+                "sector_id": fam_id,
+                "methodology_id": "UNCONFIGURED_CODE",
+                "project_name": f"Pilot {sector_name}"
+            }
+            fail_resp = await async_client.post("/api/v1/access-requests", json=fail_payload)
+            assert fail_resp.status_code == 422, f"Expected 422 for unclosed sector {sector_code}"
+            continue
+
         chosen_meth = matching_meths[0]
         meth_id = chosen_meth["id"]
 

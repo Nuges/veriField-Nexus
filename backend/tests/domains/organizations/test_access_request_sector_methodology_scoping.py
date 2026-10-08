@@ -52,32 +52,21 @@ async def test_list_methodologies_scoped_to_biochar(async_client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_list_methodologies_scoped_to_other_sectors(async_client: AsyncClient):
-    """Verifies each other sector returns only its proven production methodologies."""
-    # Cookstoves
+    """Verifies unclosed sectors fail closed with 0 methodologies until standards closure."""
+    # Cookstoves (gated pending official standards & IoT telemetry closure)
     cs_resp = await async_client.get("/api/v1/methodologies?sector=COOKSTOVES")
     assert cs_resp.status_code == 200
-    cs_codes = [m["code"] for m in cs_resp.json()]
-    assert "AMS_II_G" in cs_codes
-    assert "VM0006" not in cs_codes
-    assert "VMR0050" not in cs_codes
-    assert "GS_TPDDTEC" not in cs_codes
-    assert "GS_MECD" not in cs_codes
+    assert len(cs_resp.json()) == 0
 
-    # Hybrid Energy
+    # Hybrid Energy (gated pending double-counting fix & revenue meter lineage closure)
     he_resp = await async_client.get("/api/v1/methodologies?sector=HYBRID_ENERGY")
     assert he_resp.status_code == 200
-    he_codes = [m["code"] for m in he_resp.json()]
-    assert "AMS_I_F" in he_codes
-    assert "ACM0002" not in he_codes
-    assert "CI_GRID_DISPLACEMENT" not in he_codes
+    assert len(he_resp.json()) == 0
 
-    # EV Mobility
+    # EV Mobility (gated pending fleet boundary vs VM0038 charging alignment)
     ev_resp = await async_client.get("/api/v1/methodologies?sector=EV_MOBILITY")
     assert ev_resp.status_code == 200
-    ev_codes = [m["code"] for m in ev_resp.json()]
-    assert "AMS_III_C" in ev_codes
-    assert "EV_DISPLACEMENT" not in ev_codes
-    assert "VM0038" not in ev_codes
+    assert len(ev_resp.json()) == 0
 
 
 @pytest.mark.asyncio

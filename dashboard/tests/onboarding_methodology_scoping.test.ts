@@ -29,34 +29,22 @@ test("Onboarding Methodology Scoping: Agriculture & Land Use exposes ONLY VM0042
   }
 });
 
-test("Onboarding Methodology Scoping: Zero cross-sector leakage across all 5 sectors", () => {
+test("Onboarding Methodology Scoping: Production gating enforces only PRODUCTION_READY methodologies", () => {
   const allSectors = getCanonicalOperatingSectors();
   assert.equal(allSectors.length, 5);
 
-  const sectorMethodologyCodes = new Map<CanonicalSectorCode, Set<string>>();
-  for (const sec of allSectors) {
-    const meths = getCanonicalMethodologiesForSector(sec.code);
-    assert.ok(meths.length >= 1, `Sector ${sec.code} must have at least 1 production methodology`);
-    sectorMethodologyCodes.set(sec.code, new Set(meths.map((m) => m.code)));
-  }
+  // Proven frozen sectors:
+  assert.equal(getCanonicalMethodologiesForSector("AGRICULTURE_LAND_USE").length, 1);
+  assert.equal(getCanonicalMethodologiesForSector("BIOCHAR").length, 2);
 
-  // Cross-sector uniqueness: No methodology should belong to more than one sector
-  const seenCodes = new Map<string, CanonicalSectorCode>();
-  for (const [secCode, codeSet] of sectorMethodologyCodes.entries()) {
-    for (const methCode of codeSet) {
-      const existing = seenCodes.get(methCode);
-      assert.equal(
-        existing,
-        undefined,
-        `Methodology code '${methCode}' appears in multiple sectors: '${existing}' and '${secCode}'`
-      );
-      seenCodes.set(methCode, secCode);
-    }
-  }
+  // Unclosed candidate sectors are gated (length 0):
+  assert.equal(getCanonicalMethodologiesForSector("COOKSTOVES").length, 0);
+  assert.equal(getCanonicalMethodologiesForSector("HYBRID_ENERGY").length, 0);
+  assert.equal(getCanonicalMethodologiesForSector("EV_MOBILITY").length, 0);
 });
 
 test("Onboarding Methodology Scoping: isMethodologyCompatibleWithSector validation", () => {
-  // Agriculture tests
+  // Agriculture tests (FROZEN)
   assert.equal(isMethodologyCompatibleWithSector("AGRICULTURE_LAND_USE", "VM0042"), true);
   assert.equal(isMethodologyCompatibleWithSector("AGRICULTURE_LAND_USE", "ec739cc0-517a-4fa0-9ff3-ed4cc6d17667"), true);
   assert.equal(isMethodologyCompatibleWithSector("AGRICULTURE_LAND_USE", "VM0044"), false);
@@ -65,7 +53,7 @@ test("Onboarding Methodology Scoping: isMethodologyCompatibleWithSector validati
   assert.equal(isMethodologyCompatibleWithSector("AGRICULTURE_LAND_USE", "BM_T_001"), false);
   assert.equal(isMethodologyCompatibleWithSector("AGRICULTURE_LAND_USE", "VM0047"), false);
 
-  // Biochar tests
+  // Biochar tests (FROZEN)
   assert.equal(isMethodologyCompatibleWithSector("BIOCHAR", "VM0044"), true);
   assert.equal(isMethodologyCompatibleWithSector("BIOCHAR", "PURO_BIOCHAR_2025"), true);
   assert.equal(isMethodologyCompatibleWithSector("BIOCHAR", "BIOCHAR_C_SINK"), false);
@@ -74,8 +62,8 @@ test("Onboarding Methodology Scoping: isMethodologyCompatibleWithSector validati
   assert.equal(isMethodologyCompatibleWithSector("BIOCHAR", "VM0042"), false);
   assert.equal(isMethodologyCompatibleWithSector("BIOCHAR", "AMS_I_F"), false);
 
-  // Hybrid Energy tests
-  assert.equal(isMethodologyCompatibleWithSector("HYBRID_ENERGY", "AMS_I_F"), true);
+  // Hybrid Energy tests (GATED)
+  assert.equal(isMethodologyCompatibleWithSector("HYBRID_ENERGY", "AMS_I_F"), false);
   assert.equal(isMethodologyCompatibleWithSector("HYBRID_ENERGY", "ACM0002"), false);
   assert.equal(isMethodologyCompatibleWithSector("HYBRID_ENERGY", "CI_GRID_DISPLACEMENT"), false);
   assert.equal(isMethodologyCompatibleWithSector("HYBRID_ENERGY", "ENERGY_DISPLACEMENT"), false);
@@ -83,14 +71,14 @@ test("Onboarding Methodology Scoping: isMethodologyCompatibleWithSector validati
   assert.equal(isMethodologyCompatibleWithSector("HYBRID_ENERGY", "SHS_RENEWABLE_DISPLACEMENT"), false);
   assert.equal(isMethodologyCompatibleWithSector("HYBRID_ENERGY", "VM0042"), false);
 
-  // EV Mobility tests
-  assert.equal(isMethodologyCompatibleWithSector("EV_MOBILITY", "AMS_III_C"), true);
+  // EV Mobility tests (GATED)
+  assert.equal(isMethodologyCompatibleWithSector("EV_MOBILITY", "AMS_III_C"), false);
   assert.equal(isMethodologyCompatibleWithSector("EV_MOBILITY", "EV_DISPLACEMENT"), false);
   assert.equal(isMethodologyCompatibleWithSector("EV_MOBILITY", "VM0038"), false);
   assert.equal(isMethodologyCompatibleWithSector("EV_MOBILITY", "VM0042"), false);
 
-  // Cookstoves tests
-  assert.equal(isMethodologyCompatibleWithSector("COOKSTOVES", "AMS_II_G"), true);
+  // Cookstoves tests (GATED)
+  assert.equal(isMethodologyCompatibleWithSector("COOKSTOVES", "AMS_II_G"), false);
   assert.equal(isMethodologyCompatibleWithSector("COOKSTOVES", "VM0006"), false);
   assert.equal(isMethodologyCompatibleWithSector("COOKSTOVES", "VMR0050"), false);
   assert.equal(isMethodologyCompatibleWithSector("COOKSTOVES", "GS_TPDDTEC"), false);
