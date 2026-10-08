@@ -354,18 +354,31 @@ async def test_real_postgresql_concurrency_safe(org_and_user):
     """Rule 11 & 27: Concurrent simultaneous mint requests against PostgreSQL serialize with row lock."""
     import os
     from sqlalchemy import text
-    test_db_url = (
-        os.environ.get("POSTGIS_TEST_URL")
-        or (os.environ.get("DATABASE_URL") if "postgresql" in (os.environ.get("DATABASE_URL") or "") else None)
-        or f"postgresql+asyncpg://{os.environ.get('USER', 'postgres')}@localhost:5432/verifield_postgis_test"
-    )
 
-    try:
+    explicit_postgis_url = os.environ.get("POSTGIS_TEST_URL")
+    if explicit_postgis_url:
+        # Case A: Explicit authoritative test URL provided (CI / production testing).
+        # Any connection/authentication failure MUST FAIL CLOSED (do NOT pytest.skip).
+        test_db_url = explicit_postgis_url
         engine = create_async_engine(test_db_url, echo=False)
         async with engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
-    except Exception as exc:
-        pytest.skip(f"Real PostgreSQL database unavailable for concurrency test: {exc}")
+    else:
+        # Case B: POSTGIS_TEST_URL is absent. Check if general DATABASE_URL is PostgreSQL,
+        # otherwise probe local developer PostgreSQL fallback.
+        db_url_env = os.environ.get("DATABASE_URL", "")
+        if "postgresql" in db_url_env:
+            test_db_url = db_url_env
+        else:
+            local_user = os.environ.get("USER", "postgres")
+            test_db_url = f"postgresql+asyncpg://{local_user}@localhost:5432/verifield_postgis_test"
+
+        try:
+            engine = create_async_engine(test_db_url, echo=False)
+            async with engine.connect() as conn:
+                await conn.execute(text("SELECT 1"))
+        except Exception as exc:
+            pytest.skip(f"Local SQLite-only environment: PostgreSQL not available ({exc})")
 
     session_maker = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
 
