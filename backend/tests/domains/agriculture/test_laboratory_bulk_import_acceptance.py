@@ -374,6 +374,7 @@ async def test_xlsx_formula_and_external_refs(db_session: AsyncSession):
     wb.save(buf)
 
     # Inject pre-computed cached values into Row 3 (<v>18.5</v>) and Row 6 (<v>18.5</v>)
+    import re
     zin = zipfile.ZipFile(buf, "r")
     zout_buf = io.BytesIO()
     zout = zipfile.ZipFile(zout_buf, "w")
@@ -381,8 +382,16 @@ async def test_xlsx_formula_and_external_refs(db_session: AsyncSession):
         data = zin.read(item.filename)
         if item.filename == "xl/worksheets/sheet1.xml":
             text = data.decode("utf-8")
-            text = text.replace('<c r="C3"><f>10+8.5</f><v></v></c>', '<c r="C3"><f>10+8.5</f><v>18.5</v></c>')
-            text = text.replace('<c r="C6"><f>HYPERLINK(&quot;http://external.site/data&quot;, &quot;18.5&quot;)</f><v></v></c>', '<c r="C6"><f>HYPERLINK(&quot;http://external.site/data&quot;, &quot;18.5&quot;)</f><v>18.5</v></c>')
+            text = re.sub(
+                r'(<c r="C3"[^>]*><f>[^<]*10\+8\.5[^<]*</f>)(?:<v>[^<]*</v>|<v/>)?(</c>)',
+                r'\1<v>18.5</v>\2',
+                text,
+            )
+            text = re.sub(
+                r'(<c r="C6"[^>]*><f>[^<]*HYPERLINK[^<]*</f>)(?:<v>[^<]*</v>|<v/>)?(</c>)',
+                r'\1<v>18.5</v>\2',
+                text,
+            )
             data = text.encode("utf-8")
         zout.writestr(item, data)
     zin.close()
@@ -443,7 +452,7 @@ async def test_xlsx_formula_and_external_refs(db_session: AsyncSession):
     # 2. Case 6: CSV formula injection defense (checks =, +, -, @ prefixes)
     csv_formula = (
         f'sample_code,analyte,raw_value,raw_unit\n'
-        f'{s1_code},SOC_CONCENTRATION,"=HYPERLINK(\\"http://malicious.site\\", 1.85)",%\n'
+        f'{s1_code},SOC_CONCENTRATION,"=HYPERLINK(""http://malicious.site"", 1.85)",%\n'
     ).encode("utf-8")
     batch_csv = await LaboratoryImportService.upload_file(
         db=db_session,
@@ -774,6 +783,11 @@ async def test_accreditation_truth_and_lifecycle(db_session: AsyncSession):
 
 @pytest.mark.asyncio
 async def test_concurrent_commit_postgres(db_session: AsyncSession):
+    # PostgreSQL row-level lock concurrency requires real PostgreSQL
+    bind = db_session.bind
+    if "sqlite" in str(bind.url):
+        pytest.skip("Row-level SELECT FOR UPDATE concurrency requires PostgreSQL")
+
     setup = await create_agri_lab_import_setup(db_session)
     s1_code = setup["sample1"].sample_code
 
@@ -788,9 +802,6 @@ async def test_concurrent_commit_postgres(db_session: AsyncSession):
     await db_session.commit()
 
     # Create two separate sessions to simulate concurrent workers
-    bind = db_session.bind
-    if "sqlite" in str(bind.url):
-        pytest.skip("Row-level SELECT FOR UPDATE concurrency requires PostgreSQL")
     from sqlalchemy.ext.asyncio import async_sessionmaker
     session_maker = async_sessionmaker(bind, expire_on_commit=False)
 

@@ -571,19 +571,22 @@ class LaboratoryImportService:
 
                     if f_cell is not None:
                         # Identify real formula cells strictly by openpyxl cell data_type == 'f'
-                        if f_cell.data_type == 'f':
+                        # or formula expression starting with '=' when data_type is not explicitly string literal 's'
+                        f_val_str = str(f_cell.value or "").strip()
+                        if f_cell.data_type == 'f' or (f_cell.data_type != 's' and f_val_str.startswith('=')):
                             is_formula = True
-                            formula_expr = str(f_cell.value or "")
+                            formula_expr = f_val_str
                             expr_upper = formula_expr.upper()
                             if any(marker in expr_upper for marker in ["[", "]", "HYPERLINK", "DDE", "EXEC", "CMD", "WEBSERVICE", "SHELL", ".XLS"]):
                                 has_external_ref = True
 
-                    if is_formula:
+                    if is_formula or (f_cell is not None and f_cell.data_type == 's'):
                         formula_meta[col_name] = {
-                            "is_formula": True,
+                            "is_formula": is_formula,
                             "formula_expr": formula_expr,
                             "has_cached_val": has_cached_val,
                             "has_external_ref": has_external_ref,
+                            "data_type": getattr(f_cell, "data_type", None) if f_cell is not None else None,
                         }
 
                     if isinstance(val, (datetime, date)):
@@ -894,6 +897,18 @@ class LaboratoryImportService:
                                 "code": "EXTERNAL_FORMULA_REF",
                                 "message": "Formula or workbook contains external references/links. External resolution is blocked (zero network access policy).",
                             })
+                    elif batch.file_type == "XLSX" and raw_val_str.startswith("=") and formula_meta.get("data_type") != "s":
+                        messages.append({
+                            "severity": "WARNING",
+                            "code": "FORMULA_CELL",
+                            "message": f"XLSX formula '{raw_val_str}' detected. Dynamic formula execution is disabled.",
+                        })
+                        if any(marker in raw_val_str.upper() for marker in ["[", "]", "HYPERLINK", "DDE", "EXEC", "CMD", "WEBSERVICE", "SHELL", ".XLS"]):
+                            messages.append({
+                                "severity": "WARNING",
+                                "code": "EXTERNAL_FORMULA_REF",
+                                "message": "Formula contains external references/links. External resolution is blocked.",
+                            })
                 else:
                     # CSV formula injection defense (checks leading special characters =, +, -, @, \t, \r)
                     if raw_val_str and raw_val_str[0] in ("=", "+", "-", "@", "\t", "\r"):
@@ -917,7 +932,10 @@ class LaboratoryImportService:
                     })
 
                 # If formula has no cached result, do not attempt numeric conversion
-                if formula_meta.get("is_formula") and not formula_meta.get("has_cached_val"):
+                is_uncached_formula = (formula_meta.get("is_formula") and not formula_meta.get("has_cached_val")) or (
+                    batch.file_type == "XLSX" and raw_val_str.startswith("=") and formula_meta.get("data_type") != "s" and not formula_meta.get("has_cached_val")
+                )
+                if is_uncached_formula:
                     dec_value = None
                 else:
                     try:

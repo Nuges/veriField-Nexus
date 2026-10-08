@@ -353,9 +353,20 @@ async def test_duplicate_mint_blocked(db_session: AsyncSession, org_and_user):
 async def test_real_postgresql_concurrency_safe(org_and_user):
     """Rule 11 & 27: Concurrent simultaneous mint requests against PostgreSQL serialize with row lock."""
     import os
-    test_db_url = os.environ.get("POSTGIS_TEST_URL") or "postgresql+asyncpg://segun@localhost:5432/verifield_postgis_test"
+    from sqlalchemy import text
+    test_db_url = (
+        os.environ.get("POSTGIS_TEST_URL")
+        or (os.environ.get("DATABASE_URL") if "postgresql" in (os.environ.get("DATABASE_URL") or "") else None)
+        or f"postgresql+asyncpg://{os.environ.get('USER', 'postgres')}@localhost:5432/verifield_postgis_test"
+    )
 
-    engine = create_async_engine(test_db_url, echo=False)
+    try:
+        engine = create_async_engine(test_db_url, echo=False)
+        async with engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+    except Exception as exc:
+        pytest.skip(f"Real PostgreSQL database unavailable for concurrency test: {exc}")
+
     session_maker = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
 
     org_id, user = org_and_user
