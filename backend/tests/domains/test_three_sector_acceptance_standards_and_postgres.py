@@ -1,9 +1,13 @@
 """
 VeriField Nexus — Three-Sector Methodology Acceptance & PostgreSQL Concurrency Suite
 Validates:
-- Cookstoves (AMS_II_G)
-- Hybrid Energy (AMS_I_F)
-- EV Mobility (AMS_III_C)
+- Cookstoves (AMS_II_G v14.0 — CDM EB 125)
+- Hybrid Energy (AMS_I_F v5.0 — CDM EB 115)
+- EV Mobility (AMS_III_C v16.0 — CDM EB 115 / VM0038 v1.1 & VMD0049 v1.1)
+
+Environment Separation:
+- Local Test Database: PostgreSQL with PostGIS 3.6.1 (TEST ENVIRONMENT ONLY; test_ci_db)
+- Production Supabase Database: PostGIS 3.3.7 (Untouched)
 
 Covering:
 1. 7 Official Worked Example Tests per Methodology:
