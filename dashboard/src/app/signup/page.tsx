@@ -6,76 +6,61 @@ import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ShieldCheck, Mail, User, Building, Loader2, Sparkles, MapPin, Activity, ChevronDown } from "lucide-react";
-import { createAccessRequest } from "@/lib/api";
-import { getCanonicalOperatingSectors } from "@/lib/sectors";
+import { createAccessRequest, fetchMethodologies } from "@/lib/api";
+import {
+  getCanonicalOperatingSectors,
+  getCanonicalMethodologiesForSector,
+  isMethodologyCompatibleWithSector,
+} from "@/lib/sectors";
 import { ThemeLogo } from "@/components/common/ThemeLogo";
 
-
-
 export default function SignupPage() {
-
   const router = useRouter();
-
   const [fullName, setFullName] = useState("");
-
   const [email, setEmail] = useState("");
-
   const [orgName, setOrgName] = useState("");
-
   const [country, setCountry] = useState("Global");
-
   const [sectorId, setSectorId] = useState("");
-
   const [methodologyId, setMethodologyId] = useState("");
-
   const [projectName, setProjectName] = useState("");
-
-
 
   const canonicalSectors = useMemo(() => getCanonicalOperatingSectors(), []);
   const [methodologies, setMethodologies] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
-  const [allMethodologies, setAllMethodologies] = useState<any[]>([]);
 
-  useEffect(() => {
-    async function loadData() {
-      try {
-        const { fetchMethodologies } = await import("@/lib/api");
-        const methsRes = await fetchMethodologies().catch(() => []);
-        const methList = Array.isArray(methsRes) ? methsRes : (methsRes?.modules || []);
-        setAllMethodologies(methList);
-      } catch (err) {
-        console.error("Failed to load signup metadata", err);
+  const handleSectorChange = async (newSectorId: string) => {
+    setSectorId(newSectorId);
+    setMethodologyId("");
+
+    if (!newSectorId) {
+      setMethodologies([]);
+      return;
+    }
+
+    // 1. Immediately scope to canonical sector methodologies (fail-closed, 0 latency)
+    const canonicalList = getCanonicalMethodologiesForSector(newSectorId);
+    setMethodologies(canonicalList);
+
+    // 2. Query backend scoped strictly to this sector to align with server registry
+    try {
+      const methsRes = await fetchMethodologies(newSectorId).catch(() => []);
+      const remoteList = Array.isArray(methsRes) ? methsRes : (methsRes?.modules || []);
+
+      // Filter remote list strictly to authorized methodologies for this sector (zero cross-sector leakage)
+      const validRemote = remoteList.filter((m: any) =>
+        isMethodologyCompatibleWithSector(newSectorId, m.code || m.id)
+      );
+
+      if (validRemote.length > 0) {
+        setMethodologies(validRemote);
       }
+    } catch (err) {
+      console.error("Failed to fetch methodologies for sector:", err);
     }
-    loadData();
-  }, []);
-
-  const matchesSector = (m: any, sectorCode: string): boolean => {
-    const sec = (sectorCode || "").toUpperCase();
-    const famCode = (m.family?.code || m.family_code || "").toUpperCase();
-    const famName = (m.family?.name || "").toUpperCase();
-    const methCode = (m.code || "").toUpperCase();
-
-    if (sec === "COOKSTOVES") {
-      return famCode === "COOKSTOVES" || famName.includes("COOK") || methCode.includes("AMS-II.G") || methCode.includes("COOK");
-    }
-    if (sec === "HYBRID_ENERGY") {
-      return famCode === "HYBRID_ENERGY" || famName.includes("ENERGY") || methCode.includes("ACM0002") || methCode.includes("ENERGY") || methCode.includes("MINIGRID");
-    }
-    if (sec === "BIOCHAR") {
-      return famCode.includes("BIOCHAR") || famName.includes("BIOCHAR") || methCode.includes("VM0044") || methCode.includes("PURO") || methCode.includes("BIOCHAR");
-    }
-    if (sec === "EV_MOBILITY") {
-      return famCode === "EV_MOBILITY" || famName.includes("MOBILITY") || famName.includes("EV") || methCode.includes("AMS-III.C") || methCode.includes("EV");
-    }
-    if (sec === "AGRICULTURE_LAND_USE") {
-      return famCode === "AGRICULTURE_LAND_USE" || famCode.includes("AGRI") || famName.includes("AGRICULTURE") || methCode.includes("VM0042") || methCode.includes("AGRI");
-    }
-    return famCode === sec;
   };
+
 
 
 
@@ -318,18 +303,7 @@ export default function SignupPage() {
                       data-testid="primary-operating-sector-select"
                       aria-label="Primary Operating Sector"
                       value={sectorId}
-                      onChange={(e) => {
-                        const newSectorId = e.target.value;
-                        setSectorId(newSectorId);
-                        setMethodologyId("");
-
-                        const matched = allMethodologies.filter((m: any) =>
-                          matchesSector(m, newSectorId)
-                        );
-
-                        // If matched list is not empty use it, otherwise show all active as fallback
-                        setMethodologies(matched.length > 0 ? matched : allMethodologies);
-                      }}
+                      onChange={(e) => handleSectorChange(e.target.value)}
                       required
                       className="w-full pl-10 pr-10 py-3 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text-primary)] text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 appearance-none cursor-pointer"
                     >
@@ -344,27 +318,41 @@ export default function SignupPage() {
                   </div>
                 </div>
 
-                {sectorId && (
-                  <div>
-                    <label className="text-sm font-bold text-[var(--color-text-secondary)] mb-1.5 block">Methodology</label>
-                    <div className="relative">
-                      <select
-                        value={methodologyId}
-                        onChange={(e) => setMethodologyId(e.target.value)}
-                        required
-                        className="w-full pl-4 pr-10 py-3 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text-primary)] text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 appearance-none cursor-pointer"
-                      >
-                        <option value="" disabled>Select a methodology...</option>
-                        {methodologies.map((meth) => (
-                          <option key={meth.id} value={meth.id}>
-                            {meth.name} ({meth.code})
-                          </option>
-                        ))}
-                      </select>
-                      <ChevronDown size={16} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] pointer-events-none" />
-                    </div>
+                <div>
+                  <label htmlFor="primary-operating-methodology" className="text-sm font-bold text-[var(--color-text-secondary)] mb-1.5 block">
+                    Methodology
+                  </label>
+                  <div className="relative">
+                    <select
+                      id="primary-operating-methodology"
+                      data-testid="methodology-select"
+                      aria-label="Methodology"
+                      value={methodologyId}
+                      onChange={(e) => setMethodologyId(e.target.value)}
+                      disabled={!sectorId || methodologies.length === 0}
+                      required
+                      className={`w-full pl-4 pr-10 py-3 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text-primary)] text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 appearance-none ${
+                        !sectorId || methodologies.length === 0 ? "opacity-60 cursor-not-allowed bg-[var(--color-surface-hover)]" : "cursor-pointer"
+                      }`}
+                    >
+                      {!sectorId ? (
+                        <option value="" disabled>Select a sector first</option>
+                      ) : methodologies.length === 0 ? (
+                        <option value="" disabled>No supported methodologies available</option>
+                      ) : (
+                        <>
+                          <option value="" disabled>Select a methodology...</option>
+                          {methodologies.map((meth) => (
+                            <option key={meth.id} value={meth.id || meth.code}>
+                              {meth.code} — {meth.name}
+                            </option>
+                          ))}
+                        </>
+                      )}
+                    </select>
+                    <ChevronDown size={16} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] pointer-events-none" />
                   </div>
-                )}
+                </div>
 
 
 

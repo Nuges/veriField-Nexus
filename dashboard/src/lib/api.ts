@@ -2157,12 +2157,9 @@ export async function fetchGlobalAnalytics() {
 
 
 
-export async function fetchMethodologies(): Promise<{ modules: any[] }> {
-
-  // Methodologies endpoint returns { modules: [...] }
-
-  return apiFetch<{ modules: any[] }>("/methodologies");
-
+export async function fetchMethodologies(sector?: string): Promise<{ modules: any[] }> {
+  const query = sector ? `?sector=${encodeURIComponent(sector)}` : "";
+  return apiFetch<{ modules: any[] }>(`/methodologies${query}`);
 }
 
 

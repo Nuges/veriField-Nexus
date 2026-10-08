@@ -259,3 +259,303 @@ export function getCanonicalSectorLabel(code: string): string {
   const resolved = resolveCanonicalSectorLabel(code);
   return resolved !== "Unknown sector" ? resolved : code;
 }
+
+/**
+ * Normalizes any sector representation (code, label, alias, UUID) to CanonicalSectorCode.
+ */
+export function normalizeToCanonicalSectorCode(input: unknown): CanonicalSectorCode | null {
+  if (input === null || input === undefined) return null;
+  if (typeof input !== "string") return null;
+
+  const trimmed = input.trim();
+  if (!trimmed) return null;
+
+  const upper = trimmed.toUpperCase();
+  if ((CANONICAL_SECTOR_CODES as readonly string[]).includes(upper)) {
+    return upper as CanonicalSectorCode;
+  }
+
+  // Check known UUIDs
+  const normId = trimmed.replace(/-/g, "").toLowerCase();
+  if (LEGACY_SECTOR_UUIDS[normId]) {
+    return LEGACY_SECTOR_UUIDS[normId];
+  }
+
+  // Check labels
+  for (const [code, label] of Object.entries(CANONICAL_SECTOR_LABELS)) {
+    if (label.toLowerCase() === trimmed.toLowerCase()) {
+      return code as CanonicalSectorCode;
+    }
+  }
+
+  // Check semantic aliases
+  const cleaned = trimmed.toLowerCase().replace(/[\s\-_&]+/g, " ");
+  if (cleaned.includes("cookstove") || cleaned.includes("clean cook")) return "COOKSTOVES";
+  if (cleaned.includes("hybrid") || cleaned.includes("mini grid") || cleaned.includes("minigrid")) return "HYBRID_ENERGY";
+  if (cleaned.includes("biochar") || cleaned.includes("pyrolysis")) return "BIOCHAR";
+  if (cleaned.includes("ev mobility") || cleaned.includes("electric vehicle")) return "EV_MOBILITY";
+  if (cleaned.includes("agric") || cleaned.includes("afolu") || cleaned.includes("land use")) return "AGRICULTURE_LAND_USE";
+
+  return null;
+}
+
+export interface CanonicalMethodologyOption {
+  id: string;
+  code: string;
+  name: string;
+  registryCode: string;
+  registryName: string;
+  description: string;
+  version?: string;
+}
+
+/**
+ * Authoritative production-enabled primary methodologies scoped per canonical sector.
+ * Supporting modules/tools (e.g. VT0014, VMD0053, BM_T_001) are strictly excluded.
+ */
+export const CANONICAL_SECTOR_METHODOLOGIES: Record<CanonicalSectorCode, readonly CanonicalMethodologyOption[]> = {
+  AGRICULTURE_LAND_USE: [
+    {
+      id: "ec739cc0-517a-4fa0-9ff3-ed4cc6d17667",
+      code: "VM0042",
+      name: "Improved Agricultural Land Management",
+      registryCode: "VERRA",
+      registryName: "Verra (VCS)",
+      version: "2.2",
+      description: "Quantifies greenhouse gas emission reductions and carbon dioxide removals resulting from the adoption of improved agricultural land management practices.",
+    },
+  ],
+  BIOCHAR: [
+    {
+      id: "61114e85-8b39-470f-8c4a-70b7ae098009",
+      code: "VM0044",
+      name: "Biochar Utilization in Soil and Non-Soil Applications",
+      registryCode: "VERRA",
+      registryName: "Verra (VCS)",
+      version: "1.2",
+      description: "Biochar carbon removal through sustainable biomass pyrolysis and durable soil or non-soil utilization.",
+    },
+    {
+      id: "61114e85-8b39-470f-8c4a-70b7ae098008",
+      code: "BIOCHAR_C_SINK",
+      name: "Biochar Carbon Sink",
+      registryCode: "CSI",
+      registryName: "Carbon Standards International",
+      version: "1.0.0",
+      description: "Standard for carbon sink certification through biochar application.",
+    },
+    {
+      id: "61114e85-8b39-470f-8c4a-70b7ae098007",
+      code: "PURO_BIOCHAR_2025",
+      name: "Puro Standard Biochar Methodology",
+      registryCode: "PURO_STANDARD",
+      registryName: "Puro.earth Standard",
+      version: "2025",
+      description: "Engineered biochar carbon removal crediting under the Puro Standard.",
+    },
+    {
+      id: "61114e85-8b39-470f-8c4a-70b7ae098006",
+      code: "EBC_BIOCHAR",
+      name: "European Biochar Certificate",
+      registryCode: "CSI",
+      registryName: "Carbon Standards International",
+      version: "1.0.0",
+      description: "European standard for sustainable production and carbon sink certification of biochar.",
+    },
+    {
+      id: "61114e85-8b39-470f-8c4a-70b7ae098005",
+      code: "GS_BIOCHAR",
+      name: "Gold Standard Biochar Methodology",
+      registryCode: "GOLD_STANDARD",
+      registryName: "Gold Standard (GS)",
+      version: "1.0.0",
+      description: "Gold Standard methodology for biochar production and application.",
+    },
+  ],
+  COOKSTOVES: [
+    {
+      id: "4685d816-3d51-4cdd-85f1-8c6aab3c50a1",
+      code: "AMS_II_G",
+      name: "Energy Efficiency in Thermal Applications",
+      registryCode: "CDM",
+      registryName: "Clean Development Mechanism",
+      version: "1.0.0",
+      description: "CDM methodology for energy efficiency in thermal applications including household improved cookstoves.",
+    },
+    {
+      id: "4685d816-3d51-4cdd-85f1-8c6aab3c50a2",
+      code: "GS_MECD",
+      name: "Metered Energy Cooking Devices",
+      registryCode: "GOLD_STANDARD",
+      registryName: "Gold Standard (GS)",
+      version: "3.0",
+      description: "Quantification for electric and metered cooking devices displacing biomass.",
+    },
+    {
+      id: "4685d816-3d51-4cdd-85f1-8c6aab3c50a3",
+      code: "GS_TPDDTEC",
+      name: "Displace Decentralized Thermal Energy",
+      registryCode: "GOLD_STANDARD",
+      registryName: "Gold Standard (GS)",
+      version: "4.0",
+      description: "Thermal energy applications displacing woody biomass.",
+    },
+    {
+      id: "4685d816-3d51-4cdd-85f1-8c6aab3c50a4",
+      code: "VM0006",
+      name: "Fuel Switching (Cookstoves)",
+      registryCode: "VERRA",
+      registryName: "Verra (VCS)",
+      version: "1.0.0",
+      description: "Switching from non-renewable biomass to renewable cooking fuels.",
+    },
+    {
+      id: "4685d816-3d51-4cdd-85f1-8c6aab3c50a5",
+      code: "VMR0050",
+      name: "Thermal Energy Displacement",
+      registryCode: "VERRA",
+      registryName: "Verra (VCS)",
+      version: "1.0.0",
+      description: "Displacement of non-renewable fossil or biomass energy with clean thermal appliances.",
+    },
+  ],
+  HYBRID_ENERGY: [
+    {
+      id: "e1074ae1-c76c-47c7-a5de-0241d44031f1",
+      code: "AMS_I_F",
+      name: "Renewable Electricity for Captive Use",
+      registryCode: "CDM",
+      registryName: "Clean Development Mechanism",
+      version: "1.0.0",
+      description: "Renewable electricity generation displacing fossil fuel generators and captive mini-grids.",
+    },
+    {
+      id: "e1074ae1-c76c-47c7-a5de-0241d44031f2",
+      code: "CI_GRID_DISPLACEMENT",
+      name: "C&I Grid Displacement",
+      registryCode: "CDM",
+      registryName: "Clean Development Mechanism",
+      version: "1.0.0",
+      description: "Commercial & Industrial solar installations displacing grid and diesel power.",
+    },
+    {
+      id: "e1074ae1-c76c-47c7-a5de-0241d44031f3",
+      code: "ENERGY_DISPLACEMENT",
+      name: "Renewable Energy Displacement",
+      registryCode: "CDM",
+      registryName: "Clean Development Mechanism",
+      version: "1.0.0",
+      description: "Clean energy displacement of fossil generators across distributed assets.",
+    },
+    {
+      id: "e1074ae1-c76c-47c7-a5de-0241d44031f4",
+      code: "MINIGRID_DIESEL_DISPLACEMENT",
+      name: "Mini-Grid Diesel Displacement",
+      registryCode: "CDM",
+      registryName: "Clean Development Mechanism",
+      version: "1.0.0",
+      description: "Community solar mini-grids displacing baseline diesel gensets.",
+    },
+    {
+      id: "e1074ae1-c76c-47c7-a5de-0241d44031f5",
+      code: "SHS_RENEWABLE_DISPLACEMENT",
+      name: "Solar Home System Displacement",
+      registryCode: "CDM",
+      registryName: "Clean Development Mechanism",
+      version: "1.0.0",
+      description: "Distributed solar home systems for off-grid households displacing kerosene and diesel.",
+    },
+    {
+      id: "e1074ae1-c76c-47c7-a5de-0241d44031f6",
+      code: "ACM0002",
+      name: "Grid-Connected Renewable Electricity Generation",
+      registryCode: "CDM",
+      registryName: "Clean Development Mechanism",
+      version: "1.0.0",
+      description: "Grid-connected electricity generation from renewable sources displacing baseline fossil fuel generation.",
+    },
+  ],
+  EV_MOBILITY: [
+    {
+      id: "30592386-cdc7-4c42-a003-bc8aa7191aa1",
+      code: "EV_DISPLACEMENT",
+      name: "EV Fossil Fuel Displacement",
+      registryCode: "CDM",
+      registryName: "Clean Development Mechanism",
+      version: "1.0.0",
+      description: "Electric vehicle transport systems and fleets displacing internal combustion engines.",
+    },
+    {
+      id: "30592386-cdc7-4c42-a003-bc8aa7191aa2",
+      code: "AMS_III_C",
+      name: "Emission Reductions by Low-GHG Vehicles",
+      registryCode: "CDM",
+      registryName: "Clean Development Mechanism",
+      version: "1.0.0",
+      description: "Low-greenhouse gas emission vehicles for public and commercial transport fleets.",
+    },
+    {
+      id: "30592386-cdc7-4c42-a003-bc8aa7191aa3",
+      code: "VM0038",
+      name: "Electric Vehicle Charging Systems",
+      registryCode: "VERRA",
+      registryName: "Verra (VCS)",
+      version: "1.0.0",
+      description: "Quantifies emission reductions from the deployment of EV charging infrastructure.",
+    },
+  ],
+};
+
+// Supporting modules and tools that must NEVER be surfaced as primary project methodologies
+export const DISALLOWED_PRIMARY_METHODOLOGY_CODES: ReadonlySet<string> = new Set([
+  "VT0014",
+  "VMD0053",
+  "BM_T_001",
+  "GS_AGRI_ACT_REQ",
+]);
+
+// Unconfigured methodologies
+export const UNCONFIGURED_METHODOLOGY_CODES: ReadonlySet<string> = new Set([
+  "VM0047",
+  "VM0051",
+  "VM0032",
+  "VM0041",
+  "BM_AG04_001",
+  "BM_AG04_002",
+  "BM_FR05_002",
+]);
+
+/**
+ * Returns authorized production-enabled primary methodologies for a canonical sector.
+ * Returns an empty array if the sector is unselected or unrecognized.
+ */
+export function getCanonicalMethodologiesForSector(sectorInput: unknown): CanonicalMethodologyOption[] {
+  const code = normalizeToCanonicalSectorCode(sectorInput);
+  if (!code || !CANONICAL_SECTOR_METHODOLOGIES[code]) {
+    return [];
+  }
+  return [...CANONICAL_SECTOR_METHODOLOGIES[code]];
+}
+
+/**
+ * Checks whether a methodology code or ID is valid for the given sector.
+ */
+export function isMethodologyCompatibleWithSector(
+  sectorInput: unknown,
+  methodologyCodeOrId: string
+): boolean {
+  const code = normalizeToCanonicalSectorCode(sectorInput);
+  if (!code) return false;
+
+  const validMeths = CANONICAL_SECTOR_METHODOLOGIES[code] || [];
+  const clean = methodologyCodeOrId.trim();
+  const cleanUpper = clean.toUpperCase();
+  const cleanLower = clean.toLowerCase();
+
+  return validMeths.some(
+    (m) =>
+      m.id.toLowerCase() === cleanLower ||
+      m.code.toUpperCase() === cleanUpper ||
+      m.code.replace(/-/g, "_").toUpperCase() === cleanUpper.replace(/-/g, "_")
+  );
+}

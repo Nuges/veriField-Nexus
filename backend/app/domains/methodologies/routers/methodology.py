@@ -1,36 +1,178 @@
-from typing import Any, Dict, List, Optional
+from datetime import date
+from typing import Any, Dict, List, Optional, Union
+import uuid
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.rbac import require_permission
 from app.core.security import get_current_user
+from app.core.sectors import (
+    CanonicalSector,
+    CANONICAL_SECTOR_PRODUCTION_METHODOLOGIES,
+    CANONICAL_SECTOR_LABELS,
+    CANONICAL_SECTOR_UUID_MAP,
+    DISALLOWED_PRIMARY_METHODOLOGY_CODES,
+    UNCONFIGURED_METHODOLOGY_CODES,
+    get_production_methodologies_for_sector,
+    get_canonical_methodology_codes_for_sector,
+    normalize_to_canonical_sector,
+)
 from app.db.session import get_db
 from app.domains.authentication.models import User
+from app.domains.methodologies.models.base_registry import MethodologyFamily
 from app.domains.methodologies.schemas.registry import (
-    MethodologyCreate, MethodologySchema, MethodologyVersionCreate,
-    MethodologyVersionSchema, MethodologyVersionStatusUpdate, MethodologyRecommendationResponse)
+    FamilySchema,
+    MethodologyCreate,
+    MethodologyRecommendationResponse,
+    MethodologySchema,
+    MethodologyVersionCreate,
+    MethodologyVersionSchema,
+    MethodologyVersionStatusUpdate,
+    RegistrySchema,
+)
 from app.domains.methodologies.services.forms import FormGenerationService
 from app.domains.methodologies.services.methodology import MethodologyService
 
 router = APIRouter()
 
 
-
+def _synthesize_canonical_methodology_schema(item: Dict[str, Any], sec: CanonicalSector) -> MethodologySchema:
+    sec_uuid_str = {v: k for k, v in CANONICAL_SECTOR_UUID_MAP.items()}.get(sec, "9a7a4370-71e6-44f5-9870-975823b8ccb9")
+    fam_uuid = UUID(sec_uuid_str)
+    reg_uuid = uuid.uuid5(uuid.NAMESPACE_DNS, f"registry.{item.get('registry_code', 'VERRA')}")
+    meth_uuid = UUID(item["id"])
+    ver_uuid = uuid.uuid5(meth_uuid, item.get("version", "1.0.0"))
+    return MethodologySchema(
+        id=meth_uuid,
+        code=item["code"],
+        name=item["name"],
+        description=item.get("description"),
+        registry=RegistrySchema(
+            id=reg_uuid,
+            code=item.get("registry_code", "VERRA"),
+            name=item.get("registry_name", "Verra (VCS)"),
+            description=None,
+            is_active=True,
+        ),
+        family=FamilySchema(
+            id=fam_uuid,
+            code=sec.value,
+            name=CANONICAL_SECTOR_LABELS.get(sec, sec.value),
+            description=None,
+            project_types=[],
+        ),
+        versions=[
+            MethodologyVersionSchema(
+                id=ver_uuid,
+                version=item.get("version", "1.0.0"),
+                status="ACTIVE",
+                release_date=date(2024, 1, 1),
+                retirement_date=None,
+            )
+        ],
+        ui_config={},
+        form_schema={},
+        recommendation_rules={},
+    )
 
 
 @router.get("", response_model=List[MethodologySchema])
 async def list_methodologies(
-    family_id: Optional[UUID] = Query(None),
-    sector_id: Optional[UUID] = Query(None),
+    sector: Optional[str] = Query(None),
+    sector_id: Optional[str] = Query(None),
+    family_id: Optional[str] = Query(None),
     is_active: Optional[bool] = Query(True),
     db: AsyncSession = Depends(get_db)
 ):
+    """
+    List methodologies, scoped strictly to the requested canonical sector if provided.
+    - If sector/sector_id/family_id is provided, only production-enabled primary methodologies
+      for that canonical sector are returned (zero cross-sector leakage).
+    - Unconfigured methodologies and supporting modules/tools (e.g. VT0014, VMD0053) are never returned.
+    - If an invalid/unknown sector is requested, fails closed (returns []).
+    """
+    raw_filter = sector or sector_id or family_id
+    filter_requested = raw_filter is not None and str(raw_filter).strip() != ""
+
+    canonical_sector: Optional[CanonicalSector] = None
+
+    if filter_requested:
+        filter_str = str(raw_filter).strip()
+        canonical_sector = normalize_to_canonical_sector(filter_str)
+
+        # If not normalized directly, check if it's a UUID and lookup in DB methodology_families
+        if not canonical_sector:
+            try:
+                target_uuid = UUID(filter_str)
+                res_fam = await db.execute(
+                    select(MethodologyFamily).where(
+                        (MethodologyFamily.id == target_uuid)
+                    )
+                )
+                fam = res_fam.scalars().first()
+                if fam:
+                    canonical_sector = normalize_to_canonical_sector(fam.code)
+            except (ValueError, TypeError):
+                pass
+
+        # If a filter was requested but no valid canonical sector could be resolved: FAIL CLOSED
+        if not canonical_sector:
+            return []
+
     service = MethodologyService(db)
-    target_family = family_id or sector_id
-    return await service.list_methodologies(family_id=target_family, is_active=is_active)
+
+    # Scoped to a specific canonical sector
+    if canonical_sector:
+        allowed_codes = get_canonical_methodology_codes_for_sector(canonical_sector)
+
+        # Query methodologies for this family from DB if the family exists in DB
+        res_fam = await db.execute(
+            select(MethodologyFamily).where(MethodologyFamily.code == canonical_sector.value)
+        )
+        fam_obj = res_fam.scalars().first()
+
+        db_meths: List[Any] = []
+        if fam_obj:
+            db_meths = await service.list_methodologies(family_id=fam_obj.id, is_active=is_active)
+
+        # Filter DB methodologies to strictly allowed primary codes
+        filtered = [
+            m for m in db_meths
+            if m.code.upper() in allowed_codes
+            and m.code.upper() not in DISALLOWED_PRIMARY_METHODOLOGY_CODES
+            and m.code.upper() not in UNCONFIGURED_METHODOLOGY_CODES
+        ]
+
+        if filtered:
+            return filtered
+
+        # If DB has no active records for this canonical sector (e.g., unseeded AGRICULTURE_LAND_USE),
+        # return synthesized production-enabled methodologies
+        return [
+            _synthesize_canonical_methodology_schema(m, canonical_sector)
+            for m in get_production_methodologies_for_sector(canonical_sector)
+        ]
+
+    # No sector filter provided: return all active primary methodologies from DB
+    all_db = await service.list_methodologies(family_id=None, is_active=is_active)
+    result_list = [
+        m for m in all_db
+        if m.code.upper() not in DISALLOWED_PRIMARY_METHODOLOGY_CODES
+        and m.code.upper() not in UNCONFIGURED_METHODOLOGY_CODES
+    ]
+    codes_present = {m.code.upper() for m in result_list}
+
+    # Ensure VM0042 is surfaced even if unseeded in DB
+    if "VM0042" not in codes_present:
+        agri_meths = get_production_methodologies_for_sector(CanonicalSector.AGRICULTURE_LAND_USE)
+        if agri_meths:
+            result_list.append(_synthesize_canonical_methodology_schema(agri_meths[0], CanonicalSector.AGRICULTURE_LAND_USE))
+
+    return result_list
 
 
 

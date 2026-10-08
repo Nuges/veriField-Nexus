@@ -172,6 +172,34 @@ async def create_access_request(
                     )
                 resolved_sector_code = fam_row[0]
 
+        # Validate methodology compatibility with canonical operating sector
+        if payload.methodology_id:
+            from app.core.sectors import is_methodology_valid_for_sector
+            if not resolved_sector_code:
+                raise HTTPException(
+                    status_code=422,
+                    detail="Cannot select a methodology without specifying a valid primary operating sector."
+                )
+
+            meth_raw = str(payload.methodology_id).strip()
+            meth_to_validate = meth_raw
+            try:
+                meth_uuid_clean = str(uuid.UUID(meth_raw))
+                # Check DB if this is a known database methodology UUID
+                res_m = await db.execute(
+                    text("SELECT code FROM methodologies WHERE id = :mid OR id = :hex_mid"),
+                    {"mid": meth_uuid_clean, "hex_mid": meth_uuid_clean.replace("-", "")}
+                )
+                m_row = res_m.fetchone()
+                if m_row and m_row[0]:
+                    meth_to_validate = m_row[0]
+            except (ValueError, TypeError):
+                pass
+
+            is_valid, reason = is_methodology_valid_for_sector(resolved_sector_code, meth_to_validate)
+            if not is_valid:
+                raise HTTPException(status_code=422, detail=reason)
+
         import json
 
         metadata = {
