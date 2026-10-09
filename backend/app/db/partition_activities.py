@@ -123,6 +123,8 @@ async def setup_activities_partitioning(session: AsyncSession):
 
                 user_id UUID NOT NULL,
 
+                project_id UUID,
+
                 property_id UUID,
 
                 asset_id UUID,
@@ -220,6 +222,8 @@ async def setup_activities_partitioning(session: AsyncSession):
                 "organization_id",
 
                 "user_id",
+
+                "project_id",
 
                 "property_id",
 

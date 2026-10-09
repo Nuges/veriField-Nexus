@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Dict, Optional
 
 
 
@@ -45,6 +45,63 @@ router = APIRouter(prefix="/activities", tags=["Activities"])
 
 
 
+async def validate_and_resolve_project(
+    db: AsyncSession,
+    raw_project_id: Any,
+    current_user: User,
+    org_id: UUID,
+    activity_data: Optional[Dict[str, Any]] = None,
+) -> Optional[UUID]:
+    """
+    Validates project existence, tenancy isolation, and methodology locking.
+    Returns the validated project UUID if provided, or None if raw_project_id is empty/omitted.
+    Raises HTTPException (400, 403, 404) if invalid or unauthorized.
+    """
+    if not raw_project_id:
+        return None
+
+    try:
+        proj_uuid = UUID(str(raw_project_id))
+    except (ValueError, TypeError):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid project_id format: '{raw_project_id}'. Must be a valid UUID."
+        )
+
+    from app.domains.projects.models import Project
+    from sqlalchemy import select
+
+    proj_stmt = select(Project).where(Project.id == proj_uuid)
+    proj_res = await db.execute(proj_stmt)
+    project = proj_res.scalar_one_or_none()
+    if not project:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Project {proj_uuid} not found.")
+
+    if current_user.role != "SUPER_ADMIN" and (project.organization_id is None or project.organization_id != org_id):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access to project in another organization is forbidden.")
+
+    if project.methodology_id and activity_data is not None:
+        from app.domains.methodologies.models.base_registry import Methodology
+        meth_stmt = select(Methodology).where(Methodology.id == project.methodology_id)
+        meth_res = await db.execute(meth_stmt)
+        meth_obj = meth_res.scalar_one_or_none()
+        locked_meth = (meth_obj.code if meth_obj else str(project.methodology_id)).strip().upper()
+        client_meth = (
+            activity_data.get("methodology")
+            or activity_data.get("methodology_code")
+            or activity_data.get("methodology_id")
+        )
+        if client_meth and str(client_meth).strip().upper() != locked_meth:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Methodology mismatch: Project is locked to '{locked_meth}', but activity payload specified '{client_meth}'."
+            )
+        activity_data["methodology"] = locked_meth
+        activity_data["methodology_locked"] = True
+
+    return proj_uuid
+
+
 @router.post("", response_model=ActivityResponse, status_code=status.HTTP_201_CREATED)
 @router.post("/offline", response_model=ActivityResponse, status_code=status.HTTP_201_CREATED)
 async def create_activity(
@@ -73,36 +130,13 @@ async def create_activity(
 
     # Project methodology lock & cross-tenant access enforcement
     target_project_id = payload.project_id or (payload.activity_data.get("project_id") if payload.activity_data else None)
-    if target_project_id:
-        try:
-            target_proj_uuid = UUID(str(target_project_id))
-            from app.domains.projects.models import Project
-            from sqlalchemy import select
-            proj_stmt = select(Project).where(Project.id == target_proj_uuid)
-            proj_res = await db.execute(proj_stmt)
-            project = proj_res.scalar_one_or_none()
-            if not project:
-                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Project {target_project_id} not found.")
-            if current_user.role != "SUPER_ADMIN" and project.organization_id and project.organization_id != org_id:
-                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access to project in another organization is forbidden.")
-
-            if project.methodology_id:
-                from app.domains.methodologies.models.base_registry import Methodology
-                meth_stmt = select(Methodology).where(Methodology.id == project.methodology_id)
-                meth_res = await db.execute(meth_stmt)
-                meth_obj = meth_res.scalar_one_or_none()
-                locked_meth = (meth_obj.code if meth_obj else str(project.methodology_id)).strip().upper()
-                client_meth = (payload.activity_data.get("methodology") or payload.activity_data.get("methodology_code") or payload.activity_data.get("methodology_id")) if payload.activity_data else None
-                if client_meth and str(client_meth).strip().upper() != locked_meth:
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail=f"Methodology mismatch: Project is locked to '{locked_meth}', but activity payload specified '{client_meth}'."
-                    )
-                if payload.activity_data is not None:
-                    payload.activity_data["methodology"] = locked_meth
-                    payload.activity_data["methodology_locked"] = True
-        except (ValueError, TypeError):
-            pass
+    payload.project_id = await validate_and_resolve_project(
+        db=db,
+        raw_project_id=target_project_id,
+        current_user=current_user,
+        org_id=org_id,
+        activity_data=payload.activity_data,
+    )
 
     repo = ActivityRepository(db)
     service = ActivityService(repo)
@@ -183,16 +217,24 @@ async def create_activities_batch(
 
 
             # Adapt payload to ActivityCreate
-
             try:
+                batch_proj_id = act_data.get("project_id") or (act_data.get("activity_data", {}).get("project_id") if isinstance(act_data.get("activity_data"), dict) else None)
+                act_data_dict = dict(act_data.get("activity_data")) if isinstance(act_data.get("activity_data"), dict) else {}
+
+                batch_proj_uuid = await validate_and_resolve_project(
+                    db=db,
+                    raw_project_id=batch_proj_id,
+                    current_user=current_user,
+                    org_id=org_id,
+                    activity_data=act_data_dict,
+                )
 
                 activity_create = ActivityCreate(
-
-                    project_id=None,
+                    project_id=batch_proj_uuid,
 
                     activity_type=act_data.get("activity_type", "unknown"),
 
-                    activity_data=act_data.get("activity_data", {}),
+                    activity_data=act_data_dict,
 
                     description=act_data.get("description"),
 
@@ -206,7 +248,7 @@ async def create_activities_batch(
 
                     gps_accuracy=act_data.get("gps_accuracy"),
 
-                    captured_at=act_data.get("captured_at", datetime.now().isoformat()),
+                    captured_at=act_data.get("captured_at"),
 
                     client_id=client_id,
 
@@ -219,6 +261,10 @@ async def create_activities_batch(
                 )
 
                 results.append({"client_id": client_id, "status": "submitted", "id": str(activity.id)})
+
+            except HTTPException as http_e:
+
+                results.append({"client_id": client_id, "status": "failed", "error": http_e.detail, "error_code": http_e.status_code})
 
             except Exception as e:
 
@@ -245,6 +291,8 @@ async def list_activities(
     status: Optional[str] = Query(None),
 
     user_id: Optional[UUID] = Query(None),
+
+    project_id: Optional[UUID] = Query(None),
 
     property_id: Optional[UUID] = Query(None),
 
@@ -290,6 +338,8 @@ async def list_activities(
         status=status,
 
         user_id=user_id,
+
+        project_id=project_id,
 
         property_id=property_id,
 

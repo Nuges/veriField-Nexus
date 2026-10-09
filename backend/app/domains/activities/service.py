@@ -57,9 +57,16 @@ class ActivityService:
                 data["provisional_field_estimates"] = estimates
                 data["lab_provenance"] = "UNVALIDATED_FIELD_OBSERVATION"
 
+        captured_at = payload.captured_at or datetime.now(timezone.utc)
+        if captured_at.tzinfo is None:
+            captured_at = captured_at.replace(tzinfo=timezone.utc)
+        else:
+            captured_at = captured_at.astimezone(timezone.utc)
+
         activity = Activity(
             organization_id=organization_id,
             user_id=user_id,
+            project_id=payload.project_id,
             property_id=payload.property_id,
             asset_id=payload.asset_id,
             activity_type=payload.activity_type,
@@ -70,7 +77,7 @@ class ActivityService:
             latitude=payload.latitude,
             longitude=payload.longitude,
             gps_accuracy=payload.gps_accuracy,
-            captured_at=payload.captured_at,
+            captured_at=captured_at,
             status="pending",
             client_id=payload.client_id,
             override_reason=payload.override_reason,
@@ -85,6 +92,7 @@ class ActivityService:
         # Publish event for async background processing
         payload_dict = {
             "activity_type": created.activity_type,
+            "project_id": str(created.project_id) if created.project_id else None,
             "captured_at": (
                 created.captured_at.isoformat() if created.captured_at else None
             ),

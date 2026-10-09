@@ -139,3 +139,4 @@ backend/app/static/keys/*
 test-results/
 backend/test_results.xml
 dashboard/tests/screenshots/
+secrets.h

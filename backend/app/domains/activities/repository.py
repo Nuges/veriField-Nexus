@@ -108,6 +108,8 @@ class ActivityRepository:
 
         user_id: Optional[UUID] = None,
 
+        project_id: Optional[UUID] = None,
+
         property_id: Optional[UUID] = None,
 
         asset_id: Optional[UUID] = None,
@@ -201,6 +203,10 @@ class ActivityRepository:
         if status:
 
             conditions.append(Activity.status == status)
+
+        if project_id:
+
+            conditions.append(Activity.project_id == project_id)
 
         if property_id:
 

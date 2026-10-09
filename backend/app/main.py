@@ -327,6 +327,10 @@ async def lifespan(app: FastAPI):
 
                 await session.execute(text("ALTER TABLE verification_tasks ALTER COLUMN project_id DROP NOT NULL"))
 
+                await session.execute(text("ALTER TABLE activities ADD COLUMN IF NOT EXISTS project_id UUID REFERENCES projects(id) ON DELETE SET NULL"))
+
+                await session.execute(text("CREATE INDEX IF NOT EXISTS ix_activities_project_id ON activities (project_id)"))
+
 
 
                 await session.execute(

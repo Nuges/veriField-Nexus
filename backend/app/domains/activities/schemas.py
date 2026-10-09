@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from typing import Any, Dict, List, Optional
 
@@ -6,7 +6,7 @@ from uuid import UUID
 
 
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 
@@ -36,7 +36,22 @@ class ActivityCreate(BaseModel):
 
     gps_accuracy: Optional[float] = None
 
-    captured_at: Optional[datetime] = Field(default_factory=datetime.utcnow)
+    captured_at: Optional[datetime] = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    @field_validator("captured_at", mode="before")
+    @classmethod
+    def validate_captured_at_utc(cls, v):
+        if v is None:
+            return datetime.now(timezone.utc)
+        if isinstance(v, str):
+            val = v.strip()
+            if not val.endswith("Z") and "+" not in val and "-" not in val[10:]:
+                val = val + "Z"
+            return datetime.fromisoformat(val.replace("Z", "+00:00"))
+        if isinstance(v, datetime):
+            if v.tzinfo is None:
+                return v.replace(tzinfo=timezone.utc)
+        return v
 
     client_id: Optional[str] = None
 

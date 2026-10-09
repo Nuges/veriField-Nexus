@@ -80,6 +80,20 @@ class Activity(Base):
 
 
 
+    project_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+
+        UUID(as_uuid=True),
+
+        ForeignKey("projects.id", ondelete="SET NULL"),
+
+        nullable=True,
+
+        index=True,
+
+    )
+
+
+
     property_id: Mapped[uuid.UUID] = mapped_column(
 
         UUID(as_uuid=True),
@@ -213,6 +227,8 @@ class Activity(Base):
     # Relationships
 
     user = relationship("User", back_populates="activities", lazy="selectin")
+
+    project = relationship("Project", backref="activities")
 
     property = relationship("Property", back_populates="activities")
 
