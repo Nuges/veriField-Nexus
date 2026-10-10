@@ -266,7 +266,7 @@ export default function EnergyDashboardPage() {
             <div className="space-y-1">
               <p className="text-xs font-medium text-[var(--color-text-secondary)]">Total energy generated</p>
               <p className="text-2xl font-bold text-[var(--color-text-primary)] tracking-tight">
-                {isLoading ? "..." : totalMwh.toLocaleString(undefined, { maximumFractionDigits: 1 })} <span className="text-xs font-normal text-[var(--color-text-muted)]">MWh</span>
+                {isLoading ? "..." : totalMwh.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-xs font-normal text-[var(--color-text-muted)]">MWh</span>
               </p>
               <p className="text-xs text-[var(--color-text-muted)] font-normal">Cumulative clean generation</p>
             </div>

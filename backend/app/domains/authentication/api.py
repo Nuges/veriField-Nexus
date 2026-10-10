@@ -6,13 +6,13 @@ from pydantic import BaseModel
 
 
 
-from fastapi import APIRouter, Depends, File, Header, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, Header, HTTPException, Query, Request, UploadFile, status
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
 
-from app.core.rate_limit import rate_limit
+from app.core.rate_limit import check_login_rate_limit, rate_limit
 from app.core.rbac import require_permission
 from app.core.security import get_current_user
 from app.db.session import get_db
@@ -27,8 +27,16 @@ from app.domains.authentication.validators import validate_password_strength
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
-@router.post("/login", dependencies=[Depends(rate_limit(limit=15, window_seconds=60, key_prefix="login"))])
-async def login(credentials: UserLogin, db: AsyncSession = Depends(get_db)):
+@router.post("/login")
+async def login(
+    credentials: UserLogin,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    await check_login_rate_limit(
+        request,
+        account_identifier=credentials.email or credentials.phone,
+    )
     try:
         repo = UserRepository(db)
         service = AuthenticationService(repo)

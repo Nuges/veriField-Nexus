@@ -236,11 +236,65 @@ async def get_sensor_readings(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_permission("asset:read")),
 ):
-    from fastapi.responses import JSONResponse
-    return JSONResponse(
-        status_code=501,
-        content={"detail": "Sensor telemetry integration not yet implemented", "asset_id": asset_id},
+    """
+    Returns telemetry sensor observations associated with the asset for verification inspection.
+    """
+    from sqlalchemy import select, or_
+    from app.domains.activities.models import Activity
+
+    try:
+        asset_uuid = UUID(asset_id)
+    except (ValueError, TypeError):
+        asset_uuid = None
+
+    stmt = select(Activity)
+    if asset_uuid:
+        stmt = stmt.where(
+            or_(
+                Activity.asset_id == asset_uuid,
+                Activity.project_id == asset_uuid,
+                Activity.activity_data["device_id"].astext == asset_id,
+            )
+        )
+    else:
+        stmt = stmt.where(Activity.activity_data["device_id"].astext == asset_id)
+
+    # Filter for sensor / telemetry activities
+    stmt = stmt.where(
+        Activity.activity_type.in_([
+            "SOIL_SENSOR_TELEMETRY",
+            "SENSOR_READING",
+            "TELEMETRY",
+            "METER_READING",
+            "SENSOR_STREAM",
+            "COOKSTOVE_TELEMETRY",
+            "IOT_TELEMETRY",
+            "telemetry",
+            "meter_reading",
+            "sensor_stream",
+        ])
     )
+
+    # Multi-tenant scoping
+    if normalize_canonical_role(current_user.role) != ROLE_SUPER_ADMIN and current_user.organization_id:
+        stmt = stmt.where(Activity.organization_id == current_user.organization_id)
+
+    stmt = stmt.order_by(Activity.captured_at.desc()).limit(100)
+    result = await db.execute(stmt)
+    activities = result.scalars().all()
+
+    readings = []
+    for act in activities:
+        data = act.activity_data or {}
+        readings.append({
+            "id": str(act.id),
+            "asset_id": str(act.asset_id or asset_id),
+            "device_id": data.get("device_id") or "UNKNOWN",
+            "temperature": data.get("soil_temperature_c") or data.get("temperature"),
+            "usage_flag": bool(data.get("usage_flag", True)),
+            "timestamp": act.captured_at.isoformat() if act.captured_at else None,
+        })
+    return readings
 
 
 @router.get("/community/{asset_id}")
@@ -249,11 +303,51 @@ async def get_asset_community_validations(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_permission("asset:read")),
 ):
-    from fastapi.responses import JSONResponse
-    return JSONResponse(
-        status_code=501,
-        content={"detail": "Community validations integration not yet implemented", "asset_id": asset_id},
-    )
+    """
+    Returns community survey observations associated with the asset for verification inspection.
+    """
+    from sqlalchemy import select, or_
+    from app.domains.activities.models import Activity
+
+    try:
+        asset_uuid = UUID(asset_id)
+    except (ValueError, TypeError):
+        asset_uuid = None
+
+    stmt = select(Activity)
+    if asset_uuid:
+        stmt = stmt.where(
+            or_(
+                Activity.asset_id == asset_uuid,
+                Activity.project_id == asset_uuid,
+                Activity.activity_data["device_id"].astext == asset_id,
+            )
+        )
+    else:
+        stmt = stmt.where(Activity.activity_data["device_id"].astext == asset_id)
+
+    # Filter for community or field observation activity types
+    stmt = stmt.where(Activity.activity_type.in_(["COMMUNITY_VALIDATION", "COMMUNITY_OBSERVATION", "FIELD_OBSERVATION", "SURVEY"]))
+
+    # Multi-tenant scoping
+    if normalize_canonical_role(current_user.role) != ROLE_SUPER_ADMIN and current_user.organization_id:
+        stmt = stmt.where(Activity.organization_id == current_user.organization_id)
+
+    stmt = stmt.order_by(Activity.captured_at.desc()).limit(100)
+    result = await db.execute(stmt)
+    activities = result.scalars().all()
+
+    validations = []
+    for act in activities:
+        data = act.activity_data or {}
+        validations.append({
+            "id": str(act.id),
+            "asset_id": str(act.asset_id or asset_id),
+            "validator_id": str(act.user_id) if act.user_id else "UNKNOWN",
+            "response": data.get("response") or act.description or "Observed and validated",
+            "timestamp": act.captured_at.isoformat() if act.captured_at else None,
+        })
+    return validations
 
 
 # ---------------------------------------------------------------------------

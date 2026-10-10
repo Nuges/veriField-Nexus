@@ -51,6 +51,7 @@ import {
 import { WorkspaceProvider, useWorkspace } from "@/context/WorkspaceContext";
 import { safeStorage } from "@/lib/storage";
 import { resolveCanonicalSectorLabel } from "@/lib/sectors";
+import { normalizeRole, CANONICAL_ROLES } from "@/lib/roles";
 
 import {
   fetchAccessRequests,
@@ -271,12 +272,11 @@ function SuperAdminDashboard() {
   const [passwordSuccess, setPasswordSuccess] = useState("");
   const [isChangingPassword, setIsChangingPassword] = useState(false);
 
-  // Authenticate user is SUPER_ADMIN or Admin
+  // Authenticate user is strictly canonical SUPER_ADMIN
   useEffect(() => {
     if (isLoading) return;
-    const userRoleStr = (user?.role || "").toUpperCase().replace(" ", "_");
-    const allowed = ["SUPER_ADMIN", "ADMIN", "ORG_ADMIN"];
-    if (!user || !allowed.includes(userRoleStr)) {
+    const isSuperAdmin = normalizeRole(user?.role) === CANONICAL_ROLES.SUPER_ADMIN;
+    if (!user || !isSuperAdmin) {
       router.push("/login?error=unauthorized");
     }
   }, [user, isLoading, router]);
@@ -527,9 +527,8 @@ function SuperAdminDashboard() {
   };
 
   useEffect(() => {
-    const userRoleStr = (user?.role || "").toUpperCase().replace(" ", "_");
-    const isAllowed = ["SUPER_ADMIN", "ADMIN", "ORG_ADMIN"].includes(userRoleStr);
-    if (user && isAllowed) {
+    const isSuperAdmin = normalizeRole(user?.role) === CANONICAL_ROLES.SUPER_ADMIN;
+    if (user && isSuperAdmin) {
       loadData();
       const interval = setInterval(() => {
         loadData();
@@ -791,7 +790,7 @@ function SuperAdminDashboard() {
 
 
 
-  if (isLoading || !user || user.role !== "SUPER_ADMIN") {
+  if (isLoading || !user || normalizeRole(user.role) !== CANONICAL_ROLES.SUPER_ADMIN) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-[var(--color-background)] space-y-3">
         <div className="w-8 h-8 border-2 border-[#008A5E] border-t-transparent rounded-full animate-spin" />

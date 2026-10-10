@@ -31,6 +31,7 @@ import {
   TrendingUp,
   FileCheck,
   CheckCircle2,
+  AlertTriangle,
   LucideIcon,
 } from "lucide-react";
 import { useState, useEffect } from "react";
@@ -66,6 +67,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
   TrendingUp,
   FileCheck,
   CheckCircle2,
+  AlertTriangle,
 };
 
 interface NavItem {
@@ -208,6 +210,7 @@ export function DynamicSidebar() {
             items: [
               { label: "Project Mission Control", icon: "LayoutDashboard", href: "/dashboard" },
               { label: sectorTerms.projectsNavLabel, icon: "Briefcase", href: "/dashboard/projects" },
+              { label: "Spatial Map & Operations", icon: "Globe", href: "/dashboard/command-center" },
               { label: "Programmes (PoA)", icon: "Globe", href: "/dashboard/poa" },
               {
                 label: "Project Activities",
@@ -291,13 +294,16 @@ export function DynamicSidebar() {
             title: "MRV & QA/QC Control",
             items: [
               { label: "MRV Control Center", icon: "LayoutDashboard", href: "/dashboard" },
-              { label: "Monitoring Data", icon: "Activity", href: "/dashboard/monitoring" },
               {
-                label: "QA/QC Review Queue",
+                label: "QA Review",
                 icon: "Radio",
                 href: "/dashboard/operations",
                 badge: flaggedCount ? `${flaggedCount}` : undefined,
               },
+              { label: "Anomaly Radar", icon: "AlertTriangle", href: "/dashboard/anomalies" },
+              { label: "Trust Scores", icon: "ShieldCheck", href: "/dashboard/trust-scores" },
+              { label: "Verification Packages / Audits", icon: "FileCheck", href: "/dashboard/verifications" },
+              { label: "Monitoring Data", icon: "Activity", href: "/dashboard/monitoring" },
               { label: "Methodologies", icon: "Layers", href: "/dashboard/methodologies" },
             ],
           },

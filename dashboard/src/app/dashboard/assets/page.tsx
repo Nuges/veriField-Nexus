@@ -5,7 +5,7 @@
 "use client";
 
 import UniversalEntityHeader from "@/components/UniversalEntityHeader";
-import PropertiesPage from "../properties/page";
+import PropertiesDirectoryView from "@/components/properties/PropertiesDirectoryView";
 import { useWorkspace } from "@/context/WorkspaceContext";
 import { getSectorTerminology } from "@/lib/moduleRegistry";
 
@@ -33,7 +33,7 @@ export default function AssetsPage() {
       />
 
       {/* Render Assets / Properties Directory */}
-      <PropertiesPage />
+      <PropertiesDirectoryView />
     </div>
   );
 }

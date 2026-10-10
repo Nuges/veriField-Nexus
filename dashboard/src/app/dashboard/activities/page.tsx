@@ -93,8 +93,12 @@ export default function ActivitiesPage() {
   const [status, setStatus] = useState("");
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [expandedBatches, setExpandedBatches] = useState<Record<string, boolean>>({});
 
-
+  const toggleBatch = (batchId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setExpandedBatches((prev) => ({ ...prev, [batchId]: !prev[batchId] }));
+  };
 
   const router = useRouter();
 
@@ -349,10 +353,100 @@ export default function ActivitiesPage() {
     link.click();
 
     document.body.removeChild(link);
-
   };
 
+  const renderActivityRow = (activity: Activity, isNested = false) => (
+    <tr
+      key={activity.id}
+      onClick={() => router.push(`/dashboard/activities/${activity.id}`)}
+      className={`hover:bg-[var(--color-background)] transition-all group cursor-pointer border-l-2 relative ${
+        isNested
+          ? "bg-slate-50/40 dark:bg-slate-900/40 border-l-emerald-500/60"
+          : "border-l-transparent hover:border-l-[#00B47A]"
+      }`}
+    >
+      <td className={`p-4 ${isNested ? "pl-8" : ""}`}>
+        <div className="flex items-center gap-3">
+          {activity.image_url ? (
+            <div className="w-10 h-10 rounded-lg bg-[var(--color-background)] border border-[var(--color-border)] overflow-hidden shrink-0 group-hover:border-[#00B47A]/40 transition-all">
+              <img src={cleanUrl(activity.image_url)} alt="Proof" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+            </div>
+          ) : (
+            <div className="w-10 h-10 rounded-lg bg-[var(--color-background)] border border-[var(--color-border)] flex items-center justify-center shrink-0">
+              <span className="text-[var(--color-text-muted)] text-[9px] font-bold">No img</span>
+            </div>
+          )}
 
+          <div>
+            <p className="text-xs font-bold text-[var(--color-text-primary)] group-hover:text-[#00B47A] transition-colors">
+              {getDisplayTitle(activity)}
+            </p>
+
+            <div className="flex items-center gap-1.5 mt-1">
+              {activity.duplicate_flag && (
+                <span className="text-[9px] px-1.5 py-0.5 rounded bg-red-500/10 text-red-500 font-extrabold border border-red-500/15 flex items-center gap-0.5">
+                  <AlertTriangle size={8} /> DUP MATCH
+                </span>
+              )}
+
+              {activity.environment_type ? (
+                <span className="text-[9px] px-1.5 py-0.5 rounded bg-[var(--color-background)] border border-[var(--color-border)] text-[var(--color-text-secondary)] font-semibold uppercase tracking-wider">
+                  {activity.environment_type}
+                </span>
+              ) : (
+                <span className="text-[9px] px-1.5 py-0.5 rounded bg-[var(--color-background)] border border-[var(--color-border)] text-[var(--color-text-muted)] font-semibold uppercase tracking-wider">
+                  Standard
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      </td>
+
+      <td className="p-4 text-xs">
+        <div className="flex items-center gap-1.5 text-[var(--color-text-primary)] font-semibold">
+          <Calendar size={12} className="text-[#00B47A]" />
+          <span>{new Date(activity.captured_at).toLocaleDateString()}</span>
+        </div>
+        <span className="block text-[10px] text-[var(--color-text-muted)] mt-0.5 font-medium ml-4">
+          {new Date(activity.captured_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+        </span>
+      </td>
+
+      <td className="p-4 text-xs font-bold text-[var(--color-text-primary)]">
+        <div className="flex items-center gap-2">
+          <div className="w-6 h-6 rounded-full bg-[#00B47A]/10 border border-[#00B47A]/20 flex items-center justify-center text-[#00B47A] text-[9px] font-extrabold">
+            {activity.agent_name ? activity.agent_name.substring(0, 2).toUpperCase() : "AG"}
+          </div>
+          <div className="overflow-hidden">
+            <span className="block truncate">{activity.agent_name || "Assigned Agent"}</span>
+          </div>
+        </div>
+      </td>
+
+      <td className="p-4 text-xs font-mono text-[var(--color-text-secondary)]">
+        {activity.latitude && activity.longitude ? (
+          <div className="flex items-center gap-1.5">
+            <MapPin size={12} className="text-[#00B47A]" />
+            <span>
+              {activity.latitude.toFixed(4)}, {activity.longitude.toFixed(4)}
+            </span>
+          </div>
+        ) : (
+          <span className="text-[var(--color-text-muted)] text-[10px] font-bold">No Spatial Log</span>
+        )}
+      </td>
+
+      <td className="p-4">
+        <div className="flex items-center gap-2">
+          <TrustBadge score={activity.trust_score} />
+          <span className="text-[10px] font-extrabold text-[#00B47A] hidden lg:inline-block bg-[#00B47A]/5 border border-[#00B47A]/15 px-1.5 py-0.5 rounded">
+            {(activity.trust_score ?? 0) >= 80 ? "SECURE" : (activity.trust_score ?? 0) >= 60 ? "AUDIT" : "WARN"}
+          </span>
+        </div>
+      </td>
+    </tr>
+  );
 
   return (
 
@@ -736,180 +830,92 @@ export default function ActivitiesPage() {
 
               ) : (
 
-                filteredActivities.map((activity) => (
+                (() => {
+                  const getBatchKey = (a: any) =>
+                    a.batch_id || a.biochar_batch_id || a.activity_data?.batch_id || a.activity_data?.client_submission_id || null;
 
-                  <tr
+                  const batchMap = new Map<string, Activity[]>();
+                  for (const act of filteredActivities) {
+                    const bKey = getBatchKey(act);
+                    if (bKey) {
+                      if (!batchMap.has(bKey)) batchMap.set(bKey, []);
+                      batchMap.get(bKey)!.push(act);
+                    }
+                  }
 
-                    key={activity.id}
+                  const renderedBatches = new Set<string>();
+                  const elements: React.ReactNode[] = [];
 
-                    onClick={() => router.push(`/dashboard/activities/${activity.id}`)}
-
-                    className="hover:bg-[var(--color-background)] transition-all group cursor-pointer border-l-2 border-l-transparent hover:border-l-[#00B47A] relative"
-
-                  >
-
-                    <td className="p-4">
-
-                      <div className="flex items-center gap-3">
-
-                        {activity.image_url ? (
-
-                          <div className="w-10 h-10 rounded-lg bg-[var(--color-background)] border border-[var(--color-border)] overflow-hidden shrink-0 group-hover:border-[#00B47A]/40 transition-all">
-
-                            <img src={cleanUrl(activity.image_url)} alt="Proof" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-
-                          </div>
-
-                        ) : (
-
-                          <div className="w-10 h-10 rounded-lg bg-[var(--color-background)] border border-[var(--color-border)] flex items-center justify-center shrink-0">
-
-                            <span className="text-[var(--color-text-muted)] text-[9px] font-bold">No img</span>
-
-                          </div>
-
-                        )}
-
-                        <div>
-
-                          <p className="text-xs font-bold text-[var(--color-text-primary)] group-hover:text-[#00B47A] transition-colors">
-
-                            {getDisplayTitle(activity)}
-
-                          </p>
-
-                          <div className="flex items-center gap-1.5 mt-1">
-
-                            {activity.duplicate_flag && (
-
-                              <span className="text-[9px] px-1.5 py-0.5 rounded bg-red-500/10 text-red-500 font-extrabold border border-red-500/15 flex items-center gap-0.5">
-
-                                <AlertTriangle size={8} /> DUP MATCH
-
+                  for (const act of filteredActivities) {
+                    const bKey = getBatchKey(act);
+                    if (bKey && (batchMap.get(bKey)?.length || 0) > 1) {
+                      if (!renderedBatches.has(bKey)) {
+                        renderedBatches.add(bKey);
+                        const bActs = batchMap.get(bKey)!;
+                        const isExpanded = !!expandedBatches[bKey];
+                        elements.push(
+                          <tr
+                            key={`batch-hdr-${bKey}`}
+                            onClick={(e) => toggleBatch(bKey, e)}
+                            className="bg-slate-100/80 dark:bg-slate-800/80 hover:bg-slate-200/80 dark:hover:bg-slate-700/80 transition-colors cursor-pointer border-l-4 border-l-[#00B47A]"
+                          >
+                            <td className="p-3.5" colSpan={2}>
+                              <div className="flex items-center gap-3">
+                                <span className="p-1 rounded hover:bg-slate-300 dark:hover:bg-slate-600 transition-transform">
+                                  <ChevronRight
+                                    size={15}
+                                    className={`transition-transform duration-200 ${isExpanded ? "rotate-90" : ""}`}
+                                  />
+                                </span>
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs font-bold text-[var(--color-text-primary)] font-mono">
+                                      Batch: {bKey.length > 12 ? `${bKey.slice(0, 10)}…` : bKey}
+                                    </span>
+                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#008A5E]/15 text-[#008A5E] border border-[#008A5E]/30">
+                                      {bActs.length} Activities
+                                    </span>
+                                  </div>
+                                  <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5">
+                                    {isExpanded ? "Click to collapse batch" : "Click to expand batch activities"}
+                                  </p>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="p-3.5 text-xs font-bold text-[var(--color-text-primary)]">
+                              <div className="flex items-center gap-2">
+                                <div className="w-5 h-5 rounded-full bg-[#00B47A]/10 border border-[#00B47A]/20 flex items-center justify-center text-[#00B47A] text-[9px] font-extrabold">
+                                  {bActs[0]?.agent_name ? bActs[0].agent_name.substring(0, 2).toUpperCase() : "AG"}
+                                </div>
+                                <span className="truncate">{bActs[0]?.agent_name || "Field Agent"}</span>
+                              </div>
+                            </td>
+                            <td className="p-3.5 text-xs font-mono text-[var(--color-text-secondary)]">
+                              <div className="flex items-center gap-1.5">
+                                <MapPin size={12} className="text-[#00B47A]" />
+                                <span>Cluster ({bActs.length} coordinates)</span>
+                              </div>
+                            </td>
+                            <td className="p-3.5">
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                                BATCH SYNCED
                               </span>
+                            </td>
+                          </tr>
+                        );
+                        if (isExpanded) {
+                          bActs.forEach((subAct) => {
+                            elements.push(renderActivityRow(subAct, true));
+                          });
+                        }
+                      }
+                    } else {
+                      elements.push(renderActivityRow(act, false));
+                    }
+                  }
 
-                            )}
-
-                            {activity.environment_type ? (
-
-                              <span className="text-[9px] px-1.5 py-0.5 rounded bg-[var(--color-background)] border border-[var(--color-border)] text-[var(--color-text-secondary)] font-semibold uppercase tracking-wider">
-
-                                {activity.environment_type}
-
-                              </span>
-
-                            ) : (
-
-                              <span className="text-[9px] px-1.5 py-0.5 rounded bg-[var(--color-background)] border border-[var(--color-border)] text-[var(--color-text-muted)] font-semibold uppercase tracking-wider">
-
-                                Standard
-
-                              </span>
-
-                            )}
-
-                          </div>
-
-                        </div>
-
-                      </div>
-
-                    </td>
-
-                    <td className="p-4 text-xs">
-
-                      <div className="flex items-center gap-1.5 text-[var(--color-text-primary)] font-semibold">
-
-                        <Calendar size={12} className="text-[#00B47A]" />
-
-                        <span>{new Date(activity.captured_at).toLocaleDateString()}</span>
-
-                      </div>
-
-                      <span className="block text-[10px] text-[var(--color-text-muted)] mt-0.5 font-medium ml-4">
-
-                        {new Date(activity.captured_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-
-                      </span>
-
-                    </td>
-
-                    <td className="p-4 text-xs font-bold text-[var(--color-text-primary)]">
-
-                      <div className="flex items-center gap-2">
-
-                        <div className="w-6 h-6 rounded-full bg-[#00B47A]/10 border border-[#00B47A]/20 flex items-center justify-center text-[#00B47A] text-[9px] font-extrabold">
-
-                          {activity.agent_name ? activity.agent_name.substring(0, 2).toUpperCase() : "AG"}
-
-                        </div>
-
-                        <div className="overflow-hidden">
-
-                          <span className="block truncate">{activity.agent_name || "Assigned Agent"}</span>
-
-                          <span className="block text-[8px] text-[var(--color-text-muted)] font-mono font-medium tracking-tight">
-
-                            {activity.user_id.substring(0, 16)}...
-
-                          </span>
-
-                        </div>
-
-                      </div>
-
-                    </td>
-
-                    <td className="p-4 text-xs">
-
-                      {activity.latitude ? (
-
-                        <div>
-
-                          <div className="flex items-center gap-1 text-[var(--color-text-primary)] font-semibold">
-
-                            <MapPin size={12} className="text-emerald-500" />
-
-                            <span>{activity.latitude.toFixed(5)}, {activity.longitude?.toFixed(5)}</span>
-
-                          </div>
-
-                          <span className="block text-[9px] text-[var(--color-text-muted)] mt-0.5 ml-4 font-semibold">
-
-                            Accuracy Confidence: ±{activity.gps_accuracy?.toFixed(1)}m
-
-                          </span>
-
-                        </div>
-
-                      ) : (
-
-                        <span className="text-[var(--color-text-muted)] text-[10px] font-bold">No Spatial Log</span>
-
-                      )}
-
-                    </td>
-
-                    <td className="p-4">
-
-                      <div className="flex items-center gap-2">
-
-                        <TrustBadge score={activity.trust_score} />
-
-                        <span className="text-[10px] font-extrabold text-[#00B47A] hidden lg:inline-block bg-[#00B47A]/5 border border-[#00B47A]/15 px-1.5 py-0.5 rounded">
-
-                          {(activity.trust_score ?? 0) >= 80 ? "SECURE" : (activity.trust_score ?? 0) >= 60 ? "AUDIT" : "WARN"}
-
-                        </span>
-
-                      </div>
-
-                    </td>
-
-                  </tr>
-
-                ))
-
+                  return elements;
+                })()
               )}
 
             </tbody>

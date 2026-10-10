@@ -22,7 +22,7 @@ import { Radio, FileText, ShieldCheck, Activity, Loader2, Globe } from "lucide-r
 
 import ActivitiesPage from "../activities/page";
 
-import AuditsPage from "../audits/page";
+import AuditsListView from "@/components/verification/AuditsListView";
 
 import VerificationsPage from "../verifications/page";
 
@@ -196,7 +196,7 @@ function OperationsWorkspaceContent() {
 
         {activeTab === "activities" && <ActivitiesPage />}
 
-        {activeTab === "evidence" && <AuditsPage />}
+        {activeTab === "evidence" && <AuditsListView />}
 
         {activeTab === "verification" && <VerificationsPage />}
 

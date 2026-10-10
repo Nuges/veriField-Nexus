@@ -7,7 +7,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import UniversalEntityHeader from "@/components/UniversalEntityHeader";
-import PropertiesPage from "../properties/page";
+import PropertiesDirectoryView from "@/components/properties/PropertiesDirectoryView";
 import {
   Users,
   Shield,
@@ -283,7 +283,7 @@ export default function ProjectsPage() {
       </div>
 
       {/* Render Project Portfolio / Properties Directory */}
-      <PropertiesPage />
+      <PropertiesDirectoryView />
     </div>
   );
 }

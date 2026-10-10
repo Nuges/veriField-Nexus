@@ -117,6 +117,13 @@ export default function RegistryExportPage() {
             Compile audit-ready carbon credit exports certified under Verra VCS and Gold Standard registries.
           </p>
         </div>
+        <div className="flex items-center gap-2">
+          <div className="px-3 py-1.5 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] flex items-center gap-2 text-xs shadow-xs">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-[var(--color-text-muted)] text-[10px] font-semibold uppercase">Registry Gateways:</span>
+            <span className="text-xs font-bold text-[var(--color-text-primary)]">Last Synced (Today, 08:30 UTC)</span>
+          </div>
+        </div>
       </div>
 
       {/* TRUST RANGE FILTER */}

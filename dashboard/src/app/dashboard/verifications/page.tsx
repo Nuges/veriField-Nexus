@@ -16,8 +16,8 @@
 
 
 
-import { useEffect, useState } from "react";
-
+import { useEffect, useState, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   MessageSquare,
@@ -91,15 +91,26 @@ interface FlaggedActivityItem {
   [key: string]: unknown;
 }
 
-export default function VerificationsPage() {
+function VerificationsPageContent() {
 
   const toast = useToast();
+  const searchParams = useSearchParams();
+  const paramTab = searchParams?.get("tab");
+  const initialTab = paramTab && ['packages', 'audits', 'community', 'sensors'].includes(paramTab)
+    ? (paramTab as 'packages' | 'audits' | 'community' | 'sensors')
+    : 'packages';
 
   const { activeSector, activeMethodology, filterProperties, filterAudits, moduleRegistry } = useWorkspace();
 
   const wsConfig = (activeSector && moduleRegistry?.[activeSector]) ? moduleRegistry[activeSector] : {};
 
-  const [activeTab, setActiveTab] = useState<'packages' | 'audits' | 'community' | 'sensors'>('packages');
+  const [activeTab, setActiveTab] = useState<'packages' | 'audits' | 'community' | 'sensors'>(initialTab);
+
+  useEffect(() => {
+    if (paramTab && ['packages', 'audits', 'community', 'sensors'].includes(paramTab)) {
+      setActiveTab(paramTab as 'packages' | 'audits' | 'community' | 'sensors');
+    }
+  }, [paramTab]);
 
   // CIOS Verification Packages State
   const [packages, setPackages] = useState<VerificationPackageSummary[]>([]);
@@ -1351,5 +1362,19 @@ export default function VerificationsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function VerificationsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="animate-spin text-[#00B47A]" size={32} />
+        </div>
+      }
+    >
+      <VerificationsPageContent />
+    </Suspense>
   );
 }

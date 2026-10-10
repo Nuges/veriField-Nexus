@@ -32,7 +32,12 @@ from app.domains.activities.schemas import (ActivityCreate,
 
 from app.domains.activities.service import ActivityService
 
-from app.core.rbac import has_permission, normalize_canonical_role, ROLE_SUPER_ADMIN
+from app.core.rbac import (
+    has_permission,
+    normalize_canonical_role,
+    ROLE_SUPER_ADMIN,
+    require_permission,
+)
 from app.domains.authentication.models import User
 
 from app.domains.projects.repository import ProjectRepository
@@ -108,7 +113,7 @@ async def create_activity(
 
     payload: ActivityCreate,
 
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_permission("activity:create")),
 
     db: AsyncSession = Depends(get_db),
 
@@ -162,7 +167,7 @@ async def create_activities_batch(
 
     payload: dict,
 
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_permission("activity:create")),
 
     db: AsyncSession = Depends(get_db),
 

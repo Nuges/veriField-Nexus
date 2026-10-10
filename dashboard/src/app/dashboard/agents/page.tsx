@@ -55,6 +55,10 @@ export default function AgentsPage() {
   const [resetPasswordValue, setResetPasswordValue] = useState("");
   const [isResetting, setIsResetting] = useState(false);
 
+  // Revoke states
+  const [isRevokeModalOpen, setIsRevokeModalOpen] = useState(false);
+  const [revokeAgent, setRevokeAgent] = useState<AgentPerformance | null>(null);
+
   async function handleResetPassword(e: React.FormEvent) {
     e.preventDefault();
     if (!resetAgent) return;
@@ -422,7 +426,10 @@ export default function AgentsPage() {
                           </button>
                         )}
                         <button 
-                          onClick={() => handleStatusChange(agent.id, "revoked")}
+                          onClick={() => {
+                            setRevokeAgent(agent);
+                            setIsRevokeModalOpen(true);
+                          }}
                           className="p-1.5 text-rose-800 dark:text-rose-300 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 rounded-lg border border-rose-300 dark:border-rose-700 transition-colors cursor-pointer"
                           title="Revoke Access"
                         >
@@ -594,6 +601,66 @@ export default function AgentsPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Revoke Agent Access Confirmation Modal */}
+      {isRevokeModalOpen && revokeAgent && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-[var(--color-surface)] border border-rose-300 dark:border-rose-800 rounded-2xl shadow-xl w-full max-w-md p-6 animate-scale-in">
+            <div className="flex justify-between items-center mb-4 border-b border-[var(--color-border)] pb-3">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="text-rose-500" size={18} />
+                <h3 className="text-sm font-extrabold uppercase tracking-wider text-[var(--color-text-primary)]">
+                  Confirm Access Revocation
+                </h3>
+              </div>
+              <button 
+                onClick={() => {
+                  setIsRevokeModalOpen(false);
+                  setRevokeAgent(null);
+                }} 
+                className="p-1 rounded-lg bg-[var(--color-surface-subtle)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] border border-[var(--color-border)] transition-colors cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            
+            <div className="space-y-4 text-xs">
+              <p className="text-[var(--color-text-secondary)] leading-relaxed">
+                Are you sure you want to revoke credentials and system access for agent{" "}
+                <strong className="text-[var(--color-text-primary)]">{revokeAgent.full_name}</strong> ({revokeAgent.email})?
+              </p>
+              <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-700 dark:text-rose-400 text-[11px] leading-relaxed">
+                The agent session will be immediately invalidated and they will be blocked from synchronizing or submitting field telemetry.
+              </div>
+              
+              <div className="pt-3 flex justify-end gap-2 border-t border-[var(--color-border)]">
+                <button 
+                  type="button" 
+                  onClick={() => {
+                    setIsRevokeModalOpen(false);
+                    setRevokeAgent(null);
+                  }}
+                  className="px-4 py-2 rounded-xl text-xs font-bold text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-subtle)] hover:text-[var(--color-text-primary)] border border-[var(--color-border)] transition-colors cursor-pointer shadow-xs"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="button" 
+                  onClick={async () => {
+                    const agentId = revokeAgent.id;
+                    setIsRevokeModalOpen(false);
+                    setRevokeAgent(null);
+                    await handleStatusChange(agentId, "revoked");
+                  }}
+                  className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 transition-colors cursor-pointer shadow-xs"
+                >
+                  Revoke Credentials
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

@@ -18,7 +18,7 @@ import { Briefcase, Layers, Globe, FileText, BarChart3, Loader2 } from "lucide-r
 
 
 
-import PropertiesPage from "../properties/page";
+import PropertiesDirectoryView from "@/components/properties/PropertiesDirectoryView";
 
 import POAPortfolioPage from "../poa/page";
 
@@ -154,7 +154,7 @@ function PortfolioWorkspaceContent() {
 
       <div className="pt-2">
 
-        {activeTab === "projects" && <PropertiesPage />}
+        {activeTab === "projects" && <PropertiesDirectoryView />}
 
         {activeTab === "poa" && <POAPortfolioPage />}
 

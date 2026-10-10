@@ -2,7 +2,53 @@ from datetime import date, datetime
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+
+class VerificationFinding(BaseModel):
+    """
+    Typed verification finding representation supporting CAR, NCR, CL, and FAR lifecycle.
+    """
+    code: Optional[str] = None  # e.g. "CAR-01", "NCR-01"
+    finding_number: Optional[str] = None
+    type: Optional[str] = None  # "CAR", "NCR", "CL", "FAR", "CORRECTIVE_ACTION", "NON_CONFORMITY", "CLARIFICATION"
+    finding_type: Optional[str] = None
+    severity: Optional[str] = "MAJOR"  # "CRITICAL", "MAJOR", "MINOR", "OBSERVATION"
+    title: Optional[str] = None
+    description: Optional[str] = None
+    status: Optional[str] = "OPEN"  # "OPEN", "RESOLVED", "CLOSED", "UNDER_DEVELOPER_REVIEW", "REJECTED"
+    target_domain: Optional[str] = None
+    target_field: Optional[str] = None
+    resolution_notes: Optional[str] = None
+    metadata: Optional[Dict[str, Any]] = None
+
+    model_config = ConfigDict(from_attributes=True, extra="allow")
+
+
+def _normalize_findings_list(v: Any) -> List[Any]:
+    """Normalizes raw DB representations (empty dict, dict wrapper, single finding, array) into a typed list."""
+    if v is None:
+        return []
+    if isinstance(v, list):
+        return v
+    if isinstance(v, dict):
+        for list_key in ("car_list", "findings_list", "items", "findings"):
+            if isinstance(v.get(list_key), list):
+                return v[list_key]
+        if not v:
+            return []
+        if any(k in v for k in ("code", "finding_number", "type", "finding_type", "title", "description")):
+            return [v]
+        return [
+            VerificationFinding(
+                code=v.get("code") or "LEGACY-01",
+                type=v.get("type") or v.get("finding_type") or "OBSERVATION",
+                description=v.get("description") or v.get("summary") or v.get("notes") or str(v),
+                status=v.get("status") or "RESOLVED",
+                metadata=v,
+            )
+        ]
+    return []
 
 
 class VerificationTaskBase(BaseModel):
@@ -11,7 +57,12 @@ class VerificationTaskBase(BaseModel):
     verifier_id: Optional[UUID] = None
     deadline: Optional[datetime] = None
     status: str = "ASSIGNED"
-    findings: Dict[str, Any] = {}
+    findings: List[VerificationFinding] = Field(default_factory=list)
+
+    @field_validator("findings", mode="before")
+    @classmethod
+    def parse_findings(cls, v: Any) -> List[Any]:
+        return _normalize_findings_list(v)
 
 
 class VerificationTaskCreate(VerificationTaskBase):
@@ -38,11 +89,16 @@ class VerificationTaskListItem(BaseModel):
     verifier_id: Optional[UUID] = None
     project_id: Optional[UUID] = None
     asset_id: Optional[UUID] = None
-    findings: Dict[str, Any] = {}
+    findings: List[VerificationFinding] = Field(default_factory=list)
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+    @field_validator("findings", mode="before")
+    @classmethod
+    def parse_findings(cls, v: Any) -> List[Any]:
+        return _normalize_findings_list(v)
 
 
 class VerificationTaskListResponse(BaseModel):

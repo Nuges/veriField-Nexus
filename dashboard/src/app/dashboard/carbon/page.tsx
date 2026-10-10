@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Leaf, RefreshCw, Send, Layers, Coins, CheckCircle2, Shield, X, Check, Loader2, ExternalLink, AlertTriangle } from "lucide-react";
+import { Leaf, RefreshCw, Send, Layers, Coins, CheckCircle2, Shield, X, Check, Loader2, ExternalLink, AlertTriangle, HelpCircle } from "lucide-react";
 import { fetchCarbonLedger, fetchProjects, executeCarbonMinting, CarbonMintResponse } from "@/lib/api";
 import type { Project } from "@/lib/types";
 import { useToast } from "@/components/Toast";
@@ -183,7 +183,53 @@ export default function CarbonLedgerPage() {
 
       </div>
 
+      {/* 🛡️ BUFFER POOL & NON-PERMANENCE RISK EXPLAINABILITY */}
+      <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-4 shadow-sm space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Shield size={16} className="text-[#00B47A]" />
+            <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-primary)]">
+              Non-Permanence Buffer Pool & Reversal Reserve Allocation
+            </h3>
+          </div>
+          <div className="group relative">
+            <button
+              type="button"
+              className="p-1 rounded-full text-[var(--color-text-muted)] hover:text-[#008A5E] hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              title="Buffer Pool Methodology Guidelines"
+            >
+              <HelpCircle size={15} />
+            </button>
+            <div className="absolute right-0 top-6 w-80 p-3 rounded-xl bg-slate-900 text-slate-100 border border-slate-700 shadow-xl text-[11px] leading-relaxed hidden group-hover:block z-30">
+              <p className="font-bold text-emerald-400 mb-1">Standard Risk Buffer Reserve</p>
+              Under Verra VCS AFOLU and Puro.earth permanence rules, a mandatory risk-weighted buffer percentage (typically 10–20%) is deposited into a sovereign non-permanence risk buffer pool to insure against reversal events. Only the remaining Net Eligible Credits receive serialised tradeable issuance.
+            </div>
+          </div>
+        </div>
 
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 pt-1">
+          <div className="p-3 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)]">
+            <span className="text-[10px] font-semibold text-[var(--color-text-muted)] uppercase block">Non-Permanence Risk</span>
+            <span className="text-xs font-medium text-[var(--color-text-muted)] mt-1 block italic">Calculation details unavailable</span>
+          </div>
+          <div className="p-3 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)]">
+            <span className="text-[10px] font-semibold text-[var(--color-text-muted)] uppercase block">Gross Verified</span>
+            <span className="text-sm font-bold text-[var(--color-text-primary)] mt-0.5 block">{totalTco2e.toFixed(4)} tCO2e</span>
+          </div>
+          <div className="p-3 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)]">
+            <span className="text-[10px] font-semibold text-[var(--color-text-muted)] uppercase block">Buffer Allocation</span>
+            <span className="text-xs font-medium text-[var(--color-text-muted)] mt-1 block italic">Calculation details unavailable</span>
+          </div>
+          <div className="p-3 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)]">
+            <span className="text-[10px] font-semibold text-[var(--color-text-muted)] uppercase block">Buffer Deduction</span>
+            <span className="text-xs font-medium text-[var(--color-text-muted)] mt-1 block italic">Calculation details unavailable</span>
+          </div>
+          <div className="p-3 rounded-xl bg-slate-500/10 border border-slate-500/30">
+            <span className="text-[10px] font-semibold text-[var(--color-text-muted)] uppercase block">Net Eligible Credits</span>
+            <span className="text-xs font-medium text-[var(--color-text-muted)] mt-1 block italic">Calculation details unavailable</span>
+          </div>
+        </div>
+      </div>
 
       {/* 🧭 CALCULATION LEDGER TABLE */}
 

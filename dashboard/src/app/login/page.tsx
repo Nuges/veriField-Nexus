@@ -25,7 +25,7 @@ import { ShieldCheck, Mail, Lock, Loader2, KeyRound, ArrowLeft } from "lucide-re
 import { loginAdmin, setAuthToken, changePassword, verifyMFALogin, useMFARecovery as submitMFARecovery, getSSOProviders, initiateSSOLogin } from "@/lib/api";
 
 import { safeStorage } from "@/lib/storage";
-import { isDashboardRoleAllowed } from "@/lib/roles";
+import { isDashboardRoleAllowed, normalizeRole, CANONICAL_ROLES } from "@/lib/roles";
 import { ThemeLogo } from "@/components/common/ThemeLogo";
 
 
@@ -104,44 +104,32 @@ export default function LoginPage() {
 
 
 
-      // If a valid token exists AND there is a redirect target, the user may
-
-      // have been bounced back by a transient network error.  In that case,
-
-      // try to honour the existing token instead of wiping it.
-
       const existingToken = safeStorage.getItem("vf_token");
-
+      const rawUser = safeStorage.getItem("vf_user");
       const redirectTarget = params.get("redirect");
+      const isUnauthorized = params.get("error") === "unauthorized";
+      const isExplicitLogout = params.get("logout") === "true";
 
-
-
-      if (existingToken && redirectTarget) {
-
-        // Attempt to resume — redirect back to the target without clearing creds
-
-        window.location.href = redirectTarget;
-
-        return;
-
+      // If user is already authenticated with valid token & user profile, redirect to their landing page
+      if (existingToken && rawUser && !isUnauthorized && !isExplicitLogout) {
+        try {
+          const parsedUser = JSON.parse(rawUser);
+          const canonical = normalizeRole(parsedUser?.role);
+          const target = redirectTarget || (canonical === CANONICAL_ROLES.SUPER_ADMIN ? "/super-admin" : "/dashboard");
+          window.location.href = target;
+          return;
+        } catch {
+          // JSON parse failed; fall through to purge corrupted storage
+        }
       }
 
-
-
-      // Otherwise — genuine fresh login.  Clear any stale auth state.
-
+      // Otherwise — genuine fresh login or expired session. Clear stale auth state.
       safeStorage.removeItem("vf_token");
-
       safeStorage.removeItem("vf_user");
-
       setAuthToken(null);
 
-
-
-      if (params.get("error") === "unauthorized") {
-
+      if (isUnauthorized) {
         setError("Access denied. This system is restricted to verification personnel only.");
-
       }
 
     }

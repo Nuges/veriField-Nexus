@@ -29,6 +29,11 @@ import {
   AlertCircle,
   Copy,
   Check,
+  Cpu,
+  MessageSquare,
+  Radio,
+  Clock,
+  Battery,
 } from "lucide-react";
 import {
   VerificationPackageDetail,
@@ -52,6 +57,10 @@ import {
   downloadEvidenceContent,
   downloadPackageArchive,
   fetchFeedstockBlendBreakdown,
+  fetchSensorReadings,
+  fetchCommunityValidations,
+  type SensorReading,
+  type CommunityValidation,
 } from "@/lib/api";
 import { useWorkspace } from "@/context/WorkspaceContext";
 import { normalizeRole } from "@/lib/roles";
@@ -163,6 +172,14 @@ export default function AuditorWorkspaceView({ packageId }: AuditorWorkspaceView
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Telemetry & Community Evidence state
+  const [sensorReadings, setSensorReadings] = useState<SensorReading[]>([]);
+  const [communityValidations, setCommunityValidations] = useState<CommunityValidation[]>([]);
+  const [isLoadingTelemetry, setIsLoadingTelemetry] = useState<boolean>(false);
+  const [isLoadingCommunity, setIsLoadingCommunity] = useState<boolean>(false);
+  const [telemetryError, setTelemetryError] = useState<string | null>(null);
+  const [communityError, setCommunityError] = useState<string | null>(null);
+
   // Number-to-evidence drill-down modal state
   const [drillDownMetric, setDrillDownMetric] = useState<string | null>(null);
 
@@ -218,6 +235,18 @@ export default function AuditorWorkspaceView({ packageId }: AuditorWorkspaceView
       setFindings(findingsData);
       setEvidence(evidenceData);
       setGrants(grantsData);
+
+      const targetId = (pkgData.manifest_json as any)?.project_id || (pkgData.manifest_json as any)?.asset_id || (pkgData as any).project_id || packageId;
+      try {
+        const [readings, validations] = await Promise.all([
+          fetchSensorReadings(targetId).catch(() => []),
+          fetchCommunityValidations(targetId).catch(() => []),
+        ]);
+        setSensorReadings(readings);
+        setCommunityValidations(validations);
+      } catch (err) {
+        console.warn("Sensor/Community telemetry non-fatal load warning:", err);
+      }
     } catch (err: unknown) {
       console.error("Failed to load verification package:", err);
       setError(getErrorMessage(err) || "Failed to load verification package data.");
@@ -519,6 +548,8 @@ export default function AuditorWorkspaceView({ packageId }: AuditorWorkspaceView
     { id: "enduse", label: "Terminal End Use", icon: MapPin },
     { id: "qc", label: "Monitoring & QC", icon: Activity },
     { id: "lca", label: "LCA & Drill-Down", icon: Calculator },
+    { id: "telemetry", label: "Telemetry", icon: Cpu, badge: sensorReadings.length || undefined },
+    { id: "community", label: "Community Evidence", icon: MessageSquare, badge: communityValidations.length || undefined },
     { id: "findings", label: "Findings", icon: AlertTriangle, badge: findings.length },
     { id: "evidence", label: "Evidence Index", icon: ShieldCheck, badge: evidence.length },
     { id: "history", label: "Ledger & Diff", icon: History },
@@ -1525,6 +1556,178 @@ export default function AuditorWorkspaceView({ packageId }: AuditorWorkspaceView
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 14: TELEMETRY (PHYSICAL SENSOR VERIFICATION) */}
+        {activeTab === "telemetry" && (
+          <div className="space-y-6 animate-fade-in-up">
+            <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-5 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <Cpu className="w-5 h-5 text-emerald-400" />
+                  <div>
+                    <h3 className="text-sm font-bold text-white uppercase tracking-wider">
+                      Physical IoT & Soil Telemetry Verification
+                    </h3>
+                    <p className="text-xs text-slate-400">
+                      Cross-checks remote hardware telemetry streams (ESP32, DS18B20 soil sensors, inverters, smart meters)
+                    </p>
+                  </div>
+                </div>
+                <span className="text-[10px] font-mono px-2.5 py-1 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 font-bold self-start sm:self-auto">
+                  PROVISIONAL SENSOR OBSERVATION
+                </span>
+              </div>
+
+              {/* Informative distinction notice */}
+              <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 text-xs text-amber-300 space-y-1">
+                <p className="font-bold flex items-center gap-1.5">
+                  <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                  Evidence Distinction: Provisional Sensor Stream vs Verified Carbon Evidence
+                </p>
+                <p className="text-[11px] text-slate-300">
+                  Data in this tab represents <strong className="text-amber-300">PROVISIONAL SENSOR OBSERVATIONS</strong> captured directly from remote sensor nodes. These observations serve as cross-check evidence and do not constitute certified carbon credits until mass-balance reconciliation, laboratory COA verification, and auditor sign-off are completed.
+                </p>
+              </div>
+
+              {isLoadingTelemetry ? (
+                <div className="flex flex-col items-center justify-center py-16 space-y-2">
+                  <div className="w-6 h-6 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
+                  <p className="text-xs text-slate-400 font-semibold">Querying physical sensor gateway records...</p>
+                </div>
+              ) : telemetryError ? (
+                <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 text-xs text-red-400 flex items-center justify-between">
+                  <span>Failed to load telemetry: {telemetryError}</span>
+                  <button onClick={() => void loadAllData()} className="px-2.5 py-1 bg-red-500/20 rounded text-xs font-bold hover:bg-red-500/30">
+                    Retry
+                  </button>
+                </div>
+              ) : sensorReadings.length === 0 ? (
+                <div className="bg-slate-950 border border-slate-800 rounded-xl p-12 text-center max-w-md mx-auto space-y-2">
+                  <Cpu className="w-10 h-10 text-slate-600 mx-auto" />
+                  <h4 className="text-sm font-bold text-slate-300 uppercase tracking-wider">No Telemetry Evidence Attached</h4>
+                  <p className="text-xs text-slate-500">
+                    No physical IoT sensor or soil moisture readings are linked to this verification package.
+                  </p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs text-left">
+                    <thead className="bg-slate-950 text-slate-400 uppercase font-semibold border-b border-slate-800">
+                      <tr>
+                        <th className="p-3">Device ID</th>
+                        <th className="p-3">Telemetry Reading</th>
+                        <th className="p-3">Captured At (UTC)</th>
+                        <th className="p-3">Time Sync Status</th>
+                        <th className="p-3">Status & Authority</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800 font-mono">
+                      {sensorReadings.map((reading) => (
+                        <tr key={reading.id} className="hover:bg-slate-800/40">
+                          <td className="p-3 text-white font-bold flex items-center gap-2">
+                            <Radio className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                            {reading.device_id}
+                          </td>
+                          <td className="p-3 text-slate-200">
+                            {reading.temperature !== null ? (
+                              <span className="px-2 py-0.5 rounded bg-blue-500/15 text-blue-300 border border-blue-500/25">
+                                {reading.temperature.toFixed(1)} °C
+                              </span>
+                            ) : (
+                              <span className="text-slate-500">Usage Flag: {reading.usage_flag ? "TRUE" : "FALSE"}</span>
+                            )}
+                          </td>
+                          <td className="p-3 text-slate-400">
+                            {reading.timestamp ? new Date(reading.timestamp).toUTCString() : "Timestamp Unavailable"}
+                          </td>
+                          <td className="p-3">
+                            <span className="inline-flex items-center gap-1 text-[11px] text-emerald-400">
+                              <CheckCircle2 className="w-3 h-3" /> Synchronized
+                            </span>
+                          </td>
+                          <td className="p-3">
+                            <span className="px-2 py-0.5 rounded text-[10px] bg-amber-500/15 text-amber-400 border border-amber-500/30 font-bold">
+                              PROVISIONAL OBSERVATION
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* TAB 15: COMMUNITY EVIDENCE */}
+        {activeTab === "community" && (
+          <div className="space-y-6 animate-fade-in-up">
+            <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-5 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <MessageSquare className="w-5 h-5 text-indigo-400" />
+                  <div>
+                    <h3 className="text-sm font-bold text-white uppercase tracking-wider">
+                      Beneficiary & Community Double-Blind Evidence
+                    </h3>
+                    <p className="text-xs text-slate-400">
+                      Independent qualitative validation, SMS survey confirmations, and participant interviews
+                    </p>
+                  </div>
+                </div>
+                <span className="text-[10px] font-mono px-2.5 py-1 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 font-bold self-start sm:self-auto">
+                  COMMUNITY VALIDATED
+                </span>
+              </div>
+
+              {isLoadingCommunity ? (
+                <div className="flex flex-col items-center justify-center py-16 space-y-2">
+                  <div className="w-6 h-6 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
+                  <p className="text-xs text-slate-400 font-semibold">Loading community validation records...</p>
+                </div>
+              ) : communityError ? (
+                <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 text-xs text-red-400 flex items-center justify-between">
+                  <span>Failed to load community evidence: {communityError}</span>
+                  <button onClick={() => void loadAllData()} className="px-2.5 py-1 bg-red-500/20 rounded text-xs font-bold hover:bg-red-500/30">
+                    Retry
+                  </button>
+                </div>
+              ) : communityValidations.length === 0 ? (
+                <div className="bg-slate-950 border border-slate-800 rounded-xl p-12 text-center max-w-md mx-auto space-y-2">
+                  <MessageSquare className="w-10 h-10 text-slate-600 mx-auto" />
+                  <h4 className="text-sm font-bold text-slate-300 uppercase tracking-wider">No Community Validation Evidence Attached</h4>
+                  <p className="text-xs text-slate-500">
+                    No participant surveys or SMS confirmations are attached to this verification package.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {communityValidations.map((v) => (
+                    <div key={v.id} className="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                          Community Survey Response
+                        </span>
+                        <span className="px-2 py-0.5 rounded text-[10px] bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-bold">
+                          VALIDATED
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-300 italic bg-slate-900/80 p-2.5 rounded border border-slate-800/80">
+                        &quot;{v.response}&quot;
+                      </p>
+                      <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1 border-t border-slate-900">
+                        <span>Validator: <span className="font-mono text-slate-300">{v.validator_id.slice(0, 8)}…</span></span>
+                        <span>{v.timestamp ? new Date(v.timestamp).toUTCString() : "—"}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}

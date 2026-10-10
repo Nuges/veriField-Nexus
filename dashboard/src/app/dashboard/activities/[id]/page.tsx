@@ -1369,7 +1369,7 @@ export default function ActivityDetailPage() {
 
                                   <td className="p-2.5 text-right text-amber-500 font-extrabold">
 
-                                    {log.solar_kwh != null ? `${Number(log.solar_kwh).toFixed(1)} kWh` : "—"}
+                                    {log.solar_kwh != null ? `${Number(log.solar_kwh).toFixed(2)} kWh` : "—"}
 
                                   </td>
 
