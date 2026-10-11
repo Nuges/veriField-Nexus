@@ -17,6 +17,7 @@ Tests:
    - Returns HTTP 200 with CommunityValidation list (no longer HTTP 501).
 """
 
+import os
 import uuid
 import datetime
 import pytest
@@ -31,12 +32,18 @@ from app.domains.verification.schemas import (
 )
 from app.domains.verification.models import VerificationTask
 from app.domains.activities.models import Activity
+from app.domains.assets.models import Asset
 from app.domains.authentication.models import User
 from app.domains.organizations.models import Organization
+from app.domains.projects.models import Project
 from app.domains.authentication.service import AuthenticationService
 from app.db.session import get_db
 
-POSTGRES_URL = "postgresql+asyncpg://segun@localhost:5432/test_ci_db"
+POSTGRES_URL = (
+    os.environ.get("POSTGIS_TEST_URL")
+    or os.environ.get("POSTGRES_TEST_URL")
+    or f"postgresql+asyncpg://{os.environ.get('USER', 'postgres')}@localhost:5432/verifield_postgis_test"
+)
 
 
 def test_findings_schema_normalization():
@@ -154,6 +161,22 @@ async def test_verification_sensors_and_community_endpoints():
             status="active",
         )
         session.add(user)
+
+        project_id = uuid.uuid4()
+        project = Project(
+            id=project_id,
+            organization_id=org_id,
+            name=f"Test Project {uuid.uuid4().hex[:6]}",
+        )
+        session.add(project)
+
+        asset = Asset(
+            id=asset_id,
+            organization_id=org_id,
+            project_id=project_id,
+            name=f"Test Sensor Asset {uuid.uuid4().hex[:6]}",
+        )
+        session.add(asset)
 
         # Telemetry sensor activity
         sensor_act = Activity(

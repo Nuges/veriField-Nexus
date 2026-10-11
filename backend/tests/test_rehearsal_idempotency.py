@@ -19,7 +19,9 @@ import psycopg2
 from psycopg2.extras import RealDictCursor, Json
 
 # Add scripts directory to path to import helpers
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "scripts")))
+SCRIPTS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "scripts"))
+REHEARSAL_SCRIPT = os.path.join(SCRIPTS_DIR, "run_comprehensive_synthetic_production_rehearsal.py")
+sys.path.insert(0, SCRIPTS_DIR)
 from run_comprehensive_synthetic_production_rehearsal import (
     TEST_SEED,
     DEEPAK_ID,
@@ -118,7 +120,7 @@ def test_rehearsal_second_run_creates_zero_extra_projects(db_conn):
     # Execute script as subprocess without --reset-synthetic
     import subprocess
     result = subprocess.run(
-        [sys.executable, "backend/scripts/run_comprehensive_synthetic_production_rehearsal.py"],
+        [sys.executable, REHEARSAL_SCRIPT],
         capture_output=True,
         text=True,
     )

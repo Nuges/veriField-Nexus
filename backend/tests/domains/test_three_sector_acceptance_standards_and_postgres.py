@@ -51,9 +51,10 @@ from app.domains.ev.models import EVChargingStation, EVChargingSession
 from app.domains.ev.schemas import EVChargingSessionCreate
 from app.domains.ev.service import EVQuantificationEngine
 
-POSTGRES_URL = os.environ.get(
-    "POSTGRES_TEST_URL",
-    "postgresql+asyncpg://segun@localhost:5432/test_ci_db"
+POSTGRES_URL = (
+    os.environ.get("POSTGIS_TEST_URL")
+    or os.environ.get("POSTGRES_TEST_URL")
+    or f"postgresql+asyncpg://{os.environ.get('USER', 'postgres')}@localhost:5432/verifield_postgis_test"
 )
 
 
@@ -639,6 +640,9 @@ async def test_postgres_three_sector_concurrency_and_persistence():
     and supersession testing across all three sectors using test_ci_db.
     """
     engine = create_async_engine(POSTGRES_URL)
+    from app.db.base import Base
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
     session_maker = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
 
     test_org_id = uuid.uuid4()

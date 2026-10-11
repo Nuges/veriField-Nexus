@@ -38,9 +38,10 @@ from app.domains.activities.models import Activity
 from app.domains.projects.models import CarbonCalculation
 from app.domains.agriculture.models import SoilSample, AgricultureSOCStockResult
 
-POSTGRES_URL = os.environ.get(
-    "POSTGRES_TEST_URL",
-    "postgresql+asyncpg://segun@localhost:5432/test_ci_db"
+POSTGRES_URL = (
+    os.environ.get("POSTGIS_TEST_URL")
+    or os.environ.get("POSTGRES_TEST_URL")
+    or f"postgresql+asyncpg://{os.environ.get('USER', 'postgres')}@localhost:5432/verifield_postgis_test"
 )
 
 

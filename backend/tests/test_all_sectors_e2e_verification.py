@@ -76,10 +76,12 @@ async def test_all_five_sectors_exist_and_wired(
             if (m.get("family_id") and str(m["family_id"]).replace("-", "").lower() == str(fam_id).replace("-", "").lower())
             or (m.get("family") and m["family"].get("code") == sector_code)
         ]
-        if sector_code in ["AGRICULTURE_LAND_USE", "BIOCHAR"]:
-            assert len(matching) > 0, f"Expected production methodologies for sector {sector_code}"
-        else:
-            assert len(matching) == 0, f"Expected unclosed sector {sector_code} to be gated with 0 methodologies"
+        assert len(matching) > 0, f"Expected catalog methodologies for sector {sector_code}"
+        if sector_code not in ["AGRICULTURE_LAND_USE", "BIOCHAR"]:
+            assert all(
+                m.get("calculation_support_status") != "ENABLED"
+                for m in matching
+            ), f"Expected calculation engines to remain gated for {sector_code}"
 
     # 3. Super Admin setup for approvals
     sa_email = "superadmin.sector.audit@verifield.com"

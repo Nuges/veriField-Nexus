@@ -59,3 +59,6 @@ from app.domains.agriculture.models import *
 from app.domains.biochar.models import *
 from app.domains.biochar.puro_models import *
 from app.domains.earth_observation.models import *
+from app.domains.cookstoves.models import *
+from app.domains.energy.models import *
+from app.domains.ev.models import *

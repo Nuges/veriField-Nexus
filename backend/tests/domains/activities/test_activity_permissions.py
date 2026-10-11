@@ -9,6 +9,7 @@ Tests:
 5. Consistent enforcement across single, offline, batch, and bulk routes.
 """
 
+import os
 import uuid
 import pytest
 import pytest_asyncio
@@ -22,7 +23,11 @@ from app.domains.authentication.models import User
 from app.domains.projects.models import Project
 from app.domains.authentication.service import AuthenticationService
 
-POSTGRES_URL = "postgresql+asyncpg://segun@localhost:5432/test_ci_db"
+POSTGRES_URL = (
+    os.environ.get("POSTGIS_TEST_URL")
+    or os.environ.get("POSTGRES_TEST_URL")
+    or f"postgresql+asyncpg://{os.environ.get('USER', 'postgres')}@localhost:5432/verifield_postgis_test"
+)
 
 
 @pytest_asyncio.fixture

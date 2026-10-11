@@ -87,6 +87,7 @@ jobs:
         env:
           DATABASE_URL: "sqlite+aiosqlite:///test_default.db"
           POSTGIS_TEST_URL: "postgresql+asyncpg://test_user:test_password@localhost:5432/test_db"
+          POSTGRES_TEST_URL: "postgresql+asyncpg://test_user:test_password@localhost:5432/test_db"
           REDIS_URL: "redis://localhost:6379/0"
           JWT_SECRET: "ci-test-secret-key-32-chars-minimum"
           TESTING: "1"

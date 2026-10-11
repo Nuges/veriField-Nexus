@@ -40,6 +40,7 @@ from sqlalchemy.orm import selectinload
 from app.core.config import settings
 from app.core.rbac import (
     ROLE_AUDITOR,
+    ROLE_FIELD_AGENT,
     ROLE_ORG_ADMIN,
     ROLE_PROJECT_MANAGER,
     ROLE_SUPER_ADMIN,
@@ -131,7 +132,7 @@ async def test_full_mobile_to_auditor_package_lifecycle_e2e(db_session: AsyncSes
         id=field_user_id,
         email=f"field-{u_hex}@biochar.org",
         full_name="Biochar Field Officer",
-        role="USER",
+        role=ROLE_FIELD_AGENT,
         organization_id=org_id,
     )
 
