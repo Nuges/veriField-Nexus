@@ -1581,10 +1581,9 @@ export async function fetchRegistryPackage(registryType: string, projectId: stri
 
 
 
-export async function fetchSensorDevices(): Promise<{ devices: any[]; total: number }> {
-
-  return apiFetch<{ devices: any[]; total: number }>("/sensors/devices");
-
+export async function fetchSensorDevices(projectId?: string): Promise<{ devices: any[]; total: number }> {
+  const query = projectId ? `?project_id=${encodeURIComponent(projectId)}` : "";
+  return apiFetch<{ devices: any[]; total: number }>(`/sensors/devices${query}`);
 }
 
 

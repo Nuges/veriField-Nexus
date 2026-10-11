@@ -210,12 +210,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       }
     } catch {}
 
-    const cleanSec = canonicalSectorCode(activeSector);
-    if (cleanSec === "agriculture_land_use") return "VM0042";
-    if (cleanSec === "hybrid_energy") return "ACM0002";
-    if (cleanSec === "biochar") return "VM0042";
-    if (cleanSec === "ev_mobility") return "AMS-III.C";
-    return "AMS-II.G";
+    return "";
   });
 
 
@@ -317,12 +312,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           setActiveMethodology(methodologies[0]);
         }
       } else {
-        const clean = canonicalSectorCode(activeWorkspace);
-        if (clean === "agriculture_land_use") setActiveMethodology("VM0042");
-        else if (clean === "hybrid_energy") setActiveMethodology("ACM0002");
-        else if (clean === "biochar") setActiveMethodology("VM0042");
-        else if (clean === "ev_mobility") setActiveMethodology("AMS-III.C");
-        else setActiveMethodology("AMS-II.G");
+        setActiveMethodology("");
       }
 
       return;

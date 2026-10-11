@@ -55,6 +55,7 @@ import {
 } from "@/lib/api";
 import { useToast } from "@/components/Toast";
 import { useWorkspace } from "@/context/WorkspaceContext";
+import { getSectorVerificationCopy } from "@/lib/sectors";
 import VerificationPipelineStages, { PipelineStage } from "@/components/VerificationPipelineStages";
 
 interface SmsLogItem {
@@ -100,7 +101,7 @@ function VerificationsPageContent() {
     ? (paramTab as 'packages' | 'audits' | 'community' | 'sensors')
     : 'packages';
 
-  const { activeSector, activeMethodology, filterProperties, filterAudits, moduleRegistry } = useWorkspace();
+  const { activeSector, activeMethodology, activeProject, filterProperties, filterAudits, moduleRegistry } = useWorkspace();
 
   const wsConfig = (activeSector && moduleRegistry?.[activeSector]) ? moduleRegistry[activeSector] : {};
 
@@ -223,30 +224,21 @@ function VerificationsPageContent() {
   // Load connected sensor devices
 
   const loadSensorData = async () => {
-
     setIsLoadingSensors(true);
-
     try {
-
       const [devicesRes, propertiesRes] = await Promise.all([
-
-        fetchSensorDevices(),
-
+        fetchSensorDevices(activeProject || undefined),
         fetchProperties()
-
       ]);
-
       const devicesList = (devicesRes.devices || []) as SensorDeviceItem[];
-
       const propertiesList = propertiesRes.properties || [];
-
-
 
       const filteredProps = filterProperties(propertiesList);
       const filteredPropIds = new Set(filteredProps.map(p => p.id));
-      const activeDevices = devicesList.filter((dev) => filteredPropIds.has(String(dev.asset_id)));
-      setSensorDevices(activeDevices);
-
+      const activeDevices = devicesList.filter((dev) => 
+        filteredPropIds.has(String(dev.asset_id)) || filteredProps.some(p => p.id === dev.asset_id)
+      );
+      setSensorDevices(activeDevices.length > 0 ? activeDevices : devicesList);
     } catch (err) {
 
       console.error(err);
@@ -493,7 +485,7 @@ function VerificationsPageContent() {
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="px-2 py-0.5 rounded-md bg-[var(--color-surface-hover)] text-[var(--color-text-secondary)] text-[10px] font-mono font-medium tracking-wider uppercase border border-[var(--color-border)]">
-              {activeMethodology || "All Methodologies"}
+              {activeMethodology || "All Projects"}
             </span>
           </div>
 
@@ -568,7 +560,7 @@ function VerificationsPageContent() {
               : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-background)]/50'
           }`}
         >
-          <Cpu size={14} /> IoT telemetry
+          <Cpu size={14} /> Telemetry Verification
         </button>
       </div>
 
@@ -685,7 +677,7 @@ function VerificationsPageContent() {
                   No Verification Packages Yet
                 </h3>
                 <p className="text-xs text-[var(--color-text-secondary)] leading-relaxed">
-                  Compile your first MRV audit package to automatically aggregate feedstock logs, production runs, lab COAs, end-use records, and LCA balances into an immutable manifest.
+                  {getSectorVerificationCopy(activeSector).packageDescription}
                 </p>
                 <button
                   onClick={() => setShowCompileModal(true)}
@@ -1149,14 +1141,12 @@ function VerificationsPageContent() {
 
             <div className="bg-[var(--color-surface)] p-4.5 rounded-2xl border border-[var(--color-border)] shadow-sm">
 
-              <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-primary)]">IoT Telemetry Hardware Verification</h3>
-
+              <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-primary)]">
+                {getSectorVerificationCopy(activeSector).telemetryTitle}
+              </h3>
               <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">
-
-                Verify active physical sensor BLE signatures and thermal consumption logs.
-
+                {getSectorVerificationCopy(activeSector).telemetryDescription}
               </p>
-
             </div>
 
 

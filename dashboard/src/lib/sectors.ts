@@ -854,3 +854,71 @@ export function isMethodologyVersionSelectableForNewProjects(
     activeVersion: curVersion,
   };
 }
+
+// -----------------------------------------------------------------------------
+// Sector-Aware Verification & Telemetry Copy (CIOS Level 5)
+// -----------------------------------------------------------------------------
+
+export interface SectorVerificationCopy {
+  packageDescription: string;
+  telemetryTitle: string;
+  telemetryDescription: string;
+}
+
+export const SECTOR_VERIFICATION_COPY: Record<CanonicalSectorCode, SectorVerificationCopy> = {
+  COOKSTOVES: {
+    packageDescription:
+      "Compile your MRV audit package to aggregate cooking appliance deployments, thermal consumption logs, beneficiary survey manifests, and fuel displacement calculations into an immutable audit package.",
+    telemetryTitle: "Clean Cookstove Telemetry Verification",
+    telemetryDescription:
+      "Verify active cooking appliance sensor BLE signatures and thermal consumption logs.",
+  },
+  HYBRID_ENERGY: {
+    packageDescription:
+      "Compile your MRV audit package to aggregate mini-grid generation logs, diesel displacement metrics, inverter telemetry, and grid emission factors into an immutable audit package.",
+    telemetryTitle: "Hybrid Energy & Mini-Grid Telemetry Verification",
+    telemetryDescription:
+      "Verify active smart meter intervals, inverter power output, and renewable energy generation streams.",
+  },
+  BIOCHAR: {
+    packageDescription:
+      "Compile your first MRV audit package to automatically aggregate feedstock logs, production runs, lab COAs, end-use records, and LCA balances into an immutable manifest.",
+    telemetryTitle: "Biochar Pyrolysis Telemetry Verification",
+    telemetryDescription:
+      "Verify continuous pyrolysis kiln thermocouple telemetry and production operational sensors.",
+  },
+  EV_MOBILITY: {
+    packageDescription:
+      "Compile your MRV audit package to aggregate EV fleet charging telematics, vehicle trip manifests, grid displacement factors, and energy consumption metrics into an immutable audit package.",
+    telemetryTitle: "EV Fleet & Charging Telemetry Verification",
+    telemetryDescription:
+      "Verify EV fleet telematics, charging session logs, and grid consumption telemetry.",
+  },
+  AGRICULTURE_LAND_USE: {
+    packageDescription:
+      "Compile your MRV audit package to aggregate field management logs, soil sampling campaigns, lab analytical results, and quantified soil organic carbon stock models into an immutable audit package.",
+    telemetryTitle: "Soil & Agricultural Telemetry Verification",
+    telemetryDescription:
+      "Verify active in-situ soil moisture, temperature telemetry, and field monitoring sensor streams.",
+  },
+};
+
+const DEFAULT_VERIFICATION_COPY: SectorVerificationCopy = {
+  packageDescription:
+    "Compile your MRV audit package to aggregate field activity logs, laboratory analytical results, sensor telemetry, and carbon quantification models into an immutable audit package.",
+  telemetryTitle: "IoT Telemetry Hardware Verification",
+  telemetryDescription:
+    "Verify active physical sensor telematics, device health signatures, and calibrated field telemetry streams.",
+};
+
+export function getSectorVerificationCopy(sector?: string | null): SectorVerificationCopy {
+  if (!sector) return DEFAULT_VERIFICATION_COPY;
+  const clean = sector.trim().toUpperCase().replace(/[-.\s]/g, "_");
+  if (clean === "COOKSTOVES") return SECTOR_VERIFICATION_COPY.COOKSTOVES;
+  if (clean === "HYBRID_ENERGY") return SECTOR_VERIFICATION_COPY.HYBRID_ENERGY;
+  if (clean === "BIOCHAR") return SECTOR_VERIFICATION_COPY.BIOCHAR;
+  if (clean === "EV_MOBILITY") return SECTOR_VERIFICATION_COPY.EV_MOBILITY;
+  if (clean === "AGRICULTURE_LAND_USE" || clean === "AGRICULTURE") return SECTOR_VERIFICATION_COPY.AGRICULTURE_LAND_USE;
+  return DEFAULT_VERIFICATION_COPY;
+}
+

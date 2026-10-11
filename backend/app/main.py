@@ -2196,51 +2196,137 @@ async def get_compliance_audit_logs(
 
 
 
+from typing import Optional, Any
+import uuid
+from fastapi import Query
+from app.core.security import get_current_user
+from app.domains.authentication.models import User
+
 @app.get("/api/v1/sensors/devices", tags=["IoT Sensors"])
+async def get_sensor_devices(
+    project_id: Optional[uuid.UUID] = Query(None),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Tenant-isolated IoT sensor device registry endpoint.
+    Returns real persisted devices and telemetry metrics for the authenticated user's organization.
+    """
+    from app.domains.projects.models import Project
+    from app.domains.assets.models import Asset
+    from app.domains.activities.models import Activity
+    from sqlalchemy import select, text
 
-async def get_sensor_devices(db: AsyncSession = Depends(get_db)):
+    target_project = None
+    if project_id:
+        p_res = await db.execute(select(Project).filter(Project.id == project_id))
+        target_project = p_res.scalar_one_or_none()
+        if not target_project:
+            raise HTTPException(status_code=404, detail="Project not found")
+        if current_user.role != "SUPER_ADMIN" and target_project.organization_id != current_user.organization_id:
+            raise HTTPException(status_code=403, detail="Forbidden: Project belongs to another organization")
 
-    try:
+    devices_dict: dict[str, dict] = {}
 
-        from app.domains.assets.models import Asset
+    # 1. Query Assets belonging to tenant / project
+    asset_query = select(Asset)
+    if current_user.role != "SUPER_ADMIN":
+        asset_query = asset_query.filter(Asset.organization_id == current_user.organization_id)
+    if project_id:
+        asset_query = asset_query.filter(Asset.project_id == project_id)
 
-        from sqlalchemy import select
+    asset_res = await db.execute(asset_query)
+    assets = asset_res.scalars().all()
+    for a in assets:
+        devices_dict[str(a.id)] = {
+            "device_id": str(a.id),
+            "property_name": a.name,
+            "asset_id": str(a.id),
+            "reading_count": 0,
+            "last_temperature": None,
+            "usage_rate": None,
+            "last_battery_voltage": None,
+        }
 
-        res = await db.execute(select(Asset).limit(10))
+    # 2. Query Real Telemetry Activities for tenant / project
+    act_where_clauses = ["activity_data->>'device_id' IS NOT NULL"]
+    params: dict[str, Any] = {}
+    if current_user.role != "SUPER_ADMIN":
+        act_where_clauses.append("organization_id = :org_id")
+        params["org_id"] = str(current_user.organization_id)
+    if project_id:
+        act_where_clauses.append("project_id = :project_id")
+        params["project_id"] = str(project_id)
 
-        props = res.scalars().all()
+    where_sql = " AND ".join(act_where_clauses)
+    agg_sql = text(f"""
+        SELECT 
+            activity_data->>'device_id' as dev_id,
+            count(*) as cnt,
+            max(captured_at) as max_captured
+        FROM activities
+        WHERE {where_sql}
+        GROUP BY activity_data->>'device_id'
+    """)
+    agg_res = await db.execute(agg_sql, params)
+    for dev_id, cnt, max_captured in agg_res.fetchall():
+        if not dev_id:
+            continue
 
+        latest_params = dict(params)
+        latest_params["dev_id"] = dev_id
+        latest_sql = text(f"""
+            SELECT activity_data, project_id, asset_id
+            FROM activities
+            WHERE {where_sql} AND activity_data->>'device_id' = :dev_id
+            ORDER BY captured_at DESC NULLS LAST, created_at DESC NULLS LAST
+            LIMIT 1
+        """)
+        latest_row = (await db.execute(latest_sql, latest_params)).fetchone()
 
+        latest_data = latest_row[0] if latest_row and isinstance(latest_row[0], dict) else {}
+        row_project_id = latest_row[1] if latest_row else None
+        row_asset_id = latest_row[2] if latest_row else None
 
-        devices = []
+        last_temp = None
+        if "soil_temperature_c" in latest_data and latest_data["soil_temperature_c"] is not None:
+            try:
+                last_temp = float(latest_data["soil_temperature_c"])
+            except (ValueError, TypeError):
+                pass
+        elif "soil_temperature" in latest_data and latest_data["soil_temperature"] is not None:
+            try:
+                last_temp = float(latest_data["soil_temperature"])
+            except (ValueError, TypeError):
+                pass
 
-        for i, p in enumerate(props):
+        last_battery = None
+        for b_key in ["battery_voltage", "last_battery_voltage", "battery_level"]:
+            if b_key in latest_data and latest_data[b_key] is not None:
+                try:
+                    last_battery = float(latest_data[b_key])
+                    break
+                except (ValueError, TypeError):
+                    pass
 
-            devices.append({
+        prop_name = target_project.name if target_project else dev_id
+        if not target_project and row_project_id:
+            p_obj = (await db.execute(select(Project).filter(Project.id == row_project_id))).scalar_one_or_none()
+            if p_obj:
+                prop_name = p_obj.name
 
-                "device_id": f"ESP32-{str(p.id)[:4].upper()}",
+        devices_dict[dev_id] = {
+            "device_id": dev_id,
+            "property_name": prop_name,
+            "asset_id": str(row_asset_id or row_project_id or dev_id),
+            "reading_count": int(cnt),
+            "last_temperature": last_temp,
+            "usage_rate": None,
+            "last_battery_voltage": last_battery,
+        }
 
-                "property_name": p.name,
-
-                "asset_id": str(p.id),
-
-                "reading_count": 1450 + (i * 213),
-
-                "last_temperature": 42.5 + (i * 1.2),
-
-                "usage_rate": 98.0 - (i * 0.5),
-
-                "last_battery_voltage": 3.8
-
-            })
-
-        return {"total": len(devices), "devices": devices}
-
-    except Exception as e:
-
-        import traceback
-
-        return {"error": str(e), "trace": traceback.format_exc()}
+    device_list = list(devices_dict.values())
+    return {"total": len(device_list), "devices": device_list}
 
 
 

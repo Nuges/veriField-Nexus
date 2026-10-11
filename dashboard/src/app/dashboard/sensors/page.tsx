@@ -29,8 +29,9 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import StatCard from "@/components/StatCard";
-import { fetchActivities } from "@/lib/api";
+import { fetchActivities, fetchProperties } from "@/lib/api";
 import { formatTime, formatDateTime, getLocalTimeZone } from "@/lib/dateTime";
+import { useWorkspace } from "@/context/WorkspaceContext";
 
 interface TelemetryPoint {
   id: string;
@@ -51,10 +52,30 @@ interface TelemetryPoint {
 }
 
 export default function SensorsPage() {
+  const { activeProject } = useWorkspace();
+  const [projectName, setProjectName] = useState<string>("");
   const [readings, setReadings] = useState<TelemetryPoint[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [lastRefreshed, setLastRefreshed] = useState<Date>(new Date());
   const [tzMode, setTzMode] = useState<"local" | "project" | "utc">("local");
+
+  // Load project name if project is active
+  useEffect(() => {
+    async function loadProjectDetails() {
+      if (!activeProject) {
+        setProjectName("");
+        return;
+      }
+      try {
+        const res = await fetchProperties();
+        if (res && res.properties) {
+          const found = res.properties.find((p: any) => String(p.id) === String(activeProject));
+          if (found) setProjectName(found.name);
+        }
+      } catch {}
+    }
+    loadProjectDetails();
+  }, [activeProject]);
 
   // Determine active IANA timezone identifier
   const activeTimeZone = tzMode === "project" ? "Asia/Kolkata" : tzMode === "utc" ? "UTC" : undefined;
@@ -62,7 +83,10 @@ export default function SensorsPage() {
   const loadSensorData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const res = await fetchActivities({ activity_type: "SOIL_SENSOR_TELEMETRY" });
+      const res = await fetchActivities({
+        activity_type: "SOIL_SENSOR_TELEMETRY",
+        project_id: activeProject || undefined,
+      });
       const rawList = Array.isArray(res) ? res : (res as any)?.activities || (res as any)?.items || [];
 
       // Filter and map SOIL_SENSOR_TELEMETRY activities
@@ -86,7 +110,7 @@ export default function SensorsPage() {
             moistureRaw: typeof data.soil_moisture_raw === "number" ? data.soil_moisture_raw : 0,
             tempC: typeof data.soil_temperature_c === "number" ? data.soil_temperature_c : 0,
             clientId: act.client_id || "unknown",
-            deviceId: data.device_id || "WOKWI-ESP32-SOIL-01",
+            deviceId: data.device_id || "UNKNOWN_NODE",
             temperatureSensor: tempSensor,
             moistureSensor: moistSensor,
             authority: data.field_data_authority || "PROVISIONAL_OBSERVATION",
@@ -103,7 +127,7 @@ export default function SensorsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [activeTimeZone]);
+  }, [activeTimeZone, activeProject]);
 
   useEffect(() => {
     loadSensorData();
@@ -191,13 +215,13 @@ export default function SensorsPage() {
         </div>
       </div>
 
-      {/* Pilot Metadata Banner */}
+      {/* Telemetry Metadata Banner */}
       <div className="bg-[var(--color-card)] border border-[var(--color-border)] rounded-xl p-4 shadow-sm">
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-xs">
           <div>
-            <span className="text-[var(--color-text-muted)] block">Pilot Project</span>
+            <span className="text-[var(--color-text-muted)] block">Project</span>
             <span className="font-semibold text-[var(--color-text-primary)] text-sm mt-0.5 block truncate">
-              Deepak Farm Soil Sensor Pilot
+              {projectName || (latest ? "Active Telemetry Stream" : "No Project Selected")}
             </span>
           </div>
           <div>
@@ -209,19 +233,19 @@ export default function SensorsPage() {
           <div>
             <span className="text-[var(--color-text-muted)] block">Active Node</span>
             <span className="font-mono font-semibold text-[var(--color-text-primary)] text-sm mt-0.5 block">
-              {latest ? latest.deviceId : "WOKWI-ESP32-SOIL-01"}
+              {latest ? latest.deviceId : "—"}
             </span>
           </div>
           <div>
             <span className="text-[var(--color-text-muted)] block">Hardware Source</span>
             <span className="font-semibold text-blue-600 dark:text-blue-400 text-sm mt-0.5 block">
-              Wokwi Simulation
+              {latest ? (latest.isSimulation ? "Simulation" : "Physical Node") : "—"}
             </span>
           </div>
           <div>
             <span className="text-[var(--color-text-muted)] block">Evidence Authority</span>
             <span className="font-semibold text-amber-600 dark:text-amber-400 text-sm mt-0.5 block truncate">
-              {latest ? latest.authority : "Provisional Observation"}
+              {latest ? latest.authority.replace(/_/g, " ") : "—"}
             </span>
           </div>
         </div>
@@ -231,29 +255,29 @@ export default function SensorsPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Soil Moisture"
-          value={latest ? `${latest.moisturePct.toFixed(1)}%` : "66.5%"}
+          value={latest ? `${latest.moisturePct.toFixed(1)}%` : "—"}
           icon={Droplets}
           trend={
             latest
               ? latest.isSimulation
                 ? `ADC: ${latest.moistureRaw} (Simulated 0–4095)`
                 : `ADC: ${latest.moistureRaw}`
-              : "ADC: 0–4095 (Simulated)"
+              : "No telemetry received"
           }
-          trendUp={true}
+          trendUp={!!latest}
           color="emerald"
         />
         <StatCard
           title="Soil Temperature"
-          value={latest ? `${latest.tempC.toFixed(1)} °C` : "29.4 °C"}
+          value={latest ? `${latest.tempC.toFixed(1)} °C` : "—"}
           icon={Thermometer}
-          trend={latest?.temperatureSensor || "DS18B20"}
-          trendUp={true}
+          trend={latest ? (latest.temperatureSensor || "In-situ Sensor") : "No telemetry received"}
+          trendUp={!!latest}
           color="amber"
         />
         <StatCard
           title="Device Status"
-          value={isOnline ? "ONLINE" : (latest ? "STALE" : "STANDBY")}
+          value={isOnline ? "ONLINE" : (latest ? "STANDBY" : "NO DEVICE")}
           icon={Wifi}
           trend={isOnline ? "Streaming (15s)" : (latest ? `Last seen ${latest.time}` : "Awaiting Packets")}
           trendUp={isOnline}
@@ -263,8 +287,8 @@ export default function SensorsPage() {
           title="Telemetry Count"
           value={readings.length > 0 ? readings.length : "0"}
           icon={Cpu}
-          trend={readings.length > 0 ? `Latest: ${latest?.clientId}` : "Wokwi-GUEST"}
-          trendUp={true}
+          trend={readings.length > 0 ? `Latest: ${latest?.clientId || latest?.deviceId}` : "No packets"}
+          trendUp={readings.length > 0}
           color="purple"
         />
       </div>
@@ -390,10 +414,10 @@ export default function SensorsPage() {
           <div className="py-8 text-center text-[var(--color-text-secondary)]">
             <Radio className="mx-auto text-[var(--color-text-muted)] mb-3 animate-pulse" size={36} />
             <p className="text-sm font-medium text-[var(--color-text-primary)]">
-              Awaiting Live Wokwi Telemetry Packets
+              Awaiting Telemetry Packets
             </p>
             <p className="text-xs text-[var(--color-text-secondary)] max-w-md mx-auto mt-1">
-              Start the Wokwi ESP32 firmware in <code className="bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded">scripts/simulators/wokwi_soil/sketch.ino</code> or run the local virtual ESP32 test client to stream live telemetry.
+              No telemetry received yet for this project. Connect and provision hardware sensors to stream live telemetry.
             </p>
           </div>
         ) : (
