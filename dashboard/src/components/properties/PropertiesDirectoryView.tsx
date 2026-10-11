@@ -14,7 +14,7 @@
 
 
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 
 import Link from "next/link";
 
@@ -53,6 +53,11 @@ import type { Property } from "@/lib/types";
 import { useToast } from "@/components/Toast";
 
 import { useWorkspace } from "@/context/WorkspaceContext";
+import {
+  getCanonicalMethodologiesForSector,
+  normalizeToCanonicalSectorCode,
+  type CanonicalMethodologyOption,
+} from "@/lib/sectors";
 
 
 
@@ -78,6 +83,46 @@ export default function PropertiesDirectoryView() {
   // Modal State
   const [showModal, setShowModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedMethodologyId, setSelectedMethodologyId] = useState<string>("");
+  const [selectedVersion, setSelectedVersion] = useState<string>("");
+
+  const canonicalSector = useMemo(
+    () => normalizeToCanonicalSectorCode(activeSector) || "AGRICULTURE_LAND_USE",
+    [activeSector]
+  );
+
+  const availableMethodologies = useMemo(() => {
+    return getCanonicalMethodologiesForSector(canonicalSector);
+  }, [canonicalSector]);
+
+  useEffect(() => {
+    if (availableMethodologies.length > 0) {
+      const match = availableMethodologies.find(
+        (m) =>
+          m.id.toLowerCase() === (activeMethodology || "").toLowerCase() ||
+          m.code.toUpperCase() === (activeMethodology || "").toUpperCase()
+      );
+      const chosen = match || availableMethodologies[0];
+      setSelectedMethodologyId(chosen.id);
+      setSelectedVersion(chosen.version || "");
+    }
+  }, [availableMethodologies, activeMethodology]);
+
+  const currentSelectedMethodology = useMemo(() => {
+    return (
+      availableMethodologies.find((m) => m.id === selectedMethodologyId) ||
+      availableMethodologies[0]
+    );
+  }, [availableMethodologies, selectedMethodologyId]);
+
+  const handleMethodologySelect = (id: string) => {
+    setSelectedMethodologyId(id);
+    const m = availableMethodologies.find((item) => item.id === id);
+    if (m) {
+      setSelectedVersion(m.version || "");
+    }
+  };
+
   const [formData, setFormData] = useState({
     name: "",
     country: "Nigeria",
@@ -114,58 +159,35 @@ export default function PropertiesDirectoryView() {
     loadProps();
   }, []);
 
-
-
   const handleCreateProject = async (e: React.FormEvent) => {
-
     e.preventDefault();
-
     if (!formData.name.trim()) {
-
       toast.error("Validation Error", "Please enter a valid project name.");
-
       return;
-
     }
 
-
+    const methId = selectedMethodologyId || currentSelectedMethodology?.id;
+    if (!methId) {
+      toast.error("Validation Error", "Please select a valid methodology for this sector.");
+      return;
+    }
 
     setIsSubmitting(true);
-
     try {
-
-      // Find current methodology ID or fallback
-
-      const activeModule = activeSector ? moduleRegistry[activeSector] : null;
-
-      const methodologyId = activeModule?.methodology_id || "fe2f48fe-e99b-44eb-8b2b-72b330317e6a";
-
-
-
       await createProject({
-
         name: formData.name,
-
         country: formData.country,
-
-        methodology_id: methodologyId,
-
+        methodology_id: methId,
+        methodology_version: selectedVersion || currentSelectedMethodology?.version || undefined,
+        methodology_version_id: selectedVersion || currentSelectedMethodology?.version || undefined,
         baseline_source: formData.baseline_source,
-
         diesel_emission_factor: Number(formData.diesel_emission_factor),
-
         grid_emission_factor: Number(formData.grid_emission_factor),
-
         crediting_start: formData.crediting_start || undefined,
-
         crediting_end: formData.crediting_end || undefined
-
       });
 
-
-
       toast.success("Project Registered", `Project "${formData.name}" onboarded successfully.`);
-
       setShowModal(false);
 
       setFormData({
@@ -396,7 +418,16 @@ export default function PropertiesDirectoryView() {
                       {proj.country || "Nigeria"}
                     </td>
                     <td className="py-2.5 px-3 font-mono text-[11px] text-[#008A5E]">
-                      {proj.methodology_id ? "AMS-III.C" : "AMS-II.G"}
+                      {proj.baseline_parameters?.methodology_code ? (
+                        <span>
+                          {proj.baseline_parameters.methodology_code.replace(/_/g, "-")}
+                          {proj.baseline_parameters.methodology_version ? ` v${proj.baseline_parameters.methodology_version}` : ""}
+                        </span>
+                      ) : proj.methodology_id ? (
+                        "Configured"
+                      ) : (
+                        "—"
+                      )}
                     </td>
                     <td className="py-2.5 px-3 text-[var(--color-text-secondary)] text-[11px]">
                       {proj.crediting_start ? `${proj.crediting_start} → ${proj.crediting_end || "Ongoing"}` : "Standard 10-Year"}
@@ -644,21 +675,103 @@ export default function PropertiesDirectoryView() {
 
 
                 <div>
-
                   <label className="text-[10px] font-extrabold uppercase tracking-wider text-[var(--color-text-secondary)] block mb-1">
-
-                    Active Sector & Methodology
-
+                    Operating Sector
                   </label>
-
-                  <div className="w-full bg-[var(--color-background)] border border-[var(--color-border)] rounded-xl px-3 py-2 text-[11px] font-mono font-bold text-[#00B47A] truncate">
-
-                    {activeMethodology || (activeSector === "hybrid_energy" ? "ACM0002" : activeSector === "biochar" ? "VM0042" : activeSector === "ev_mobility" ? "AMS-III.C" : "AMS-II.G")} (Locked)
-
+                  <div className="w-full bg-[var(--color-background)] border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs font-semibold text-[var(--color-text-primary)] capitalize">
+                    {canonicalSector.toLowerCase().replace(/_/g, " ")}
                   </div>
+                </div>
+              </div>
 
+              {/* Methodology selection section */}
+              <div className="space-y-3">
+                <div>
+                  <label className="text-[10px] font-extrabold uppercase tracking-wider text-[var(--color-text-secondary)] block mb-1">
+                    Methodology & Standard
+                  </label>
+                  <select
+                    id="modal-project-methodology-select"
+                    data-testid="modal-project-methodology-select"
+                    value={selectedMethodologyId}
+                    onChange={(e) => handleMethodologySelect(e.target.value)}
+                    className="w-full bg-[var(--color-background)] border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs font-semibold text-[var(--color-text-primary)] focus:outline-none focus:border-[#00B47A]"
+                  >
+                    {availableMethodologies.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.registryName} — {m.code} ({m.name})
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
+                {currentSelectedMethodology && (
+                  <div className="p-3 bg-[var(--color-surface)]/60 border border-[var(--color-border)] rounded-xl space-y-2 text-xs">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-[var(--color-text-primary)]">
+                          {currentSelectedMethodology.code}
+                        </span>
+                        <span className="text-[11px] text-[var(--color-text-secondary)]">
+                          {currentSelectedMethodology.registryName}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {currentSelectedMethodology.verifieldSupport === "FULL" ? (
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                            FULL MRV / CALCULATION READY
+                          </span>
+                        ) : currentSelectedMethodology.verifieldSupport === "MRV_ONLY" ? (
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                            MRV ONLY — Evidence & Monitoring
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                            CATALOG DISCOVERY ONLY
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {currentSelectedMethodology.supportedVersions && currentSelectedMethodology.supportedVersions.length > 1 ? (
+                      <div className="flex items-center gap-2">
+                        <label className="text-[10px] font-semibold text-[var(--color-text-secondary)]">
+                          Version:
+                        </label>
+                        <select
+                          id="modal-project-version-select"
+                          data-testid="modal-project-version-select"
+                          value={selectedVersion}
+                          onChange={(e) => setSelectedVersion(e.target.value)}
+                          className="bg-[var(--color-background)] border border-[var(--color-border)] rounded px-2 py-0.5 text-xs text-[var(--color-text-primary)]"
+                        >
+                          {currentSelectedMethodology.supportedVersions.map((v) => (
+                            <option key={v} value={v}>
+                              {v}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    ) : (
+                      <div className="text-[11px] text-[var(--color-text-muted)]">
+                        Version: {currentSelectedMethodology.version}
+                      </div>
+                    )}
+
+                    {currentSelectedMethodology.applicabilitySummary && (
+                      <p className="text-[11px] text-[var(--color-text-secondary)] leading-relaxed">
+                        <strong className="text-[var(--color-text-primary)]">Applicability: </strong>
+                        {currentSelectedMethodology.applicabilitySummary}
+                      </p>
+                    )}
+
+                    {(!currentSelectedMethodology.calculationEnabled || currentSelectedMethodology.verifieldSupport !== "FULL") && (
+                      <div className="p-2 rounded bg-amber-500/10 border border-amber-500/20 text-amber-300 text-[11px]">
+                        <strong>Notice:</strong> VeriField calculation engine for this methodology is not yet enabled. Project will be configured for evidence & monitoring.
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
 
@@ -816,13 +929,11 @@ export default function PropertiesDirectoryView() {
 
 
                 <button
-
+                  id="modal-register-project-btn"
+                  data-testid="modal-register-project-btn"
                   type="submit"
-
                   disabled={isSubmitting}
-
                   className="flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-extrabold bg-[#00B47A] hover:bg-[#009b68] text-slate-950 transition-all shadow-md active:scale-[0.98] cursor-pointer disabled:opacity-50"
-
                 >
 
                   {isSubmitting ? (

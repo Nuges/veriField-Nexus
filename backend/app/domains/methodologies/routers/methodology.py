@@ -17,6 +17,8 @@ from app.core.sectors import (
     CANONICAL_SECTOR_UUID_MAP,
     DISALLOWED_PRIMARY_METHODOLOGY_CODES,
     UNCONFIGURED_METHODOLOGY_CODES,
+    GLOBAL_METHODOLOGY_CATALOG,
+    resolve_methodology_code,
     get_production_methodologies_for_sector,
     get_canonical_methodology_codes_for_sector,
     normalize_to_canonical_sector,
@@ -45,7 +47,55 @@ def _synthesize_canonical_methodology_schema(item: Dict[str, Any], sec: Canonica
     fam_uuid = UUID(sec_uuid_str)
     reg_uuid = uuid.uuid5(uuid.NAMESPACE_DNS, f"registry.{item.get('registry_code', 'VERRA')}")
     meth_uuid = UUID(item["id"])
-    ver_uuid = uuid.uuid5(meth_uuid, item.get("version", "1.0.0"))
+
+    ui_cfg = dict(item.get("ui_config", {}))
+    support_val = item.get("verifield_support_state")
+    ui_cfg.setdefault("verifield_support_state", getattr(support_val, "value", str(support_val) if support_val else "CATALOG_ONLY"))
+    ui_cfg.setdefault("calculation_support_status", item.get("calculation_support_status", "NOT_IMPLEMENTED"))
+    ui_cfg.setdefault("applicability_summary", item.get("applicability_summary", ""))
+    ui_cfg.setdefault("stable_identifier", item.get("stable_identifier", ""))
+    ui_cfg.setdefault("subsector", item.get("subsector", ""))
+    ui_cfg.setdefault("current_version", item.get("version", "1.0.0"))
+    ui_cfg.setdefault("supported_versions", item.get("supported_versions", [item.get("version", "1.0.0")]))
+    ui_cfg.setdefault("historical_versions", item.get("historical_versions", []))
+    ui_cfg.setdefault("valid_from", item.get("valid_from"))
+    ui_cfg.setdefault("selectable_for_new_projects", item.get("selectable_for_new_projects", True))
+    ui_cfg.setdefault("official_source_url", item.get("official_source_url"))
+    ui_cfg.setdefault("source_authority", item.get("source_authority"))
+    ui_cfg.setdefault("last_verified_at", item.get("last_verified_at"))
+
+    cur_ver = item.get("version", "1.0.0")
+    version_schemas: List[MethodologyVersionSchema] = [
+        MethodologyVersionSchema(
+            id=uuid.uuid5(meth_uuid, cur_ver),
+            version=cur_ver,
+            status=item.get("registry_status", "ACTIVE").lower(),
+            release_date=date.fromisoformat(item["valid_from"]) if item.get("valid_from") else date(2024, 1, 1),
+            retirement_date=None,
+        )
+    ]
+    for sup_ver in item.get("supported_versions", []):
+        if sup_ver != cur_ver:
+            version_schemas.append(
+                MethodologyVersionSchema(
+                    id=uuid.uuid5(meth_uuid, sup_ver),
+                    version=sup_ver,
+                    status="active",
+                    release_date=date(2023, 1, 1),
+                    retirement_date=None,
+                )
+            )
+    for hist_ver in item.get("historical_versions", []):
+        version_schemas.append(
+            MethodologyVersionSchema(
+                id=uuid.uuid5(meth_uuid, hist_ver),
+                version=hist_ver,
+                status="historical",
+                release_date=date(2020, 1, 1),
+                retirement_date=date(2024, 1, 1),
+            )
+        )
+
     return MethodologySchema(
         id=meth_uuid,
         code=item["code"],
@@ -65,19 +115,63 @@ def _synthesize_canonical_methodology_schema(item: Dict[str, Any], sec: Canonica
             description=None,
             project_types=[],
         ),
-        versions=[
-            MethodologyVersionSchema(
-                id=ver_uuid,
-                version=item.get("version", "1.0.0"),
-                status="ACTIVE",
-                release_date=date(2024, 1, 1),
-                retirement_date=None,
-            )
-        ],
-        ui_config={},
+        versions=version_schemas,
+        ui_config=ui_cfg,
         form_schema={},
         recommendation_rules={},
     )
+
+
+def _registry_matches(schema_reg_code: Optional[str], filter_reg: str) -> bool:
+    if not schema_reg_code:
+        return False
+    c1 = schema_reg_code.strip().upper()
+    c2 = filter_reg.strip().upper()
+    if c1 == c2:
+        return True
+    verra_set = {"VERRA", "VCS"}
+    if c1 in verra_set and c2 in verra_set:
+        return True
+    gs_set = {"GOLD_STANDARD", "GS"}
+    if c1 in gs_set and c2 in gs_set:
+        return True
+    cdm_set = {"CDM", "UNFCCC_CDM", "UNFCCC"}
+    if c1 in cdm_set and c2 in cdm_set:
+        return True
+    puro_set = {"PURO_STANDARD", "PURO"}
+    if c1 in puro_set and c2 in puro_set:
+        return True
+    csi_set = {"CSI", "EBC"}
+    if c1 in csi_set and c2 in csi_set:
+        return True
+    return False
+
+
+def _enrich_methodology_schema(m: Any) -> MethodologySchema:
+    """Enriches a DB Methodology model or MethodologySchema with Global Catalog metadata."""
+    schema = m if isinstance(m, MethodologySchema) else MethodologySchema.model_validate(m)
+    resolved_code = resolve_methodology_code(schema.code) or schema.code.upper()
+    if resolved_code in GLOBAL_METHODOLOGY_CATALOG:
+        cat = GLOBAL_METHODOLOGY_CATALOG[resolved_code]
+        schema.code = cat["code"]
+        schema.name = cat["name"]
+        ui_cfg = dict(schema.ui_config or {})
+        support_val = cat.get("verifield_support_state")
+        ui_cfg.setdefault("verifield_support_state", getattr(support_val, "value", str(support_val) if support_val else "CATALOG_ONLY"))
+        ui_cfg.setdefault("calculation_support_status", cat.get("calculation_support_status", "NOT_IMPLEMENTED"))
+        ui_cfg.setdefault("applicability_summary", cat.get("applicability_summary", ""))
+        ui_cfg.setdefault("stable_identifier", cat.get("stable_identifier", ""))
+        ui_cfg.setdefault("subsector", cat.get("subsector", ""))
+        ui_cfg.setdefault("current_version", cat.get("version", "1.0.0"))
+        ui_cfg.setdefault("supported_versions", cat.get("supported_versions", [cat.get("version", "1.0.0")]))
+        ui_cfg.setdefault("historical_versions", cat.get("historical_versions", []))
+        ui_cfg.setdefault("valid_from", cat.get("valid_from"))
+        ui_cfg.setdefault("selectable_for_new_projects", cat.get("selectable_for_new_projects", True))
+        ui_cfg.setdefault("official_source_url", cat.get("official_source_url"))
+        ui_cfg.setdefault("source_authority", cat.get("source_authority"))
+        ui_cfg.setdefault("last_verified_at", cat.get("last_verified_at"))
+        schema.ui_config = ui_cfg
+    return schema
 
 
 @router.get("", response_model=List[MethodologySchema])
@@ -85,14 +179,16 @@ async def list_methodologies(
     sector: Optional[str] = Query(None),
     sector_id: Optional[str] = Query(None),
     family_id: Optional[str] = Query(None),
+    registry: Optional[str] = Query(None),
     is_active: Optional[bool] = Query(True),
     db: AsyncSession = Depends(get_db)
 ):
     """
-    List methodologies, scoped strictly to the requested canonical sector if provided.
-    - If sector/sector_id/family_id is provided, only production-enabled primary methodologies
+    List methodologies, scoped strictly to the requested canonical sector and/or registry if provided.
+    - If sector/sector_id/family_id is provided, only primary catalog methodologies
       for that canonical sector are returned (zero cross-sector leakage).
-    - Unconfigured methodologies and supporting modules/tools (e.g. VT0014, VMD0053) are never returned.
+    - If registry is provided, filters by registry code (e.g. VERRA, GOLD_STANDARD, CDM, PURO_STANDARD, CSI).
+    - Supporting modules/tools (e.g. VT0014, VMD0053, VMD0049) are strictly excluded.
     - If an invalid/unknown sector is requested, fails closed (returns []).
     """
     raw_filter = sector or sector_id or family_id
@@ -139,44 +235,50 @@ async def list_methodologies(
         if fam_obj:
             db_meths = await service.list_methodologies(family_id=fam_obj.id, is_active=is_active)
 
-        # Filter DB methodologies to strictly allowed primary codes
-        filtered = [
-            m for m in db_meths
-            if m.code.upper() in allowed_codes
-            and m.code.upper() not in DISALLOWED_PRIMARY_METHODOLOGY_CODES
-            and m.code.upper() not in UNCONFIGURED_METHODOLOGY_CODES
-        ]
+        results: List[MethodologySchema] = []
+        found_codes = set()
+        for m in db_meths:
+            resolved = resolve_methodology_code(m.code) or m.code.upper()
+            if resolved in allowed_codes and resolved not in DISALLOWED_PRIMARY_METHODOLOGY_CODES and resolved not in found_codes:
+                results.append(_enrich_methodology_schema(m))
+                found_codes.add(resolved)
 
-        if filtered:
-            return filtered
+        # Merge synthesized catalog entries for any canonical methodologies not present in DB
+        for item in get_production_methodologies_for_sector(canonical_sector):
+            c_code = item["code"].upper()
+            if c_code not in found_codes:
+                results.append(_synthesize_canonical_methodology_schema(item, canonical_sector))
+                found_codes.add(c_code)
 
-        # If DB has no active records for this canonical sector (e.g., unseeded AGRICULTURE_LAND_USE),
-        # return synthesized production-enabled methodologies
-        return [
-            _synthesize_canonical_methodology_schema(m, canonical_sector)
-            for m in get_production_methodologies_for_sector(canonical_sector)
-        ]
+        if registry:
+            results = [m for m in results if m.registry and _registry_matches(m.registry.code, registry)]
+
+        return results
 
     # No sector filter provided: return all active production methodologies across canonical sectors
     all_production_codes = {
         code
-        for sector in CanonicalSector
-        for code in get_canonical_methodology_codes_for_sector(sector)
+        for sec in CanonicalSector
+        for code in get_canonical_methodology_codes_for_sector(sec)
     }
     all_db = await service.list_methodologies(family_id=None, is_active=is_active)
-    result_list = [
-        m for m in all_db
-        if m.code.upper() in all_production_codes
-        and m.code.upper() not in DISALLOWED_PRIMARY_METHODOLOGY_CODES
-        and m.code.upper() not in UNCONFIGURED_METHODOLOGY_CODES
-    ]
-    codes_present = {m.code.upper() for m in result_list}
+    result_list: List[MethodologySchema] = []
+    found_codes = set()
+    for m in all_db:
+        resolved = resolve_methodology_code(m.code) or m.code.upper()
+        if resolved in all_production_codes and resolved not in DISALLOWED_PRIMARY_METHODOLOGY_CODES and resolved not in found_codes:
+            result_list.append(_enrich_methodology_schema(m))
+            found_codes.add(resolved)
 
-    # Ensure VM0042 is surfaced even if unseeded in DB
-    if "VM0042" not in codes_present:
-        agri_meths = get_production_methodologies_for_sector(CanonicalSector.AGRICULTURE_LAND_USE)
-        if agri_meths:
-            result_list.append(_synthesize_canonical_methodology_schema(agri_meths[0], CanonicalSector.AGRICULTURE_LAND_USE))
+    for sec in CanonicalSector:
+        for item in get_production_methodologies_for_sector(sec):
+            c_code = item["code"].upper()
+            if c_code not in found_codes:
+                result_list.append(_synthesize_canonical_methodology_schema(item, sec))
+                found_codes.add(c_code)
+
+    if registry:
+        result_list = [m for m in result_list if m.registry and _registry_matches(m.registry.code, registry)]
 
     return result_list
 
@@ -581,3 +683,107 @@ async def execute_calculation(
     except RuntimeError as e:
 
         raise HTTPException(status_code=422, detail=str(e))
+
+
+@router.get("/{id_or_code}", response_model=MethodologySchema)
+async def get_methodology_by_id_or_code(
+    id_or_code: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get a methodology by database UUID, stable code, or stale UUID alias.
+    """
+    raw = id_or_code.strip()
+    resolved_code = resolve_methodology_code(raw) or raw.upper()
+    service = MethodologyService(db)
+
+    # 1. Try DB by UUID if raw is UUID
+    meth = None
+    try:
+        raw_uuid = UUID(raw)
+        meth = await service.get_methodology(raw_uuid)
+    except (ValueError, TypeError):
+        pass
+
+    # 2. Try DB by code
+    if not meth:
+        meth = await service.get_methodology_by_code(resolved_code)
+
+    if meth:
+        return _enrich_methodology_schema(meth)
+
+    # 3. If in GLOBAL_METHODOLOGY_CATALOG, synthesize schema
+    if resolved_code in GLOBAL_METHODOLOGY_CATALOG:
+        cat = GLOBAL_METHODOLOGY_CATALOG[resolved_code]
+        return _synthesize_canonical_methodology_schema(cat, cat["sector"])
+
+    raise HTTPException(status_code=404, detail=f"Methodology '{id_or_code}' not found.")
+
+
+@router.get("/{id_or_code}/versions")
+async def get_methodology_versions(
+    id_or_code: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """Returns all versions for a methodology."""
+    meth = await get_methodology_by_id_or_code(id_or_code, db)
+    return meth.versions
+
+
+@router.get("/{id_or_code}/applicability")
+async def get_methodology_applicability(
+    id_or_code: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """Returns structured applicability guidance for a methodology."""
+    raw = id_or_code.strip()
+    code = resolve_methodology_code(raw) or raw.upper()
+    cat = GLOBAL_METHODOLOGY_CATALOG.get(code)
+
+    summary = cat.get("applicability_summary") if cat else None
+    subsector = cat.get("subsector") if cat else None
+
+    return {
+        "identifier": id_or_code,
+        "code": code,
+        "name": cat.get("name") if cat else code,
+        "subsector": subsector,
+        "applicability_summary": summary or "General sector land/activity management applicability.",
+        "eligible_activities": [subsector] if subsector else [],
+        "verifield_support_state": getattr(cat.get("verifield_support_state"), "value", cat.get("verifield_support_state", "CATALOG_ONLY")) if cat else "CATALOG_ONLY",
+    }
+
+
+@router.get("/{id_or_code}/capabilities")
+async def get_methodology_capabilities(
+    id_or_code: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """Returns platform capability status for a methodology."""
+    raw = id_or_code.strip()
+    code = resolve_methodology_code(raw) or raw.upper()
+    cat = GLOBAL_METHODOLOGY_CATALOG.get(code)
+
+    verifield_support = getattr(cat.get("verifield_support_state"), "value", cat.get("verifield_support_state", "CATALOG_ONLY")) if cat else "CATALOG_ONLY"
+    calc_status = cat.get("calculation_support_status", "NOT_IMPLEMENTED") if cat else "NOT_IMPLEMENTED"
+    mrv_status = cat.get("mrv_support_status", "NOT_IMPLEMENTED") if cat else "NOT_IMPLEMENTED"
+
+    return {
+        "identifier": id_or_code,
+        "code": code,
+        "current_version": cat.get("version", "1.0") if cat else "1.0",
+        "supported_versions": cat.get("supported_versions", [cat.get("version", "1.0")]) if cat else [],
+        "historical_versions": cat.get("historical_versions", []) if cat else [],
+        "valid_from": cat.get("valid_from") if cat else None,
+        "selectable_for_new_projects": cat.get("selectable_for_new_projects", True) if cat else False,
+        "official_source_url": cat.get("official_source_url") if cat else None,
+        "source_authority": cat.get("source_authority") if cat else None,
+        "last_verified_at": cat.get("last_verified_at") if cat else None,
+        "verifield_support_state": verifield_support,
+        "calculation_engine_enabled": calc_status == "ENABLED",
+        "mrv_workflow_enabled": mrv_status == "ENABLED",
+        "project_onboarding_enabled": verifield_support in ("FULL", "MRV_ONLY"),
+        "stable_identifier": cat.get("stable_identifier") if cat else f"VERRA:{code}:1.0",
+        "notes": "Verified calculation engine active." if calc_status == "ENABLED" else "VeriField calculation engine for this methodology is not yet enabled.",
+        "calculation_engine_notes": "Verified calculation engine active." if calc_status == "ENABLED" else "VeriField calculation engine for this methodology is not yet enabled.",
+    }

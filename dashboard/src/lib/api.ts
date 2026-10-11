@@ -2219,29 +2219,18 @@ export async function addLicensedSector(orgId: string, payload: { sector_id: str
 
 
 export async function createProject(payload: {
-
   name: string;
-
   country?: string;
-
   programme_id?: string;
-
   methodology_id: string;
-
+  methodology_version?: string;
   methodology_version_id?: string;
-
   registry_id?: string;
-
   baseline_source?: string;
-
   diesel_emission_factor?: number;
-
   grid_emission_factor?: number;
-
   crediting_start?: string;
-
   crediting_end?: string;
-
 }): Promise<any> {
 
   return apiFetch<any>("/projects", {

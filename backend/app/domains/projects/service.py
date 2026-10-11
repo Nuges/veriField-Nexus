@@ -12,7 +12,7 @@ from sqlalchemy import func, select
 
 from app.domains.organizations.models import Organization
 
-from app.domains.methodologies.models import MethodologyFamily, Methodology
+from app.domains.methodologies.models import MethodologyFamily, Methodology, MethodologyRegistry
 
 from fastapi import HTTPException
 
@@ -84,21 +84,82 @@ class ProjectService:
 
         jurisdiction_id = None
 
-
-
         meth = None
         sector = None
 
+        from app.core.sectors import (
+            resolve_methodology_code,
+            validate_methodology_version_selection,
+            GLOBAL_METHODOLOGY_CATALOG,
+        )
+
         if payload.methodology_id:
+            raw_meth_str = str(payload.methodology_id).strip()
+            # 1. Try DB by UUID
             try:
-                meth = await self.repository.db.get(Methodology, payload.methodology_id)
-            except Exception:
+                meth_uuid = UUID(raw_meth_str)
+                meth = await self.repository.db.get(Methodology, meth_uuid)
+            except (ValueError, TypeError):
                 pass
+
+            # 2. Try resolving alias or code
+            resolved_code = resolve_methodology_code(raw_meth_str) or raw_meth_str
             if not meth:
                 m_res = await self.repository.db.execute(
-                    select(Methodology).where(func.lower(Methodology.code) == str(payload.methodology_id).lower())
+                    select(Methodology).where(func.lower(Methodology.code) == resolved_code.lower())
                 )
                 meth = m_res.scalar_one_or_none()
+
+            # 3. If in GLOBAL_METHODOLOGY_CATALOG, auto-provision methodology record in DB
+            if not meth and resolved_code in GLOBAL_METHODOLOGY_CATALOG:
+                import uuid as _uuid
+                cat_entry = GLOBAL_METHODOLOGY_CATALOG[resolved_code]
+                cat_sec = cat_entry["sector"]
+
+                # Find or create MethodologyFamily
+                s_res = await self.repository.db.execute(
+                    select(MethodologyFamily).where(func.upper(MethodologyFamily.code) == cat_sec.value.upper())
+                )
+                sec_fam = s_res.scalar_one_or_none()
+                if not sec_fam:
+                    sec_fam = MethodologyFamily(
+                        id=_uuid.uuid4(),
+                        code=cat_sec.value,
+                        name=cat_sec.value.replace("_", " ").title(),
+                    )
+                    self.repository.db.add(sec_fam)
+                    await self.repository.db.flush()
+
+                # Find or create MethodologyRegistry
+                reg_code = cat_entry.get("registry_code", "VERRA")
+                r_res = await self.repository.db.execute(
+                    select(MethodologyRegistry).where(func.upper(MethodologyRegistry.code) == reg_code.upper())
+                )
+                reg_obj = r_res.scalar_one_or_none()
+                if not reg_obj:
+                    reg_obj = MethodologyRegistry(
+                        id=_uuid.uuid5(_uuid.NAMESPACE_DNS, f"registry.{reg_code}"),
+                        code=reg_code,
+                        name=cat_entry.get("registry_name", reg_code),
+                        description=cat_entry.get("registry_name"),
+                        is_active=True,
+                    )
+                    self.repository.db.add(reg_obj)
+                    await self.repository.db.flush()
+
+                meth_id = UUID(cat_entry["id"])
+                meth = Methodology(
+                    id=meth_id,
+                    code=cat_entry["code"],
+                    name=cat_entry["name"],
+                    description=cat_entry.get("description"),
+                    registry_id=reg_obj.id,
+                    family_id=sec_fam.id,
+                    is_active=True,
+                )
+                self.repository.db.add(meth)
+                await self.repository.db.flush()
+
             if not meth:
                 raise HTTPException(
                     status_code=400,
@@ -109,59 +170,53 @@ class ProjectService:
                     status_code=400,
                     detail="Methodology is inactive."
                 )
+
+            sector = await self.repository.db.get(MethodologyFamily, meth.family_id)
+            if not sector:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Methodology has no valid sector family."
+                )
         elif payload.sector_id or payload.sector:
-            # Resolve primary active methodology for the given sector
-            sec_target = None
+            # Sector-only project configuration
             if payload.sector_id:
                 try:
-                    sec_target = await self.repository.db.get(MethodologyFamily, payload.sector_id)
+                    sector = await self.repository.db.get(MethodologyFamily, payload.sector_id)
                 except Exception:
                     pass
-            if not sec_target and payload.sector:
+            if not sector and payload.sector:
                 s_res = await self.repository.db.execute(
                     select(MethodologyFamily).where(func.upper(MethodologyFamily.code) == str(payload.sector).upper())
                 )
-                sec_target = s_res.scalar_one_or_none()
+                sector = s_res.scalar_one_or_none()
 
-            if sec_target:
-                m_res = await self.repository.db.execute(
-                    select(Methodology).where(Methodology.family_id == sec_target.id, Methodology.is_active == True).order_by(Methodology.created_at.asc()).limit(1)
-                )
-                meth = m_res.scalar_one_or_none()
-
-            if not meth:
+            if not sector:
                 raise HTTPException(
                     status_code=400,
-                    detail="No active methodology available for the selected sector."
+                    detail="Selected sector family does not exist."
                 )
         else:
             raise HTTPException(
                 status_code=400,
-                detail="Methodology is required to create a project."
+                detail="Sector or methodology is required to create a project."
             )
 
-        sector = await self.repository.db.get(MethodologyFamily, meth.family_id)
-        if not sector:
-            raise HTTPException(
-                status_code=400,
-                detail="Methodology has no valid sector family."
-            )
-
-        # Enforce Sector-Methodology invariant (project.sector_id == methodology.family_id)
-        if payload.sector_id:
-            if str(payload.sector_id).lower() != str(sector.id).lower() and str(payload.sector_id).lower() != str(meth.family_id).lower():
-                raise HTTPException(
-                    status_code=400,
-                    detail="Selected methodology does not belong to the selected sector."
-                )
-        if payload.sector:
-            clean_sec = str(payload.sector).strip().upper()
-            sec_code = str(sector.code).strip().upper()
-            if clean_sec != sec_code and clean_sec not in sec_code and sec_code not in clean_sec:
-                raise HTTPException(
-                    status_code=400,
-                    detail="Selected methodology does not belong to the selected sector."
-                )
+        # Enforce Sector-Methodology invariant if both are specified
+        if meth and sector:
+            if payload.sector_id:
+                if str(payload.sector_id).lower() != str(sector.id).lower() and str(payload.sector_id).lower() != str(meth.family_id).lower():
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Selected methodology does not belong to the selected sector."
+                    )
+            if payload.sector:
+                clean_sec = str(payload.sector).strip().upper()
+                sec_code = str(sector.code).strip().upper()
+                if clean_sec != sec_code and clean_sec not in sec_code and sec_code not in clean_sec:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Selected methodology does not belong to the selected sector."
+                    )
 
         org = await self.repository.db.get(Organization, organization_id)
         if not org:
@@ -171,16 +226,71 @@ class ProjectService:
             )
 
         org_licenses = [s.upper() for s in (org.licensed_sectors or [])]
-        if sector.code.upper() not in org_licenses:
+        if sector and sector.code.upper() not in org_licenses:
             raise HTTPException(
                 status_code=403,
                 detail=f"Organization is not licensed for sector {sector.code}."
             )
 
-        stmt = select(func.count(Project.id))
-        res = await self.repository.db.execute(stmt)
-        count = res.scalar() or 0
-        project_code = payload.project_code or f"VF-{prefix}-{count + 1:03d}"
+        # Check calculation engine enablement and validate methodology version
+        baseline_params = dict(payload.baseline_parameters or {})
+        if meth:
+            baseline_params["methodology_code"] = meth.code
+
+            # Extract requested version candidate
+            version_candidate = payload.methodology_version
+            if not version_candidate and payload.baseline_parameters:
+                version_candidate = payload.baseline_parameters.get("methodology_version") or payload.baseline_parameters.get("version")
+            if not version_candidate and payload.methodology_id and isinstance(payload.methodology_id, str) and ":" in payload.methodology_id:
+                parts = payload.methodology_id.strip().split(":")
+                if len(parts) >= 2 and any(c.isdigit() for c in parts[-1]):
+                    version_candidate = parts[-1]
+
+            is_ver_valid, ver_error, active_ver = validate_methodology_version_selection(meth.code, version_candidate)
+            if not is_ver_valid:
+                raise HTTPException(
+                    status_code=400,
+                    detail=ver_error,
+                )
+
+            selected_version = active_ver or version_candidate
+            baseline_params["methodology_version"] = selected_version
+
+            if meth.code.upper() in GLOBAL_METHODOLOGY_CATALOG:
+                cat_entry = GLOBAL_METHODOLOGY_CATALOG[meth.code.upper()]
+                calc_status = cat_entry.get("calculation_support_status", "NOT_IMPLEMENTED")
+                support_state = getattr(cat_entry.get("verifield_support_state"), "value", str(cat_entry.get("verifield_support_state")))
+                baseline_params["verifield_support_state"] = support_state
+                baseline_params["calculation_engine_enabled"] = (calc_status == "ENABLED")
+                if calc_status != "ENABLED":
+                    baseline_params["calculation_note"] = "VeriField calculation engine for this methodology is not yet enabled."
+                    baseline_params["calculation_engine_notes"] = baseline_params["calculation_note"]
+
+        if payload.project_code:
+            project_code = payload.project_code
+        else:
+            stmt = select(func.count(Project.id))
+            res = await self.repository.db.execute(stmt)
+            count = res.scalar() or 0
+            candidate_num = count + 1
+            while True:
+                candidate_code = f"VF-{prefix}-{candidate_num:03d}"
+                exists_stmt = select(func.count(Project.id)).where(Project.project_code == candidate_code)
+                exists_res = await self.repository.db.execute(exists_stmt)
+                if (exists_res.scalar() or 0) == 0:
+                    project_code = candidate_code
+                    break
+                candidate_num += 1
+
+        resolved_version_id = None
+        if payload.methodology_version_id:
+            if isinstance(payload.methodology_version_id, UUID):
+                resolved_version_id = payload.methodology_version_id
+            else:
+                try:
+                    resolved_version_id = UUID(str(payload.methodology_version_id))
+                except (ValueError, TypeError):
+                    resolved_version_id = None
 
         project = Project(
             project_code=project_code,
@@ -190,15 +300,15 @@ class ProjectService:
             jurisdiction_id=jurisdiction_id,
             sector_id=sector.id,
             programme_id=payload.programme_id,
-            methodology_id=meth.id,
-            methodology_version_id=payload.methodology_version_id,
+            methodology_id=meth.id if meth else None,
+            methodology_version_id=resolved_version_id,
             registry_id=payload.registry_id,
             baseline_source=payload.baseline_source,
             diesel_emission_factor=payload.diesel_emission_factor,
             grid_emission_factor=payload.grid_emission_factor,
             crediting_start=payload.crediting_start,
             crediting_end=payload.crediting_end,
-            baseline_parameters=payload.baseline_parameters or {},
+            baseline_parameters=baseline_params,
             created_at=datetime.now(timezone.utc),
         )
 

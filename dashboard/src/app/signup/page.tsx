@@ -68,7 +68,7 @@ export default function SignupPage() {
 
     e.preventDefault();
 
-    if (!fullName || !email || !orgName || !sectorId || !methodologyId || !projectName) {
+    if (!fullName || !email || !orgName || !sectorId || !projectName) {
 
       setError("Please fill out all required fields.");
 
@@ -98,7 +98,7 @@ export default function SignupPage() {
 
         sector_id: sectorId,
 
-        methodology_id: methodologyId,
+        methodology_id: methodologyId || undefined,
 
         project_name: projectName,
 
@@ -320,33 +320,41 @@ export default function SignupPage() {
 
                 <div>
                   <label htmlFor="primary-operating-methodology" className="text-sm font-bold text-[var(--color-text-secondary)] mb-1.5 block">
-                    Methodology
+                    Methodology (Optional Preference)
                   </label>
                   <div className="relative">
                     <select
                       id="primary-operating-methodology"
                       data-testid="methodology-select"
-                      aria-label="Methodology"
+                      aria-label="Methodology (Optional Preference)"
                       value={methodologyId}
                       onChange={(e) => setMethodologyId(e.target.value)}
                       disabled={!sectorId || methodologies.length === 0}
-                      required
                       className={`w-full pl-4 pr-10 py-3 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text-primary)] text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 appearance-none ${
                         !sectorId || methodologies.length === 0 ? "opacity-60 cursor-not-allowed bg-[var(--color-surface-hover)]" : "cursor-pointer"
                       }`}
                     >
                       {!sectorId ? (
-                        <option value="" disabled>Select a sector first</option>
+                        <option value="">Select a sector first</option>
                       ) : methodologies.length === 0 ? (
-                        <option value="" disabled>No supported methodologies available</option>
+                        <option value="">No sector methodologies available</option>
                       ) : (
                         <>
-                          <option value="" disabled>Select a methodology...</option>
-                          {methodologies.map((meth) => (
-                            <option key={meth.id} value={meth.id || meth.code}>
-                              {meth.code} — {meth.name}
-                            </option>
-                          ))}
+                          <option value="">None / Decide Later at Project Level</option>
+                          {methodologies.map((meth) => {
+                            const badge = meth.verifieldSupport === "FULL"
+                              ? " [Full MRV & Calculations]"
+                              : meth.verifieldSupport === "MRV_ONLY"
+                              ? " [MRV Evidence & Monitoring]"
+                              : meth.verifieldSupport === "CATALOG_ONLY"
+                              ? " [Catalog Reference]"
+                              : "";
+                            return (
+                              <option key={meth.id || meth.code} value={meth.id || meth.code}>
+                                {meth.code} — {meth.name}{badge}
+                              </option>
+                            );
+                          })}
                         </>
                       )}
                     </select>

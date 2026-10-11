@@ -173,8 +173,9 @@ async def create_access_request(
                 resolved_sector_code = fam_row[0]
 
         # Validate methodology compatibility with canonical operating sector
+        requested_meth_code = None
         if payload.methodology_id:
-            from app.core.sectors import is_methodology_valid_for_sector
+            from app.core.sectors import is_methodology_valid_for_sector, resolve_methodology_code
             if not resolved_sector_code:
                 raise HTTPException(
                     status_code=422,
@@ -182,7 +183,10 @@ async def create_access_request(
                 )
 
             meth_raw = str(payload.methodology_id).strip()
-            meth_to_validate = meth_raw
+            # Resolve code from raw identifier or stale UUID alias
+            resolved = resolve_methodology_code(meth_raw)
+            meth_to_validate = resolved or meth_raw
+
             try:
                 meth_uuid_clean = str(uuid.UUID(meth_raw))
                 # Check DB if this is a known database methodology UUID
@@ -199,19 +203,16 @@ async def create_access_request(
             is_valid, reason = is_methodology_valid_for_sector(resolved_sector_code, meth_to_validate)
             if not is_valid:
                 raise HTTPException(status_code=422, detail=reason)
+            requested_meth_code = meth_to_validate
 
         import json
 
         metadata = {
-
             "use_case": payload.use_case,
-
             "sector_id": resolved_sector_code,
-
             "methodology_id": str(payload.methodology_id) if payload.methodology_id else None,
-
+            "requested_methodology_code": requested_meth_code,
             "project_name": payload.project_name
-
         }
 
 
@@ -540,7 +541,9 @@ async def approve_access_request(
                 or meta.get("SECTOR_CODE")
             )
             methodology_id_str = (
-                meta.get("methodology_id")
+                meta.get("requested_methodology_code")
+                or meta.get("REQUESTED_METHODOLOGY_CODE")
+                or meta.get("methodology_id")
                 or meta.get("METHODOLOGY_ID")
                 or meta.get("methodology")
                 or meta.get("METHODOLOGY")
@@ -609,8 +612,12 @@ async def approve_access_request(
         sec_code_val = str(sec_row.code if hasattr(sec_row, "code") else sec_row[1])
         licensed_sectors.append(sec_code_val)
 
-    # Step 2: Resolve Methodology & Enforce Sector-Methodology Invariant
+    # Step 2: Resolve Methodology & Enforce Sector-Methodology Invariant (Non-blocking preference)
     if methodology_id_str:
+        import logging
+        logger = logging.getLogger(__name__)
+        from app.core.sectors import resolve_methodology_code
+
         meth_is_uuid = False
         try:
             uuid.UUID(str(methodology_id_str).strip())
@@ -625,66 +632,49 @@ async def approve_access_request(
                 text("SELECT id, code, family_id, is_active FROM methodologies WHERE (id = :val_uuid OR id = :hex_uuid) AND is_active = TRUE"),
                 {"val_uuid": clean_meth, "hex_uuid": hex_meth}
             )
-        else:
+            meth_row = res_meth.fetchone()
+
+        if not meth_row:
+            # Try by code directly
             res_meth = await db.execute(
                 text("SELECT id, code, family_id, is_active FROM methodologies WHERE UPPER(code) = UPPER(:val_code) AND is_active = TRUE"),
                 {"val_code": str(methodology_id_str).strip()}
             )
-        meth_row = res_meth.fetchone()
-        if not meth_row:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Methodology '{methodology_id_str}' does not exist or is inactive."
-            )
+            meth_row = res_meth.fetchone()
 
-        meth_family_id = uuid.UUID(str(meth_row.family_id if hasattr(meth_row, "family_id") else meth_row[2]))
-        if target_sec_id:
-            if meth_family_id != target_sec_id:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Selected methodology does not belong to the selected sector."
+        if not meth_row:
+            # Check stale alias (e.g. ec739cc0-517a-4fa0-9ff3-ed4cc6d17667 -> VM0042)
+            resolved_code = resolve_methodology_code(str(methodology_id_str).strip())
+            if resolved_code:
+                res_meth = await db.execute(
+                    text("SELECT id, code, family_id, is_active FROM methodologies WHERE UPPER(code) = UPPER(:val_code) AND is_active = TRUE"),
+                    {"val_code": resolved_code}
+                )
+                meth_row = res_meth.fetchone()
+
+        if meth_row:
+            meth_family_id = uuid.UUID(str(meth_row.family_id if hasattr(meth_row, "family_id") else meth_row[2]))
+            if not target_sec_id or meth_family_id == target_sec_id:
+                target_meth_id = uuid.UUID(str(meth_row.id if hasattr(meth_row, "id") else meth_row[0]))
+                meth_code_str = str(meth_row.code if hasattr(meth_row, "code") else meth_row[1])
+                if meth_code_str not in licensed_methodologies:
+                    licensed_methodologies.append(meth_code_str)
+            else:
+                logger.warning(
+                    "Methodology %s does not belong to sector %s; continuing without methodology binding.",
+                    methodology_id_str,
+                    target_sec_id
                 )
         else:
-            target_sec_id = meth_family_id
-            clean_sec_target = str(target_sec_id)
-            hex_sec_target = clean_sec_target.replace("-", "")
-            res_sec = await db.execute(
-                text("SELECT id, code FROM methodology_families WHERE id = :val_uuid OR id = :hex_uuid"),
-                {"val_uuid": clean_sec_target, "hex_uuid": hex_sec_target}
+            # Never block organization approval due to an unknown/stale methodology UUID!
+            logger.info(
+                "Methodology '%s' requested during signup could not be resolved to an active catalog entry. Proceeding with sector-only provisioning.",
+                methodology_id_str
             )
-            sec_row = res_sec.fetchone()
-            if sec_row:
-                sec_code_val = str(sec_row.code if hasattr(sec_row, "code") else sec_row[1])
-                if sec_code_val not in licensed_sectors:
-                    licensed_sectors.append(sec_code_val)
-
-        target_meth_id = uuid.UUID(str(meth_row.id if hasattr(meth_row, "id") else meth_row[0]))
-        meth_code_str = str(meth_row.code if hasattr(meth_row, "code") else meth_row[1])
-        if meth_code_str not in licensed_methodologies:
-            licensed_methodologies.append(meth_code_str)
+            target_meth_id = None
 
     elif target_sec_id:
-        # Resolve the primary active methodology belonging to that exact sector/methodology family
-        dash_fid = str(uuid.UUID(str(target_sec_id)))
-        clean_fid = dash_fid.replace("-", "")
-        res_primary_meth = await db.execute(
-            text("""
-                SELECT id, code, family_id
-                FROM methodologies
-                WHERE (family_id = :dash_id OR family_id = :clean_id) AND is_active = TRUE
-                ORDER BY created_at ASC
-                LIMIT 1
-            """),
-            {"dash_id": dash_fid, "clean_id": clean_fid}
-        )
-        meth_row = res_primary_meth.fetchone()
-        if meth_row:
-            target_meth_id = uuid.UUID(str(meth_row.id if hasattr(meth_row, "id") else meth_row[0]))
-            meth_code_str = str(meth_row.code if hasattr(meth_row, "code") else meth_row[1])
-            if meth_code_str not in licensed_methodologies:
-                licensed_methodologies.append(meth_code_str)
-        else:
-            target_meth_id = None
+        target_meth_id = None
 
 
     try:
@@ -718,10 +708,10 @@ async def approve_access_request(
             new_org.licensed_sectors = list(existing_sectors)
             await db.flush()
 
-        # 3.5 Provision default Project if both sector and active methodology exist
+        # 3.5 Provision default Project if sector exists
         from app.domains.projects.models import Project
 
-        if target_sec_id and target_meth_id:
+        if target_sec_id:
             proj_exists = await db.execute(
                 select(Project.id).where(Project.organization_id == new_org.id)
             )

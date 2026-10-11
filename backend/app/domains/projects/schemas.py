@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from uuid import UUID
 
@@ -26,8 +26,9 @@ class ProjectCreate(BaseModel):
 
     sector_id: Optional[UUID] = None
     sector: Optional[str] = None
-    methodology_id: Optional[UUID] = None
-    methodology_version_id: Optional[UUID] = None
+    methodology_id: Optional[Union[UUID, str]] = None
+    methodology_version_id: Optional[Union[UUID, str]] = None
+    methodology_version: Optional[str] = None
     registry_id: Optional[str] = None
     baseline_source: Optional[str] = "diesel_generator"
     diesel_emission_factor: Optional[float] = 2.68

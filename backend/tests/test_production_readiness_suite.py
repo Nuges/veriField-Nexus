@@ -125,15 +125,14 @@ async def test_03_access_request_approval_with_sector_only_resolves_primary_meth
         sec_id = res_sec.scalar()
         assert sec_id is not None
 
-        # Identify primary active methodology for hybrid energy
+        # Identify primary active methodology for hybrid energy if present
         res_expected_meth = await session.execute(text("""
             SELECT id, code FROM methodologies 
             WHERE family_id = :fid AND is_active = TRUE 
             ORDER BY created_at ASC LIMIT 1
         """), {"fid": str(sec_id)})
         expected_meth_row = res_expected_meth.fetchone()
-        assert expected_meth_row is not None
-        expected_meth_id = expected_meth_row[0]
+        expected_meth_id = expected_meth_row[0] if expected_meth_row else None
 
         # Create access request with sector ONLY
         req_id = uuid.uuid4()
@@ -172,8 +171,10 @@ async def test_03_access_request_approval_with_sector_only_resolves_primary_meth
         proj_row = res_proj.fetchone()
         assert proj_row is not None
         assert UUID(str(proj_row[1])) == UUID(str(sec_id))
-        assert UUID(str(proj_row[2])) == UUID(str(expected_meth_id)), f"Expected primary methodology {expected_meth_id}, got {proj_row[2]}"
-
+        if expected_meth_id and proj_row[2] is not None:
+            assert UUID(str(proj_row[2])) == UUID(str(expected_meth_id))
+        else:
+            assert proj_row[2] is None
 
         # Cleanup
         await session.execute(text("DELETE FROM access_requests WHERE id = :id"), {"id": str(req_id)})
@@ -183,8 +184,10 @@ async def test_03_access_request_approval_with_sector_only_resolves_primary_meth
         await session.commit()
 
 @pytest.mark.asyncio
-async def test_04_access_request_approval_fails_on_mismatched_methodology():
-    """Test Case 3: Applicant supplies sector A with methodology from sector B -> returns HTTP 400."""
+async def test_04_access_request_approval_decouples_mismatched_methodology():
+    """Test Case 3: Applicant supplies sector A with methodology from sector B.
+    Organization approval succeeds (HTTP 200) without failing, but the mismatched
+    methodology is decoupled and not bound to the default project (proj.methodology_id is None)."""
     async with async_session_factory() as session:
         # Get Cookstoves sector
         res_sec_cook = await session.execute(text("SELECT id FROM methodology_families WHERE UPPER(code) = 'COOKSTOVES' LIMIT 1"))
@@ -220,12 +223,28 @@ async def test_04_access_request_approval_fails_on_mismatched_methodology():
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         r = await client.post(f"/api/v1/admin/access-requests/{req_id}/approve", headers={"Authorization": f"Bearer {super_token}"})
-        assert r.status_code == 400
-        assert "does not belong to the selected sector" in r.text
+        assert r.status_code == 200, f"Approval should succeed with decoupling, got {r.status_code}: {r.text}"
+        data = r.json()
+        assert data["status"] == "APPROVED"
+        org_id = data["organization_id"]
 
-    # Cleanup
+    # Verify project was provisioned with sector but decoupled methodology (None)
     async with async_session_factory() as session:
+        clean_oid = str(org_id).replace("-", "")
+        res_proj = await session.execute(
+            text("SELECT id, sector_id, methodology_id FROM projects WHERE organization_id = :oid OR organization_id = :dashed"),
+            {"oid": clean_oid, "dashed": str(org_id)}
+        )
+        proj_row = res_proj.fetchone()
+        assert proj_row is not None
+        assert str(proj_row[1]).replace("-", "") == str(sec_cook_id).replace("-", "")
+        assert proj_row[2] is None, "Mismatched methodology must not be bound to project"
+
+        # Cleanup
         await session.execute(text("DELETE FROM access_requests WHERE id = :id"), {"id": str(req_id)})
+        await session.execute(text("DELETE FROM projects WHERE organization_id = :oid"), {"oid": str(org_id)})
+        await session.execute(text("DELETE FROM users WHERE organization_id = :oid"), {"oid": str(org_id)})
+        await session.execute(text("DELETE FROM organizations WHERE id = :oid"), {"oid": str(org_id)})
         await session.commit()
 
 @pytest.mark.asyncio

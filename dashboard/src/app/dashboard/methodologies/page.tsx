@@ -18,7 +18,7 @@ export default function MethodologiesPage() {
   const { activeSector, activeMethodology } = useWorkspace();
   const sectorTerms = getSectorTerminology(activeSector);
 
-  const methCode = activeMethodology || (activeSector === "hybrid_energy" ? "ACM0002" : activeSector === "biochar" ? "VM0042" : activeSector === "ev_mobility" ? "AMS-III.C" : "AMS-II.G");
+  const methCode = activeMethodology || (activeSector === "hybrid_energy" ? "AMS-I.F" : activeSector === "biochar" ? "VM0044" : activeSector === "ev_mobility" ? "VM0038" : activeSector === "cookstoves" ? "GS_MECD" : "VM0042");
 
   // Gating is derived from the canonical methodology registry (lib/sectors.ts),
   // not from a hardcoded sector list.

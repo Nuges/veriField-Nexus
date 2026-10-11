@@ -14,6 +14,9 @@ async def test_list_methodologies_scoped_to_agriculture(async_client: AsyncClien
 
     codes = [m["code"] for m in data]
     assert "VM0042" in codes
+    assert "VM0051" in codes
+    assert "VM0047" in codes
+    assert "VM0032" in codes
     # Enforce zero cross-sector leakage
     assert "VM0044" not in codes
     assert "BIOCHAR_C_SINK" not in codes
@@ -25,9 +28,6 @@ async def test_list_methodologies_scoped_to_agriculture(async_client: AsyncClien
     assert "VMD0053" not in codes
     assert "BM_T_001" not in codes
     assert "GS_AGRI_ACT_REQ" not in codes
-    # Enforce unconfigured methodologies are excluded
-    assert "VM0047" not in codes
-    assert "VM0051" not in codes
 
 
 @pytest.mark.asyncio
@@ -41,32 +41,46 @@ async def test_list_methodologies_scoped_to_biochar(async_client: AsyncClient):
 
     codes = [m["code"] for m in data]
     assert "VM0042" not in codes
-    assert "AMS_I_F" not in codes
     assert "VM0044" in codes
     assert "PURO_BIOCHAR_2025" in codes
-    # Unconfigured / reference-only codes must be absent
-    assert "BIOCHAR_C_SINK" not in codes
+    assert "BIOCHAR_C_SINK" in codes
+    # Obsolete / non-canonical codes must be absent
     assert "EBC_BIOCHAR" not in codes
     assert "GS_BIOCHAR" not in codes
 
 
 @pytest.mark.asyncio
 async def test_list_methodologies_scoped_to_other_sectors(async_client: AsyncClient):
-    """Verifies unclosed sectors fail closed with 0 methodologies until standards closure."""
-    # Cookstoves (gated pending official standards & IoT telemetry closure)
+    """Verifies that each canonical sector returns its strictly scoped primary methodologies."""
+    # Clean Cookstoves (GS_MECD, VM0050, AMS_II_G)
     cs_resp = await async_client.get("/api/v1/methodologies?sector=COOKSTOVES")
     assert cs_resp.status_code == 200
-    assert len(cs_resp.json()) == 0
+    cs_codes = {m["code"] for m in cs_resp.json()}
+    assert "GS_MECD" in cs_codes
+    assert "VM0050" in cs_codes
+    assert "AMS_II_G" in cs_codes
+    assert "VM0042" not in cs_codes
+    assert "VM0044" not in cs_codes
 
-    # Hybrid Energy (gated pending double-counting fix & revenue meter lineage closure)
+    # Hybrid Energy (AMS_I_F, AMS_I_L, ACM0002)
     he_resp = await async_client.get("/api/v1/methodologies?sector=HYBRID_ENERGY")
     assert he_resp.status_code == 200
-    assert len(he_resp.json()) == 0
+    he_codes = {m["code"] for m in he_resp.json()}
+    assert "AMS_I_F" in he_codes
+    assert "AMS_I_L" in he_codes
+    assert "ACM0002" in he_codes
+    assert "VM0042" not in he_codes
+    assert "VM0044" not in he_codes
 
-    # EV Mobility (gated pending fleet boundary vs VM0038 charging alignment)
+    # EV Mobility (VM0038, AMS_III_C)
     ev_resp = await async_client.get("/api/v1/methodologies?sector=EV_MOBILITY")
     assert ev_resp.status_code == 200
-    assert len(ev_resp.json()) == 0
+    ev_codes = {m["code"] for m in ev_resp.json()}
+    assert "VM0038" in ev_codes
+    assert "AMS_III_C" in ev_codes
+    assert "VMD0049" not in ev_codes  # Supporting tool must NOT appear
+    assert "VM0042" not in ev_codes
+    assert "VM0044" not in ev_codes
 
 
 @pytest.mark.asyncio
@@ -197,9 +211,9 @@ async def test_access_request_unconfigured_methodology_fails(async_client: Async
         "organization_name": "Unconfigured Co",
         "country": "Global",
         "sector_id": "AGRICULTURE_LAND_USE",
-        "methodology_id": "VM0047",
+        "methodology_id": "UNCONFIGURED_CODE_XYZ",
         "project_name": "Unconfigured Project",
     }
     response = await async_client.post("/api/v1/access-requests", json=payload)
     assert response.status_code == 422
-    assert "not yet configured" in response.json()["detail"]
+    assert "not applicable to sector" in response.json()["detail"]
