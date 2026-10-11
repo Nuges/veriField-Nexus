@@ -30,6 +30,7 @@ from app.domains.earth_observation.providers.stac_client import default_stac_cli
 from app.domains.earth_observation.services.geospatial_engine import geospatial_engine
 
 
+@pytest.mark.external_live
 def test_live_stac_sentinel2_discovery_and_cog_range_access():
     """
     Executes real STAC discovery query against AWS Element84 Earth Search
@@ -78,6 +79,7 @@ def test_live_stac_sentinel2_discovery_and_cog_range_access():
     assert range_res["magic_bytes_hex"] in ("49492a00", "4d4d002a")
 
 
+@pytest.mark.external_live
 def test_live_stac_sentinel1_sar_discovery():
     """
     Executes real SAR STAC search for Sentinel-1 GRD scenes.
@@ -107,6 +109,7 @@ def test_live_stac_sentinel1_sar_discovery():
     assert provider.get_capability_state() == EOProviderCapability.LIVE_VERIFIED
 
 
+@pytest.mark.external_live
 def test_live_stac_landsat_discovery():
     """
     Executes real Landsat STAC search for Landsat Collection 2 Level 2 scenes.

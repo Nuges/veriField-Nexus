@@ -4,3 +4,6 @@ ignore = ["E712", "F403", "F405", "E402", "F821"]
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
+markers = [
+    "external_live: marks tests that depend on external live network services (AWS Element84 STAC, S3 COG buckets)",
+]

@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   backend-test:
-    name: Backend Pytest & Migrations
+    name: Required Backend Pytest & Migrations (Deterministic)
     runs-on: ubuntu-latest
     outputs:
       fail1: ${{ steps.pytest_run.outputs.fail1 }}
@@ -81,7 +81,7 @@ jobs:
         run: |
           pytest tests/domains/earth_observation/test_postgis_authoritative_integration.py -v
 
-      - name: Run Backend Pytest Suite
+      - name: Run Backend Pytest Suite (Deterministic Required)
         id: pytest_run
         working-directory: backend
         env:
@@ -95,7 +95,7 @@ jobs:
           python -c "import sys; print(sys.version)"
           pip list --format=columns | grep -iE "sqlalchemy|aiosqlite|pytest|pydantic|fastapi|httpx"
           set +e
-          pytest tests/ -v --tb=long 2>&1 | tee pytest_output.txt
+          pytest tests/ -m "not external_live" -v --tb=long 2>&1 | tee pytest_output.txt
           PYTEST_EXIT=${PIPESTATUS[0]}
           set -e
           echo "::group::Pytest Output (last 50 lines)"
@@ -166,6 +166,48 @@ jobs:
       - name: Typecheck SDK
         working-directory: sdk
         run: npx -p typescript tsc --noEmit
+
+  external-stac-smoke-test:
+    name: External STAC Smoke Test (Live Network)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install Backend Dependencies
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio pytest-cov
+
+      - name: Run Live STAC Smoke Tests with Bounded Retries
+        working-directory: backend
+        env:
+          TESTING: "1"
+        run: |
+          MAX_ATTEMPTS=3
+          for attempt in $(seq 1 $MAX_ATTEMPTS); do
+            echo "::group::Attempt $attempt of $MAX_ATTEMPTS"
+            if pytest tests/ -m "external_live" -v --tb=short; then
+              echo "External STAC smoke tests passed on attempt $attempt"
+              echo "::endgroup::"
+              exit 0
+            fi
+            echo "::endgroup::"
+            if [ "$attempt" -lt "$MAX_ATTEMPTS" ]; then
+              echo "External STAC query failed (likely transient network/rate-limit). Retrying in 5 seconds..."
+              sleep 5
+            fi
+          done
+          echo "::error::External STAC smoke tests failed after $MAX_ATTEMPTS attempts"
+          exit 1
 
   report-failures:
     name: "F1: ${{ needs.backend-test.outputs.fail1 }}"

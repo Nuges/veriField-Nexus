@@ -265,55 +265,62 @@ class STACClient:
                 "verified_at": datetime.now(timezone.utc).isoformat(),
             }
 
-        req = urllib.request.Request(
-            asset_url,
-            headers={
-                "Range": byte_range,
-                "User-Agent": "VeriField-Nexus-COG-Verifier/1.0",
-            },
-        )
-        opener = urllib.request.build_opener(SSRFRedirectHandler(enforce_allowlist=enforce_allowlist))
-        try:
-            with opener.open(req, timeout=self.timeout_seconds) as resp:
-                status = resp.status
-                content_range = resp.headers.get("Content-Range", "")
-                content_type = resp.headers.get("Content-Type", "")
-                # Limit read to 2048 bytes to prevent abuse
-                body = resp.read(2048)
-                magic_bytes = body[:4].hex() if len(body) >= 4 else ""
+        max_attempts = 2
+        for attempt in range(1, max_attempts + 1):
+            req = urllib.request.Request(
+                asset_url,
+                headers={
+                    "Range": byte_range,
+                    "User-Agent": "VeriField-Nexus-COG-Verifier/1.0",
+                },
+            )
+            opener = urllib.request.build_opener(SSRFRedirectHandler(enforce_allowlist=enforce_allowlist))
+            try:
+                with opener.open(req, timeout=self.timeout_seconds) as resp:
+                    status = resp.status
+                    content_range = resp.headers.get("Content-Range", "")
+                    content_type = resp.headers.get("Content-Type", "")
+                    # Limit read to 2048 bytes to prevent abuse
+                    body = resp.read(2048)
+                    magic_bytes = body[:4].hex() if len(body) >= 4 else ""
 
-                # Valid TIFF headers: Little-endian ('49492a00') or Big-endian ('4d4d002a')
-                is_valid_geotiff = magic_bytes in ("49492a00", "4d4d002a")
+                    # Valid TIFF headers: Little-endian ('49492a00') or Big-endian ('4d4d002a')
+                    is_valid_geotiff = magic_bytes in ("49492a00", "4d4d002a")
 
+                    return {
+                        "asset_url": _sanitize_url_for_log(asset_url),
+                        "http_status": status,
+                        "is_partial_content": status == 206,
+                        "content_range": content_range,
+                        "content_type": content_type,
+                        "bytes_read": len(body),
+                        "magic_bytes_hex": magic_bytes,
+                        "is_valid_geotiff_header": is_valid_geotiff,
+                        "verified_at": datetime.now(timezone.utc).isoformat(),
+                    }
+            except ValueError as ssrf_err:
+                # Catch any SSRF errors that slip through during redirect — do not retry
                 return {
                     "asset_url": _sanitize_url_for_log(asset_url),
-                    "http_status": status,
-                    "is_partial_content": status == 206,
-                    "content_range": content_range,
-                    "content_type": content_type,
-                    "bytes_read": len(body),
-                    "magic_bytes_hex": magic_bytes,
-                    "is_valid_geotiff_header": is_valid_geotiff,
+                    "http_status": 403,
+                    "error": str(ssrf_err),
+                    "is_valid_geotiff_header": False,
+                    "ssrf_blocked": True,
                     "verified_at": datetime.now(timezone.utc).isoformat(),
                 }
-        except ValueError as ssrf_err:
-            # Catch any SSRF errors that slip through during redirect
-            return {
-                "asset_url": _sanitize_url_for_log(asset_url),
-                "http_status": 403,
-                "error": str(ssrf_err),
-                "is_valid_geotiff_header": False,
-                "ssrf_blocked": True,
-                "verified_at": datetime.now(timezone.utc).isoformat(),
-            }
-        except Exception as exc:
-            return {
-                "asset_url": _sanitize_url_for_log(asset_url),
-                "http_status": getattr(exc, "code", 500),
-                "error": str(exc),
-                "is_valid_geotiff_header": False,
-                "verified_at": datetime.now(timezone.utc).isoformat(),
-            }
+            except Exception as exc:
+                if attempt < max_attempts and not (isinstance(exc, urllib.error.HTTPError) and exc.code in (400, 401, 403, 404)):
+                    logger.warning("COG range request attempt %s failed against %s (%s). Retrying...", attempt, _sanitize_url_for_log(asset_url), exc)
+                    import time
+                    time.sleep(1.0)
+                    continue
+                return {
+                    "asset_url": _sanitize_url_for_log(asset_url),
+                    "http_status": getattr(exc, "code", 500),
+                    "error": str(exc),
+                    "is_valid_geotiff_header": False,
+                    "verified_at": datetime.now(timezone.utc).isoformat(),
+                }
 
     @staticmethod
     def map_stac_item_to_raw_scene(
