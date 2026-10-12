@@ -52,7 +52,7 @@ interface TelemetryPoint {
 }
 
 export default function SensorsPage() {
-  const { activeProject } = useWorkspace();
+  const { activeProject, projects } = useWorkspace();
   const [projectName, setProjectName] = useState<string>("");
   const [readings, setReadings] = useState<TelemetryPoint[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -61,21 +61,15 @@ export default function SensorsPage() {
 
   // Load project name if project is active
   useEffect(() => {
-    async function loadProjectDetails() {
-      if (!activeProject) {
-        setProjectName("");
-        return;
-      }
-      try {
-        const res = await fetchProperties();
-        if (res && res.properties) {
-          const found = res.properties.find((p: any) => String(p.id) === String(activeProject));
-          if (found) setProjectName(found.name);
-        }
-      } catch {}
+    if (!activeProject) {
+      setProjectName("");
+      return;
     }
-    loadProjectDetails();
-  }, [activeProject]);
+    const found = projects?.find((p: any) => String(p.id) === String(activeProject));
+    if (found) {
+      setProjectName(found.name);
+    }
+  }, [activeProject, projects]);
 
   // Determine active IANA timezone identifier
   const activeTimeZone = tzMode === "project" ? "Asia/Kolkata" : tzMode === "utc" ? "UTC" : undefined;

@@ -2,6 +2,7 @@ import os
 os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///test_default.db")
 os.environ.setdefault("TESTING", "1")
 os.environ.setdefault("JWT_SECRET", "test-secret-key-32-chars-minimum-for-testing")
+os.environ.setdefault("POSTGRES_TEST_URL", f"postgresql+asyncpg://{os.environ.get('USER', 'postgres')}@localhost:5432/verifield_postgis_test")
 
 from uuid import UUID
 import pytest_asyncio

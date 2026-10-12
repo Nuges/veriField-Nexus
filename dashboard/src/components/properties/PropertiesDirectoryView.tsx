@@ -386,14 +386,21 @@ export default function PropertiesDirectoryView() {
                   <th className="py-2.5 px-3">Methodology</th>
                   <th className="py-2.5 px-3">Crediting Period</th>
                   <th className="py-2.5 px-3">Date Registered</th>
-                  <th className="py-2.5 px-3 text-right">Status</th>
+                  <th className="py-2.5 px-3 text-center">Status</th>
+                  <th className="py-2.5 px-3 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--color-border)] text-xs">
                 {realProjects.map((proj) => (
                   <tr key={proj.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
                     <td className="py-2.5 px-3 font-medium text-[var(--color-text-primary)]">
-                      {proj.name}
+                      <Link
+                        href={`/dashboard/projects/${proj.id}`}
+                        className="hover:text-[#008A5E] hover:underline font-semibold flex items-center gap-1"
+                        title="View Project Workspace"
+                      >
+                        {proj.name}
+                      </Link>
                     </td>
                     <td className="py-2.5 px-3 font-mono text-[11px] text-[var(--color-text-muted)]">
                       {proj.project_code || "VF-GP-001"}
@@ -418,15 +425,15 @@ export default function PropertiesDirectoryView() {
                       {proj.country || "Nigeria"}
                     </td>
                     <td className="py-2.5 px-3 font-mono text-[11px] text-[#008A5E]">
-                      {proj.baseline_parameters?.methodology_code ? (
+                      {proj.methodology_code || proj.baseline_parameters?.methodology_code ? (
                         <span>
-                          {proj.baseline_parameters.methodology_code.replace(/_/g, "-")}
-                          {proj.baseline_parameters.methodology_version ? ` v${proj.baseline_parameters.methodology_version}` : ""}
+                          {(proj.methodology_code || proj.baseline_parameters?.methodology_code).replace(/_/g, "-")}
+                          {proj.baseline_parameters?.methodology_version || proj.methodology_version ? ` v${proj.baseline_parameters?.methodology_version || proj.methodology_version}` : ""}
                         </span>
                       ) : proj.methodology_id ? (
                         "Configured"
                       ) : (
-                        "—"
+                        "Under Assessment"
                       )}
                     </td>
                     <td className="py-2.5 px-3 text-[var(--color-text-secondary)] text-[11px]">
@@ -435,10 +442,38 @@ export default function PropertiesDirectoryView() {
                     <td className="py-2.5 px-3 text-[var(--color-text-muted)] text-[11px]">
                       {proj.created_at ? new Date(proj.created_at).toLocaleDateString() : "Active"}
                     </td>
-                    <td className="py-2.5 px-3 text-right">
+                    <td className="py-2.5 px-3 text-center">
                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 dark:bg-emerald-950/50 text-[#008A5E] dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
                         Active
                       </span>
+                    </td>
+                    <td className="py-2.5 px-3 text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <Link
+                          href={`/dashboard/projects/${proj.id}?tab=documents`}
+                          className="px-2 py-1 rounded bg-[#008A5E]/10 hover:bg-[#008A5E]/20 text-[#008A5E] font-medium text-[10px] inline-flex items-center gap-1 transition-colors"
+                          title="Upload PDD and Project Documents"
+                        >
+                          <span>Ingest Docs</span>
+                        </Link>
+                        {canonicalSector === "AGRICULTURE_LAND_USE" && (
+                          <Link
+                            href={`/dashboard/projects/${proj.id}?tab=laboratory`}
+                            className="px-2 py-1 rounded bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 font-medium text-[10px] inline-flex items-center gap-1 transition-colors"
+                            title="Upload Soil Lab Assays"
+                          >
+                            <span>Lab Assay</span>
+                          </Link>
+                        )}
+                        <Link
+                          href={`/dashboard/projects/${proj.id}`}
+                          className="px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-[var(--color-text-secondary)] font-medium text-[10px] inline-flex items-center gap-0.5 transition-colors"
+                          title="Open Project Details"
+                        >
+                          <span>Manage</span>
+                          <ArrowRight size={10} />
+                        </Link>
+                      </div>
                     </td>
                   </tr>
                 ))}

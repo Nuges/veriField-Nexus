@@ -77,7 +77,7 @@ class DocumentReconciliationEngine:
                 "category": "Integrity",
                 "label": "Cryptographic Hash",
                 "status": "PASS",
-                "message": "SHA-256 integrity verified with zero collision.",
+                "message": "SHA-256 digest recorded for integrity verification; no collision observed.",
             })
 
         # If document is associated with a project, run project-level reconciliation

@@ -22,9 +22,9 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 
-import { fetchMe } from "@/lib/api";
+import { fetchMe, fetchProjects } from "@/lib/api";
 
-import type { User, Property, Activity } from "@/lib/types";
+import type { User, Property, Activity, Project } from "@/lib/types";
 
 import {
 
@@ -102,6 +102,10 @@ export interface WorkspaceContextType {
   methToFamily: Record<string, string>;
 
   workspaceError: string | null;
+
+  projects: Project[];
+
+  refreshProjects: () => Promise<void>;
 
 }
 
@@ -226,6 +230,8 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       return null;
     }
   });
+
+  const [projects, setProjects] = useState<Project[]>([]);
 
   const [moduleRegistry, setModuleRegistry] = useState<Record<string, any>>({});
 
@@ -599,17 +605,57 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   }, [clearStaleWorkspaceCache, resolveWorkspaceForUser, moduleRegistry]);
 
+  const loadProjects = useCallback(async () => {
+    try {
+      const res = await fetchProjects();
+      const items: Project[] = Array.isArray(res) ? res : (res as any)?.items || [];
+      setProjects(items);
 
+      if (items.length === 1) {
+        const soleId = items[0].id;
+        setActiveProject((current) => {
+          if (!current || !items.some(p => p.id === current)) {
+            if (typeof window !== "undefined") {
+              safeStorage.setItem("vf_active_project_id", soleId);
+            }
+            return soleId;
+          }
+          return current;
+        });
+      } else if (items.length > 1) {
+        setActiveProject((current) => {
+          if (current && !items.some(p => p.id === current)) {
+            const fallback = items[0].id;
+            if (typeof window !== "undefined") {
+              safeStorage.setItem("vf_active_project_id", fallback);
+            }
+            return fallback;
+          }
+          return current;
+        });
+      } else if (items.length === 0) {
+        setActiveProject(null);
+        if (typeof window !== "undefined") {
+          safeStorage.removeItem("vf_active_project_id");
+        }
+      }
+    } catch (err) {
+      console.error("WorkspaceContext failed to load tenant projects:", err);
+      setProjects([]);
+    }
+  }, []);
 
   useEffect(() => {
 
     loadUser();
-
-
+    loadProjects();
 
     if (typeof window !== "undefined") {
 
-      const handleUpdate = () => { loadUser(); };
+      const handleUpdate = () => {
+        loadUser();
+        loadProjects();
+      };
 
       window.addEventListener("vf_profile_updated", handleUpdate);
 
@@ -617,7 +663,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     }
 
-  }, [loadUser]);
+  }, [loadUser, loadProjects]);
 
 
 
@@ -704,9 +750,14 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
 
   const changeProject = useCallback((projectId: string | null) => {
-
     setActiveProject(projectId);
-
+    if (typeof window !== "undefined") {
+      if (projectId) {
+        safeStorage.setItem("vf_active_project_id", projectId);
+      } else {
+        safeStorage.removeItem("vf_active_project_id");
+      }
+    }
   }, []);
 
 
@@ -847,6 +898,10 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         methToFamily,
 
         workspaceError,
+
+        projects,
+
+        refreshProjects: loadProjects,
 
       }}
 

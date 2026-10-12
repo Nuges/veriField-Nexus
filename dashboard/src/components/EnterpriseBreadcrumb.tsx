@@ -12,10 +12,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
 import { useWorkspace } from "@/context/WorkspaceContext";
-import { fetchProperties } from "@/lib/api";
-import { Property } from "@/lib/types";
 import {
   ChevronRight,
   ShieldCheck,
@@ -31,24 +28,9 @@ export default function EnterpriseBreadcrumb() {
     allowedSectors,
     changeSector,
     changeProject,
-    moduleRegistry
+    moduleRegistry,
+    projects,
   } = useWorkspace();
-
-  const [projects, setProjects] = useState<Property[]>([]);
-
-  useEffect(() => {
-    async function loadProjects() {
-      try {
-        const res = await fetchProperties();
-        if (res && res.properties) {
-          setProjects(res.properties);
-        }
-      } catch (err) {
-        console.error("Failed to load projects for breadcrumb context", err);
-      }
-    }
-    loadProjects();
-  }, []);
 
   return (
     <header className="w-full max-w-full bg-[var(--color-surface)] border-b border-[var(--color-border)] px-3 sm:px-4 py-2 flex items-center justify-between gap-2 sm:gap-4 text-xs select-none overflow-x-auto">
@@ -86,7 +68,7 @@ export default function EnterpriseBreadcrumb() {
             className="bg-transparent text-[11px] font-medium text-[var(--color-text-primary)] focus:outline-none cursor-pointer max-w-[140px] truncate pr-1"
           >
             <option value="">All Projects</option>
-            {projects.map((proj: Property) => (
+            {projects.map((proj: any) => (
               <option key={proj.id} value={proj.id}>
                 {proj.name}
               </option>

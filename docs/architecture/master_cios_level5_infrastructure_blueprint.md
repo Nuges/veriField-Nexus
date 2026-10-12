@@ -18,7 +18,7 @@
 
 To eliminate architectural ambiguity across registry integration points:
 
-- **VeriField Internal Immutable Keys**: VeriField assigns immutable, collision-free internal IDs (`asset_uuid`, `activity_hash_sha256`, `ledger_entry_id`) for ground-truth auditability.
+- **VeriField Internal Immutable Keys**: VeriField assigns immutable, collision-resistant internal identifiers and content hashes (`asset_uuid`, `activity_hash_sha256` SHA-256 digest, `ledger_entry_id`) for ground-truth auditability; no collision observed.
 
 - **Authoritative Registry Serial Allocation**: The configured external registry plugin adapter (e.g. Verra, Gold Standard, Puro.earth, Carbonfuture, NCCC) is the **sole authoritative source** for issuing external credit serial numbers (e.g. `VCS-4829-2026-NGA-001290`).
 

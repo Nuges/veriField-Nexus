@@ -1600,6 +1600,8 @@ export async function fetchProjectTotal(projectId: string): Promise<Project> {
   return apiFetch<Project>(`/projects/${projectId}`);
 }
 
+export const fetchProjectById = fetchProjectTotal;
+
 export async function fetchProjects(sector_id?: string): Promise<{ items: Project[], total: number }> {
   return apiFetch<{ items: Project[], total: number }>(`/projects${sector_id ? `?sector_id=${sector_id}` : ""}`);
 }

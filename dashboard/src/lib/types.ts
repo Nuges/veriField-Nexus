@@ -257,7 +257,9 @@ export interface Project {
   id: string;
   name: string;
   project_code?: string | null;
-  methodology_id: string;
+  methodology_id?: string | null;
+  methodology_code?: string | null;
+  methodology_version?: string | null;
   sector_id?: string | null;
   sector?: string | null;
   country?: string | null;

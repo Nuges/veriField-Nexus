@@ -13,36 +13,21 @@
 import React, { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { Radio, FileText, ShieldCheck, Activity, Loader2, Globe } from "lucide-react";
+import { Radio, FileText, ShieldCheck, Activity, Loader2, Globe, UploadCloud } from "lucide-react";
 import { useWorkspace } from "@/context/WorkspaceContext";
-import { fetchProperties } from "@/lib/api";
 
 import ActivitiesPage from "../activities/page";
 import AuditsListView from "@/components/verification/AuditsListView";
 import VerificationsPage from "../verifications/page";
 import SensorsPage from "../sensors/page";
+import IngestionCenterView from "@/components/ingestion/IngestionCenterView";
 
 function OperationsWorkspaceContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const initialTab = searchParams.get("tab") || "activities";
   const [activeTab, setActiveTab] = useState<string>(initialTab);
-  const { activeProject, changeProject } = useWorkspace();
-  const [projects, setProjects] = useState<any[]>([]);
-
-  useEffect(() => {
-    async function loadProjects() {
-      try {
-        const res = await fetchProperties();
-        if (res && res.properties) {
-          setProjects(res.properties);
-        }
-      } catch (err) {
-        console.error("Failed to load projects in operations workspace", err);
-      }
-    }
-    loadProjects();
-  }, []);
+  const { activeProject, changeProject, projects } = useWorkspace();
 
   const handleTabChange = (tabId: string) => {
     if (tabId === "spatial") {
@@ -58,6 +43,7 @@ function OperationsWorkspaceContent() {
     { id: "evidence", label: "Proof Evidence Vault", icon: FileText },
     { id: "verification", label: "Verifications Hub", icon: ShieldCheck },
     { id: "telemetry", label: "Live Telemetry", icon: Radio },
+    { id: "ingestion", label: "Data & Document Ingestion", icon: UploadCloud },
   ];
 
   return (
@@ -174,6 +160,8 @@ function OperationsWorkspaceContent() {
         {activeTab === "verification" && <VerificationsPage />}
 
         {activeTab === "telemetry" && <SensorsPage />}
+
+        {activeTab === "ingestion" && <IngestionCenterView />}
 
       </div>
 
