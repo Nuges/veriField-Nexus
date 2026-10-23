@@ -1,7 +1,40 @@
 # VeriField Nexus handover
 
 Updated: 23 October 2026 (Africa/Lagos)
-Status: **ONBOARDING_RELEASE_AUTHORIZED** — live sector data corrected; tested sidebar/dashboard/approval correction authorized for publication, merge and deployment.
+Status: **ONBOARDING_CORRECTION_DEPLOYED** — sector data repaired, sidebar/dashboard/approval correction published and deployed; production agriculture schema remains a separate blocker.
+
+## Latest publication and deployment — 23 October 2026
+
+- Source commit: 10e474e08ab015884a0ee8d15e182fe3578cf50b.
+  PR #2 https://github.com/Nuges/veriField-Nexus/pull/2 was merged into main as
+  692bff306a3df00671591f6529bde4d199698790. Merge tree exactly matches the tested
+  source tree e1703d95829763f2ed35acae04ba1ff30fa1e982; all 1,319 blob hashes/modes
+  were compared before publication, with exactly five changed files.
+- PR CI run 39989946349 and main CI run 39990341406 both passed. Required backend
+  result: 812 passed, 34 skipped, 5 deselected, one warning; PR 66.04s, main 64.52s.
+  CI migrations/PostGIS, dashboard unit/typecheck/build, SDK and external STAC checks
+  also passed. Skips and deselections are not claimed passed.
+- GitHub's Vercel production status for merge commit 692bff3 reports success:
+  https://vercel.com/nuges-projects-381ad4bc/veri-field-nexus/HmepGfSrHYmcLrRDNeaAHmRjoJht.
+  This verifies the provider's deployment result, not a signed-in browser journey.
+- Existing Render service/workspace verified unchanged. Previous live deploy was
+  dep-dbdo8dnavr4c73ap1jg0 on 7fcfb06 (a user/manual deploy after the earlier release).
+  No automatic deploy appeared after merge and successful main CI, and no deploy
+  was queued/running. One API deploy was triggered, without clearing the cache.
+- Render deploy dep-dbdp31sipgvc739kukpg became LIVE on exact merge commit 692bff3
+  at 2026-10-23T16:56:55.846540Z (17:56 Africa/Lagos).
+  https://dashboard.render.com/web/srv-d7r4an3t6lks73fnffm0/deploys/dep-dbdp31sipgvc739kukpg.
+- Post-live HTTP checks passed: /health 200/healthy; /api/v1/health/ready 200/ready;
+  /api/v1/methodologies/families 200 with Agriculture & Land Use present;
+  unauthenticated /api/v1/registry/document-matrix 401. Error-level app log query
+  from deploy start to 16:57:39Z returned zero entries; this is a short window.
+- Read-only post-deploy database verification: the affected organization's sector
+  is AGRICULTURE_LAND_USE; methodology entitlements remain empty; project count is
+  still 0; land_units and soil_samples tables remain absent. No production schema
+  migration or project/methodology assignment was performed in this release.
+- This final handoff-only checkpoint uses [skip ci] [skip render]. Application and
+  test source remains identical to deployed merge 692bff3. Main and the continuation
+  branch are synchronized for the Mac/tool handover; confirm refs before editing.
 
 ## Current task — Agriculture onboarding and sidebar restoration
 
@@ -51,9 +84,9 @@ Status: **ONBOARDING_RELEASE_AUTHORIZED** — live sector data corrected; tested
   exit 0, 41 pages. git diff --check passed. Static comparison confirmed all 16
   sidebar destinations retained and other roles unchanged. No browser runtime
   verification of this new UI patch is claimed; previous release browser results
-  do not verify these changes. No source commit, push, merge or deploy yet.
-- Next: publish/merge the tested source correction and verify deployment; separately
-  scope the missing production agriculture schema and project provisioning work.
+  do not verify these changes. Publication/merge/deploy completed as recorded above.
+- Next: separately scope the missing production agriculture schema and project
+  provisioning work, with a controlled migration and rollback plan before execution.
   Keep the canonical sector, optional methodology and user-approved navigation.
 
 ## Latest published and deployed checkpoint
