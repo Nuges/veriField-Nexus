@@ -1,0 +1,912 @@
+[
+  {
+    "table_name": "climate_programmes",
+    "column_name": "id",
+    "sql_type": "uuid",
+    "not_null": true,
+    "default_sql": "gen_random_uuid()"
+  },
+  {
+    "table_name": "climate_programmes",
+    "column_name": "name",
+    "sql_type": "character varying(255)",
+    "not_null": true,
+    "default_sql": null
+  },
+  {
+    "table_name": "climate_programmes",
+    "column_name": "org_id",
+    "sql_type": "uuid",
+    "not_null": true,
+    "default_sql": null
+  },
+  {
+    "table_name": "climate_programmes",
+    "column_name": "jurisdiction_id",
+    "sql_type": "uuid",
+    "not_null": false,
+    "default_sql": null
+  },
+  {
+    "table_name": "climate_programmes",
+    "column_name": "funding_sources",
+    "sql_type": "jsonb",
+    "not_null": true,
+    "default_sql": null
+  },
+  {
+    "table_name": "climate_programmes",
+    "column_name": "budget",
+    "sql_type": "double precision",
+    "not_null": true,
+    "default_sql": null
+  },
+  {
+    "table_name": "climate_programmes",
+    "column_name": "status",
+    "sql_type": "character varying(50)",
+    "not_null": true,
+    "default_sql": null
+  },
+  {
+    "table_name": "climate_programmes",
+    "column_name": "version",
+    "sql_type": "integer",
+    "not_null": true,
+    "default_sql": "1"
+  },
+  {
+    "table_name": "climate_programmes",
+    "column_name": "is_deleted",
+    "sql_type": "boolean",
+    "not_null": true,
+    "default_sql": "false"
+  },
+  {
+    "table_name": "climate_programmes",
+    "column_name": "deleted_at",
+    "sql_type": "timestamp with time zone",
+    "not_null": false,
+    "default_sql": null
+  },
+  {
+    "table_name": "climate_programmes",
+    "column_name": "created_at",
+    "sql_type": "timestamp with time zone",
+    "not_null": true,
+    "default_sql": "now()"
+  },
+  {
+    "table_name": "climate_programmes",
+    "column_name": "updated_at",
+    "sql_type": "timestamp with time zone",
+    "not_null": true,
+    "default_sql": "now()"
+  },
+  {
+    "table_name": "evidence_records",
+    "column_name": "id",
+    "sql_type": "uuid",
+    "not_null": true,
+    "default_sql": "gen_random_uuid()"
+  },
+  {
+    "table_name": "evidence_records",
+    "column_name": "activity_id",
+    "sql_type": "uuid",
+    "not_null": true,
+    "default_sql": null
+  },
+  {
+    "table_name": "evidence_records",
+    "column_name": "file_uri",
+    "sql_type": "character varying(500)",
+    "not_null": true,
+    "default_sql": null
+  },
+  {
+    "table_name": "evidence_records",
+    "column_name": "file_hash",
+    "sql_type": "character varying(64)",
+    "not_null": true,
+    "default_sql": null
+  },
+  {
+    "table_name": "evidence_records",
+    "column_name": "status",
+    "sql_type": "character varying(20)",
+    "not_null": true,
+    "default_sql": null
+  },
+  {
+    "table_name": "evidence_records",
+    "column_name": "evidence_type",
+    "sql_type": "character varying(50)",
+    "not_null": true,
+    "default_sql": null
+  },
+  {
+    "table_name": "evidence_records",
+    "column_name": "metadata_json",
+    "sql_type": "jsonb",
+    "not_null": true,
+    "default_sql": null
+  },
+  {
+    "table_name": "evidence_records",
+    "column_name": "uploaded_by",
+    "sql_type": "uuid",
+    "not_null": false,
+    "default_sql": null
+  },
+  {
+    "table_name": "evidence_records",
+    "column_name": "verified_by",
+    "sql_type": "uuid",
+    "not_null": false,
+    "default_sql": null
+  },
+  {
+    "table_name": "evidence_records",
+    "column_name": "created_at",
+    "sql_type": "timestamp with time zone",
+    "not_null": true,
+    "default_sql": "now()"
+  },
+  {
+    "table_name": "evidence_records",
+    "column_name": "updated_at",
+    "sql_type": "timestamp with time zone",
+    "not_null": true,
+    "default_sql": "now()"
+  },
+  {
+    "table_name": "jurisdictions",
+    "column_name": "id",
+    "sql_type": "uuid",
+    "not_null": true,
+    "default_sql": "gen_random_uuid()"
+  },
+  {
+    "table_name": "jurisdictions",
+    "column_name": "parent_id",
+    "sql_type": "uuid",
+    "not_null": false,
+    "default_sql": null
+  },
+  {
+    "table_name": "jurisdictions",
+    "column_name": "code",
+    "sql_type": "character varying(50)",
+    "not_null": true,
+    "default_sql": null
+  },
+  {
+    "table_name": "jurisdictions",
+    "column_name": "name",
+    "sql_type": "character varying(255)",
+    "not_null": true,
+    "default_sql": null
+  },
+  {
+    "table_name": "jurisdictions",
+    "column_name": "level",
+    "sql_type": "character varying(50)",
+    "not_null": true,
+    "default_sql": null
+  },
+  {
+    "table_name": "jurisdictions",
+    "column_name": "metadata_context",
+    "sql_type": "jsonb",
+    "not_null": true,
+    "default_sql": null
+  },
+  {
+    "table_name": "jurisdictions",
+    "column_name": "spatial_boundary",
+    "sql_type": "jsonb",
+    "not_null": true,
+    "default_sql": null
+  },
+  {
+    "table_name": "jurisdictions",
+    "column_name": "status",
+    "sql_type": "character varying(50)",
+    "not_null": true,
+    "default_sql": null
+  },
+  {
+    "table_name": "jurisdictions",
+    "column_name": "health_score",
+    "sql_type": "double precision",
+    "not_null": true,
+    "default_sql": null
+  },
+  {
+    "table_name": "jurisdictions",
+    "column_name": "version",
+    "sql_type": "integer",
+    "not_null": true,
+    "default_sql": "1"
+  },
+  {
+    "table_name": "jurisdictions",
+    "column_name": "is_deleted",
+    "sql_type": "boolean",
+    "not_null": true,
+    "default_sql": "false"
+  },
+  {
+    "table_name": "jurisdictions",
+    "column_name": "deleted_at",
+    "sql_type": "timestamp with time zone",
+    "not_null": false,
+    "default_sql": null
+  },
+  {
+    "table_name": "jurisdictions",
+    "column_name": "created_at",
+    "sql_type": "timestamp with time zone",
+    "not_null": true,
+    "default_sql": "now()"
+  },
+  {
+    "table_name": "jurisdictions",
+    "column_name": "updated_at",
+    "sql_type": "timestamp with time zone",
+    "not_null": true,
+    "default_sql": "now()"
+  },
+  {
+    "table_name": "jurisdictions",
+    "column_name": "regulator_name",
+    "sql_type": "character varying(255)",
+    "not_null": false,
+    "default_sql": "''::character varying"
+  },
+  {
+    "table_name": "jurisdictions",
+    "column_name": "registry_details",
+    "sql_type": "jsonb",
+    "not_null": true,
+    "default_sql": "'{}'::jsonb"
+  },
+  {
+    "table_name": "jurisdictions",
+    "column_name": "approved_methodologies",
+    "sql_type": "jsonb",
+    "not_null": true,
+    "default_sql": "'[]'::jsonb"
+  },
+  {
+    "table_name": "jurisdictions",
+    "column_name": "emission_factors",
+    "sql_type": "jsonb",
+    "not_null": true,
+    "default_sql": "'{}'::jsonb"
+  },
+  {
+    "table_name": "jurisdictions",
+    "column_name": "article_6_config",
+    "sql_type": "jsonb",
+    "not_null": true,
+    "default_sql": "'{}'::jsonb"
+  },
+  {
+    "table_name": "jurisdictions",
+    "column_name": "reporting_requirements",
+    "sql_type": "jsonb",
+    "not_null": true,
+    "default_sql": "'{}'::jsonb"
+  },
+  {
+    "table_name": "methodologies",
+    "column_name": "id",
+    "sql_type": "uuid",
+    "not_null": true,
+    "default_sql": "gen_random_uuid()"
+  },
+  {
+    "table_name": "methodologies",
+    "column_name": "code",
+    "sql_type": "character varying(50)",
+    "not_null": true,
+    "default_sql": null
+  },
+  {
+    "table_name": "methodologies",
+    "column_name": "name",
+    "sql_type": "character varying",
+    "not_null": true,
+    "default_sql": null
+  },
+  {
+    "table_name": "methodologies",
+    "column_name": "description",
+    "sql_type": "character varying",
+    "not_null": false,
+    "default_sql": null
+  },
+  {
+    "table_name": "methodologies",
+    "column_name": "registry_id",
+    "sql_type": "uuid",
+    "not_null": true,
+    "default_sql": null
+  },
+  {
+    "table_name": "methodologies",
+    "column_name": "family_id",
+    "sql_type": "uuid",
+    "not_null": true,
+    "default_sql": null
+  },
+  {
+    "table_name": "methodologies",
+    "column_name": "is_active",
+    "sql_type": "boolean",
+    "not_null": true,
+    "default_sql": null
+  },
+  {
+    "table_name": "methodologies",
+    "column_name": "ui_config",
+    "sql_type": "jsonb",
+    "not_null": true,
+    "default_sql": null
+  },
+  {
+    "table_name": "methodologies",
+    "column_name": "form_schema",
+    "sql_type": "jsonb",
+    "not_null": true,
+    "default_sql": null
+  },
+  {
+    "table_name": "methodologies",
+    "column_name": "created_at",
+    "sql_type": "timestamp without time zone",
+    "not_null": true,
+    "default_sql": "now()"
+  },
+  {
+    "table_name": "methodologies",
+    "column_name": "recommendation_rules",
+    "sql_type": "jsonb",
+    "not_null": false,
+    "default_sql": "'{}'::jsonb"
+  },
+  {
+    "table_name": "methodology_families",
+    "column_name": "id",
+    "sql_type": "uuid",
+    "not_null": true,
+    "default_sql": "gen_random_uuid()"
+  },
+  {
+    "table_name": "methodology_families",
+    "column_name": "code",
+    "sql_type": "character varying(50)",
+    "not_null": true,
+    "default_sql": null
+  },
+  {
+    "table_name": "methodology_families",
+    "column_name": "name",
+    "sql_type": "character varying(100)",
+    "not_null": true,
+    "default_sql": null
+  },
+  {
+    "table_name": "methodology_families",
+    "column_name": "description",
+    "sql_type": "character varying",
+    "not_null": false,
+    "default_sql": null
+  },
+  {
+    "table_name": "methodology_families",
+    "column_name": "project_types",
+    "sql_type": "jsonb",
+    "not_null": false,
+    "default_sql": "'[]'::jsonb"
+  },
+  {
+    "table_name": "methodology_families",
+    "column_name": "is_active",
+    "sql_type": "boolean",
+    "not_null": false,
+    "default_sql": "true"
+  },
+  {
+    "table_name": "methodology_registries",
+    "column_name": "id",
+    "sql_type": "uuid",
+    "not_null": true,
+    "default_sql": "gen_random_uuid()"
+  },
+  {
+    "table_name": "methodology_registries",
+    "column_name": "code",
+    "sql_type": "character varying(50)",
+    "not_null": true,
+    "default_sql": null
+  },
+  {
+    "table_name": "methodology_registries",
+    "column_name": "name",
+    "sql_type": "character varying(100)",
+    "not_null": true,
+    "default_sql": null
+  },
+  {
+    "table_name": "methodology_registries",
+    "column_name": "description",
+    "sql_type": "character varying",
+    "not_null": false,
+    "default_sql": null
+  },
+  {
+    "table_name": "methodology_registries",
+    "column_name": "website",
+    "sql_type": "character varying",
+    "not_null": false,
+    "default_sql": null
+  },
+  {
+    "table_name": "methodology_registries",
+    "column_name": "is_active",
+    "sql_type": "boolean",
+    "not_null": true,
+    "default_sql": null
+  },
+  {
+    "table_name": "methodology_versions",
+    "column_name": "id",
+    "sql_type": "uuid",
+    "not_null": true,
+    "default_sql": "gen_random_uuid()"
+  },
+  {
+    "table_name": "methodology_versions",
+    "column_name": "methodology_id",
+    "sql_type": "uuid",
+    "not_null": true,
+    "default_sql": null
+  },
+  {
+    "table_name": "methodology_versions",
+    "column_name": "version",
+    "sql_type": "character varying(20)",
+    "not_null": true,
+    "default_sql": null
+  },
+  {
+    "table_name": "methodology_versions",
+    "column_name": "status",
+    "sql_type": "character varying(50)",
+    "not_null": true,
+    "default_sql": null
+  },
+  {
+    "table_name": "methodology_versions",
+    "column_name": "release_date",
+    "sql_type": "date",
+    "not_null": true,
+    "default_sql": null
+  },
+  {
+    "table_name": "methodology_versions",
+    "column_name": "retirement_date",
+    "sql_type": "date",
+    "not_null": false,
+    "default_sql": null
+  },
+  {
+    "table_name": "methodology_versions",
+    "column_name": "migration_notes",
+    "sql_type": "character varying",
+    "not_null": false,
+    "default_sql": null
+  },
+  {
+    "table_name": "organizations",
+    "column_name": "id",
+    "sql_type": "uuid",
+    "not_null": true,
+    "default_sql": "gen_random_uuid()"
+  },
+  {
+    "table_name": "organizations",
+    "column_name": "name",
+    "sql_type": "character varying(255)",
+    "not_null": true,
+    "default_sql": null
+  },
+  {
+    "table_name": "organizations",
+    "column_name": "org_type",
+    "sql_type": "character varying(50)",
+    "not_null": true,
+    "default_sql": null
+  },
+  {
+    "table_name": "organizations",
+    "column_name": "status",
+    "sql_type": "character varying(20)",
+    "not_null": true,
+    "default_sql": null
+  },
+  {
+    "table_name": "organizations",
+    "column_name": "parent_id",
+    "sql_type": "uuid",
+    "not_null": false,
+    "default_sql": null
+  },
+  {
+    "table_name": "organizations",
+    "column_name": "metadata_context",
+    "sql_type": "jsonb",
+    "not_null": true,
+    "default_sql": "'{}'::jsonb"
+  },
+  {
+    "table_name": "organizations",
+    "column_name": "plan",
+    "sql_type": "character varying(30)",
+    "not_null": true,
+    "default_sql": null
+  },
+  {
+    "table_name": "organizations",
+    "column_name": "max_installations",
+    "sql_type": "integer",
+    "not_null": true,
+    "default_sql": null
+  },
+  {
+    "table_name": "organizations",
+    "column_name": "max_agents",
+    "sql_type": "integer",
+    "not_null": true,
+    "default_sql": null
+  },
+  {
+    "table_name": "organizations",
+    "column_name": "api_calls_count",
+    "sql_type": "integer",
+    "not_null": true,
+    "default_sql": null
+  },
+  {
+    "table_name": "organizations",
+    "column_name": "licensed_methodologies",
+    "sql_type": "jsonb",
+    "not_null": true,
+    "default_sql": "'[]'::jsonb"
+  },
+  {
+    "table_name": "organizations",
+    "column_name": "created_by",
+    "sql_type": "uuid",
+    "not_null": false,
+    "default_sql": null
+  },
+  {
+    "table_name": "organizations",
+    "column_name": "created_at",
+    "sql_type": "timestamp with time zone",
+    "not_null": true,
+    "default_sql": "now()"
+  },
+  {
+    "table_name": "organizations",
+    "column_name": "version",
+    "sql_type": "integer",
+    "not_null": true,
+    "default_sql": null
+  },
+  {
+    "table_name": "organizations",
+    "column_name": "is_deleted",
+    "sql_type": "boolean",
+    "not_null": true,
+    "default_sql": null
+  },
+  {
+    "table_name": "organizations",
+    "column_name": "deleted_at",
+    "sql_type": "timestamp with time zone",
+    "not_null": false,
+    "default_sql": null
+  },
+  {
+    "table_name": "organizations",
+    "column_name": "type",
+    "sql_type": "character varying(50)",
+    "not_null": false,
+    "default_sql": "'DEVELOPER'::character varying"
+  },
+  {
+    "table_name": "organizations",
+    "column_name": "licensed_sectors",
+    "sql_type": "jsonb",
+    "not_null": true,
+    "default_sql": "'[]'::jsonb"
+  },
+  {
+    "table_name": "projects",
+    "column_name": "id",
+    "sql_type": "uuid",
+    "not_null": true,
+    "default_sql": "gen_random_uuid()"
+  },
+  {
+    "table_name": "projects",
+    "column_name": "project_code",
+    "sql_type": "character varying(20)",
+    "not_null": false,
+    "default_sql": null
+  },
+  {
+    "table_name": "projects",
+    "column_name": "name",
+    "sql_type": "character varying",
+    "not_null": true,
+    "default_sql": null
+  },
+  {
+    "table_name": "projects",
+    "column_name": "organization_id",
+    "sql_type": "uuid",
+    "not_null": false,
+    "default_sql": null
+  },
+  {
+    "table_name": "projects",
+    "column_name": "jurisdiction_id",
+    "sql_type": "uuid",
+    "not_null": false,
+    "default_sql": null
+  },
+  {
+    "table_name": "projects",
+    "column_name": "programme_id",
+    "sql_type": "uuid",
+    "not_null": false,
+    "default_sql": null
+  },
+  {
+    "table_name": "projects",
+    "column_name": "methodology_id",
+    "sql_type": "uuid",
+    "not_null": true,
+    "default_sql": null
+  },
+  {
+    "table_name": "projects",
+    "column_name": "methodology_version_id",
+    "sql_type": "uuid",
+    "not_null": false,
+    "default_sql": null
+  },
+  {
+    "table_name": "projects",
+    "column_name": "country",
+    "sql_type": "character varying(100)",
+    "not_null": false,
+    "default_sql": null
+  },
+  {
+    "table_name": "projects",
+    "column_name": "registry_id",
+    "sql_type": "character varying",
+    "not_null": false,
+    "default_sql": null
+  },
+  {
+    "table_name": "projects",
+    "column_name": "baseline_source",
+    "sql_type": "character varying(30)",
+    "not_null": false,
+    "default_sql": null
+  },
+  {
+    "table_name": "projects",
+    "column_name": "diesel_emission_factor",
+    "sql_type": "double precision",
+    "not_null": false,
+    "default_sql": null
+  },
+  {
+    "table_name": "projects",
+    "column_name": "grid_emission_factor",
+    "sql_type": "double precision",
+    "not_null": false,
+    "default_sql": null
+  },
+  {
+    "table_name": "projects",
+    "column_name": "crediting_start",
+    "sql_type": "date",
+    "not_null": false,
+    "default_sql": null
+  },
+  {
+    "table_name": "projects",
+    "column_name": "crediting_end",
+    "sql_type": "date",
+    "not_null": false,
+    "default_sql": null
+  },
+  {
+    "table_name": "projects",
+    "column_name": "baseline_parameters",
+    "sql_type": "jsonb",
+    "not_null": true,
+    "default_sql": null
+  },
+  {
+    "table_name": "projects",
+    "column_name": "created_at",
+    "sql_type": "timestamp with time zone",
+    "not_null": true,
+    "default_sql": "now()"
+  },
+  {
+    "table_name": "projects",
+    "column_name": "updated_at",
+    "sql_type": "timestamp with time zone",
+    "not_null": false,
+    "default_sql": "now()"
+  },
+  {
+    "table_name": "projects",
+    "column_name": "sector",
+    "sql_type": "character varying(30)",
+    "not_null": false,
+    "default_sql": "'energy'::character varying"
+  },
+  {
+    "table_name": "projects",
+    "column_name": "sector_id",
+    "sql_type": "uuid",
+    "not_null": false,
+    "default_sql": null
+  },
+  {
+    "table_name": "users",
+    "column_name": "id",
+    "sql_type": "uuid",
+    "not_null": true,
+    "default_sql": "gen_random_uuid()"
+  },
+  {
+    "table_name": "users",
+    "column_name": "email",
+    "sql_type": "character varying(255)",
+    "not_null": false,
+    "default_sql": null
+  },
+  {
+    "table_name": "users",
+    "column_name": "phone",
+    "sql_type": "character varying(20)",
+    "not_null": false,
+    "default_sql": null
+  },
+  {
+    "table_name": "users",
+    "column_name": "full_name",
+    "sql_type": "character varying(255)",
+    "not_null": true,
+    "default_sql": null
+  },
+  {
+    "table_name": "users",
+    "column_name": "role",
+    "sql_type": "character varying(20)",
+    "not_null": true,
+    "default_sql": null
+  },
+  {
+    "table_name": "users",
+    "column_name": "status",
+    "sql_type": "character varying(20)",
+    "not_null": true,
+    "default_sql": null
+  },
+  {
+    "table_name": "users",
+    "column_name": "is_active",
+    "sql_type": "boolean",
+    "not_null": true,
+    "default_sql": "true"
+  },
+  {
+    "table_name": "users",
+    "column_name": "country",
+    "sql_type": "character varying(100)",
+    "not_null": false,
+    "default_sql": null
+  },
+  {
+    "table_name": "users",
+    "column_name": "avatar_url",
+    "sql_type": "character varying(500)",
+    "not_null": false,
+    "default_sql": null
+  },
+  {
+    "table_name": "users",
+    "column_name": "organization",
+    "sql_type": "character varying(255)",
+    "not_null": false,
+    "default_sql": null
+  },
+  {
+    "table_name": "users",
+    "column_name": "organization_id",
+    "sql_type": "uuid",
+    "not_null": false,
+    "default_sql": null
+  },
+  {
+    "table_name": "users",
+    "column_name": "password_hash",
+    "sql_type": "character varying(255)",
+    "not_null": false,
+    "default_sql": null
+  },
+  {
+    "table_name": "users",
+    "column_name": "requires_password_change",
+    "sql_type": "boolean",
+    "not_null": true,
+    "default_sql": "false"
+  },
+  {
+    "table_name": "users",
+    "column_name": "created_at",
+    "sql_type": "timestamp with time zone",
+    "not_null": true,
+    "default_sql": "now()"
+  },
+  {
+    "table_name": "users",
+    "column_name": "updated_at",
+    "sql_type": "timestamp with time zone",
+    "not_null": true,
+    "default_sql": "now()"
+  },
+  {
+    "table_name": "users",
+    "column_name": "version",
+    "sql_type": "integer",
+    "not_null": true,
+    "default_sql": "1"
+  },
+  {
+    "table_name": "users",
+    "column_name": "is_deleted",
+    "sql_type": "boolean",
+    "not_null": true,
+    "default_sql": "false"
+  },
+  {
+    "table_name": "users",
+    "column_name": "deleted_at",
+    "sql_type": "timestamp with time zone",
+    "not_null": false,
+    "default_sql": null
+  },
+  {
+    "table_name": "users",
+    "column_name": "meta_data",
+    "sql_type": "jsonb",
+    "not_null": false,
+    "default_sql": "'{}'::jsonb"
+  }
+]

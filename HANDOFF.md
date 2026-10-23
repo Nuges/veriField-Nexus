@@ -3,7 +3,22 @@
 Updated: 23 October 2026 (Africa/Lagos)
 Status: **NAVIGATION_ROLE_SECTOR_CLEANUP_DEPLOYED** — PR #3 merged, frontend provider deployment succeeded and backend is live; production agriculture persistence remains a separate schema blocker.
 
-## Active task — Navigation, role and sector cleanup
+## Active task — Controlled agriculture schema repair
+
+User replied "proceed" after the navigation release and identification of the
+remaining agriculture schema blocker. Work is on fix/agriculture-schema-repair,
+based on clean 897ce81. Read-only live inspection found all 28 agriculture tables
+and project_boundary_versions absent; projects.methodology_id remains NOT NULL,
+with Alembic at 3307d715f0e7 and no Supabase migration entries. Prepared frozen,
+atomic additive repair in new revision 615d2865c464, a read-only catalog fixture,
+independent disposable-PostGIS tests, CI step and recovery plan. See
+`docs/navigation/AGRICULTURE_SCHEMA_REPAIR_2026-10-23.md`. Local safety checks:
+6 passed, 6 PostGIS-dependent skips after adding the historical-gap case. Initial GitHub PostGIS checks: 11 passed in 7.85s (run 40010251070); the following normal Alembic chain exposed four omitted legacy tables. An explicit four-table completion path now handles that exact known gap without weakening the standalone production guard. Final CI rerun pending. Draft PR #4: https://github.com/Nuges/veriField-Nexus/pull/4.
+No production schema/data change or project provisioning has been performed.
+Do not replay historical migrations, stamp the old live Alembic marker, overwrite
+existing projects/activities or assign a methodology to bypass the blocker.
+
+## Completed task — Navigation, role and sector cleanup
 
 User requested removal of duplicated frontend workflows, plain labels, sidebar/role testing, independent VVB duties, super-admin field/admin oversight and correctly linked sector field apps. Implemented and merged via PR #3 (https://github.com/Nuges/veriField-Nexus/pull/3) as 1f606c70f47e1399ae2e2a54772254a233c6941a. The merge tree exactly matches tested source 6b99fa2 (tree 3cf92a5f2d5b1cd509b3135edec60c29f84148e9). Final PR CI runs 40006720160 and 40006720149 passed: backend 847 passed/34 skipped/five deselected/one warning (88.98s), migrations/PostGIS, dashboard 160 unit tests/typecheck/build, SDK/STAC, 41 Chromium scenarios and 10 Flutter tests. Native analysis has one nonfatal style info; no errors/warnings. Browser coverage includes 116 role/destination combinations and all five sectors with isolated fixtures, not live operational writes. Vercel production status is success for merge 1f606c7. Main CI runs 40007250110 and 40007250112 also passed (backend 847 passed in 88.53s; browser 41 passed in 1.2m; native 10 passed). Render deploy dep-dbdqshkipgvc739qum30 is LIVE on exact merge 1f606c7, with post-live health/readiness checks passed. See docs/navigation/ROLE_SECTOR_CLEANUP_2026-10-23.md. No production schema/data change is included; preserve the agriculture schema blocker below.
 
