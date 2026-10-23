@@ -16,6 +16,8 @@
 
 
 
+import Link from "next/link";
+import { canReadRegistry } from "@/lib/registryWorkflow";
 import { useEffect, useState, useMemo, useCallback } from "react";
 import {
   Download,
@@ -35,8 +37,6 @@ import {
   fetchCarbonLedger,
   fetchMe,
   fetchProjects,
-  exportVerraCSV,
-  exportGoldStandardJSON,
   generateAndDownloadReport,
   setAuthToken,
 } from "@/lib/api";
@@ -78,7 +78,7 @@ export default function POAPortfolioPage() {
 
   const [activeStep, setActiveStep] = useState<number>(3); // default showing "Audited"
   const [isExporting, setIsExporting] = useState<Record<string, boolean>>({});
-  const [exportMessage, setExportMessage] = useState<string>("VeriField Secure Ledger Ready");
+  const [exportMessage, setExportMessage] = useState<string>("No programme report generated in this session.");
 
 
 
@@ -183,31 +183,6 @@ export default function POAPortfolioPage() {
     loadAggregatedData();
   }, [loadAggregatedData]);
 
-  const triggerVerraExport = async () => {
-    setIsExporting((prev) => ({ ...prev, verra: true }));
-    try {
-      await exportVerraCSV(80);
-      setExportMessage("Verra POA registry manifest generated.");
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Server Error";
-      setExportMessage(`Export failed: ${msg}`);
-    } finally {
-      setIsExporting((prev) => ({ ...prev, verra: false }));
-    }
-  };
-
-  const triggerGoldStandardExport = async () => {
-    setIsExporting((prev) => ({ ...prev, gold: true }));
-    try {
-      await exportGoldStandardJSON(80);
-      setExportMessage("Gold Standard POA registry portfolio created.");
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Server Error";
-      setExportMessage(`Export failed: ${msg}`);
-    } finally {
-      setIsExporting((prev) => ({ ...prev, gold: false }));
-    }
-  };
 
   // Helper for sector icons
   const getSectorIcon = (code: string) => {
@@ -652,65 +627,18 @@ export default function POAPortfolioPage() {
             <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-3 mb-3">
               <div>
                 <h3 className="text-xs font-extrabold uppercase tracking-wider">
-                  POA Export Terminal
+                  Programme Reports
                 </h3>
                 <p className="text-[var(--color-text-secondary)] text-[10px] mt-0.5">
-                  Registry-ready data exports for Verra and Gold Standard.
+                  Project preparation and internal programme reporting.
                 </p>
               </div>
               <Download size={14} className="text-emerald-400" />
             </div>
 
             <div className="space-y-2.5">
-              <button
-                onClick={triggerVerraExport}
-                disabled={isExporting.verra || totalYield === 0}
-                className="w-full flex items-center gap-2.5 p-2.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] hover:border-emerald-500 hover:bg-emerald-500/5 transition text-left group disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                title={totalYield === 0 ? "Awaiting quantified portfolio yields" : "Export Verra CSV"}
-              >
-                <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-400 group-hover:scale-105 transition shrink-0">
-                  <FileSpreadsheet size={14} />
-                </div>
-                <div>
-                  <p className="text-[10px] font-extrabold">Verra CSV Export</p>
-                  <p className="text-[8px] text-[var(--color-text-muted)]">
-                    POA compiled schema manifest
-                  </p>
-                </div>
-                {isExporting.verra ? (
-                  <div className="ml-auto w-3.5 h-3.5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <Download
-                    size={10}
-                    className="ml-auto text-[var(--color-text-muted)] group-hover:text-emerald-400 transition"
-                  />
-                )}
-              </button>
-
-              <button
-                onClick={triggerGoldStandardExport}
-                disabled={isExporting.gold || totalYield === 0}
-                className="w-full flex items-center gap-2.5 p-2.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] hover:border-emerald-500 hover:bg-emerald-500/5 transition text-left group disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                title={totalYield === 0 ? "Awaiting quantified portfolio yields" : "Export Gold Standard JSON"}
-              >
-                <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-400 group-hover:scale-105 transition shrink-0">
-                  <FileText size={14} />
-                </div>
-                <div>
-                  <p className="text-[10px] font-extrabold">Gold Standard Export</p>
-                  <p className="text-[8px] text-[var(--color-text-muted)]">
-                    POA compiled JSON portfolio
-                  </p>
-                </div>
-                {isExporting.gold ? (
-                  <div className="ml-auto w-3.5 h-3.5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <Download
-                    size={10}
-                    className="ml-auto text-[var(--color-text-muted)] group-hover:text-emerald-400 transition"
-                  />
-                )}
-              </button>
+              <p className="text-xs text-[var(--color-text-secondary)]">Portfolio-wide registry exports are gated. Review requirements and evidence for an explicitly selected project.</p>
+              {canReadRegistry(user?.role) && <Link href="/dashboard/registry" className="block text-xs underline">Open Registry Preparation</Link>}
 
               <button
                 onClick={async () => {

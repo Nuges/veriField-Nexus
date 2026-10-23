@@ -15,6 +15,7 @@ Verification of:
 """
 
 import os
+import socket
 import uuid
 from datetime import datetime, timezone
 import pytest
@@ -93,11 +94,20 @@ def test_ssrf_blocks_unauthorized_external_hosts():
         validate_cog_url("https://malicious.attacker.com/evil.tif", enforce_allowlist=True)
 
 
-def test_ssrf_allows_allowlisted_satellite_hosts():
+def test_ssrf_allows_allowlisted_satellite_hosts(satellite_public_dns):
     """Verifies validate_cog_url permits allowlisted public COG archives."""
     valid_url = "https://sentinel-cogs.s3.us-west-2.amazonaws.com/sentinel-s2-l2a-cogs/33/T/TG/2024/6/S2B_33TTG_20240628_0_L2A/B04.tif"
     result = validate_cog_url(valid_url, enforce_allowlist=True)
     assert result == valid_url
+
+
+@pytest.mark.parametrize("private_ip", ["127.0.0.1", "10.0.0.1", "169.254.169.254"])
+def test_allowlisted_host_resolving_to_private_ip_is_rejected(monkeypatch, private_ip):
+    monkeypatch.setattr(socket, "getaddrinfo", lambda *args, **kwargs: [
+        (socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_TCP, "", (private_ip, 443))
+    ])
+    with pytest.raises(ValueError, match="resolves to private/internal IP"):
+        validate_cog_url("https://sentinel-cogs.s3.us-west-2.amazonaws.com/test.tif")
 
 
 def test_url_sanitization_strips_sensitive_query_parameters():

@@ -56,6 +56,8 @@ import {
 import { useToast } from "@/components/Toast";
 import { useWorkspace } from "@/context/WorkspaceContext";
 import { getSectorVerificationCopy } from "@/lib/sectors";
+import { canReadRegistry } from "@/lib/registryWorkflow";
+import { resolveProjectMethodology } from "@/lib/projectMethodology";
 import VerificationPipelineStages, { PipelineStage } from "@/components/VerificationPipelineStages";
 
 interface SmsLogItem {
@@ -101,7 +103,21 @@ function VerificationsPageContent() {
     ? (paramTab as 'packages' | 'audits' | 'community' | 'sensors')
     : 'packages';
 
-  const { activeSector, activeMethodology, activeProject, filterProperties, filterAudits, moduleRegistry } = useWorkspace();
+  const { user, activeSector, activeProject, projects, filterProperties, filterAudits, moduleRegistry } = useWorkspace();
+
+  const selectedProjectRecord = activeProject && activeProject !== "all"
+    ? projects.find((p) => p.id === activeProject || p.project_code === activeProject || (p as any).code === activeProject)
+    : null;
+
+  let displayedMethodologyBadge: string | null = null;
+  if (!activeProject || activeProject === "all") {
+    displayedMethodologyBadge = projects.length > 0 ? "All Projects" : null;
+  } else if (selectedProjectRecord) {
+    const resolved = resolveProjectMethodology(selectedProjectRecord);
+    displayedMethodologyBadge = resolved.code;
+  } else {
+    displayedMethodologyBadge = "Under Assessment";
+  }
 
   const wsConfig = (activeSector && moduleRegistry?.[activeSector]) ? moduleRegistry[activeSector] : {};
 
@@ -483,14 +499,21 @@ function VerificationsPageContent() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[var(--color-border)] pb-4">
 
         <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="px-2 py-0.5 rounded-md bg-[var(--color-surface-hover)] text-[var(--color-text-secondary)] text-[10px] font-mono font-medium tracking-wider uppercase border border-[var(--color-border)]">
-              {activeMethodology || "All Projects"}
-            </span>
-          </div>
+          {displayedMethodologyBadge && (
+            <div className="flex items-center gap-2 mb-1">
+              <span
+                data-testid="verification-methodology-badge"
+                className="px-2 py-0.5 rounded-md bg-[var(--color-surface-hover)] text-[var(--color-text-secondary)] text-[10px] font-mono font-medium tracking-wider uppercase border border-[var(--color-border)]"
+              >
+                {displayedMethodologyBadge}
+              </span>
+            </div>
+          )}
+
+          {selectedProjectRecord && canReadRegistry(user?.role) && <Link href={`/dashboard/projects/${selectedProjectRecord.id}?tab=registry`} className="inline-block mb-2 text-xs underline">Registry Readiness for this project</Link>}
 
           <h1 className="text-xl font-bold tracking-tight text-[var(--color-text-primary)]">
-            Verification & Audits Hub
+            Verification & Audits
           </h1>
 
           <p className="text-[var(--color-text-secondary)] text-xs mt-0.5">

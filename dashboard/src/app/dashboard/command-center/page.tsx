@@ -167,9 +167,9 @@ export default function CommandCenterPage() {
               <Globe size={18} />
             </div>
             <div>
-              <h1 className="text-xl font-bold tracking-tight">Enterprise Spatial Command Center</h1>
+              <h1 className="text-xl font-bold tracking-tight">Project Map</h1>
               <p className="text-xs text-[var(--color-text-secondary)]">
-                Geospatial Operations & Asset Monitoring • Sector-Aware MRV Mapping & Earth Observation
+                Geospatial boundaries, satellite monitoring, and field asset overlays.
               </p>
             </div>
           </div>
@@ -271,7 +271,7 @@ export default function CommandCenterPage() {
             <div className="flex items-center gap-2">
               <Globe size={16} className="text-[var(--color-primary)]" />
               <h2 className="text-sm font-semibold text-[var(--color-text-primary)]">
-                {viewMode === "map" ? "Spatial Command Center Map" : "Filtered Spatial Asset Inventory"}
+                {viewMode === "map" ? "Project Map" : "Filtered Spatial Asset Inventory"}
               </h2>
             </div>
 

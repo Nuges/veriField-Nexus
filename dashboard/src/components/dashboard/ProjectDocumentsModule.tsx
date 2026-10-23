@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { canReadRegistry } from "@/lib/registryWorkflow";
 import React, { useState, useEffect, useCallback } from "react";
 import {
   FileText,
@@ -23,8 +25,6 @@ import {
   uploadProjectDocument,
   downloadDocument,
   generateAndDownloadReport,
-  fetchRegistryPackage,
-  downloadArticle6PackageZip,
 } from "@/lib/api";
 import { useWorkspace } from "@/context/WorkspaceContext";
 
@@ -113,9 +113,6 @@ export const ProjectDocumentsModule: React.FC<ProjectDocumentsModuleProps> = ({
   const [loading, setLoading] = useState(Boolean(projectId));
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [selectedDocForBreakdown, setSelectedDocForBreakdown] = useState<ProjectDocument | null>(null);
-  const [registryPackageModalOpen, setRegistryPackageModalOpen] = useState(false);
-  const [registryPackageData, setRegistryPackageData] = useState<RegistryPackageManifest | null>(null);
-  const [loadingPackage, setLoadingPackage] = useState(false);
 
   // Upload Form State
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -217,21 +214,6 @@ export const ProjectDocumentsModule: React.FC<ProjectDocumentsModuleProps> = ({
     }
   };
 
-  const handleInspectRegistryPackage = async (registry: string) => {
-    setLoadingPackage(true);
-    setRegistryPackageModalOpen(true);
-    setRegistryPackageData(null);
-    try {
-      const data = await fetchRegistryPackage(registry, projectId);
-      setRegistryPackageData(data);
-    } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Failed to build registry package.");
-      setRegistryPackageModalOpen(false);
-    } finally {
-      setLoadingPackage(false);
-    }
-  };
-
   const getDocIcon = (type: string) => {
     switch (type) {
       case "PDD":
@@ -290,18 +272,7 @@ export const ProjectDocumentsModule: React.FC<ProjectDocumentsModuleProps> = ({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            onClick={() => handleInspectRegistryPackage("VERRA")}
-            className="px-3 py-1.5 text-xs font-medium bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-50 transition"
-          >
-            Export Verra Bundle
-          </button>
-          <button
-            onClick={() => handleInspectRegistryPackage("GOLD_STANDARD")}
-            className="px-3 py-1.5 text-xs font-medium bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-50 transition"
-          >
-            Export Gold Standard
-          </button>
+          {canReadRegistry(user?.role) && <Link href={`/dashboard/projects/${projectId}?tab=registry`} className="px-3 py-1.5 text-xs font-medium border border-gray-300 dark:border-gray-700 rounded-lg">Registry Readiness</Link>}
           <button
             onClick={handleGenerateReport}
             disabled={generatingReport}
@@ -606,109 +577,7 @@ export const ProjectDocumentsModule: React.FC<ProjectDocumentsModuleProps> = ({
         </div>
       )}
 
-      {/* Registry Package Inspection Modal */}
-      {registryPackageModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-3">
-              <div>
-                <h4 className="text-base font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
-                  <Layers className="w-5 h-5 text-blue-600" />
-                  Registry Submission Package Manifest
-                </h4>
-                <p className="text-xs text-gray-500 mt-0.5">Live Verifiable MRV Submission Bundle</p>
-              </div>
-              <button onClick={() => setRegistryPackageModalOpen(false)} className="text-gray-400 hover:text-gray-600">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
 
-            {loadingPackage ? (
-              <div className="p-12 text-center text-sm text-gray-500 flex items-center justify-center gap-2">
-                <RefreshCw className="w-4 h-4 animate-spin text-blue-600" />
-                Compiling submission package...
-              </div>
-            ) : registryPackageData ? (
-              <div className="space-y-4 text-xs">
-                {/* Readiness Matrix */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  <div className="p-2.5 bg-emerald-50 dark:bg-emerald-950/40 rounded-lg border border-emerald-200 dark:border-emerald-900 text-center">
-                    <p className="text-[10px] text-emerald-800 dark:text-emerald-300 uppercase font-semibold">Data Manifest</p>
-                    <p className="font-bold text-emerald-900 dark:text-emerald-200 mt-0.5">{registryPackageData.readiness_matrix?.data_manifest}</p>
-                  </div>
-                  <div className="p-2.5 bg-emerald-50 dark:bg-emerald-950/40 rounded-lg border border-emerald-200 dark:border-emerald-900 text-center">
-                    <p className="text-[10px] text-emerald-800 dark:text-emerald-300 uppercase font-semibold">Doc Package</p>
-                    <p className="font-bold text-emerald-900 dark:text-emerald-200 mt-0.5">{registryPackageData.readiness_matrix?.document_package}</p>
-                  </div>
-                  <div className="p-2.5 bg-blue-50 dark:bg-blue-950/40 rounded-lg border border-blue-200 dark:border-blue-900 text-center col-span-2">
-                    <p className="text-[10px] text-blue-800 dark:text-blue-300 uppercase font-semibold">External Gateway Status</p>
-                    <p className="font-semibold text-blue-900 dark:text-blue-200 mt-0.5 text-[11px] truncate">
-                      {registryPackageData.readiness_matrix?.external_submission}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Quantification Summary */}
-                <div className="p-3 bg-gray-50 dark:bg-gray-800/60 rounded-xl border border-gray-200 dark:border-gray-700 flex items-center justify-between">
-                  <div>
-                    <span className="text-gray-500 font-medium">Verified Reductions: </span>
-                    <span className="font-bold text-emerald-600 text-sm">{registryPackageData.mrv_quantification?.total_reductions_tco2e} tCO₂e</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-500 font-medium">Verified Assets: </span>
-                    <span className="font-bold text-gray-900 dark:text-gray-100">{registryPackageData.mrv_quantification?.total_verified_assets} units</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-500 font-medium">Package Hash: </span>
-                    <span className="font-mono text-[10px] text-gray-600 dark:text-gray-400">{registryPackageData.package_hash?.slice(0, 10)}...</span>
-                  </div>
-                </div>
-
-                {/* Raw JSON Preview */}
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <p className="text-[11px] font-semibold text-gray-700 dark:text-gray-300">Authoritative Submission Documents</p>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={async () => {
-                          try {
-                            const std = registryPackageData.registry_standard || "VERRA";
-                            await downloadArticle6PackageZip(std, projectId);
-                          } catch (err: unknown) {
-                            alert(err instanceof Error ? err.message : "Failed to download ZIP package.");
-                          }
-                        }}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-md transition shadow-sm"
-                      >
-                        <Download className="w-3 h-3" /> Download Certified ZIP (PDF + DOCX + CSV)
-                      </button>
-                      <button
-                        onClick={() => {
-                          const blob = new Blob([JSON.stringify(registryPackageData, null, 2)], { type: "application/json" });
-                          const url = window.URL.createObjectURL(blob);
-                          const a = document.createElement("a");
-                          a.href = url;
-                          a.download = `${registryPackageData.package_id || "registry_package"}.json`;
-                          document.body.appendChild(a);
-                          a.click();
-                          a.remove();
-                          window.URL.revokeObjectURL(url);
-                        }}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-md transition"
-                      >
-                        <Download className="w-3 h-3" /> JSON Manifest
-                      </button>
-                    </div>
-                  </div>
-                  <pre className="p-3 bg-gray-950 text-emerald-400 rounded-xl text-[10px] overflow-x-auto max-h-60 font-mono">
-                    {JSON.stringify(registryPackageData, null, 2)}
-                  </pre>
-                </div>
-              </div>
-            ) : null}
-          </div>
-        </div>
-      )}
     </div>
   );
 };

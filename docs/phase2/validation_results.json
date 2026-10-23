@@ -1,0 +1,69 @@
+{
+  "date": "2026-10-23",
+  "timezone": "Africa/Lagos",
+  "phase_status": "READY_FOR_PHASE_3",
+  "release_status": "not_deployed",
+  "evidence_source": "User-provided Mac terminal output in this conversation; not remote assistant execution",
+  "mac_base_commit": "f524f84",
+  "branch": "work/continue-antigravity",
+  "backend": {
+    "focused": {
+      "passed": 90,
+      "seconds": 3.84,
+      "exit_code": 0
+    },
+    "full": {
+      "passed": 809,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 34,
+      "deselected": 5,
+      "seconds": 52.03,
+      "exit_code": 0
+    },
+    "postgis_separate": {
+      "passed": 10,
+      "seconds": 0.86,
+      "exit_code": 0
+    },
+    "bootstrap_exit": 0,
+    "migrations_executed": false
+  },
+  "frontend": {
+    "unit_passed": 138,
+    "typecheck_exit": 0,
+    "build_exit": 0,
+    "pages_generated": 41,
+    "mock_browser_passed": 5,
+    "mock_browser_seconds": 4.6
+  },
+  "environment": {
+    "python": "3.12.12",
+    "postgis": "3.4",
+    "image": "postgis/postgis:15-3.4-alpine",
+    "container": "0ce9c28089536269123c3edc3796ec2f838c1c442a9ae13f9e8ed89dd3901f0e",
+    "loopback_port": 51916,
+    "storage": "verified tmpfs",
+    "container_left_running": true
+  },
+  "mac_log_directory": "/var/folders/73/kpcvymmj6431ycvbts745v7h0000gn/T/verifield-phase2-full-au2zhtlb",
+  "limitations": [
+    "34 skipped tests are not passes; detailed reasons absent from supplied summary",
+    "5 external-live tests intentionally not run",
+    "Browser coverage uses mocked API fixtures",
+    "16 affected npm packages confirmed by read-only audit; initial triage only, no fixes or exploitability validation",
+    "No production, migration or external registry validation",
+    "Separate suite results may overlap; do not sum as unique coverage"
+  ],
+  "uncommitted_at_validation": true,
+  "checkpoint_authorization": {
+    "date": "2026-10-23",
+    "instruction": "commit and push",
+    "branch": "work/continue-antigravity",
+    "parent_sha": "639e3d3b7c66fa125cd21169fea5628db53c317a",
+    "merge_authorized": false,
+    "deployment_authorized": false,
+    "code_changed_after_validation": false,
+    "post_validation_changes": "Working instructions and checkpoint documentation only"
+  }
+}

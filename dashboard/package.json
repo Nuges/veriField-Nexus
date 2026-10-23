@@ -7,7 +7,8 @@
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint",
-    "test": "playwright test"
+    "test": "playwright test",
+    "test:unit": "node --import tsx --test tests/*.test.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.1",
@@ -17,7 +18,7 @@
     "framer-motion": "^12.42.2",
     "leaflet": "^1.9.4",
     "lucide-react": "^1.14.0",
-    "next": "16.2.4",
+    "next": "16.4.2",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "react-leaflet": "^5.0.0",
@@ -31,15 +32,16 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.2.4",
+    "eslint-config-next": "16.4.2",
     "tailwindcss": "^4",
+    "tsx": "4.23.15",
     "typescript": "^5"
   },
   "optionalDependencies": {
-    "@next/swc-darwin-arm64": "16.2.4",
-    "@next/swc-darwin-x64": "16.2.4",
-    "@next/swc-linux-x64-gnu": "16.2.4",
-    "@next/swc-linux-x64-musl": "16.2.4",
+    "@next/swc-darwin-arm64": "16.4.2",
+    "@next/swc-darwin-x64": "16.4.2",
+    "@next/swc-linux-x64-gnu": "16.4.2",
+    "@next/swc-linux-x64-musl": "16.4.2",
     "@tailwindcss/oxide-darwin-arm64": "4.2.4",
     "@tailwindcss/oxide-darwin-x64": "4.2.4",
     "@tailwindcss/oxide-linux-x64-gnu": "4.2.4",

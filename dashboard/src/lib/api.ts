@@ -114,7 +114,7 @@ export function getApiV1(): string {
       rawApiBase = process.env.BACKEND_API_URL || "http://localhost:8000";
     }
   }
-  const API_BASE = rawApiBase.replace(/\/+$/, "");
+  const API_BASE = rawApiBase.replace(/\/+$/, "").replace(/\/api\/v1$/, "");
   return `${API_BASE}/api/v1`;
 }
 
@@ -2744,101 +2744,74 @@ export async function submitITMOAuthorization(data: {
   authorized_at: string;
   dossier: Record<string, unknown>;
 }> {
+  return registryRequest<{
+    status: string;
+    message: string;
+    project_id: string;
+    project_name: string;
+    serial_number: string;
+    cumulative_itmos_tco2e: number;
+    cooperative_approach_id: string;
+    acquiring_party: string;
+    dossier_sha256: string;
+    authorized_at: string;
+    dossier: Record<string, unknown>;
+  }>("/itmo/authorize", { method: "POST", body: JSON.stringify(data) });
+}
+
+// Registry reads use /registry; the backend keeps /registry-integrations as a legacy mount.
+// Only a missing route (404) permits fallback. Authorization and service failures remain failures.
+async function registryRequest<T>(path: string, options: CustomRequestInit = {}): Promise<T> {
   try {
-    return await apiFetch<{
-      status: string;
-      message: string;
-      project_id: string;
-      project_name: string;
-      serial_number: string;
-      cumulative_itmos_tco2e: number;
-      cooperative_approach_id: string;
-      acquiring_party: string;
-      dossier_sha256: string;
-      authorized_at: string;
-      dossier: Record<string, unknown>;
-    }>("/registry/itmo/authorize", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-  } catch (err: unknown) {
-    const errorMsg = err instanceof Error ? err.message : String(err);
-    if (errorMsg.includes("404") || errorMsg.includes("Not Found")) {
-      return await apiFetch<{
-        status: string;
-        message: string;
-        project_id: string;
-        project_name: string;
-        serial_number: string;
-        cumulative_itmos_tco2e: number;
-        cooperative_approach_id: string;
-        acquiring_party: string;
-        dossier_sha256: string;
-        authorized_at: string;
-        dossier: Record<string, unknown>;
-      }>("/registry-integrations/itmo/authorize", {
-        method: "POST",
-        body: JSON.stringify(data),
-      });
-    }
-    throw err;
+    return await apiFetch<T>(`/registry${path}`, options);
+  } catch (error) {
+    if ((error as { status?: number }).status !== 404) throw error;
+    return apiFetch<T>(`/registry-integrations${path}`, options);
   }
+}
+
+function registryProjectSegment(projectId: string): string {
+  if (!projectId?.trim() || projectId.trim().toLowerCase() === "all") {
+    throw new Error("Select a specific project first.");
+  }
+  return encodeURIComponent(projectId.trim());
+}
+
+async function registryDownload(path: string, filename: string): Promise<void> {
+  const token = getAuthToken();
+  const options: RequestInit = { headers: token ? { Authorization: `Bearer ${token}` } : {}, cache: "no-store" };
+  let response = await fetch(`${getApiV1()}/registry${path}`, options);
+  if (response.status === 404) {
+    response = await fetch(`${getApiV1()}/registry-integrations${path}`, options);
+  }
+  if (!response.ok) {
+    throw new Error(`Registry download failed (HTTP ${response.status}).`);
+  }
+  const url = URL.createObjectURL(await response.blob());
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  try { anchor.click(); }
+  finally { anchor.remove(); URL.revokeObjectURL(url); }
 }
 
 export async function fetchComplianceDossier(standard: string, projectId: string): Promise<Record<string, unknown>> {
-  try {
-    return await apiFetch<Record<string, unknown>>(`/registry/dossier/${standard}/${projectId}`);
-  } catch (err: unknown) {
-    const errorMsg = err instanceof Error ? err.message : String(err);
-    if (errorMsg.includes("404") || errorMsg.includes("Not Found")) {
-      return await apiFetch<Record<string, unknown>>(`/registry-integrations/dossier/${standard}/${projectId}`);
-    }
-    throw err;
-  }
+  return registryRequest(`/dossier/${encodeURIComponent(standard)}/${registryProjectSegment(projectId)}`);
 }
 
-export async function fetchRegistryReadiness(projectId: string, standard: string = "VERRA"): Promise<Record<string, unknown>> {
-  try {
-    return await apiFetch<Record<string, unknown>>(`/registry/readiness/${projectId}?target_standard=${standard}`);
-  } catch (err: unknown) {
-    const errorMsg = err instanceof Error ? err.message : String(err);
-    if (errorMsg.includes("404") || errorMsg.includes("Not Found")) {
-      return await apiFetch<Record<string, unknown>>(`/registry-integrations/readiness/${projectId}?target_standard=${standard}`);
-    }
-    throw err;
-  }
+export async function fetchRegistryReadiness(projectId: string, standard: string = "VERRA"): Promise<import("./registryWorkflow").RegistryReadiness> {
+  return registryRequest(`/readiness/${registryProjectSegment(projectId)}?target_standard=${encodeURIComponent(standard)}`);
 }
 
+export async function downloadRegistryPackage(standard: string, projectId: string): Promise<void> {
+  const project = registryProjectSegment(projectId);
+  return registryDownload(`/package-download/${encodeURIComponent(standard)}/${project}`, `${standard}_${projectId.slice(0, 8)}_review_package.zip`);
+}
+
+/** Compatibility name retained for AI/reporting clients. */
 export async function downloadArticle6PackageZip(standard: string, projectId: string): Promise<void> {
-  const currentToken = getAuthToken();
-  const headers: Record<string, string> = {};
-  if (currentToken) {
-    headers["Authorization"] = `Bearer ${currentToken}`;
-  }
-
-  let res = await fetch(`${getApiV1()}/registry/package-download/${standard}/${projectId}`, {
-    headers,
-  });
-
-  if (!res.ok) {
-    res = await fetch(`${getApiV1()}/registry-integrations/package-download/${standard}/${projectId}`, {
-      headers,
-    });
-  }
-
-  if (!res.ok) {
-    throw new Error(`Failed to download package (HTTP ${res.status})`);
-  }
-
-  const blob = await res.blob();
-  const url = window.URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `${standard}_${projectId.slice(0, 8)}_package.zip`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  window.URL.revokeObjectURL(url);
+  return downloadRegistryPackage(standard, projectId);
 }
 
 export async function executeCarbonMinting(data: {
@@ -2857,16 +2830,8 @@ export async function fetchLedgerTransactions(): Promise<LedgerTransaction[]> {
   return apiFetch<LedgerTransaction[]>("/ledger/transactions");
 }
 
-export async function fetchRegistryDocumentMatrix(): Promise<Record<string, unknown>> {
-  try {
-    return await apiFetch<Record<string, unknown>>("/registry/document-matrix");
-  } catch (err: unknown) {
-    const errorMsg = err instanceof Error ? err.message : String(err);
-    if (errorMsg.includes("404") || errorMsg.includes("Not Found")) {
-      return await apiFetch<Record<string, unknown>>("/registry-integrations/document-matrix");
-    }
-    throw err;
-  }
+export async function fetchRegistryDocumentMatrix(): Promise<import("./registryWorkflow").RegistryDocumentMatrix> {
+  return registryRequest("/document-matrix");
 }
 
 export async function downloadRegistryDocument(
@@ -2875,36 +2840,9 @@ export async function downloadRegistryDocument(
   documentId: string,
   format: "pdf" | "docx" | "json" = "pdf"
 ): Promise<void> {
-  const currentToken = getAuthToken();
-  const headers: Record<string, string> = {};
-  if (currentToken) {
-    headers["Authorization"] = `Bearer ${currentToken}`;
-  }
-
-  let res = await fetch(`${getApiV1()}/registry/documents/${standard}/${projectId}/${documentId}?format=${format}`, {
-    headers,
-  });
-
-  if (!res.ok) {
-    res = await fetch(`${getApiV1()}/registry-integrations/documents/${standard}/${projectId}/${documentId}?format=${format}`, {
-      headers,
-    });
-  }
-
-  if (!res.ok) {
-    throw new Error(`Failed to download ${documentId} (HTTP ${res.status})`);
-  }
-
-  const blob = await res.blob();
-  const url = window.URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  const ext = format.toLowerCase();
-  a.download = `${documentId}_${projectId.slice(0, 8)}.${ext}`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  window.URL.revokeObjectURL(url);
+  const project = registryProjectSegment(projectId);
+  return registryDownload(`/documents/${encodeURIComponent(standard)}/${project}/${encodeURIComponent(documentId)}?format=${format}`,
+    `${documentId}_${projectId.slice(0, 8)}.${format}`);
 }
 
 // =============================================================================
@@ -5411,8 +5349,44 @@ export async function commitLaboratoryImportBatch(
 }
 
 export function getLaboratoryImportTemplateUrl(projectId: string, format: "csv" | "xlsx" = "csv"): string {
-  const base = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
-  return `${base}/api/v1/agriculture/projects/${projectId}/laboratory-import/template?format=${format}`;
+  return `${getApiV1()}/agriculture/projects/${encodeURIComponent(projectId)}/laboratory-import/template?format=${format}`;
+}
+
+export async function downloadLaboratoryImportTemplate(
+  projectId: string,
+  format: "csv" | "xlsx" = "csv"
+): Promise<void> {
+  const token = getAuthToken();
+  const res = await fetch(
+    getLaboratoryImportTemplateUrl(projectId, format),
+    {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    }
+  );
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => null);
+    throw new Error(typeof errorData?.detail === "string"
+      ? errorData.detail
+      : `Laboratory template download failed (HTTP ${res.status}).`);
+  }
+  const blob = await res.blob();
+  const disposition = res.headers.get("Content-Disposition");
+  let filename = `verifield_lab_import_template.${format}`;
+  if (disposition && disposition.includes("filename=")) {
+    const match = disposition.match(/filename="?([^";]+)"?/);
+    if (match && match[1]) filename = match[1];
+  }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  try {
+    a.click();
+  } finally {
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
 }
 
 export function getLaboratoryImportErrorsUrl(projectId: string, batchId: string): string {

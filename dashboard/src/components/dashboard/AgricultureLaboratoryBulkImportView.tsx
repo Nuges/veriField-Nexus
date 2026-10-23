@@ -36,7 +36,7 @@ import {
   uploadLaboratoryBulkFile,
   validateLaboratoryImportBatch,
   commitLaboratoryImportBatch,
-  getLaboratoryImportTemplateUrl,
+  downloadLaboratoryImportTemplate,
   getLaboratoryImportErrorsUrl,
   fetchSamplingCampaigns,
   type LaboratoryImportBatchItem,
@@ -267,6 +267,23 @@ export default function AgricultureLaboratoryBulkImportView({
 
   const isCommitted = activeBatch?.status === "IMPORTED" || activeBatch?.status === "PARTIALLY_IMPORTED";
 
+  const [downloadingFormat, setDownloadingFormat] = useState<string | null>(null);
+
+  const handleDownloadTemplate = async (format: "csv" | "xlsx") => {
+    if (!projectId) return;
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    setDownloadingFormat(format);
+    try {
+      await downloadLaboratoryImportTemplate(projectId, format);
+      setSuccessMsg(`Laboratory template (${format.toUpperCase()}) downloaded successfully.`);
+    } catch (err: unknown) {
+      setErrorMsg(err instanceof Error ? err.message : "Failed to download laboratory template.");
+    } finally {
+      setDownloadingFormat(null);
+    }
+  };
+
   return (
     <div className="space-y-6" data-testid="laboratory-bulk-import-console">
       {/* Feedback Alerts */}
@@ -303,42 +320,40 @@ export default function AgricultureLaboratoryBulkImportView({
       <div className="p-4 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <span className="text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400 tracking-wider">
-              Automated Ingestion Pipeline
-            </span>
-            <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 font-semibold">
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold">
               CSV • XLSX
             </span>
           </div>
-          <h3 className="text-base font-bold text-[var(--color-text-primary)] mt-0.5 flex items-center gap-2">
+          <h3 className="text-base font-bold text-[var(--color-text-primary)] mt-1 flex items-center gap-2">
             <FileSpreadsheet size={18} className="text-emerald-500" />
-            Laboratory Bulk Data Import
+            Laboratory Bulk Import
           </h3>
           <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">
-            Stage and validate lab assays with automated column mapping, sample code cross-matching, deterministic
-            unit normalization (SOC g/kg), and immutable SHA-256 provenance archiving.
+            Stage and validate laboratory soil assays against registered physical samples.
           </p>
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          <a
-            href={getLaboratoryImportTemplateUrl(projectId, "csv")}
-            download="verifield_laboratory_import_template.csv"
+          <button
+            type="button"
+            onClick={() => handleDownloadTemplate("csv")}
+            disabled={downloadingFormat !== null}
             data-testid="btn-download-csv-template"
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--color-background)] border border-[var(--color-border)] hover:bg-[var(--color-surface)] text-[var(--color-text-primary)] transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--color-background)] border border-[var(--color-border)] hover:bg-[var(--color-surface)] text-[var(--color-text-primary)] transition-colors cursor-pointer disabled:opacity-50"
           >
             <Download size={13} />
-            <span>CSV Template</span>
-          </a>
-          <a
-            href={getLaboratoryImportTemplateUrl(projectId, "xlsx")}
-            download="verifield_laboratory_import_template.xlsx"
+            <span>{downloadingFormat === "csv" ? "Downloading..." : "CSV Template"}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => handleDownloadTemplate("xlsx")}
+            disabled={downloadingFormat !== null}
             data-testid="btn-download-xlsx-template"
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--color-background)] border border-[var(--color-border)] hover:bg-[var(--color-surface)] text-[var(--color-text-primary)] transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--color-background)] border border-[var(--color-border)] hover:bg-[var(--color-surface)] text-[var(--color-text-primary)] transition-colors cursor-pointer disabled:opacity-50"
           >
             <Download size={13} />
-            <span>Excel (.xlsx) Template</span>
-          </a>
+            <span>{downloadingFormat === "xlsx" ? "Downloading..." : "Excel (.xlsx)"}</span>
+          </button>
         </div>
       </div>
 

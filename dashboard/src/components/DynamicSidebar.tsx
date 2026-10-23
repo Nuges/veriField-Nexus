@@ -128,7 +128,7 @@ export function DynamicSidebar() {
           {
             title: "Platform Governance",
             items: [
-              { label: "Global Mission Control", icon: "LayoutDashboard", href: "/dashboard" },
+              { label: "Platform Overview", icon: "LayoutDashboard", href: "/dashboard" },
               { label: "Global Infrastructure", icon: "Sliders", href: "/super-admin" },
               { label: "All Projects", icon: "Briefcase", href: "/dashboard/projects" },
               { label: "PoA Programmes", icon: "Globe", href: "/dashboard/poa" },
@@ -145,7 +145,7 @@ export function DynamicSidebar() {
                 badge: pendingCount ? `${pendingCount}` : undefined,
               },
               { label: "Carbon Ledger", icon: "Sliders", href: "/dashboard/carbon" },
-              { label: "Compliance Center", icon: "Globe", href: "/dashboard/command-center" },
+              { label: "Project Map", icon: "Globe", href: "/dashboard/command-center" },
               { label: "Global Reports", icon: "FileText", href: "/dashboard/analytics" },
             ],
           },
@@ -156,9 +156,9 @@ export function DynamicSidebar() {
             ],
           },
           {
-            title: "Intelligence",
+            title: "Support",
             items: [
-              { label: "AI Orchestrator", icon: "Bot", href: "/dashboard/ai", badge: "Live" },
+              { label: "Decision Support", icon: "Bot", href: "/dashboard/ai" },
               { label: "Help & Knowledge", icon: "HelpCircle", href: "/dashboard/help" },
             ],
           },
@@ -167,9 +167,14 @@ export function DynamicSidebar() {
       case "ORG_ADMIN":
         return [
           {
-            title: "Governance & Operations",
+            title: "Overview",
             items: [
-              { label: "Organization Overview", icon: "LayoutDashboard", href: "/dashboard" },
+              { label: "Overview", icon: "LayoutDashboard", href: "/dashboard" },
+            ],
+          },
+          {
+            title: "Projects",
+            items: [
               { label: sectorTerms.projectsNavLabel, icon: "Briefcase", href: "/dashboard/projects" },
               { label: "Programmes (PoA)", icon: "Globe", href: "/dashboard/poa" },
               {
@@ -178,27 +183,38 @@ export function DynamicSidebar() {
                 href: "/dashboard/operations",
                 badge: flaggedCount ? `${flaggedCount}` : undefined,
               },
+              { label: "Project Map", icon: "Globe", href: "/dashboard/command-center" },
+            ],
+          },
+          {
+            title: "Monitoring",
+            items: [
+              { label: "Live Telemetry", icon: "Radio", href: "/dashboard/sensors" },
+              { label: "Assets", icon: "Layers", href: "/dashboard/assets" },
               { label: sectorTerms.monitoringNavLabel, icon: "Activity", href: "/dashboard/monitoring" },
             ],
           },
           {
-            title: "Reporting & Assets",
+            title: "MRV",
             items: [
+              { label: "Verification", icon: "ShieldCheck", href: "/dashboard/verifications" },
               { label: "Carbon Ledger", icon: "Sliders", href: "/dashboard/carbon" },
-              { label: "Organization Reports", icon: "FileText", href: "/dashboard/analytics" },
+              { label: "Registry", icon: "FileCheck", href: "/dashboard/registry" },
             ],
           },
           {
-            title: "Administration & Security",
+            title: "Organization",
             items: [
+              { label: "Reports", icon: "FileText", href: "/dashboard/analytics" },
               { label: "People & Access", icon: "Users", href: "/dashboard/people" },
+              { label: "Settings", icon: "Settings", href: "/dashboard/settings" },
             ],
           },
           {
-            title: "Intelligence & Guides",
+            title: "Support",
             items: [
-              { label: sectorTerms.aiNavLabel, icon: "Bot", href: "/dashboard/ai" },
-              { label: "Help & Knowledge", icon: "HelpCircle", href: "/dashboard/help" },
+              { label: "Decision Support", icon: "Bot", href: "/dashboard/ai" },
+              { label: "Help", icon: "HelpCircle", href: "/dashboard/help" },
             ],
           },
         ];
@@ -208,9 +224,9 @@ export function DynamicSidebar() {
           {
             title: "Project Delivery",
             items: [
-              { label: "Project Mission Control", icon: "LayoutDashboard", href: "/dashboard" },
+              { label: "Project Overview", icon: "LayoutDashboard", href: "/dashboard" },
               { label: sectorTerms.projectsNavLabel, icon: "Briefcase", href: "/dashboard/projects" },
-              { label: "Spatial Map & Operations", icon: "Globe", href: "/dashboard/command-center" },
+              { label: "Project Map", icon: "Globe", href: "/dashboard/command-center" },
               { label: "Programmes (PoA)", icon: "Globe", href: "/dashboard/poa" },
               {
                 label: "Project Activities",
@@ -293,14 +309,14 @@ export function DynamicSidebar() {
           {
             title: "MRV & QA/QC Control",
             items: [
-              { label: "MRV Control Center", icon: "LayoutDashboard", href: "/dashboard" },
+              { label: "MRV Overview", icon: "LayoutDashboard", href: "/dashboard" },
               {
                 label: "QA Review",
                 icon: "Radio",
                 href: "/dashboard/operations",
                 badge: flaggedCount ? `${flaggedCount}` : undefined,
               },
-              { label: "Anomaly Radar", icon: "AlertTriangle", href: "/dashboard/anomalies" },
+              { label: "Flagged Exceptions", icon: "AlertTriangle", href: "/dashboard/anomalies" },
               { label: "Trust Scores", icon: "ShieldCheck", href: "/dashboard/trust-scores" },
               { label: "Verification Packages / Audits", icon: "FileCheck", href: "/dashboard/verifications" },
               { label: "Monitoring Data", icon: "Activity", href: "/dashboard/monitoring" },
@@ -322,7 +338,7 @@ export function DynamicSidebar() {
           {
             title: "VVB Verification Workspace",
             items: [
-              { label: "Verification Mission Control", icon: "LayoutDashboard", href: "/dashboard" },
+              { label: "Verification Overview", icon: "LayoutDashboard", href: "/dashboard" },
               {
                 label: "Verification Queue",
                 icon: "ShieldCheck",
@@ -355,7 +371,7 @@ export function DynamicSidebar() {
           {
             title: "Audit Operations",
             items: [
-              { label: "Audit Mission Control", icon: "LayoutDashboard", href: "/dashboard" },
+              { label: "Audit Workspace", icon: "LayoutDashboard", href: "/dashboard" },
               {
                 label: "Audit Findings & NCRs",
                 icon: "ShieldCheck",
@@ -387,8 +403,8 @@ export function DynamicSidebar() {
           {
             title: "Compliance & Sovereign Control",
             items: [
-              { label: "Compliance Mission Control", icon: "LayoutDashboard", href: "/dashboard" },
-              { label: "Article 6 Command Center", icon: "Globe", href: "/dashboard/command-center" },
+              { label: "Compliance Overview", icon: "LayoutDashboard", href: "/dashboard" },
+              { label: "Article 6 Compliance", icon: "Globe", href: "/dashboard/command-center" },
               { label: "Project Portfolio", icon: "Briefcase", href: "/dashboard/projects" },
               { label: "PoA Programmes", icon: "Globe", href: "/dashboard/poa" },
             ],
@@ -436,7 +452,7 @@ export function DynamicSidebar() {
           {
             title: "Carbon Asset & Settlement",
             items: [
-              { label: "Finance Mission Control", icon: "LayoutDashboard", href: "/dashboard" },
+              { label: "Finance Overview", icon: "LayoutDashboard", href: "/dashboard" },
               { label: "Carbon Credit Ledger", icon: "Sliders", href: "/dashboard/carbon" },
               { label: "Project Valuations", icon: "Briefcase", href: "/dashboard/projects" },
             ],
@@ -553,7 +569,7 @@ export function DynamicSidebar() {
 
       {/* Footer System Status */}
       <div className="p-3 border-t border-[var(--color-border)] bg-[var(--color-background)] text-[11px] text-[var(--color-text-muted)]">
-        <span>CIOS v5.4-PROD</span>
+        <span>VeriField Nexus v5.4</span>
       </div>
     </aside>
   );
