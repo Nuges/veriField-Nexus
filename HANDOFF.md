@@ -1,14 +1,46 @@
 # VeriField Nexus handover
 
 Updated: 23 October 2026 (Africa/Lagos)
-Status: **ONBOARDING_CORRECTION_DEPLOYED** — sector data repaired, sidebar/dashboard/approval correction published and deployed; production agriculture schema remains a separate blocker.
+Status: **NAVIGATION_ROLE_SECTOR_CLEANUP_DEPLOYED** — PR #3 merged, frontend provider deployment succeeded and backend is live; production agriculture persistence remains a separate schema blocker.
 
 ## Active task — Navigation, role and sector cleanup
 
-User requested removal of duplicated frontend workflows, plain labels, sidebar/role testing, independent VVB duties, super-admin field/admin oversight and correctly linked sector field apps. Implementation is on `fix/navigation-role-sector-cleanup`, based on c59be19. See `docs/navigation/ROLE_SECTOR_CLEANUP_2026-10-23.md` for scope, exact limitations and checkpoint results. Local Chromium 41/41, dashboard unit 160/160, typecheck/lint/build passed. VVB lifecycle correction passed separately. Final isolated SQLite regression: 419 passed, 21 skipped, one deselected (34.23s), with the PostgreSQL telemetry file excluded locally. Initial native Flutter analysis/tests passed (10 tests), and browser CI passed. Initial full backend CI had two outdated QA-verification expectations (843 passed); these are corrected, and persisted project sector metadata is now exposed by the API. Targeted contract/security rerun: 37 passed in 4.38s. Final CI rerun is pending. Source checkpoint 3f000cd58c6a35c7097a71ba0aea8f31fab8f549 was published in draft PR #3 (https://github.com/Nuges/veriField-Nexus/pull/3). No merge/deploy is claimed at this checkpoint. Preserve the production agriculture schema gap described below; no production schema changes are included.
+User requested removal of duplicated frontend workflows, plain labels, sidebar/role testing, independent VVB duties, super-admin field/admin oversight and correctly linked sector field apps. Implemented and merged via PR #3 (https://github.com/Nuges/veriField-Nexus/pull/3) as 1f606c70f47e1399ae2e2a54772254a233c6941a. The merge tree exactly matches tested source 6b99fa2 (tree 3cf92a5f2d5b1cd509b3135edec60c29f84148e9). Final PR CI runs 40006720160 and 40006720149 passed: backend 847 passed/34 skipped/five deselected/one warning (88.98s), migrations/PostGIS, dashboard 160 unit tests/typecheck/build, SDK/STAC, 41 Chromium scenarios and 10 Flutter tests. Native analysis has one nonfatal style info; no errors/warnings. Browser coverage includes 116 role/destination combinations and all five sectors with isolated fixtures, not live operational writes. Vercel production status is success for merge 1f606c7. Main CI runs 40007250110 and 40007250112 also passed (backend 847 passed in 88.53s; browser 41 passed in 1.2m; native 10 passed). Render deploy dep-dbdqshkipgvc739qum30 is LIVE on exact merge 1f606c7, with post-live health/readiness checks passed. See docs/navigation/ROLE_SECTOR_CLEANUP_2026-10-23.md. No production schema/data change is included; preserve the agriculture schema blocker below.
 
 
-## Latest publication and deployment — 23 October 2026
+## Latest publication and deployment — Navigation cleanup
+
+- Source: 6b99fa2d2353713a0beb00b48a5c93cb300235d9; PR #3 merged as
+  1f606c70f47e1399ae2e2a54772254a233c6941a. Tested/merged tree:
+  3cf92a5f2d5b1cd509b3135edec60c29f84148e9, verified identical by git tree SHA.
+- Final PR CI: 40006720160 and 40006720149, success. Main CI: 40007250110 and
+  40007250112, success. Counts and limitations are recorded above and in the report.
+- Vercel production status for exact merge: success.
+  https://vercel.com/nuges-projects-381ad4bc/veri-field-nexus/8GmQm1BvjzZjEnXxpFbMKDDFtTn9.
+- Existing Render target, repository, main branch and workspace were verified.
+  Despite autoDeploy=yes/commit, no automatic deployment/event appeared after the
+  merge or completed main CI; the previous deploy remained live. One API deploy
+  was triggered without clearing cache, and no production configuration changed.
+- Render dep-dbdqshkipgvc739qum30 became LIVE on 1f606c7 at
+  2026-10-23T18:59:33.703952Z (19:59 Africa/Lagos).
+  https://dashboard.render.com/web/srv-d7r4an3t6lks73fnffm0/deploys/dep-dbdqshkipgvc739qum30.
+- Post-live read-only HTTP checks: /health 200/healthy;
+  /api/v1/health/ready 200/ready; /api/v1/registry/document-matrix 401 without
+  credentials. Error-level app log query from deploy start to 18:59:55Z returned
+  no entries. This verifies only a short deployment window.
+- No production operational write, signed-in production workflow, physical-device
+  session or native binary/app-store release is claimed. Agriculture persistence
+  still requires its separate controlled schema repair; no methodology workaround.
+- This final two-file documentation checkpoint uses [skip ci] [skip render].
+  Application/test source remains identical to deployed 1f606c7. Main and
+  work/continue-antigravity are synchronized for the Mac/Antigravity handover.
+  Confirm refs/status before editing; preserve existing stashes and uncommitted work.
+- Next: plan/review the missing agriculture schema and rollback before execution;
+  then verify the actual agriculture workflow. Do not run historical migrations
+  blindly or overwrite the protected pilot. Native device execution remains untested.
+
+## Previous publication and deployment — Onboarding correction
+
 
 - Source commit: 10e474e08ab015884a0ee8d15e182fe3578cf50b.
   PR #2 https://github.com/Nuges/veriField-Nexus/pull/2 was merged into main as

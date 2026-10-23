@@ -1,7 +1,7 @@
 # Navigation, roles and field capture review
 
 Date: 23 October 2026. Base: c59be19. Branch: fix/navigation-role-sector-cleanup.
-Status: implementation checkpoint; GitHub/native/database checks pending.
+Status: merged into main as 1f606c70f47e1399ae2e2a54772254a233c6941a via PR #3; frontend deployment succeeded and backend is live.
 
 ## Navigation and presentation
 
@@ -45,7 +45,7 @@ The web collector chooses its form from the authorized project sector, not a coo
 
 Offline records are scoped to user and organization. Explicit offline saves retain their client identifier and sync only under the matching account, project and sector. Authorization failures remain errors. The old unscoped browser queue is left intact and is not automatically attributed to another user.
 
-Native changes: project-based entry routes to the existing four sector forms or the added soil collection screen, with account-scoped offline soil collections; role-aware navigation hides field submission from VVB/read-only users and hides audit mutations from admins. Generic native queues carry capture owner/organization and project; sync preserves mismatched/legacy records for reconciliation rather than submitting them as the current user. Removed seeded kiln/feedstock identifiers and guessed capacity defaults. Native analysis and all 10 Flutter tests passed in GitHub run 40002907984 (Flutter 3.47.7). The first analysis had five nonfatal style/nullability findings, corrected for the final rerun. This is compilation/static analysis and unit/contract validation, not execution on a physical device.
+Native changes: project-based entry routes to the existing four sector forms or the added soil collection screen, with account-scoped offline soil collections; role-aware navigation hides field submission from VVB/read-only users and hides audit mutations from admins. Generic native queues carry capture owner/organization and project; sync preserves mismatched/legacy records for reconciliation rather than submitting them as the current user. Removed seeded kiln/feedstock identifiers and guessed capacity defaults. Native analysis and all 10 Flutter tests passed in GitHub run 40002907984 (Flutter 3.47.7). The first analysis had five nonfatal style/nullability findings. The final analysis has one nonfatal style info (curly_braces_in_flow_control_structures at activity_form_screen.dart:129), with no errors or warnings. This is compilation/static analysis and unit/contract validation, not execution on a physical device.
 
 ## Validation at checkpoint
 
@@ -57,8 +57,21 @@ Native changes: project-based entry routes to the existing four sector forms or 
 - New backend boundary/authentication checks: 40 passed before broad regression.
 - Independent opinion lifecycle: updated to reject super-admin opinion then authenticate a real verifier; 1 passed in 1.57s after fixing the test fixture's administrative auth override.
 - Broad local backend run: 418 passed, 21 skipped, two failures and 11 errors. One failure was the outdated super-admin lifecycle expectation (corrected and rerun); the other failure and 11 errors require unavailable local PostgreSQL/PostGIS. A SQLite-only rerun before the final auth-fixture fix had 418 passed, 21 skipped, one deselected and that single lifecycle failure. Final isolated SQLite regression passed: 419 passed, 21 skipped, one deselected in 34.23s. Only the PostgreSQL-dependent telemetry file and the PostgreSQL-dependent sensor/community test were excluded locally; CI still runs them with PostGIS.
-- Flutter/Dart are not installed locally. A GitHub workflow runs Flutter analysis/tests and isolated browser workflows. Initial browser CI: 40 passed in 30.6s; native: 10 passed. Initial full backend CI: 843 passed, 34 skipped, five deselected, two failures from legacy tests incorrectly expecting QA approval to be final verification. Those workflows now use internal validation approval; their targeted rerun and project response regressions passed: 37 passed in 4.38s. Full final checks remain pending at this checkpoint.
+- Flutter/Dart are not installed locally. A GitHub workflow runs Flutter analysis/tests and isolated browser workflows. Initial browser CI: 40 passed in 30.6s; native: 10 passed. Initial full backend CI: 843 passed, 34 skipped, five deselected, two failures from legacy tests incorrectly expecting QA approval to be final verification. Those workflows now use internal validation approval; their targeted rerun and project response regressions passed: 37 passed in 4.38s. Final PR checks passed as recorded below.
 
 Quality badges now describe the numerical score rather than claiming independent verification; field record labels are plain and project filtering is sent to the API before pagination. A browser regression also verifies real zero coordinates remain visible.
 
 No production data/schema was modified. The known production agriculture schema gap remains: missing land_units/soil_samples tables and projects.methodology_id nullability require a separate controlled migration. A working collector UI does not prove that production agriculture persistence is ready. Publication, merge and deployment must be recorded separately in HANDOFF.md.
+
+## Publication and final PR checks
+
+- Application source: 589a3b286cd259d59a0aa1e7b81d4b7b87cc00fc. CI-only follow-up: 6b99fa2d2353713a0beb00b48a5c93cb300235d9. The follow-up reuses runner Chrome, times out a fallback install after five minutes and bounds the browser job at 15 minutes. It changes no application source.
+- PR #3: https://github.com/Nuges/veriField-Nexus/pull/3. Final PR CI runs 40006720160 and 40006720149 both completed successfully.
+- Required backend: 847 passed, 34 skipped, five deselected, one warning in 88.98s. Alembic migrations and authoritative PostGIS tests passed in CI. Dashboard typecheck/build, 160 unit tests, SDK and external STAC also passed.
+- Final GitHub Chromium run: 41 passed in 1.3m. Flutter: 10 passed, with the single nonfatal analysis info described above. Local browser results remain separate from CI results.
+- Merge commit: 1f606c70f47e1399ae2e2a54772254a233c6941a. Its tree 3cf92a5f2d5b1cd509b3135edec60c29f84148e9 exactly equals the final tested source tree.
+- Vercel reports successful production deployment for the merge commit: https://vercel.com/nuges-projects-381ad4bc/veri-field-nexus/8GmQm1BvjzZjEnXxpFbMKDDFtTn9. This is the provider result, not a signed-in production journey. Main CI runs 40007250110 and 40007250112 also passed: 847 backend tests (34 skipped, five deselected, one warning, 88.53s), 41 Chromium scenarios (1.2m), 10 Flutter tests, and the same typecheck/build/migration/PostGIS/SDK/STAC gates. Native analysis retains one style info. Render deploy dep-dbdqshkipgvc739qum30 became LIVE on exact merge 1f606c7 at 2026-10-23T18:59:33.703952Z. One deploy was triggered after the automatic rollout did not appear; configuration was unchanged.
+
+- Post-live HTTP checks: GET /health returned 200/healthy; GET /api/v1/health/ready returned 200/ready; unauthenticated GET /api/v1/registry/document-matrix returned 401. Error-level application logs from deployment start to 18:59:55Z contained no entries (short window only).
+- Native code is committed and checked, but no native binary/app-store deployment or physical-device journey was performed. No signed-in production mutation was used to validate this release. The agriculture production schema blocker remains unchanged.
+- Final handover is a two-file documentation-only commit with [skip ci] [skip render]; application/test source remains the exact deployed merge. Preserve Mac backups/stashes and verify branch/status before resuming in either tool.
