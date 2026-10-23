@@ -75,3 +75,13 @@ No production data/schema was modified. The known production agriculture schema 
 - Post-live HTTP checks: GET /health returned 200/healthy; GET /api/v1/health/ready returned 200/ready; unauthenticated GET /api/v1/registry/document-matrix returned 401. Error-level application logs from deployment start to 18:59:55Z contained no entries (short window only).
 - Native code is committed and checked, but no native binary/app-store deployment or physical-device journey was performed. No signed-in production mutation was used to validate this release. The agriculture production schema blocker remains unchanged.
 - Final handover is a two-file documentation-only commit with [skip ci] [skip render]; application/test source remains the exact deployed merge. Preserve Mac backups/stashes and verify branch/status before resuming in either tool.
+
+## Subsequent database repair
+
+The agriculture schema gap recorded above was resolved in a separate controlled
+change after this navigation release: PR #4 / merge 22dab9d and Supabase migration
+20261023192615. All 29 required agriculture/boundary tables and optional project
+methodology were verified, with no existing operational record changed. See
+AGRICULTURE_SCHEMA_REPAIR_2026-10-23.md for exact checks and remaining limits.
+This does not retroactively turn the earlier fixture browser tests into live
+production workflow validation.

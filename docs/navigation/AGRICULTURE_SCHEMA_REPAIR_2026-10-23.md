@@ -1,7 +1,7 @@
 # Controlled agriculture schema repair
 
 Date: 23 October 2026. Application base: 897ce81 (application source 1f606c7).
-Branch: fix/agriculture-schema-repair. Status: prepared; production not changed.
+Branch: fix/agriculture-schema-repair. Status: PR #4 merged; controlled production schema repair applied and verified.
 
 ## Observed production state
 
@@ -124,3 +124,57 @@ Read-only protected-data baseline before any production change: six projects
 c40074f3275d76d136a5f5db88934b5b, and zero projects in that organization.
 Recompute these after approval and immediately before/after execution; concurrent
 legitimate writes require reviewing changed fingerprints rather than overwriting.
+
+## Applied production checkpoint
+
+- Tested source: 6fb5c973198f9be0fe95bfadd4888417fbeded88. PR #4
+  https://github.com/Nuges/veriField-Nexus/pull/4 merged as
+  22dab9dfb9b9f0d9213297a2fcfc7e482d18afd8. Merge tree
+  ef43f0fc7ffb1c67ae5d07a4e2fb7504a4164276 exactly matches the tested source.
+- Final PR runs 40010798243 and 40010798282 passed: 12 independent repair tests
+  in 9.44s, normal Alembic and authoritative PostGIS, 847 backend tests (34 skipped,
+  five deselected, one warning in 61.83s), 160 frontend unit tests/typecheck/build,
+  SDK/STAC, 41 Chromium scenarios (1.3m), 10 Flutter tests. Native analysis retains
+  one nonfatal style info; it is not a physical-device run.
+- Supabase migration name: restore_agriculture_schema_20261023; version:
+  20261023192615. Applied only frozen REPAIR_SQL with SHA-256
+  c3edd50fcacaae7ea042ac25a0d1ccf83971b9ad4a64e3a2418529e5d4bedba5.
+  Live PostgreSQL reports 17.6; PostGIS is 3.3.7 in extensions. CI used its
+  disposable PostgreSQL 15/PostGIS 3.4 service, not an exact production clone.
+- Immediate preflight confirmed all 29 target relations absent, methodology still
+  NOT NULL, unchanged protected hashes, old Alembic marker and no Supabase entries.
+  The application was checked out at the identical merged/tested tree before apply.
+- Post-apply: 29 tables owned by postgres, all expected column names/nullability
+  match the deployed ORM; RLS enabled on all 29; no PUBLIC/anon/authenticated/
+  service_role grants; zero invalid foreign keys; zero unindexed new foreign keys.
+  projects.methodology_id is nullable with its original RESTRICT foreign key intact.
+- The six project records, one activity and affected organization have exactly the
+  same hashes as the baseline above. Affected organization project count remains 0.
+  The 29 new tables contain 0 rows total. No farm/project/methodology selection,
+  sample, boundary, result or entitlement was fabricated or provisioned.
+- Alembic remains 3307d715f0e7 deliberately. Only Supabase history records this
+  controlled bridge; do not stamp or replay the older chain.
+- Supabase advisor now reports 29 informational rls_enabled_no_policy notices.
+  This is intentional for private backend-only tables without client grants;
+  adding public JWT policies to silence the notice would change the access model.
+  Reference: https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy.
+  The earlier Auth leaked-password warning remains unchanged:
+  https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection.
+- Live HTTP: /health 200/healthy, /api/v1/health/ready 200/ready,
+  unauthenticated /api/v1/agriculture/land-units 401. Error-level app log query
+  from 19:26:00Z through 19:28:16Z returned no entries (short window only).
+- Vercel provider status is success for merge 22dab9d:
+  https://vercel.com/nuges-projects-381ad4bc/veri-field-nexus/DfsVGWW4YGjCYB2sWMBrEaGqCkFb.
+  Render remains on live dep-dbdqshkipgvc739qum30/application source 1f606c7.
+  This PR changes migrations/tests/CI/docs only; it does not change API/dashboard/
+  mobile runtime code. No additional Render rollout was needed or triggered.
+- Main CI runs 40011329098 and 40011329245 also completed successfully: 12 repair tests in 13.34s, 847 backend tests in 88.63s (34 skipped, five deselected, one warning), 41 browser scenarios in 1.3m, 10 Flutter tests, and the migration/typecheck/build/SDK/STAC gates.
+  No signed-in production write or actual farm workflow has been run. The user can
+  now create an unassigned agriculture project through Projects; selecting a
+  methodology remains an explicit project decision. Other missing EO/biochar
+  objects and broader migration-history reconciliation remain separate work.
+
+- Final checkpoint is documentation-only with [skip ci] [skip render]; runtime,
+  migration and test source remain identical to merge 22dab9d. Main and the shared
+  continuation branch are synchronized. Preserve existing Mac stashes; do not
+  reapply old patches or re-execute the applied SQL over this now-present schema.

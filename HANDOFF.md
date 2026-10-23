@@ -1,22 +1,46 @@
 # VeriField Nexus handover
 
 Updated: 23 October 2026 (Africa/Lagos)
-Status: **NAVIGATION_ROLE_SECTOR_CLEANUP_DEPLOYED** — PR #3 merged, frontend provider deployment succeeded and backend is live; production agriculture persistence remains a separate schema blocker.
+Status: **AGRICULTURE_SCHEMA_REPAIRED** — navigation release remains live; the controlled agriculture schema repair is applied and verified. No farm project or methodology was assigned.
 
-## Active task — Controlled agriculture schema repair
+## Completed task — Controlled agriculture schema repair
 
-User replied "proceed" after the navigation release and identification of the
-remaining agriculture schema blocker. Work is on fix/agriculture-schema-repair,
-based on clean 897ce81. Read-only live inspection found all 28 agriculture tables
-and project_boundary_versions absent; projects.methodology_id remains NOT NULL,
-with Alembic at 3307d715f0e7 and no Supabase migration entries. Prepared frozen,
-atomic additive repair in new revision 615d2865c464, a read-only catalog fixture,
-independent disposable-PostGIS tests, CI step and recovery plan. See
-`docs/navigation/AGRICULTURE_SCHEMA_REPAIR_2026-10-23.md`. Local safety checks:
-6 passed, 6 PostGIS-dependent skips after adding the historical-gap case. Initial GitHub PostGIS checks: 11 passed in 7.85s (run 40010251070); the following normal Alembic chain exposed four omitted legacy tables. An explicit four-table completion path now handles that exact known gap without weakening the standalone production guard. Final CI rerun pending. Draft PR #4: https://github.com/Nuges/veriField-Nexus/pull/4.
-No production schema/data change or project provisioning has been performed.
-Do not replay historical migrations, stamp the old live Alembic marker, overwrite
-existing projects/activities or assign a methodology to bypass the blocker.
+User authorized continuation of the agriculture blocker after the navigation
+release. PR #4 https://github.com/Nuges/veriField-Nexus/pull/4 merged source
+6fb5c973198f9be0fe95bfadd4888417fbeded88 as
+22dab9dfb9b9f0d9213297a2fcfc7e482d18afd8; tree identity verified.
+Final PR CI 40010798243/40010798282 passed: 12 real PostGIS repair tests (9.44s),
+normal Alembic/PostGIS, backend 847 passed/34 skipped/five deselected/one warning
+(61.83s), dashboard 160 units/typecheck/build, SDK/STAC, 41 Chromium scenarios,
+10 Flutter tests (one nonfatal analysis style info). The earlier run's known
+four-table historical omission was fixed and its regression passed.
+
+Applied Supabase migration restore_agriculture_schema_20261023, version
+20261023192615, only after fresh live preflight. Frozen SQL SHA-256:
+c3edd50fcacaae7ea042ac25a0d1ccf83971b9ad4a64e3a2418529e5d4bedba5.
+All 29 new tables/column contracts, RLS, no direct client grants, valid/indexed FKs
+and nullable methodology with its existing FK were verified. Six projects, one
+activity and the affected organization have unchanged hashes; affected project
+count is still zero and every new table is empty. No operational data, entitlement,
+methodology selection or protected pilot was modified. Live health/readiness 200;
+unauthenticated agriculture route 401. Short-window error logs were empty.
+
+The old Alembic marker remains 3307d715f0e7; only Supabase migration history records
+this bridge. Do not stamp it or blindly run historical upgrades. The migration
+refuses destructive downgrade and keeps existing tables/records on recovery.
+Intentional advisor INFO notices cover private RLS tables without client policies;
+no public JWT policies should be added merely to silence those notices.
+
+Main CI 40011329098/40011329245 also passed: 12 repair tests in 13.34s, backend 847 passed in 88.63s, 41 Chromium scenarios, 10 Flutter tests and all other gates. Vercel
+reports merge deployment success; Render stays on the existing live application
+1f606c7 because runtime code is unchanged (only migrations/tests/CI/docs changed).
+See `docs/navigation/AGRICULTURE_SCHEMA_REPAIR_2026-10-23.md` for all proofs/limits.
+The final documentation-only checkpoint uses [skip ci] [skip render]; migration/test/runtime source remains identical to merged 22dab9d. Main and work/continue-antigravity are synchronized for handover; preserve Mac stashes and verify refs before editing. Do not reapply the standalone repair now that its tables exist.
+The older schema-blocker statements below describe previous checkpoints and are
+superseded by this repair. Remaining: create the actual agriculture project using
+the user's chosen details, verify its signed-in workflow, and separately inventory
+other missing EO/biochar schema/history. Do not guess a methodology or import the
+183-acre boundary/reference area without the actual approved project context.
 
 ## Completed task — Navigation, role and sector cleanup
 
