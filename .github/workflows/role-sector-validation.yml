@@ -10,6 +10,7 @@ jobs:
   browser:
     name: Sidebar roles and field capture (Chromium)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -17,8 +18,15 @@ jobs:
           node-version: '20'
           cache: npm
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
+      - name: Prepare Chromium
         working-directory: dashboard
+        timeout-minutes: 5
+        run: |
+          if command -v google-chrome > /dev/null; then
+            echo "VF_CHROMIUM_EXECUTABLE_PATH=$(command -v google-chrome)" >> "$GITHUB_ENV"
+          else
+            npx playwright install --with-deps chromium
+          fi
       - run: npm run build --workspace dashboard
         env:
           NEXT_PUBLIC_API_URL: http://127.0.0.1:48991
