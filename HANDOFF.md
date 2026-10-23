@@ -1,9 +1,40 @@
 # VeriField Nexus handover
 
 Updated: 23 October 2026 (Africa/Lagos)
-Status: **READY_FOR_MERGE** — security update tested locally and on the Mac; hosted deployment pending.
+Status: **RELEASE_VERIFIED** — accumulated changes merged into main; Render release live and health checks passed.
 
-## Active task — dependency security update
+## Latest published and deployed checkpoint
+
+- Security source commit: `efae2de7d6ed00f6efe05674a2f286e0774a3741`.
+- PR #1 was merged into main as `cf3f898d75abb53979170d2b54d514fcfeab4e66`.
+  The merge tree exactly matches the tested security source tree; recovered Phase 1,
+  selected-project Phase 2 workflows and dependency fixes are all included.
+- PR CI run 39970468404 and main CI run 39971011334 both completed successfully.
+  GitHub's Vercel deployment status for the merge commit also reported success.
+- Render target: veriField-Nexus, service `srv-d7r4an3t6lks73fnffm0`, Eddi workspace
+  `tea-d5dtfebe5dus739kg9n0`; repository/main, backend root, Docker runtime.
+  Auto-deploy was configured on commit, but no new deploy appeared after merge and
+  successful main CI. One manual API trigger was issued, without clearing the cache.
+- Render deploy `dep-dbdn3huq1p3s7396cu00` became LIVE at
+  2026-10-23T14:42:29.750935Z for exact commit cf3f898. Prior live commit was 3585531.
+- Direct post-live checks: /health returned HTTP 200/healthy;
+  /api/v1/health/ready returned HTTP 200/ready (database and PostGIS readiness);
+  both /api/v1/registry/document-matrix and the /registry-integrations alias returned
+  HTTP 401 without credentials. No protected operational project was queried.
+- Error-level application log query from deploy start through verification returned
+  no entries. This is a short deployment-window check, not indefinite monitoring.
+- See docs/releases/2026-10-23-release.json for exact refs, deploy IDs and checks.
+  This handoff/results-only commit is newer than the deployed commit; no application,
+  dependency or test source changed. Its [skip ci] / [skip render] markers avoid
+  repeating completed code checks or starting another API rollout for documentation.
+- The continuation branch is being fast-forwarded to the same final main checkpoint
+  for tool handover. Confirm refs before editing. The Mac still has uncommitted tested
+  security copies; preserve them in a new backup stash before pulling. Keep the two
+  earlier stashes as well. Do not reapply them over the identical published code.
+- No manual migration, production data reset, methodology assignment or registry
+  submission was performed. The service used its existing configured startup behavior.
+
+## Security update history
 
 After Phase 2 was committed/pushed as a234ab7 and GitHub CI run 39959030837 passed,
 the user synchronized the Mac successfully: clean work/continue-antigravity at a234ab7.
@@ -48,10 +79,9 @@ No manual data operation or new migration was requested.
   expected nine security files are modified/new on the Mac. This checkpoint contains
   that tested source plus authorization/handoff documentation updates only.
 - Next actions under the latest instruction: publish to work/continue-antigravity,
-  wait for current PR CI, merge PR #1 into main after checks pass, and monitor the
-  resulting automatic Render deploy on the exact verified service. Do not report a
-  hosted release until the target commit is live and verified. The Mac still has
-  local tested copies; preserve them and both older stashes before synchronization.
+  these publication/merge/deploy steps are now completed as recorded above. The Mac
+  still has local tested copies; preserve them and both older stashes before
+  synchronization. Continue future feature work from the released main checkpoint.
 
 ## Phase 2 history
 
@@ -76,8 +106,8 @@ Use existing RBAC and methodology assignments. Keep the original Antigravity sta
 - Phase 1 was recovered from `VeriField-handover-3585531.zip`, based on `3585531`.
 - Draft PR #1 https://github.com/Nuges/veriField-Nexus/pull/1 tracks this branch and
   includes Phase 1 plus the pushed Phase 2 checkpoint. Historical Phase 1 CI
-  success does not substitute for the Phase 2 results below. No merge or deployment
-  is authorized; inspect git log/the remote branch for the exact checkpoint SHA.
+  success does not substitute for the Phase 2 results below. The later explicit release instruction authorized the completed merge/deployment;
+  inspect the latest checkpoint above and remote refs for current state.
 - The Mac applied the Phase 2 v2 transfer patch, narrowed the browser error selector,
   and applied `VeriField-Phase2-Regression-Tests.patch`. The closing patch transfers
   this handoff, the final report/results, role inventory, and the tested runner into
@@ -190,9 +220,9 @@ records. No methodology was assigned and no real credits or registry submission 
 Read AGENTS.md, this handoff, the final Phase 2 report and current diff. Confirm HEAD,
 stash and uncommitted files before editing. Keep one active writer per branch. The
 Phase 2 commit/push authorization was fulfilled at a234ab7 and the Mac is clean.
-The dependency update passed Mac verification and closing documentation review; the
-latest user instruction authorizes commit/push and merging the accumulated changes
-into main for the verified Render service deployment. Inspect
-remote refs, current CI and deploy IDs before treating any action as completed.
-Preserve both Mac stashes and any current local copies before synchronization.
-Do not duplicate-commit, reset or overwrite them.
+The dependency update passed Mac verification, was committed/pushed and merged into
+main, and the verified Render service is live on cf3f898. This documentation checkpoint
+records that outcome without changing application source. Inspect remote refs and
+current CI/deploy IDs before new work. Preserve both earlier Mac stashes and current
+local security copies before synchronization. Do not duplicate-commit, reset or
+overwrite them. Keep one active writer and begin future changes on a work branch.

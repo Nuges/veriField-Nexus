@@ -1,0 +1,98 @@
+{
+  "date": "2026-10-23",
+  "timezone": "Africa/Lagos",
+  "status": "RELEASE_VERIFIED",
+  "repository": "Nuges/veriField-Nexus",
+  "pull_request": 1,
+  "security_commit": "efae2de7d6ed00f6efe05674a2f286e0774a3741",
+  "main_release_commit": "cf3f898d75abb53979170d2b54d514fcfeab4e66",
+  "application_tree_at_release": "868678e8d52fc9d2467f40a56ce17c58cf782f83",
+  "ci": [
+    {
+      "run": 39970468404,
+      "scope": "pull_request/security source",
+      "conclusion": "success"
+    },
+    {
+      "run": 39971011334,
+      "scope": "main merge",
+      "conclusion": "success"
+    }
+  ],
+  "vercel": {
+    "merge_commit_status": "success",
+    "evidence": "GitHub commit status context Vercel reported Deployment has completed",
+    "url": "https://vercel.com/nuges-projects-381ad4bc/veri-field-nexus/opJc4oiALKfjfmJeQgkiyGS8fqes",
+    "limits": "No separate production browser or Vercel account/API inspection performed"
+  },
+  "render": {
+    "workspace_id": "tea-d5dtfebe5dus739kg9n0",
+    "workspace_name": "Eddi",
+    "service_id": "srv-d7r4an3t6lks73fnffm0",
+    "name": "veriField-Nexus",
+    "url": "https://verifield-nexus.onrender.com",
+    "branch": "main",
+    "root_directory": "backend",
+    "runtime": "docker",
+    "auto_deploy_configured": true,
+    "auto_deploy_observed_after_merge": false,
+    "trigger": "one manual API deploy after no pending/new deploy was observed",
+    "clear_cache": false,
+    "deploy_id": "dep-dbdn3huq1p3s7396cu00",
+    "status": "live",
+    "commit": "cf3f898d75abb53979170d2b54d514fcfeab4e66",
+    "finished_at": "2026-10-23T14:42:29.750935Z",
+    "prior_live_commit": "358553116741b151978415fabcaa21887536b3e1",
+    "error_level_app_logs_during_deployment": 0
+  },
+  "post_live_http_checks": [
+    {
+      "path": "/health",
+      "expected_statuses": [
+        200
+      ],
+      "http_status": 200,
+      "application_status": "healthy",
+      "seconds": 6.03,
+      "passed": true
+    },
+    {
+      "path": "/api/v1/health/ready",
+      "expected_statuses": [
+        200
+      ],
+      "http_status": 200,
+      "application_status": "ready",
+      "seconds": 8.42,
+      "passed": true
+    },
+    {
+      "path": "/api/v1/registry/document-matrix",
+      "expected_statuses": [
+        401,
+        403
+      ],
+      "http_status": 401,
+      "seconds": 5.97,
+      "passed": true
+    },
+    {
+      "path": "/api/v1/registry-integrations/document-matrix",
+      "expected_statuses": [
+        401,
+        403
+      ],
+      "http_status": 401,
+      "seconds": 6.05,
+      "passed": true
+    }
+  ],
+  "local_validation_evidence": "docs/security/dependency-validation-2026-10-23.json; Mac results supplied by user, distinct from these direct deployment checks",
+  "remaining_limits": [
+    "Full npm audit still reports five development-tool chain entries from withdrawn GHSA-vfj7-8cjw-p6xm; production audit zero",
+    "Five mock browser scenarios do not prove full real authentication/upload/verification journeys",
+    "Phase 2 backend run had 34 skips and 5 external-live exclusions; CI results are separate",
+    "No protected operational project counts were freshly queried; no manual resets/migrations/methodology assignment or registry submission",
+    "Documentation-only handoff commit follows deployed source commit; application/dependency/test files unchanged"
+  ]
+}
