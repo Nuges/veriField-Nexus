@@ -1,7 +1,59 @@
 # VeriField Nexus handover
 
 Updated: 23 October 2026 (Africa/Lagos)
-Status: **READY_FOR_PHASE_3** — tested source checkpoint; no production release.
+Status: **READY_FOR_MERGE** — security update tested locally and on the Mac; hosted deployment pending.
+
+## Active task — dependency security update
+
+After Phase 2 was committed/pushed as a234ab7 and GitHub CI run 39959030837 passed,
+the user synchronized the Mac successfully: clean work/continue-antigravity at a234ab7.
+The original Antigravity stash and Phase 2 Mac backup stash remain preserved. The user
+then said "proceed" to the proposed dependency security fix. After successful Mac
+validation and the closing patch, the user explicitly instructed: "commit and push.
+I need render to deploy so probably merge all with main in github". This supersedes
+the earlier local-only restriction for publishing this tested security checkpoint
+and merging the accumulated recovered Phase 1/Phase 2/security work into main.
+The user then supplied the exact Render service/deploy URL. Read-only service
+discovery verified service srv-d7r4an3t6lks73fnffm0 (veriField-Nexus), owner workspace
+tea-d5dtfebe5dus739kg9n0 (Eddi), repository Nuges/veriField-Nexus, branch main, backend
+root and Docker runtime. Auto-deploy is enabled on commit, so merging into main will
+trigger deployment without a duplicate manual trigger. Current live deploy before
+merge: dep-db6a2bd9fdbs73fd49n0, commit 358553116741b151978415fabcaa21887536b3e1.
+No manual data operation or new migration was requested.
+
+- Active isolated worktree: `/workspace/scratch/c36ff2ba4656/verifield-security`.
+- Branch: `work/security-dependencies-2026-10-23`; base a234ab7, initially clean.
+  Earlier verifield-work source was left intact; its duplicated uncommitted Phase 2
+  changes are not new unpublished work. Use this security worktree for the active task.
+- Next.js/compiler/ESLint configuration: 16.2.4 -> 16.4.2. React/React DOM stay 19.2.4.
+  Compatible audited transitive dependencies updated; no application/API/RBAC/backend
+  source, migration, deployment config or protected records changed.
+- Linux validation: npm ci passed both with scripts disabled and normally; 138 unit
+  tests passed; independent TypeScript and 41-page webpack build passed; lint passed
+  with 0 errors/329 warnings (baseline 324; five new navigation-rule warnings on
+  existing code). Four local production-server HTML routes returned 200.
+- Production audit: 0 vulnerabilities, exit 0. Full audit: 5 high/0 critical, exit 1,
+  down from 16 affected packages. All five remaining entries form one dev-only lint
+  dependency chain from GHSA-vfj7-8cjw-p6xm, withdrawn by GitHub on 23 October 2026.
+  Raw audit output is retained; no downgrade, fork or audit suppression was applied.
+- Mac security-update validation confirmed by the user: npm ci succeeded (440 added,
+  442 audited), 138 unit tests passed, independent TypeScript/quiet lint/build passed
+  (Next.js 16.4.2, 41 pages), production audit found 0 vulnerabilities and whitespace
+  check passed. All five updated-dependency mock Chromium tests passed in 2.5 seconds.
+  Linux browser downloads remain environment-blocked; the separate Mac run resolves
+  the required mock-browser verification. No real operational browser journey is claimed.
+- See docs/security/DEPENDENCY_SECURITY_UPDATE_2026-10-23.md and validation/audit JSON
+  companions for exact versions, commands, exit codes, sources and limitations.
+- The user confirmed that the closing documentation patch applied cleanly and the
+  expected nine security files are modified/new on the Mac. This checkpoint contains
+  that tested source plus authorization/handoff documentation updates only.
+- Next actions under the latest instruction: publish to work/continue-antigravity,
+  wait for current PR CI, merge PR #1 into main after checks pass, and monitor the
+  resulting automatic Render deploy on the exact verified service. Do not report a
+  hosted release until the target commit is live and verified. The Mac still has
+  local tested copies; preserve them and both older stashes before synchronization.
+
+## Phase 2 history
 
 ## Current instruction and authorization
 
@@ -15,15 +67,15 @@ Use existing RBAC and methodology assignments. Keep the original Antigravity sta
 
 ## Code location and Git state
 
-- Active branch: `work/continue-antigravity`.
-- Mac checkout last confirmed HEAD: `f524f84` (recovered Phase 1); the user applied and
-  tested Phase 2 locally before authorizing this GitHub checkpoint.
+- Published Phase 2 branch: `work/continue-antigravity`, checkpoint `a234ab7`.
+- Mac checkout last confirmed HEAD: `a234ab7`, clean and synchronized after preserving
+  the local backup stash and restoring the colliding instruction paths.
 - ChatGPT source worktree: `/workspace/scratch/c36ff2ba4656/verifield-work`, HEAD `7f2aa84`.
   Its full starting tree matches GitHub parent `639e3d3b7c66fa125cd21169fea5628db53c317a`
   (1,300 file hashes/modes compared). The older Mac handoff needed a compatible patch.
 - Phase 1 was recovered from `VeriField-handover-3585531.zip`, based on `3585531`.
 - Draft PR #1 https://github.com/Nuges/veriField-Nexus/pull/1 tracks this branch and
-  includes Phase 1 plus this Phase 2 checkpoint once pushed. Historical Phase 1 CI
+  includes Phase 1 plus the pushed Phase 2 checkpoint. Historical Phase 1 CI
   success does not substitute for the Phase 2 results below. No merge or deployment
   is authorized; inspect git log/the remote branch for the exact checkpoint SHA.
 - The Mac applied the Phase 2 v2 transfer patch, narrowed the browser error selector,
@@ -137,7 +189,10 @@ records. No methodology was assigned and no real credits or registry submission 
 
 Read AGENTS.md, this handoff, the final Phase 2 report and current diff. Confirm HEAD,
 stash and uncommitted files before editing. Keep one active writer per branch. The
-user has authorized committing/pushing this checkpoint only. The Mac may still have
-uncommitted copies of the same changes; preserve them before synchronizing with the
-remote. Do not duplicate-commit, reset or overwrite them. Record future tested commits
-and deployments separately; no merge or deployment has been approved.
+Phase 2 commit/push authorization was fulfilled at a234ab7 and the Mac is clean.
+The dependency update passed Mac verification and closing documentation review; the
+latest user instruction authorizes commit/push and merging the accumulated changes
+into main for the verified Render service deployment. Inspect
+remote refs, current CI and deploy IDs before treating any action as completed.
+Preserve both Mac stashes and any current local copies before synchronization.
+Do not duplicate-commit, reset or overwrite them.
