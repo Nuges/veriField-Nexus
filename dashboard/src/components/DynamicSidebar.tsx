@@ -167,14 +167,9 @@ export function DynamicSidebar() {
       case "ORG_ADMIN":
         return [
           {
-            title: "Overview",
+            title: "Governance & Operations",
             items: [
-              { label: "Overview", icon: "LayoutDashboard", href: "/dashboard" },
-            ],
-          },
-          {
-            title: "Projects",
-            items: [
+              { label: "Organization Overview", icon: "LayoutDashboard", href: "/dashboard" },
               { label: sectorTerms.projectsNavLabel, icon: "Briefcase", href: "/dashboard/projects" },
               { label: "Programmes (PoA)", icon: "Globe", href: "/dashboard/poa" },
               {
@@ -183,38 +178,33 @@ export function DynamicSidebar() {
                 href: "/dashboard/operations",
                 badge: flaggedCount ? `${flaggedCount}` : undefined,
               },
+              { label: sectorTerms.monitoringNavLabel, icon: "Activity", href: "/dashboard/monitoring" },
               { label: "Project Map", icon: "Globe", href: "/dashboard/command-center" },
             ],
           },
           {
-            title: "Monitoring",
+            title: "Reporting & Assets",
             items: [
               { label: "Live Telemetry", icon: "Radio", href: "/dashboard/sensors" },
               { label: "Assets", icon: "Layers", href: "/dashboard/assets" },
-              { label: sectorTerms.monitoringNavLabel, icon: "Activity", href: "/dashboard/monitoring" },
-            ],
-          },
-          {
-            title: "MRV",
-            items: [
               { label: "Verification", icon: "ShieldCheck", href: "/dashboard/verifications" },
-              { label: "Carbon Ledger", icon: "Sliders", href: "/dashboard/carbon" },
               { label: "Registry", icon: "FileCheck", href: "/dashboard/registry" },
+              { label: "Carbon Ledger", icon: "Sliders", href: "/dashboard/carbon" },
+              { label: "Organization Reports", icon: "FileText", href: "/dashboard/analytics" },
             ],
           },
           {
-            title: "Organization",
+            title: "Administration & Security",
             items: [
-              { label: "Reports", icon: "FileText", href: "/dashboard/analytics" },
               { label: "People & Access", icon: "Users", href: "/dashboard/people" },
               { label: "Settings", icon: "Settings", href: "/dashboard/settings" },
             ],
           },
           {
-            title: "Support",
+            title: "Intelligence & Guides",
             items: [
-              { label: "Decision Support", icon: "Bot", href: "/dashboard/ai" },
-              { label: "Help", icon: "HelpCircle", href: "/dashboard/help" },
+              { label: sectorTerms.aiNavLabel, icon: "Bot", href: "/dashboard/ai" },
+              { label: "Help & Knowledge", icon: "HelpCircle", href: "/dashboard/help" },
             ],
           },
         ];
