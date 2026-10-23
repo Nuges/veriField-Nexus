@@ -15,9 +15,11 @@ import {
   ChevronRight,
   ExternalLink,
   Upload,
+  Download,
 } from "lucide-react";
 import { useWorkspace } from "@/context/WorkspaceContext";
 import { canonicalSectorCode } from "@/lib/moduleRegistry";
+import { downloadLaboratoryImportTemplate } from "@/lib/api";
 import { ProjectDocumentsModule } from "@/components/dashboard/ProjectDocumentsModule";
 import AgricultureLaboratoryBulkImportView from "@/components/dashboard/AgricultureLaboratoryBulkImportView";
 
@@ -28,6 +30,8 @@ interface IngestionCenterViewProps {
 export default function IngestionCenterView({ initialSubView = "hub" }: IngestionCenterViewProps) {
   const { user, activeSector, activeProject, changeProject, projects } = useWorkspace();
   const [activeSubView, setActiveSubView] = useState<"hub" | "documents" | "laboratory">(initialSubView);
+  const [downloadingTemplate, setDownloadingTemplate] = useState(false);
+  const [templateError, setTemplateError] = useState<string | null>(null);
 
   const currentProject = projects.find((p) => p.id === activeProject);
   const userRole = (user?.role || "VIEWER").toUpperCase();
@@ -174,6 +178,12 @@ export default function IngestionCenterView({ initialSubView = "hub" }: Ingestio
         )}
       </div>
 
+      {templateError && (
+        <div role="alert" className="p-3 rounded-xl border border-red-500/30 bg-red-500/10 text-xs text-red-600 dark:text-red-400">
+          {templateError}
+        </div>
+      )}
+
       {/* 📦 THE THREE INGESTION PATHWAYS */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {/* CARD A: PROJECT DOCUMENTS & PDD */}
@@ -271,12 +281,35 @@ export default function IngestionCenterView({ initialSubView = "hub" }: Ingestio
               )}
 
               {activeProject && (
-                <button
-                  onClick={() => setActiveSubView("laboratory")}
-                  className="w-full py-1.5 text-center text-[11px] font-semibold text-[var(--color-text-secondary)] hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors cursor-pointer"
-                >
-                  Manage Assay Batches →
-                </button>
+                <div className="flex items-center gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!activeProject) return;
+                      setDownloadingTemplate(true);
+                      setTemplateError(null);
+                      try {
+                        await downloadLaboratoryImportTemplate(activeProject, "csv");
+                      } catch (err: unknown) {
+                        setTemplateError(err instanceof Error ? err.message : "Failed to download laboratory template");
+                      } finally {
+                        setDownloadingTemplate(false);
+                      }
+                    }}
+                    disabled={downloadingTemplate}
+                    data-testid="btn-hub-download-lab-template"
+                    className="flex-1 py-2 px-3 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] hover:bg-[var(--color-surface)] text-[var(--color-text-primary)] font-semibold text-[11px] transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                  >
+                    <Download size={13} />
+                    <span>{downloadingTemplate ? "Downloading..." : "Download Lab Template"}</span>
+                  </button>
+                  <button
+                    onClick={() => setActiveSubView("laboratory")}
+                    className="flex-1 py-2 px-3 text-center text-[11px] font-semibold text-[var(--color-text-secondary)] hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors cursor-pointer border border-transparent hover:border-[var(--color-border)] rounded-xl"
+                  >
+                    Manage Batches →
+                  </button>
+                </div>
               )}
             </div>
           </div>

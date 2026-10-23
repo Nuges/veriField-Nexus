@@ -114,7 +114,7 @@ export function getApiV1(): string {
       rawApiBase = process.env.BACKEND_API_URL || "http://localhost:8000";
     }
   }
-  const API_BASE = rawApiBase.replace(/\/+$/, "");
+  const API_BASE = rawApiBase.replace(/\/+$/, "").replace(/\/api\/v1$/, "");
   return `${API_BASE}/api/v1`;
 }
 
@@ -5411,8 +5411,44 @@ export async function commitLaboratoryImportBatch(
 }
 
 export function getLaboratoryImportTemplateUrl(projectId: string, format: "csv" | "xlsx" = "csv"): string {
-  const base = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
-  return `${base}/api/v1/agriculture/projects/${projectId}/laboratory-import/template?format=${format}`;
+  return `${getApiV1()}/agriculture/projects/${encodeURIComponent(projectId)}/laboratory-import/template?format=${format}`;
+}
+
+export async function downloadLaboratoryImportTemplate(
+  projectId: string,
+  format: "csv" | "xlsx" = "csv"
+): Promise<void> {
+  const token = getAuthToken();
+  const res = await fetch(
+    getLaboratoryImportTemplateUrl(projectId, format),
+    {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    }
+  );
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => null);
+    throw new Error(typeof errorData?.detail === "string"
+      ? errorData.detail
+      : `Laboratory template download failed (HTTP ${res.status}).`);
+  }
+  const blob = await res.blob();
+  const disposition = res.headers.get("Content-Disposition");
+  let filename = `verifield_lab_import_template.${format}`;
+  if (disposition && disposition.includes("filename=")) {
+    const match = disposition.match(/filename="?([^";]+)"?/);
+    if (match && match[1]) filename = match[1];
+  }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  try {
+    a.click();
+  } finally {
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
 }
 
 export function getLaboratoryImportErrorsUrl(projectId: string, batchId: string): string {
