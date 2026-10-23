@@ -128,19 +128,8 @@ export default function ActivitiesPage() {
 
     try {
 
-      const res = await fetchActivities({ page, per_page: 20, activity_type: activityType, status });
-
-      // In a fully dynamic setup, we might filter by activeProject or methodology_id here if supported by backend
-
-      const filteredActs = activeProject
-
-        ? res.activities.filter((a: any) => a.project_id === activeProject)
-
-        : res.activities;
-
-
-
-      setData({ ...res, activities: filteredActs });
+      const res = await fetchActivities({ page, per_page: 20, activity_type: activityType, status, project_id: activeProject || undefined });
+      setData(res);
 
       setLastUpdated(new Date());
 
@@ -425,7 +414,7 @@ export default function ActivitiesPage() {
       </td>
 
       <td className="p-4 text-xs font-mono text-[var(--color-text-secondary)]">
-        {activity.latitude && activity.longitude ? (
+        {activity.latitude !== null && activity.longitude !== null ? (
           <div className="flex items-center gap-1.5">
             <MapPin size={12} className="text-[#00B47A]" />
             <span>
@@ -433,16 +422,14 @@ export default function ActivitiesPage() {
             </span>
           </div>
         ) : (
-          <span className="text-[var(--color-text-muted)] text-[10px] font-bold">No Spatial Log</span>
+          <span className="text-[var(--color-text-muted)] text-[10px] font-bold">No location</span>
         )}
       </td>
 
       <td className="p-4">
         <div className="flex items-center gap-2">
           <TrustBadge score={activity.trust_score} />
-          <span className="text-[10px] font-extrabold text-[#00B47A] hidden lg:inline-block bg-[#00B47A]/5 border border-[#00B47A]/15 px-1.5 py-0.5 rounded">
-            {(activity.trust_score ?? 0) >= 80 ? "SECURE" : (activity.trust_score ?? 0) >= 60 ? "AUDIT" : "WARN"}
-          </span>
+
         </div>
       </td>
     </tr>
@@ -458,15 +445,11 @@ export default function ActivitiesPage() {
 
         <div>
 
-          <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded bg-[#008A5E]/10 text-[#008A5E] text-[10px] font-mono font-bold tracking-wider uppercase border border-[#008A5E]/20">
-              {activeMethodology || "All Methodologies"}
-            </span>
-          </div>
+
 
           <h1 className="text-xl font-bold tracking-tight text-[var(--color-text-primary)] mt-1">
 
-            Field Activities Ledger
+            Field records
 
           </h1>
 
@@ -498,7 +481,7 @@ export default function ActivitiesPage() {
 
             className="p-2 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:text-[#00B47A] hover:border-[#00B47A]/30 transition-all shadow-sm active:scale-95"
 
-            title="Refresh Ledger"
+            title="Refresh records"
 
           >
 
@@ -530,7 +513,7 @@ export default function ActivitiesPage() {
 
         <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4 flex flex-col justify-between shadow-sm hover:shadow-md transition-all">
 
-          <span className="text-[9px] uppercase font-extrabold tracking-wider text-[var(--color-text-muted)]">Submissions Ledger</span>
+          <span className="text-[9px] uppercase font-extrabold tracking-wider text-[var(--color-text-muted)]">Submissions</span>
 
           <div className="flex items-baseline gap-1.5 mt-1.5">
 
@@ -540,15 +523,9 @@ export default function ActivitiesPage() {
 
             </span>
 
-            <span className="text-[#00B47A] text-[9px] font-extrabold flex items-center gap-0.5">
-
-              <ArrowUpRight size={10} /> Active
-
-            </span>
-
           </div>
 
-          <span className="text-[8px] text-[var(--color-text-muted)] mt-1">Registry records synced</span>
+          <span className="text-[8px] text-[var(--color-text-muted)] mt-1">Records in this view</span>
 
         </div>
 
@@ -556,21 +533,21 @@ export default function ActivitiesPage() {
 
         <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4 flex flex-col justify-between shadow-sm hover:shadow-md transition-all">
 
-          <span className="text-[9px] uppercase font-extrabold tracking-wider text-[var(--color-text-muted)]">High Trust Rate</span>
+          <span className="text-[9px] uppercase font-extrabold tracking-wider text-[var(--color-text-muted)]">High quality scores</span>
 
           <div className="flex items-baseline gap-0.5 mt-1.5">
 
             <span className="text-2xl font-black tracking-tight text-emerald-500">
 
-              {data?.activities.length ? Math.round((highTrustActivitiesCount / data.activities.length) * 100) : 0}%
+              {filteredActivities.length ? `${Math.round((highTrustActivitiesCount / filteredActivities.length) * 100)}%` : "—"}
 
             </span>
 
-            <span className="text-emerald-500 text-[9px] font-extrabold ml-1">✓ Verified</span>
+
 
           </div>
 
-          <span className="text-[8px] text-[var(--color-text-muted)] mt-1">Scored &gt;= 80 index rating</span>
+          <span className="text-[8px] text-[var(--color-text-muted)] mt-1">Score of 80 or above</span>
 
         </div>
 
@@ -578,7 +555,7 @@ export default function ActivitiesPage() {
 
         <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4 flex flex-col justify-between shadow-sm hover:shadow-md transition-all">
 
-          <span className="text-[9px] uppercase font-extrabold tracking-wider text-[var(--color-text-muted)]">Pending Audit</span>
+          <span className="text-[9px] uppercase font-extrabold tracking-wider text-[var(--color-text-muted)]">Awaiting review</span>
 
           <div className="flex items-baseline gap-1.5 mt-1.5">
 
@@ -588,15 +565,11 @@ export default function ActivitiesPage() {
 
             </span>
 
-            <span className="text-amber-500 text-[9px] font-extrabold flex items-center gap-0.5">
 
-              <Clock size={10} /> Review
-
-            </span>
 
           </div>
 
-          <span className="text-[8px] text-[var(--color-text-muted)] mt-1">Requires manual audit approval</span>
+          <span className="text-[8px] text-[var(--color-text-muted)] mt-1">Pending or under review</span>
 
         </div>
 
@@ -604,7 +577,7 @@ export default function ActivitiesPage() {
 
         <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4 flex flex-col justify-between shadow-sm hover:shadow-md transition-all">
 
-          <span className="text-[9px] uppercase font-extrabold tracking-wider text-[var(--color-text-muted)]">Flagged Risks</span>
+          <span className="text-[9px] uppercase font-extrabold tracking-wider text-[var(--color-text-muted)]">Flagged records</span>
 
           <div className="flex items-baseline mt-1.5">
 
@@ -614,11 +587,7 @@ export default function ActivitiesPage() {
 
             </span>
 
-            <span className="text-red-500 text-[9px] font-extrabold ml-2 flex items-center gap-0.5">
 
-              <AlertTriangle size={10} /> Conflict
-
-            </span>
 
           </div>
 
@@ -640,7 +609,7 @@ export default function ActivitiesPage() {
 
             <Filter size={14} />
 
-            <span>Filter Engine</span>
+            <span>Filters</span>
 
           </div>
 
@@ -674,13 +643,13 @@ export default function ActivitiesPage() {
 
           >
 
-            <option value="">All Trust Statuses</option>
+            <option value="">All statuses</option>
 
-            <option value="verified">Verified (High Trust)</option>
+            <option value="verified">Verified</option>
 
-            <option value="review">Review (Medium Trust)</option>
+            <option value="review">Under review</option>
 
-            <option value="flagged">Flagged (Low Trust)</option>
+            <option value="flagged">Flagged</option>
 
             <option value="pending">Pending</option>
 
@@ -704,7 +673,7 @@ export default function ActivitiesPage() {
 
             type="text"
 
-            placeholder="Search by Agent name or ID..."
+            placeholder="Search records..."
 
             value={searchQuery}
 
@@ -748,15 +717,15 @@ export default function ActivitiesPage() {
 
               <tr className="bg-[var(--color-background)] border-b border-[var(--color-border)]">
 
-                <th className="p-4 text-[10px] font-extrabold text-[var(--color-text-secondary)] uppercase tracking-wider">Installation Details</th>
+                <th className="p-4 text-[10px] font-extrabold text-[var(--color-text-secondary)] uppercase tracking-wider">Record</th>
 
-                <th className="p-4 text-[10px] font-extrabold text-[var(--color-text-secondary)] uppercase tracking-wider">Sync Timestamp</th>
+                <th className="p-4 text-[10px] font-extrabold text-[var(--color-text-secondary)] uppercase tracking-wider">Captured</th>
 
-                <th className="p-4 text-[10px] font-extrabold text-[var(--color-text-secondary)] uppercase tracking-wider">Reporting Field Agent</th>
+                <th className="p-4 text-[10px] font-extrabold text-[var(--color-text-secondary)] uppercase tracking-wider">Submitted by</th>
 
-                <th className="p-4 text-[10px] font-extrabold text-[var(--color-text-secondary)] uppercase tracking-wider">Geospatial Capture Bounds</th>
+                <th className="p-4 text-[10px] font-extrabold text-[var(--color-text-secondary)] uppercase tracking-wider">Location</th>
 
-                <th className="p-4 text-[10px] font-extrabold text-[var(--color-text-secondary)] uppercase tracking-wider">Immutability Trust</th>
+                <th className="p-4 text-[10px] font-extrabold text-[var(--color-text-secondary)] uppercase tracking-wider">Quality score</th>
 
               </tr>
 
@@ -800,7 +769,7 @@ export default function ActivitiesPage() {
 
                       <button onClick={loadActivities} className="px-4 py-2 rounded-xl bg-[#00B47A]/10 text-[#00B47A] text-xs font-bold border border-[#00B47A]/20 hover:bg-[#00B47A]/20 transition-all">
 
-                        Force Ledger Reload
+                        Reload records
 
                       </button>
 
@@ -820,7 +789,7 @@ export default function ActivitiesPage() {
 
                       <Layers size={20} className="text-[var(--color-text-muted)]" />
 
-                      <span className="text-xs font-semibold">No synchronized field activities matched current parameters.</span>
+                      <span className="text-xs font-semibold">No field records match these filters.</span>
 
                     </div>
 

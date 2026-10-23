@@ -37,7 +37,7 @@ import {
 import { useState, useEffect } from "react";
 import { useWorkspace } from "@/context/WorkspaceContext";
 import { fetchActivities } from "@/lib/api";
-import { getSectorTerminology } from "@/lib/moduleRegistry";
+import { getNavigationGroups } from "@/lib/navigation";
 import { normalizeRole } from "@/lib/roles";
 
 interface ActivityBadgeItem {
@@ -70,26 +70,12 @@ const ICON_MAP: Record<string, LucideIcon> = {
   AlertTriangle,
 };
 
-interface NavItem {
-  label: string;
-  icon: string;
-  href: string;
-  badge?: string;
-  external?: boolean;
-}
-
-interface NavGroup {
-  title: string;
-  items: NavItem[];
-}
-
-export function DynamicSidebar() {
+export function DynamicSidebar({ mobileOpen = false, onNavigate }: { mobileOpen?: boolean; onNavigate?: () => void }) {
   const pathname = usePathname();
-  const { user, activeSector } = useWorkspace();
+  const { user } = useWorkspace();
   const [flaggedCount, setFlaggedCount] = useState<number | null>(null);
   const [pendingCount, setPendingCount] = useState<number | null>(null);
 
-  const sectorTerms = getSectorTerminology(activeSector);
   const canonicalRole = normalizeRole(user?.role);
 
   useEffect(() => {
@@ -117,389 +103,11 @@ export function DynamicSidebar() {
         console.error("Failed to load real-time sidebar badges", err);
       }
     }
-    loadRealTimeCounts();
-  }, []);
+    if (["SUPER_ADMIN", "ORG_ADMIN", "PROJECT_MANAGER", "FIELD_SUPERVISOR", "FIELD_AGENT", "QA_OFFICER", "VERIFIER", "AUDITOR"].includes(canonicalRole)) loadRealTimeCounts();
+  }, [canonicalRole]);
 
   // ─── Purpose-Built Navigation Per Canonical Persona ────────────────────────
-  const getNavGroups = (): NavGroup[] => {
-    switch (canonicalRole) {
-      case "SUPER_ADMIN":
-        return [
-          {
-            title: "Platform Governance",
-            items: [
-              { label: "Platform Overview", icon: "LayoutDashboard", href: "/dashboard" },
-              { label: "Global Infrastructure", icon: "Sliders", href: "/super-admin" },
-              { label: "All Projects", icon: "Briefcase", href: "/dashboard/projects" },
-              { label: "PoA Programmes", icon: "Globe", href: "/dashboard/poa" },
-            ],
-          },
-          {
-            title: "MRV, Registry & Carbon",
-            items: [
-              { label: "Methodologies", icon: "Layers", href: "/dashboard/methodologies" },
-              {
-                label: "Verification Queue",
-                icon: "ShieldCheck",
-                href: "/dashboard/verifications",
-                badge: pendingCount ? `${pendingCount}` : undefined,
-              },
-              { label: "Carbon Ledger", icon: "Sliders", href: "/dashboard/carbon" },
-              { label: "Project Map", icon: "Globe", href: "/dashboard/command-center" },
-              { label: "Global Reports", icon: "FileText", href: "/dashboard/analytics" },
-            ],
-          },
-          {
-            title: "Administration",
-            items: [
-              { label: "Tenant & User Access", icon: "Users", href: "/dashboard/people" },
-            ],
-          },
-          {
-            title: "Support",
-            items: [
-              { label: "Decision Support", icon: "Bot", href: "/dashboard/ai" },
-              { label: "Help & Knowledge", icon: "HelpCircle", href: "/dashboard/help" },
-            ],
-          },
-        ];
-
-      case "ORG_ADMIN":
-        return [
-          {
-            title: "Governance & Operations",
-            items: [
-              { label: "Organization Overview", icon: "LayoutDashboard", href: "/dashboard" },
-              { label: sectorTerms.projectsNavLabel, icon: "Briefcase", href: "/dashboard/projects" },
-              { label: "Programmes (PoA)", icon: "Globe", href: "/dashboard/poa" },
-              {
-                label: "Field Operations",
-                icon: "Radio",
-                href: "/dashboard/operations",
-                badge: flaggedCount ? `${flaggedCount}` : undefined,
-              },
-              { label: sectorTerms.monitoringNavLabel, icon: "Activity", href: "/dashboard/monitoring" },
-              { label: "Project Map", icon: "Globe", href: "/dashboard/command-center" },
-            ],
-          },
-          {
-            title: "Reporting & Assets",
-            items: [
-              { label: "Live Telemetry", icon: "Radio", href: "/dashboard/sensors" },
-              { label: "Assets", icon: "Layers", href: "/dashboard/assets" },
-              { label: "Verification", icon: "ShieldCheck", href: "/dashboard/verifications" },
-              { label: "Registry", icon: "FileCheck", href: "/dashboard/registry" },
-              { label: "Carbon Ledger", icon: "Sliders", href: "/dashboard/carbon" },
-              { label: "Organization Reports", icon: "FileText", href: "/dashboard/analytics" },
-            ],
-          },
-          {
-            title: "Administration & Security",
-            items: [
-              { label: "People & Access", icon: "Users", href: "/dashboard/people" },
-              { label: "Settings", icon: "Settings", href: "/dashboard/settings" },
-            ],
-          },
-          {
-            title: "Intelligence & Guides",
-            items: [
-              { label: sectorTerms.aiNavLabel, icon: "Bot", href: "/dashboard/ai" },
-              { label: "Help & Knowledge", icon: "HelpCircle", href: "/dashboard/help" },
-            ],
-          },
-        ];
-
-      case "PROJECT_MANAGER":
-        return [
-          {
-            title: "Project Delivery",
-            items: [
-              { label: "Project Overview", icon: "LayoutDashboard", href: "/dashboard" },
-              { label: sectorTerms.projectsNavLabel, icon: "Briefcase", href: "/dashboard/projects" },
-              { label: "Project Map", icon: "Globe", href: "/dashboard/command-center" },
-              { label: "Programmes (PoA)", icon: "Globe", href: "/dashboard/poa" },
-              {
-                label: "Project Activities",
-                icon: "Radio",
-                href: "/dashboard/operations",
-                badge: flaggedCount ? `${flaggedCount}` : undefined,
-              },
-              { label: "Monitoring & IoT", icon: "Activity", href: "/dashboard/monitoring" },
-            ],
-          },
-          {
-            title: "MRV & Documentation",
-            items: [
-              { label: "Methodology & PDD", icon: "Layers", href: "/dashboard/methodologies" },
-              { label: "Registry Packages", icon: "FileCheck", href: "/dashboard/registry" },
-              { label: "Project Reports", icon: "FileText", href: "/dashboard/analytics" },
-            ],
-          },
-          {
-            title: "Intelligence & Guides",
-            items: [
-              { label: "AI Project Assistant", icon: "Bot", href: "/dashboard/ai", badge: "Live" },
-              { label: "Project Guidelines", icon: "HelpCircle", href: "/dashboard/help" },
-            ],
-          },
-        ];
-
-      case "FIELD_SUPERVISOR":
-        return [
-          {
-            title: "Field Operations",
-            items: [
-              { label: "Supervisor Overview", icon: "LayoutDashboard", href: "/dashboard" },
-              {
-                label: "Field Activity Queue",
-                icon: "Radio",
-                href: "/dashboard/operations",
-                badge: flaggedCount ? `${flaggedCount}` : undefined,
-              },
-              { label: "Device Telemetry", icon: "Activity", href: "/dashboard/monitoring" },
-              { label: sectorTerms.projectsNavLabel, icon: "Briefcase", href: "/dashboard/projects" },
-            ],
-          },
-          {
-            title: "Reporting & Intelligence",
-            items: [
-              { label: "Field Reports", icon: "FileText", href: "/dashboard/analytics" },
-              { label: "Field AI Assistant", icon: "Bot", href: "/dashboard/ai" },
-              { label: "Help & Guides", icon: "HelpCircle", href: "/dashboard/help" },
-            ],
-          },
-        ];
-
-      case "FIELD_AGENT":
-        return [
-          {
-            title: "Field Work",
-            items: [
-              { label: "My Assignments", icon: "LayoutDashboard", href: "/dashboard" },
-              {
-                label: "Activity Capture",
-                icon: "Radio",
-                href: "/dashboard/operations",
-                badge: flaggedCount ? `${flaggedCount}` : undefined,
-              },
-              { label: "Device & Sensor Status", icon: "Activity", href: "/dashboard/monitoring" },
-            ],
-          },
-          {
-            title: "Intelligence & Guides",
-            items: [
-              { label: "Field AI Assistant", icon: "Bot", href: "/dashboard/ai" },
-              { label: "Help & Knowledge", icon: "HelpCircle", href: "/dashboard/help" },
-            ],
-          },
-        ];
-
-      case "QA_OFFICER":
-        return [
-          {
-            title: "MRV & QA/QC Control",
-            items: [
-              { label: "MRV Overview", icon: "LayoutDashboard", href: "/dashboard" },
-              {
-                label: "QA Review",
-                icon: "Radio",
-                href: "/dashboard/operations",
-                badge: flaggedCount ? `${flaggedCount}` : undefined,
-              },
-              { label: "Flagged Exceptions", icon: "AlertTriangle", href: "/dashboard/anomalies" },
-              { label: "Trust Scores", icon: "ShieldCheck", href: "/dashboard/trust-scores" },
-              { label: "Verification Packages / Audits", icon: "FileCheck", href: "/dashboard/verifications" },
-              { label: "Monitoring Data", icon: "Activity", href: "/dashboard/monitoring" },
-              { label: "Methodologies", icon: "Layers", href: "/dashboard/methodologies" },
-            ],
-          },
-          {
-            title: "Analysis & Reporting",
-            items: [
-              { label: "MRV Analytics", icon: "FileText", href: "/dashboard/analytics" },
-              { label: "AI Quality Assistant", icon: "Bot", href: "/dashboard/ai" },
-              { label: "Help & Guides", icon: "HelpCircle", href: "/dashboard/help" },
-            ],
-          },
-        ];
-
-      case "VERIFIER":
-        return [
-          {
-            title: "VVB Verification Workspace",
-            items: [
-              { label: "Verification Overview", icon: "LayoutDashboard", href: "/dashboard" },
-              {
-                label: "Verification Queue",
-                icon: "ShieldCheck",
-                href: "/dashboard/verifications",
-                badge: pendingCount ? `${pendingCount}` : undefined,
-              },
-              { label: "Assigned Projects", icon: "Briefcase", href: "/dashboard/projects" },
-              { label: "Monitoring & Lineage", icon: "Activity", href: "/dashboard/monitoring" },
-            ],
-          },
-          {
-            title: "Technical Review",
-            items: [
-              { label: "Methodology & PDD", icon: "Layers", href: "/dashboard/methodologies" },
-              { label: "Carbon Ledger View", icon: "Sliders", href: "/dashboard/carbon" },
-              { label: "Verification Reports", icon: "FileText", href: "/dashboard/analytics" },
-            ],
-          },
-          {
-            title: "Intelligence & Standards",
-            items: [
-              { label: "AI Audit Assistant", icon: "Bot", href: "/dashboard/ai" },
-              { label: "VVB Guidelines", icon: "HelpCircle", href: "/dashboard/help" },
-            ],
-          },
-        ];
-
-      case "AUDITOR":
-        return [
-          {
-            title: "Audit Operations",
-            items: [
-              { label: "Audit Workspace", icon: "LayoutDashboard", href: "/dashboard" },
-              {
-                label: "Audit Findings & NCRs",
-                icon: "ShieldCheck",
-                href: "/dashboard/verifications",
-                badge: pendingCount ? `${pendingCount}` : undefined,
-              },
-              { label: "Audited Projects", icon: "Briefcase", href: "/dashboard/projects" },
-              { label: "Sensor Evidence & Lineage", icon: "Activity", href: "/dashboard/monitoring" },
-            ],
-          },
-          {
-            title: "Evidence & Standards",
-            items: [
-              { label: "Methodology Evidence", icon: "Layers", href: "/dashboard/methodologies" },
-              { label: "Audit Reports", icon: "FileText", href: "/dashboard/analytics" },
-            ],
-          },
-          {
-            title: "Audit Intelligence",
-            items: [
-              { label: "AI Audit Assistant", icon: "Bot", href: "/dashboard/ai" },
-              { label: "Audit Standards", icon: "HelpCircle", href: "/dashboard/help" },
-            ],
-          },
-        ];
-
-      case "COMPLIANCE_ADMIN":
-        return [
-          {
-            title: "Compliance & Sovereign Control",
-            items: [
-              { label: "Compliance Overview", icon: "LayoutDashboard", href: "/dashboard" },
-              { label: "Article 6 Compliance", icon: "Globe", href: "/dashboard/command-center" },
-              { label: "Project Portfolio", icon: "Briefcase", href: "/dashboard/projects" },
-              { label: "PoA Programmes", icon: "Globe", href: "/dashboard/poa" },
-            ],
-          },
-          {
-            title: "Regulatory Documents",
-            items: [
-              { label: "Methodologies & NDC", icon: "Layers", href: "/dashboard/methodologies" },
-              { label: "Registry Packages", icon: "FileCheck", href: "/dashboard/registry" },
-              { label: "Compliance Reports", icon: "FileText", href: "/dashboard/analytics" },
-            ],
-          },
-          {
-            title: "Intelligence & Guides",
-            items: [
-              { label: "AI Compliance Assistant", icon: "Bot", href: "/dashboard/ai" },
-              { label: "Host Country Guidelines", icon: "HelpCircle", href: "/dashboard/help" },
-            ],
-          },
-        ];
-
-      case "REGISTRY_ADMIN":
-        return [
-          {
-            title: "Registry Operations",
-            items: [
-              { label: "Registry Overview", icon: "LayoutDashboard", href: "/dashboard" },
-              { label: "Submission Packages", icon: "FileCheck", href: "/dashboard/registry" },
-              { label: "Registered Projects", icon: "Briefcase", href: "/dashboard/projects" },
-              { label: "Carbon Credit Ledger", icon: "Sliders", href: "/dashboard/carbon" },
-            ],
-          },
-          {
-            title: "Reports & Intelligence",
-            items: [
-              { label: "Issuance Reports", icon: "FileText", href: "/dashboard/analytics" },
-              { label: "AI Registry Assistant", icon: "Bot", href: "/dashboard/ai" },
-              { label: "Registry Standards", icon: "HelpCircle", href: "/dashboard/help" },
-            ],
-          },
-        ];
-
-      case "FINANCE":
-        return [
-          {
-            title: "Carbon Asset & Settlement",
-            items: [
-              { label: "Finance Overview", icon: "LayoutDashboard", href: "/dashboard" },
-              { label: "Carbon Credit Ledger", icon: "Sliders", href: "/dashboard/carbon" },
-              { label: "Project Valuations", icon: "Briefcase", href: "/dashboard/projects" },
-            ],
-          },
-          {
-            title: "Financial Reporting",
-            items: [
-              { label: "Financial & Yield Reports", icon: "FileText", href: "/dashboard/analytics" },
-              { label: "AI Financial Assistant", icon: "Bot", href: "/dashboard/ai" },
-              { label: "Help & Knowledge", icon: "HelpCircle", href: "/dashboard/help" },
-            ],
-          },
-        ];
-
-      case "INVESTOR":
-        return [
-          {
-            title: "Portfolio Overview",
-            items: [
-              { label: "Portfolio Dashboard", icon: "LayoutDashboard", href: "/dashboard" },
-              { label: "Funded Projects", icon: "Briefcase", href: "/dashboard/projects" },
-              { label: "Carbon Assets", icon: "Sliders", href: "/dashboard/carbon" },
-            ],
-          },
-          {
-            title: "Performance & Insights",
-            items: [
-              { label: "Performance Reports", icon: "FileText", href: "/dashboard/analytics" },
-              { label: "AI Portfolio Assistant", icon: "Bot", href: "/dashboard/ai" },
-              { label: "Help & Knowledge", icon: "HelpCircle", href: "/dashboard/help" },
-            ],
-          },
-        ];
-
-      case "VIEWER":
-      default:
-        // Fail-closed read-only workspace
-        return [
-          {
-            title: "Overview",
-            items: [
-              { label: "Portfolio Overview", icon: "LayoutDashboard", href: "/dashboard" },
-              { label: "Public Projects", icon: "Briefcase", href: "/dashboard/projects" },
-              { label: "Reports & Certificates", icon: "FileText", href: "/dashboard/analytics" },
-            ],
-          },
-          {
-            title: "Knowledge & Guides",
-            items: [
-              { label: "Help & Knowledge", icon: "HelpCircle", href: "/dashboard/help" },
-            ],
-          },
-        ];
-    }
-  };
-
-  const navGroups = getNavGroups();
+  const navGroups = getNavigationGroups(user?.role, flaggedCount, pendingCount);
 
   const getIsActive = (href: string) => {
     if (!pathname) return false;
@@ -508,7 +116,7 @@ export function DynamicSidebar() {
   };
 
   return (
-    <aside className="w-64 bg-[var(--color-surface)] border-r border-[var(--color-border)] flex flex-col h-screen fixed left-0 top-0 z-30 select-none shadow-sm transition-colors duration-200">
+    <aside aria-label="Main navigation" className={`${mobileOpen ? "flex" : "hidden"} md:flex w-64 bg-[var(--color-surface)] border-r border-[var(--color-border)] flex flex-col h-screen fixed left-0 top-0 z-30 select-none shadow-sm transition-colors duration-200`}>
       {/* Brand Header */}
       <div className="h-16 flex items-center px-6 border-b border-[var(--color-border)] gap-3 bg-[var(--color-surface)]">
         <ThemeLogo className="h-8 w-auto" />
@@ -529,6 +137,8 @@ export function DynamicSidebar() {
                 <Link
                   key={iIdx}
                   href={item.href}
+                  onClick={onNavigate}
+                  aria-current={active ? "page" : undefined}
                   className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-all duration-150 ${
                     active
                       ? "bg-[var(--color-primary)]/10 text-[var(--color-primary)] font-semibold border border-[var(--color-primary)]/20 shadow-xs"
@@ -559,7 +169,7 @@ export function DynamicSidebar() {
 
       {/* Footer System Status */}
       <div className="p-3 border-t border-[var(--color-border)] bg-[var(--color-background)] text-[11px] text-[var(--color-text-muted)]">
-        <span>VeriField Nexus v5.4</span>
+        <span>VeriField Nexus</span>
       </div>
     </aside>
   );

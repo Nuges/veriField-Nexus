@@ -6,7 +6,7 @@ from httpx import AsyncClient
 
 @pytest.mark.asyncio
 async def test_verification_lifecycle(
-    async_client: AsyncClient, admin_token_headers: dict
+    async_client: AsyncClient, admin_token_headers: dict, db_session
 ):
     # We use raw UUIDs for foreign keys in this test
     project_id = str(uuid4())
@@ -31,7 +31,9 @@ async def test_verification_lifecycle(
     assert get_resp.status_code == 200
     assert get_resp.json()["id"] == task_id
 
-    # 3. Submit Audit Report
+    # 3. A platform administrator cannot give an independent audit opinion.
+    # An accredited verifier submits the report in the next step.
+
     audit_payload = {
         "project_id": project_id,
         "vvb_org_id": org_id,
@@ -43,6 +45,25 @@ async def test_verification_lifecycle(
     audit_resp = await async_client.post(
         "/api/v1/verification/audits", json=audit_payload, headers=admin_token_headers
     )
+    assert audit_resp.status_code == 403, audit_resp.text
+    from app.domains.authentication.models import User
+    from app.domains.authentication.service import AuthenticationService
+    verifier = User(id=uuid4(), full_name="Independent verifier", role="VERIFIER", is_active=True, status="active")
+    db_session.add(verifier)
+    await db_session.commit()
+    verifier_token = AuthenticationService.generate_token_static(verifier)
+    # The administrative fixture overrides authentication; remove that override
+    # for the actual verifier token so the opinion is attributed to the VVB.
+    from app.main import app
+    from app.core.security import get_current_user
+    admin_override = app.dependency_overrides.pop(get_current_user)
+    try:
+        audit_resp = await async_client.post(
+            "/api/v1/verification/audits", json=audit_payload,
+            headers={"Authorization": f"Bearer {verifier_token}"},
+        )
+    finally:
+        app.dependency_overrides[get_current_user] = admin_override
     assert audit_resp.status_code == 201, audit_resp.text
     assert audit_resp.json()["is_positive_opinion"]
 

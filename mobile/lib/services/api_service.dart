@@ -58,6 +58,12 @@ class ApiService {
     return '$apiBaseUrl/api/v1';
   }
 
+  static Map<String, dynamic>? _currentUser;
+  static Map<String, dynamic>? get currentUser => _currentUser == null ? null : Map<String, dynamic>.from(_currentUser!);
+  static Future<void> _cacheCurrentUser(Map<String, dynamic> user) async {
+    _currentUser = user;
+    try { await _secureStorage.write(key: 'current_user_context', value: jsonEncode(user)); } catch (_) { /* Memory context remains available for this session. */ }
+  }
   static String? _customToken;
 
   static String? get customToken => _customToken;
@@ -90,6 +96,10 @@ class ApiService {
       }
 
       _customToken = token;
+      if (token != null) {
+        final savedUser = await _secureStorage.read(key: 'current_user_context');
+        if (savedUser != null) _currentUser = Map<String, dynamic>.from(jsonDecode(savedUser) as Map);
+      }
 
       final savedUrl = prefs.getString('custom_server_url');
       if (savedUrl != null && savedUrl.isNotEmpty) {
@@ -103,6 +113,10 @@ class ApiService {
   }
 
   static Future<void> setCustomToken(String? token) async {
+    if (_customToken != token) {
+      _currentUser = null;
+      try { await _secureStorage.delete(key: 'current_user_context'); } catch (_) {}
+    }
     _customToken = token;
     try {
       if (token == null) {
@@ -370,7 +384,9 @@ class ApiService {
 
     );
 
-    return _handleResponse(response);
+    final result = _handleResponse(response);
+    if (endpoint == '/auth/me') await _cacheCurrentUser(result);
+    return result;
 
   }
 

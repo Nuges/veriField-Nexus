@@ -123,14 +123,15 @@ async def test_e2e_tester_field_to_qa_lifecycle():
         assert res_get.status_code == 200
         assert res_get.json()["status"] in ("pending", "review")
 
-        # Step 4: QA Officer verifies activity
-        res_verify = await client.patch(
-            f"/api/v1/activities/{activity_id}/status",
-            json={"status": "verified"},
+        # Step 4: QA approves internal quality; independent verification remains pending
+        res_verify = await client.put(
+            f"/api/v1/activities/{activity_id}",
+            json={"validation_status": "approved"},
             headers=headers_qa,
         )
         assert res_verify.status_code == 200
-        assert res_verify.json()["status"] == "verified"
+        assert res_verify.json()["validation_status"] == "approved"
+        assert res_verify.json()["status"] != "verified"
 
         # Step 5: Verify persistence in database
         async with async_session_factory() as session:
@@ -141,4 +142,5 @@ async def test_e2e_tester_field_to_qa_lifecycle():
                 res = await session.execute(stmt)
                 act_db = res.scalar_one_or_none()
             assert act_db is not None
-            assert act_db.status == "verified"
+            assert act_db.validation_status == "approved"
+            assert act_db.status != "verified"

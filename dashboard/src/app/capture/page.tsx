@@ -2,673 +2,193 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import {
-  AlertCircle,
-  ArrowLeft,
-  Camera,
-  CheckCircle2,
-  Database,
-  Flame,
-  Globe,
-  Leaf,
-  Loader2,
-  MapPin,
-  RefreshCw,
-  Smartphone,
-  Sparkles,
-  Upload,
-  Zap,
-  Wifi,
-  WifiOff,
-  TestTube,
-} from "lucide-react";
+import { useWorkspace } from "@/context/WorkspaceContext";
+import { createActivity, recordSampleCollection, uploadProof } from "@/lib/api";
+import { canPerformAction } from "@/lib/roles";
+import { CAPTURE_FIELDS, captureQueueKey, projectCaptureSector, validateCapture } from "@/lib/fieldCapture";
 import { useToast } from "@/components/Toast";
-import { createActivity, uploadProof, fetchProjects, recordSampleCollection } from "@/lib/api";
-import type { Activity, Project } from "@/lib/types";
 
-const SECTORS = [
-  { id: "cookstoves", name: "Clean Cooking (AMS-II.G / TPDDTEC)", icon: Flame, unit: "Daily Cooking Hours" },
-  { id: "agriculture_soil", name: "Agriculture MRV Soil Sample (VM0042)", icon: TestTube, unit: "Core Depth (cm)" },
-  { id: "ev_mobility", name: "Electric Mobility (AMS-III.C)", icon: Zap, unit: "Kilometers / kWh Charged" },
-  { id: "biochar", name: "Biochar Carbon Removal (C-Sink)", icon: Leaf, unit: "Kilograms Biochar Produced" },
-  { id: "hybrid_energy", name: "Solar Mini-Grid (AMS-I.F)", icon: Globe, unit: "Total kWh Delivered" },
-];
-
-export default function GenericCapturePage() {
-  const router = useRouter();
-  const toast = useToast();
-
-  const [selectedSector, setSelectedSector] = useState("cookstoves");
-  const [assetId, setAssetId] = useState("");
-  const [metricValue, setMetricValue] = useState("");
-  const [collectorName, setCollectorName] = useState("Field Agent");
-  const [sampleCondition, setSampleCondition] = useState("GOOD");
-  const [deviationReason, setDeviationReason] = useState("");
-  const [latitude, setLatitude] = useState<number | null>(null);
-  const [longitude, setLongitude] = useState<number | null>(null);
-  const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
-  const [locationLoading, setLocationLoading] = useState(false);
-  const [notes, setNotes] = useState("");
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-  const [submittedActivity, setSubmittedActivity] = useState<Activity | null>(null);
-
-  // PWA Offline Queue & Network State
-  const [isOnline, setIsOnline] = useState<boolean>(true);
-  const [offlineQueue, setOfflineQueue] = useState<any[]>([]);
-  const [syncing, setSyncing] = useState<boolean>(false);
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [selectedProjectId, setSelectedProjectId] = useState<string>("");
-
-  useEffect(() => {
-    fetchCurrentLocation();
-    if (typeof window !== "undefined") {
-      setIsOnline(navigator.onLine);
-      try {
-        const cached = localStorage.getItem("verifield_pwa_offline_queue");
-        if (cached) {
-          setOfflineQueue(JSON.parse(cached));
-        }
-      } catch (e) {
-        console.warn("Could not read offline queue:", e);
-      }
-
-      const onOnline = () => {
-        setIsOnline(true);
-        toast.info("Network Online", "Internet connection restored.");
-      };
-      const onOffline = () => {
-        setIsOnline(false);
-        toast.warning("Offline Mode", "Network disconnected. Offline queue active.");
-      };
-
-      window.addEventListener("online", onOnline);
-      window.addEventListener("offline", onOffline);
-      return () => {
-        window.removeEventListener("online", onOnline);
-        window.removeEventListener("offline", onOffline);
-      };
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchProjects()
-      .then((res) => {
-        if (Array.isArray(res)) setProjects(res);
-      })
-      .catch(() => {});
-  }, []);
-
-  const fetchCurrentLocation = () => {
-    if (typeof window === "undefined" || !navigator.geolocation) {
-      toast.error("GPS Unavailable", "Browser geolocation is not supported on this device.");
-      return;
-    }
-    setLocationLoading(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setLatitude(Number(pos.coords.latitude.toFixed(6)));
-        setLongitude(Number(pos.coords.longitude.toFixed(6)));
-        setGpsAccuracy(Math.round(pos.coords.accuracy));
-        setLocationLoading(false);
-        toast.success("GPS Acquired", `Coordinates locked (±${Math.round(pos.coords.accuracy)}m accuracy)`);
-      },
-      (err) => {
-        setLocationLoading(false);
-        // Fallback default coordinates (e.g. Abuja, Nigeria)
-        setLatitude(9.0765);
-        setLongitude(7.3986);
-        toast.info("GPS Fallback", "Defaulting to regional baseline coordinates.");
-      },
-      { enableHighAccuracy: true, timeout: 10000 }
-    );
-  };
-
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setImageFile(file);
-      const reader = new FileReader();
-      reader.onload = () => {
-        setImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const syncOfflineQueue = async () => {
-    if (offlineQueue.length === 0 || syncing) return;
-    if (typeof navigator !== "undefined" && !navigator.onLine) {
-      toast.warning("Cannot Sync", "Network is currently offline. Please restore connection.");
-      return;
-    }
-    setSyncing(true);
-    const successfullySynced: string[] = [];
-    for (const item of offlineQueue) {
-      try {
-        if (item.sector === "agriculture_soil") {
-          await recordSampleCollection(item.project_id, item.sample_id, item.collection_payload);
-        } else {
-          await createActivity(item);
-        }
-        successfullySynced.push(item.client_id);
-      } catch (err: any) {
-        console.warn("Failed syncing offline record:", item.client_id, err);
-        toast.error("Sync Error", err.message || "Failed synchronizing offline queue.");
-        break;
-      }
-    }
-    const updated = offlineQueue.filter((q) => !successfullySynced.includes(q.client_id));
-    setOfflineQueue(updated);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("verifield_pwa_offline_queue", JSON.stringify(updated));
-    }
-    setSyncing(false);
-    if (successfullySynced.length > 0) {
-      toast.success("Sync Complete", `Successfully synchronized ${successfullySynced.length} offline records to PostgreSQL.`);
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!assetId.trim()) {
-      toast.error("Validation Error", "Please provide a valid Asset ID, Serial Number, or Sample Code.");
-      return;
-    }
-    if (!metricValue.trim()) {
-      toast.error("Validation Error", "Please enter the observed metric quantity or target depth.");
-      return;
-    }
-
-    setSubmitting(true);
-
-    const clientId = (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : `pwa-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-    const capturedAt = new Date().toISOString();
-
-    if (selectedSector === "agriculture_soil" && selectedProjectId && assetId.trim()) {
-      const soilPayload = {
-        client_id: clientId,
-        sector: "agriculture_soil",
-        project_id: selectedProjectId,
-        sample_id: assetId.trim(),
-        captured_at: capturedAt,
-        collection_payload: {
-          actual_lat: latitude || 28.505,
-          actual_lon: longitude || 77.105,
-          deviation_reason: deviationReason.trim() || undefined,
-          collection_timestamp: capturedAt,
-          collector_name: collectorName.trim() || "Field Agent",
-          actual_depth_from_cm: 0,
-          actual_depth_to_cm: parseFloat(metricValue) || 30,
-          sample_condition: sampleCondition,
-          notes: notes.trim() || undefined,
-          idempotency_key: clientId,
-        },
-      };
-
-      if (typeof navigator !== "undefined" && !navigator.onLine) {
-        const updatedQueue = [...offlineQueue, soilPayload];
-        setOfflineQueue(updatedQueue);
-        if (typeof window !== "undefined") {
-          localStorage.setItem("verifield_pwa_offline_queue", JSON.stringify(updatedQueue));
-        }
-        toast.success("Saved to Offline Queue", "Network is offline. Soil sample collection queued locally in browser storage.");
-        setSubmittedActivity({
-          id: clientId,
-          activity_type: "soil_sample_collection",
-          status: "QUEUED_OFFLINE",
-          trust_score: 90,
-          created_at: capturedAt,
-        } as any);
-        setSubmitting(false);
-        return;
-      }
-
-      try {
-        const colRes = await recordSampleCollection(selectedProjectId, assetId.trim(), soilPayload.collection_payload);
-        toast.success("Soil Sample Collected", `Collection recorded for sample with deviation ${colRes.deviation_distance_m}m.`);
-        setSubmittedActivity({
-          id: colRes.id,
-          activity_type: "soil_sample_collection",
-          status: "VERIFIED",
-          trust_score: 95,
-          created_at: colRes.collection_timestamp,
-        } as any);
-        setSubmitting(false);
-        return;
-      } catch (colErr: any) {
-        toast.error("Collection Failed", colErr.message || "Failed recording ground collection.");
-        setSubmitting(false);
-        return;
-      }
-    }
-    let proofUrl = "/static/proofs/sample_field_capture.jpg";
-    if (imageFile) {
-      try {
-        const uploadRes = await uploadProof(imageFile);
-        if (uploadRes && uploadRes.image_url) {
-          proofUrl = uploadRes.image_url;
-        }
-      } catch (uploadErr) {
-        console.warn("Direct proof upload fallback:", uploadErr);
-      }
-    }
-
-    const payload = {
-      client_id: clientId,
-      activity_type: selectedSector === "cookstoves" ? "stove_usage" : selectedSector === "ev_mobility" ? "ev_trip" : "production_batch",
-      latitude: latitude || 9.0765,
-      longitude: longitude || 7.3986,
-      captured_at: new Date().toISOString(),
-      proof_url: proofUrl,
-      image_url: proofUrl,
-      activity_data: {
-        asset_identifier: assetId.trim(),
-        metric_quantity: parseFloat(metricValue) || 0,
-        sector: selectedSector,
-        project_id: selectedProjectId || undefined,
-        notes: notes.trim(),
-        captured_via: "Web PWA Client",
-        gps_accuracy_meters: gpsAccuracy || 10,
-      },
-    };
-
-    if (typeof navigator !== "undefined" && !navigator.onLine) {
-      const updatedQueue = [...offlineQueue, payload];
-      setOfflineQueue(updatedQueue);
-      if (typeof window !== "undefined") {
-        localStorage.setItem("verifield_pwa_offline_queue", JSON.stringify(updatedQueue));
-      }
-      toast.success("Saved to Offline Queue", "Network is offline. Submission queued locally in browser storage.");
-      setSubmittedActivity({
-        id: clientId,
-        activity_type: payload.activity_type,
-        status: "QUEUED_OFFLINE",
-        trust_score: 90,
-      } as any);
-      setSubmitting(false);
-      return;
-    }
-
-    try {
-      const result = await createActivity(payload);
-      setSubmittedActivity(result);
-      toast.success("Submission Verified", `Telemetry record created with ID ${result.id.slice(0, 8)}...`);
-    } catch (err: any) {
-      const updatedQueue = [...offlineQueue, payload];
-      setOfflineQueue(updatedQueue);
-      if (typeof window !== "undefined") {
-        localStorage.setItem("verifield_pwa_offline_queue", JSON.stringify(updatedQueue));
-      }
-      toast.warning("Network Error — Saved to Offline Queue", "Could not reach server. Queued locally.");
-      setSubmittedActivity({
-        id: clientId,
-        activity_type: payload.activity_type,
-        status: "QUEUED_OFFLINE",
-        trust_score: 90,
-      } as any);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  return (
-    <div className="min-h-screen bg-[#06090A] text-white p-4 sm:p-6 lg:p-8">
-      <div className="max-w-2xl mx-auto">
-        {/* Header */}
-        <header className="mb-6 flex items-center justify-between border-b border-zinc-800 pb-4">
-          <div className="flex items-center gap-3">
-            <Link
-              href="/dashboard"
-              className="p-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-800 transition-all"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </Link>
-            <div>
-              <div className="flex items-center gap-2">
-                <img src="/logo-white.png" alt="VeriField" className="h-5 w-auto object-contain" />
-                <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                  PWA COLLECTOR
-                </span>
-                {isOnline ? (
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
-                    <Wifi className="w-3 h-3" /> ONLINE
-                  </span>
-                ) : (
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 flex items-center gap-1">
-                    <WifiOff className="w-3 h-3" /> OFFLINE
-                  </span>
-                )}
-              </div>
-              <p className="text-zinc-400 text-xs mt-0.5">Live Browser-Based Field Ingestion & Telemetry</p>
-            </div>
-          </div>
-        </header>
-
-        {/* Offline Status & Local Queue Sync Card */}
-        <div className="mb-6 space-y-3">
-          {!isOnline && (
-            <div data-testid="pwa-offline-banner" className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between text-xs text-amber-400">
-              <div className="flex items-center gap-2.5">
-                <WifiOff className="w-4 h-4 text-amber-400 shrink-0" />
-                <span><strong>OFFLINE MODE:</strong> Network disconnected. Telemetry will be queued locally.</span>
-              </div>
-              <span className="font-mono text-[10px] uppercase px-2 py-0.5 rounded bg-amber-500/20">Offline</span>
-            </div>
-          )}
-
-          {offlineQueue.length > 0 && (
-            <div data-testid="pwa-queue-banner" className="p-3.5 rounded-2xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-between text-xs text-blue-400">
-              <div className="flex items-center gap-2.5">
-                <Database className="w-4 h-4 text-blue-400 shrink-0" />
-                <span><strong>{offlineQueue.length}</strong> record(s) queued locally in browser storage.</span>
-              </div>
-              <button
-                type="button"
-                data-testid="pwa-sync-button"
-                onClick={syncOfflineQueue}
-                disabled={syncing || !isOnline}
-                className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs flex items-center gap-1.5 transition-all disabled:opacity-40"
-              >
-                {syncing ? (
-                  <>
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" /> Syncing...
-                  </>
-                ) : (
-                  <>
-                    <RefreshCw className="w-3.5 h-3.5" /> Sync Pending Records
-                  </>
-                )}
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Offline Mobile App Notice Card */}
-        <div className="mb-6 p-4 rounded-2xl bg-zinc-900/80 border border-zinc-800 flex items-start gap-3">
-          <Smartphone className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
-          <div className="text-xs text-zinc-400 space-y-1">
-            <p className="font-semibold text-zinc-200">Air-Gapped Rural Deployment?</p>
-            <p>
-              For remote sites without cellular connectivity, deploy the native <strong>VeriField Mobile App</strong> (Flutter/SQLite) featuring offline queueing, cryptographically hashed image caching, and auto-sync.
-            </p>
-          </div>
-        </div>
-
-        {submittedActivity ? (
-          <div className="p-6 rounded-2xl bg-zinc-900 border border-emerald-500/30 text-center space-y-4">
-            <div className="w-12 h-12 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center mx-auto text-emerald-400">
-              <CheckCircle2 className="w-6 h-6" />
-            </div>
-            <div>
-              <h2 className="text-lg font-bold text-white">Telemetry Logged Successfully</h2>
-              <p className="text-xs text-zinc-400 mt-1 font-mono">Record ID: {submittedActivity.id}</p>
-            </div>
-            <div className="grid grid-cols-2 gap-3 p-3 rounded-xl bg-zinc-950 border border-zinc-800 text-left text-xs">
-              <div>
-                <span className="text-zinc-500 block">Trust Score</span>
-                <span className="font-bold text-emerald-400">{submittedActivity.trust_score ?? 95}% Verified</span>
-              </div>
-              <div>
-                <span className="text-zinc-500 block">Lifecycle Status</span>
-                <span className="font-bold text-zinc-200 capitalize">{submittedActivity.status}</span>
-              </div>
-            </div>
-            <div className="flex gap-3 pt-2">
-              <button
-                onClick={() => {
-                  setSubmittedActivity(null);
-                  setAssetId("");
-                  setMetricValue("");
-                  setImageFile(null);
-                  setImagePreview(null);
-                  setNotes("");
-                }}
-                className="flex-1 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 font-semibold text-xs transition-all"
-              >
-                Log Another Record
-              </button>
-              <Link
-                href="/dashboard/activities"
-                className="flex-1 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 font-semibold text-xs text-center transition-all"
-              >
-                View Activity Ledger
-              </Link>
-            </div>
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Associated Project Selector */}
-            {projects.length > 0 && (
-              <div>
-                <label className="text-xs font-semibold text-zinc-300 mb-1.5 block">Associated Project (Optional)</label>
-                <select
-                  data-testid="pwa-project-select"
-                  value={selectedProjectId}
-                  onChange={(e) => setSelectedProjectId(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-white text-sm focus:border-emerald-500 focus:outline-none"
-                >
-                  <option value="">-- Direct Telemetry Ingestion (No Project Lock) --</option>
-                  {projects.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name} ({p.methodology_id || p.sector || "MRV"})
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-            {/* Sector Selector */}
-            <div>
-              <label className="text-xs font-semibold text-zinc-300 mb-2 block">Select Climate Sector / Methodology</label>
-              <div className="grid grid-cols-2 gap-2">
-                {SECTORS.map((s) => {
-                  const Icon = s.icon;
-                  const active = selectedSector === s.id;
-                  return (
-                    <button
-                      key={s.id}
-                      type="button"
-                      onClick={() => setSelectedSector(s.id)}
-                      className={`p-3 rounded-xl border text-left transition-all flex items-start gap-2.5 ${
-                        active
-                          ? "bg-emerald-500/10 border-emerald-500/40 text-emerald-300"
-                          : "bg-zinc-900/60 border-zinc-800 text-zinc-400 hover:border-zinc-700"
-                      }`}
-                    >
-                      <Icon className={`w-4 h-4 shrink-0 mt-0.5 ${active ? "text-emerald-400" : "text-zinc-500"}`} />
-                      <div>
-                        <div className="text-xs font-semibold">{s.name.split("(")[0]}</div>
-                        <div className="text-[10px] text-zinc-500 mt-0.5">{s.unit}</div>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Asset Identifier */}
-            <div>
-              <label className="text-xs font-semibold text-zinc-300 mb-1.5 block">
-                {selectedSector === "agriculture_soil"
-                  ? "Physical Sample ID or Code (e.g. UUID or AG-SAMPLE-...)"
-                  : "Asset ID / Serial / Device Tag"}
-              </label>
-              <input
-                type="text"
-                required
-                value={assetId}
-                onChange={(e) => setAssetId(e.target.value)}
-                placeholder={
-                  selectedSector === "agriculture_soil"
-                    ? "e.g. AG-CAMP-01-P1 or Sample UUID"
-                    : "e.g. STOVE-9042, EV-FLEET-08, PYRO-B3"
-                }
-                className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-white text-sm focus:border-emerald-500 focus:outline-none"
-              />
-            </div>
-
-            {/* Metric Input */}
-            <div>
-              <label className="text-xs font-semibold text-zinc-300 mb-1.5 block">
-                {selectedSector === "agriculture_soil"
-                  ? "Target Core Depth (cm)"
-                  : `Observed Quantity (${SECTORS.find((s) => s.id === selectedSector)?.unit})`}
-              </label>
-              <input
-                type="number"
-                step="any"
-                required
-                value={metricValue}
-                onChange={(e) => setMetricValue(e.target.value)}
-                placeholder={selectedSector === "agriculture_soil" ? "30" : "e.g. 4.5"}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-white text-sm focus:border-emerald-500 focus:outline-none"
-              />
-            </div>
-
-            {/* Agriculture Soil Additional Fields */}
-            {selectedSector === "agriculture_soil" && (
-              <div className="p-3.5 rounded-xl bg-zinc-900 border border-zinc-800 space-y-3">
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="text-xs font-semibold text-zinc-300 mb-1 block">Collector Name</label>
-                    <input
-                      type="text"
-                      value={collectorName}
-                      onChange={(e) => setCollectorName(e.target.value)}
-                      placeholder="e.g. Field Officer"
-                      className="w-full px-2.5 py-1.5 rounded-lg bg-zinc-950 border border-zinc-800 text-white text-xs"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs font-semibold text-zinc-300 mb-1 block">Sample Condition</label>
-                    <select
-                      value={sampleCondition}
-                      onChange={(e) => setSampleCondition(e.target.value)}
-                      className="w-full px-2.5 py-1.5 rounded-lg bg-zinc-950 border border-zinc-800 text-white text-xs"
-                    >
-                      <option value="GOOD">GOOD (Moist / Intact)</option>
-                      <option value="ACCEPTABLE">ACCEPTABLE</option>
-                      <option value="DEGRADED">DEGRADED</option>
-                      <option value="COMPACTED">COMPACTED</option>
-                    </select>
-                  </div>
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-zinc-300 mb-1 block">
-                    Deviation Reason (Mandatory if &gt; 50m from planned point)
-                  </label>
-                  <input
-                    type="text"
-                    value={deviationReason}
-                    onChange={(e) => setDeviationReason(e.target.value)}
-                    placeholder="e.g. Rock outcrop at planned point, relocated 12m south"
-                    className="w-full px-2.5 py-1.5 rounded-lg bg-zinc-950 border border-zinc-800 text-white text-xs"
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* GPS Location Component */}
-            <div className="p-3.5 rounded-xl bg-zinc-900 border border-zinc-800 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-zinc-300 flex items-center gap-1.5">
-                  <MapPin className="w-3.5 h-3.5 text-emerald-400" /> Geolocation Tag
-                </span>
-                <button
-                  type="button"
-                  onClick={fetchCurrentLocation}
-                  disabled={locationLoading}
-                  className="text-[11px] text-emerald-400 hover:text-emerald-300 flex items-center gap-1 font-semibold"
-                >
-                  <RefreshCw className={`w-3 h-3 ${locationLoading ? "animate-spin" : ""}`} /> Refresh GPS
-                </button>
-              </div>
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div>
-                  <span className="text-zinc-500 block text-[10px]">Latitude</span>
-                  <input
-                    type="number"
-                    step="any"
-                    value={latitude ?? ""}
-                    onChange={(e) => setLatitude(parseFloat(e.target.value) || null)}
-                    className="w-full mt-0.5 px-2.5 py-1.5 rounded-lg bg-zinc-950 border border-zinc-800 font-mono text-zinc-200 text-xs"
-                  />
-                </div>
-                <div>
-                  <span className="text-zinc-500 block text-[10px]">Longitude</span>
-                  <input
-                    type="number"
-                    step="any"
-                    value={longitude ?? ""}
-                    onChange={(e) => setLongitude(parseFloat(e.target.value) || null)}
-                    className="w-full mt-0.5 px-2.5 py-1.5 rounded-lg bg-zinc-950 border border-zinc-800 font-mono text-zinc-200 text-xs"
-                  />
-                </div>
-              </div>
-              {gpsAccuracy && (
-                <div className="text-[10px] text-zinc-500 font-mono">Accuracy: ±{gpsAccuracy} meters</div>
-              )}
-            </div>
-
-            {/* Photographic Proof Upload */}
-            <div>
-              <label className="text-xs font-semibold text-zinc-300 mb-1.5 block">Photographic Proof & Sensor Evidence</label>
-              <div className="border-2 border-dashed border-zinc-800 hover:border-zinc-700 rounded-2xl p-4 text-center cursor-pointer transition-all bg-zinc-900/40 relative">
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageChange}
-                  className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                />
-                {imagePreview ? (
-                  <div className="space-y-2">
-                    <img src={imagePreview} alt="Preview" className="h-36 mx-auto object-cover rounded-xl border border-zinc-700" />
-                    <p className="text-[11px] text-emerald-400 font-mono">✓ Evidence attached ({imageFile?.name})</p>
-                  </div>
-                ) : (
-                  <div className="space-y-1.5 py-2">
-                    <Camera className="w-6 h-6 text-zinc-500 mx-auto" />
-                    <p className="text-xs text-zinc-300 font-medium">Click to capture photo or select file</p>
-                    <p className="text-[10px] text-zinc-500">JPG, PNG, WebP up to 10MB (SHA-256 digested)</p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Notes */}
-            <div>
-              <label className="text-xs font-semibold text-zinc-300 mb-1.5 block">Field Notes / Auditor Remarks (Optional)</label>
-              <textarea
-                rows={2}
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Observed installation condition, serial number tag clarity, household verification details..."
-                className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-white text-sm focus:border-emerald-500 focus:outline-none"
-              />
-            </div>
-
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={submitting}
-              className="w-full py-3.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition-all disabled:opacity-50"
-            >
-              {submitting ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" /> Digesting & Submitting Telemetry...
-                </>
-              ) : (
-                <>
-                  <Upload className="w-4 h-4" /> Submit Field Telemetry
-                </>
-              )}
-            </button>
-          </form>
-        )}
-      </div>
-    </div>
-  );
+interface CaptureRecord {
+  clientId: string;
+  owner: string;
+  projectId: string;
+  sector: keyof typeof CAPTURE_FIELDS;
+  asset: string;
+  metric: number;
+  latitude: number;
+  longitude: number;
+  accuracy: number | null;
+  capturedAt: string;
+  notes: string;
+  collector: string;
+  condition: string;
+  deviation: string;
+  photo?: string;
+  photoUrl?: string;
+  photoHash?: string;
+}
+const fieldClass = "mt-1 block w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2.5 text-sm text-white focus:border-emerald-500 focus:outline-none";
+function readPhoto(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error("Could not read photo."));
+    reader.readAsDataURL(file);
+  });
 }
 
+export default function CapturePage() {
+  const { user, isLoading, projects, allowedSectors, activeProject } = useWorkspace();
+  const toast = useToast();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const [projectId, setProjectId] = useState("");
+  const [asset, setAsset] = useState("");
+  const [metric, setMetric] = useState("");
+  const [latitude, setLatitude] = useState<number | null>(null);
+  const [longitude, setLongitude] = useState<number | null>(null);
+  const [accuracy, setAccuracy] = useState<number | null>(null);
+  const [notes, setNotes] = useState("");
+  const [condition, setCondition] = useState("GOOD");
+  const [deviation, setDeviation] = useState("");
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [queue, setQueue] = useState<CaptureRecord[]>([]);
+  const [online, setOnline] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [result, setResult] = useState<{ id: string; status: string } | null>(null);
+  const canCapture = canPerformAction("evidence:upload", user?.role);
+  const queueKey = user ? captureQueueKey(user.id, user.organization_id) : null;
+  const project = projects.find(p => p.id === projectId);
+  const sector = projectCaptureSector(project);
+  const fields = sector ? CAPTURE_FIELDS[sector] : null;
+
+  useEffect(() => {
+    const requested = new URLSearchParams(window.location.search).get("project");
+    const selected = requested || activeProject || (projects.length === 1 ? projects[0].id : "");
+    if (projects.some(p => p.id === selected)) setProjectId(selected);
+  }, [projects, activeProject]);
+
+  useEffect(() => {
+    if (!queueKey || !user) return;
+    try {
+      const saved = JSON.parse(localStorage.getItem(queueKey) || "[]");
+      setQueue(Array.isArray(saved) ? saved.filter(r => r.owner === user.id) : []);
+    } catch { setError("Saved field records could not be read. They remain in browser storage."); }
+  }, [queueKey, user?.id]);
+
+  useEffect(() => {
+    const update = () => setOnline(navigator.onLine);
+    update();
+    window.addEventListener("online", update);
+    window.addEventListener("offline", update);
+    return () => { window.removeEventListener("online", update); window.removeEventListener("offline", update); };
+  }, []);
+
+  function locate() {
+    if (!navigator.geolocation) { setError("Location is unavailable on this device. Enter the actual coordinates."); return; }
+    navigator.geolocation.getCurrentPosition(position => {
+      setLatitude(position.coords.latitude); setLongitude(position.coords.longitude); setAccuracy(position.coords.accuracy); setError("");
+    }, () => { setError("Location could not be obtained. Enable location access or enter the actual coordinates."); }, { enableHighAccuracy: true, timeout: 10000 });
+  }
+
+  function saveQueue(records: CaptureRecord[]) {
+    if (!queueKey) throw new Error("Sign in before saving records.");
+    localStorage.setItem(queueKey, JSON.stringify(records));
+    setQueue(records);
+  }
+
+  async function send(record: CaptureRecord) {
+    if (!user || record.owner !== user.id || !canCapture) throw new Error("This record belongs to another account.");
+    const currentProject = projects.find(p => p.id === record.projectId);
+    const validation = validateCapture(currentProject, allowedSectors, String(record.metric), record.latitude, record.longitude);
+    if (validation || projectCaptureSector(currentProject) !== record.sector) throw new Error(validation || "Project sector changed. Review this record before syncing.");
+    if (record.photo && !record.photoUrl) {
+      const blob = await (await fetch(record.photo)).blob();
+      const uploaded = await uploadProof(new File([blob], "field-photo", { type: blob.type }));
+      if (!uploaded.image_url) throw new Error("Photo upload failed. The field record has not been submitted.");
+      record.photoUrl = uploaded.image_url;
+    }
+    if (record.sector === "AGRICULTURE_LAND_USE") {
+      const response = await recordSampleCollection(record.projectId, record.asset, {
+        actual_lat: record.latitude, actual_lon: record.longitude,
+        collection_timestamp: record.capturedAt, collector_name: record.collector,
+        actual_depth_from_cm: 0, actual_depth_to_cm: record.metric, sample_condition: record.condition,
+        deviation_reason: record.deviation || undefined, notes: record.notes || undefined,
+        idempotency_key: record.clientId, photo_hash: record.photoHash,
+        device_metadata: { gps_accuracy_meters: record.accuracy, photo_url: record.photoUrl },
+      });
+      return { id: response.id, status: "Collection recorded" };
+    }
+    const config = CAPTURE_FIELDS[record.sector];
+    const response = await createActivity({
+      project_id: record.projectId, client_id: record.clientId, activity_type: config.type,
+      latitude: record.latitude, longitude: record.longitude, gps_accuracy: record.accuracy,
+      captured_at: record.capturedAt, description: record.notes, image_url: record.photoUrl, image_hash: record.photoHash,
+      activity_data: { asset_identifier: record.asset, [config.key]: record.metric, sector: record.sector,
+        project_id: record.projectId, provisional_field_observation: true, field_data_authority: "PROVISIONAL_OBSERVATION" },
+    });
+    return { id: response.id, status: response.status || "Submitted" };
+  }
+
+  async function submit(event: React.FormEvent) {
+    event.preventDefault();
+    if (!canCapture || !user) return;
+    const validation = validateCapture(project, allowedSectors, metric, latitude, longitude);
+    if (validation || !sector) { setError(validation || "Select a project."); return; }
+    if (!asset.trim()) { setError(sector === "AGRICULTURE_LAND_USE" ? "Enter the assigned physical sample ID." : "Enter an asset identifier."); return; }
+    if (sector === "AGRICULTURE_LAND_USE" && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(asset.trim())) { setError("Use the assigned physical sample's UUID."); return; }
+    setBusy(true); setError("");
+    try {
+      const photoData = photo ? await readPhoto(photo) : undefined;
+      const hash = photo ? Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", await photo.arrayBuffer())), b => b.toString(16).padStart(2, "0")).join("") : undefined;
+      const record: CaptureRecord = { clientId: crypto.randomUUID(), owner: user.id, projectId, sector, asset: asset.trim(), metric: Number(metric), latitude: latitude!, longitude: longitude!, accuracy, capturedAt: new Date().toISOString(), notes, collector: user.full_name, condition, deviation, photo: photoData, photoHash: hash };
+      if (!navigator.onLine) {
+        saveQueue([...queue, record]); setResult({ id: record.clientId, status: "Saved offline — awaiting submission" });
+      } else {
+        setResult(await send(record));
+      }
+    } catch (err) { setError(err instanceof Error ? err.message : "Submission failed. Review your record and retry."); }
+    finally { setBusy(false); }
+  }
+
+  async function sync() {
+    if (!online || busy) return;
+    setBusy(true); setError("");
+    let remaining = [...queue];
+    try {
+      while (remaining.length) {
+        await send(remaining[0]);
+        remaining = remaining.slice(1);
+        saveQueue(remaining);
+      }
+      toast.success("Sync complete", "Your field records have been submitted.");
+    } catch (err) { setError(err instanceof Error ? err.message : "Sync failed. Remaining records are saved."); }
+    finally { setBusy(false); }
+  }
+
+  if (!mounted || (isLoading && !user)) return <p className="p-6">Loading field capture…</p>;
+  if (!user || !canCapture) return <div className="p-6 space-y-3"><h1 className="text-xl font-semibold">Field capture unavailable</h1><p>Your role does not have permission to submit field records.</p><Link href={user ? "/dashboard" : "/login"}>Return to {user ? "overview" : "sign in"}</Link></div>;
+
+  return <main className="mx-auto max-w-xl p-4 sm:p-6 space-y-6">
+    <header className="flex items-center justify-between border-b border-zinc-800 pb-4"><Link href="/dashboard/operations" className="text-sm text-zinc-400">← Field operations</Link><span className="text-xs text-zinc-400">{online ? "Online" : "Offline"}</span></header>
+    <div><h1 className="text-2xl font-semibold">Capture field data</h1><p className="mt-1 text-sm text-zinc-400">Record observations for your assigned project.</p></div>
+    {!online && <p data-testid="pwa-offline-banner" className="text-sm text-amber-300">Records will be saved on this device until you sync.</p>}
+    {queue.length > 0 && <div data-testid="pwa-queue-banner" className="flex justify-between items-center rounded-lg border border-zinc-700 p-3 text-sm"><span>{queue.length} saved offline</span><button data-testid="pwa-sync-button" onClick={sync} disabled={!online || busy} className="text-emerald-400 disabled:opacity-40">Sync records</button></div>}
+    {error && <p role="alert" className="rounded-lg border border-red-800 p-3 text-sm text-red-300">{error}</p>}
+    {result ? <section className="rounded-xl border border-zinc-700 p-5 space-y-4"><h2 className="text-lg font-semibold">{result.status}</h2><p className="break-all text-sm text-zinc-400">Record: {result.id}</p><button onClick={() => { setResult(null); setAsset(""); setMetric(""); setPhoto(null); setNotes(""); }} className="text-emerald-400 text-sm">Capture another record</button></section> :
+      <form onSubmit={submit} className="space-y-5">
+        <label className="block text-sm">Project<select required data-testid="pwa-project-select" className={fieldClass} value={projectId} onChange={e => { setProjectId(e.target.value); setAsset(""); setMetric(""); }}><option value="">Select project</option>{projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
+        {fields ? <p data-testid="capture-sector" className="text-sm text-emerald-400">{fields.label}</p> : <p className="text-sm text-zinc-400">{projects.length ? "Select a project with a configured sector." : "No assigned projects are available. Contact your project manager."}</p>}
+        {fields && <>
+          <label className="block text-sm">{sector === "AGRICULTURE_LAND_USE" ? "Physical sample ID" : "Asset identifier"}<input required className={fieldClass} value={asset} onChange={e => setAsset(e.target.value)} /></label>
+          <label className="block text-sm">{fields.metric}<input required type="number" min="0.000001" step="any" className={fieldClass} value={metric} onChange={e => setMetric(e.target.value)} /></label>
+          {sector === "AGRICULTURE_LAND_USE" && <div className="space-y-4"><label className="block text-sm">Sample condition<select className={fieldClass} value={condition} onChange={e => setCondition(e.target.value)}>{["GOOD", "ACCEPTABLE", "DEGRADED", "COMPACTED"].map(c => <option key={c}>{c}</option>)}</select></label><label className="block text-sm">Location deviation reason<input className={fieldClass} value={deviation} onChange={e => setDeviation(e.target.value)} /></label></div>}
+          <fieldset className="rounded-lg border border-zinc-800 p-3"><legend className="px-1 text-sm">Location</legend><button type="button" onClick={locate} className="mb-3 text-sm text-emerald-400">Use current location</button><div className="grid grid-cols-2 gap-3"><label className="text-sm">Latitude<input required type="number" step="any" min="-90" max="90" className={fieldClass} value={latitude ?? ""} onChange={e => { setLatitude(e.target.value === "" ? null : Number(e.target.value)); setAccuracy(null); }} /></label><label className="text-sm">Longitude<input required type="number" step="any" min="-180" max="180" className={fieldClass} value={longitude ?? ""} onChange={e => { setLongitude(e.target.value === "" ? null : Number(e.target.value)); setAccuracy(null); }} /></label></div>{accuracy !== null && <p className="mt-2 text-xs text-zinc-400">GPS accuracy: ±{Math.round(accuracy)} m</p>}</fieldset>
+          <label className="block text-sm">Photo (optional)<input type="file" accept="image/jpeg,image/png,image/webp" className={fieldClass} onChange={e => { const f = e.target.files?.[0]; if (f && (f.size > 10 * 1024 * 1024 || !["image/jpeg", "image/png", "image/webp"].includes(f.type))) { setError("Choose a JPG, PNG or WebP photo up to 10 MB."); setPhoto(null); e.target.value = ""; } else setPhoto(f || null); }} /></label>
+          <label className="block text-sm">Notes (optional)<textarea className={fieldClass} rows={3} value={notes} onChange={e => setNotes(e.target.value)} /></label>
+          <button disabled={busy} className="w-full rounded-lg bg-emerald-600 py-3 text-sm font-semibold text-white disabled:opacity-50">{busy ? "Saving…" : online ? "Submit record" : "Save offline"}</button>
+        </>}
+      </form>}
+  </main>;
+}

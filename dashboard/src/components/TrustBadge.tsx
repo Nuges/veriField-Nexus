@@ -16,21 +16,21 @@ export default function TrustBadge({
   size = "md",
 }: TrustBadgeProps) {
   // Determine status and colors from score
-  let status = "Pending";
+  let status = "Not scored";
   let bgColor = "bg-slate-500/15";
   let textColor = "text-[var(--color-text-secondary)]";
 
   if (score !== null) {
     if (score >= 80) {
-      status = "Verified";
+      status = "High score";
       bgColor = "bg-emerald-500/15";
       textColor = "text-emerald-700 dark:text-emerald-400";
     } else if (score >= 50) {
-      status = "Review";
+      status = "Medium score";
       bgColor = "bg-amber-500/15";
       textColor = "text-amber-400";
     } else {
-      status = "Flagged";
+      status = "Low score";
       bgColor = "bg-red-500/15";
       textColor = "text-red-400";
     }

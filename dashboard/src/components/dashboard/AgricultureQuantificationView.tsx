@@ -75,6 +75,8 @@ import {
   type AgricultureVintageGHGResultItem,
 } from "@/lib/api";
 
+import { canPerformAction } from "@/lib/roles";
+
 interface Props {
   projectId: string;
   userRole?: string;
@@ -151,7 +153,7 @@ export function AgricultureQuantificationView({ projectId, userRole }: Props) {
   const [selectedSnapshotId, setSelectedSnapshotId] = useState<string>("");
   const [prereqLockNotes, setPrereqLockNotes] = useState<string>("");
 
-  const isFieldAgent = (userRole || "").toUpperCase() === "FIELD_AGENT";
+  const isReadOnly = !canPerformAction("project:edit", userRole);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -231,8 +233,8 @@ export function AgricultureQuantificationView({ projectId, userRole }: Props) {
 
   const handleCreateSnapshot = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isFieldAgent) {
-      setError("Segregation of Duties: Field Agents are blocked from locking official quantification snapshots.");
+    if (isReadOnly) {
+      setError("Segregation of Duties: Your role is not permitted from locking official quantification snapshots.");
       return;
     }
     setActionLoading(true);
@@ -255,8 +257,8 @@ export function AgricultureQuantificationView({ projectId, userRole }: Props) {
 
   const handleLockPrereqAssessment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isFieldAgent) {
-      setError("Segregation of Duties: Field Agents are blocked from locking prerequisite assessments.");
+    if (isReadOnly) {
+      setError("Segregation of Duties: Your role is not permitted from locking prerequisite assessments.");
       return;
     }
     setActionLoading(true);
@@ -301,8 +303,8 @@ export function AgricultureQuantificationView({ projectId, userRole }: Props) {
 
   const handleCalculateAuthoritativeStock = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isFieldAgent) {
-      setError("Segregation of Duties: Field Agents are blocked from calculating or persisting authoritative SOC stock results.");
+    if (isReadOnly) {
+      setError("Segregation of Duties: Your role is not permitted from calculating or persisting authoritative SOC stock results.");
       return;
     }
     if (!selectedPrereqForSoc) {
@@ -365,8 +367,8 @@ export function AgricultureQuantificationView({ projectId, userRole }: Props) {
 
   const handleFinalizeSocChange = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isFieldAgent) {
-      setError("Segregation of Duties: Field Agents are blocked from finalizing or persisting authoritative SOC stock change results.");
+    if (isReadOnly) {
+      setError("Segregation of Duties: Your role is not permitted from finalizing or persisting authoritative SOC stock change results.");
       return;
     }
     if (!socChangeBaselineStockId || !socChangeMonitoringStockId) {
@@ -443,8 +445,8 @@ export function AgricultureQuantificationView({ projectId, userRole }: Props) {
 
   const handleFinalizeNetGhg = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isFieldAgent) {
-      setError("Segregation of Duties: Field Agents are blocked from finalizing or persisting authoritative Net GHG results.");
+    if (isReadOnly) {
+      setError("Segregation of Duties: Your role is not permitted from finalizing or persisting authoritative Net GHG results.");
       return;
     }
     if (!selectedPrereqForNetGhg) {
@@ -612,13 +614,13 @@ export function AgricultureQuantificationView({ projectId, userRole }: Props) {
             </button>
             <button
               onClick={() => setShowLockPrereqModal(true)}
-              disabled={isFieldAgent}
+              disabled={isReadOnly}
               className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition shadow-sm ${
-                isFieldAgent
+                isReadOnly
                   ? "bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700"
                   : "bg-emerald-600 hover:bg-emerald-500 text-white"
               }`}
-              title={isFieldAgent ? "Field agents cannot lock prerequisite assessments" : "Lock official prerequisite assessment dossier"}
+              title={isReadOnly ? "Your role cannot lock prerequisite assessments" : "Lock official prerequisite assessment dossier"}
             >
               <Lock className="w-3.5 h-3.5" />
               Lock Prerequisite Dossier
@@ -626,7 +628,7 @@ export function AgricultureQuantificationView({ projectId, userRole }: Props) {
           </div>
         </div>
 
-        {isFieldAgent && (
+        {isReadOnly && (
           <div className="mt-4 p-2.5 rounded bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300 flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 shrink-0" />
             <span>
@@ -1653,7 +1655,7 @@ export function AgricultureQuantificationView({ projectId, userRole }: Props) {
 
               <div className="flex items-center justify-between pt-2 border-t border-slate-800">
                 <div className="text-xs text-slate-400">
-                  {isFieldAgent ? (
+                  {isReadOnly ? (
                     <span className="text-amber-400 flex items-center gap-1">
                       <Lock className="w-3.5 h-3.5" /> Field Agents are restricted to preview only (Segregation of Duties).
                     </span>
@@ -1663,9 +1665,9 @@ export function AgricultureQuantificationView({ projectId, userRole }: Props) {
                 </div>
                 <button
                   type="submit"
-                  disabled={actionLoading || isFieldAgent || assessments.length === 0}
+                  disabled={actionLoading || isReadOnly || assessments.length === 0}
                   className={`px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${
-                    isFieldAgent || assessments.length === 0
+                    isReadOnly || assessments.length === 0
                       ? "bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700"
                       : "bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm"
                   }`}
@@ -2092,7 +2094,7 @@ export function AgricultureQuantificationView({ projectId, userRole }: Props) {
 
               <div className="flex items-center justify-between pt-3 border-t border-slate-800">
                 <div className="text-xs text-slate-400">
-                  {isFieldAgent ? (
+                  {isReadOnly ? (
                     <span className="text-amber-400 flex items-center gap-1 font-semibold">
                       <Lock className="w-3.5 h-3.5" /> Field Agents are restricted to preview only (Segregation of Duties).
                     </span>
@@ -2104,13 +2106,13 @@ export function AgricultureQuantificationView({ projectId, userRole }: Props) {
                   type="submit"
                   disabled={
                     actionLoading ||
-                    isFieldAgent ||
+                    isReadOnly ||
                     !socChangeBaselineStockId ||
                     !socChangeMonitoringStockId ||
                     !socChangePrereqId
                   }
                   className={`px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${
-                    isFieldAgent || !socChangeBaselineStockId || !socChangeMonitoringStockId || !socChangePrereqId
+                    isReadOnly || !socChangeBaselineStockId || !socChangeMonitoringStockId || !socChangePrereqId
                       ? "bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700"
                       : "bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm"
                   }`}
@@ -2636,7 +2638,7 @@ export function AgricultureQuantificationView({ projectId, userRole }: Props) {
               </div>
 
               {/* Segregation of Duties Notice */}
-              {isFieldAgent && (
+              {isReadOnly && (
                 <div className="bg-rose-500/10 border border-rose-500/30 p-3 rounded-lg text-rose-300 text-xs flex items-center gap-2">
                   <AlertOctagon className="w-4 h-4 shrink-0" />
                   <span>
@@ -2659,7 +2661,7 @@ export function AgricultureQuantificationView({ projectId, userRole }: Props) {
 
                 <button
                   type="submit"
-                  disabled={actionLoading || isFieldAgent}
+                  disabled={actionLoading || isReadOnly}
                   className="px-5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition flex items-center gap-2 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {actionLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}

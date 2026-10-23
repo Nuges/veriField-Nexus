@@ -19,6 +19,8 @@ import {
   Search,
 } from "lucide-react";
 import Link from "next/link";
+import { getCanonicalSectorLabel } from "@/lib/sectors";
+import { isRouteAuthorized } from "@/lib/roles";
 
 export default function EnterpriseBreadcrumb() {
   const {
@@ -38,7 +40,7 @@ export default function EnterpriseBreadcrumb() {
       <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
         {/* Organization label */}
         <div className="hidden lg:flex items-center gap-1.5 font-semibold text-[var(--color-text-primary)] shrink-0">
-          <span className="truncate max-w-[140px]">{user?.organization_id ? "Enterprise Org" : "VeriField Global"}</span>
+          <span className="truncate max-w-[140px]">{user?.organization || "VeriField Nexus"}</span>
         </div>
 
         <ChevronRight size={12} className="hidden lg:block text-[var(--color-text-muted)] shrink-0" />
@@ -53,7 +55,7 @@ export default function EnterpriseBreadcrumb() {
           >
             {allowedSectors.map((sec) => (
               <option key={sec} value={sec}>
-                {moduleRegistry[sec]?.name || sec.charAt(0).toUpperCase() + sec.slice(1).replace("_", " ")}
+                {getCanonicalSectorLabel(sec)}
               </option>
             ))}
           </select>
@@ -85,20 +87,19 @@ export default function EnterpriseBreadcrumb() {
           className="hidden md:flex items-center gap-2 bg-[var(--color-background)] hover:bg-slate-100 dark:hover:bg-slate-800 border border-[var(--color-border)] rounded-md px-2.5 py-1 text-[11px] text-[var(--color-text-secondary)] transition-colors"
         >
           <Search size={13} />
-          <span>Search assets or telemetry...</span>
-          <kbd className="text-[9px] font-mono font-semibold bg-white dark:bg-slate-900 border border-[var(--color-border)] px-1 py-0.2 rounded text-[var(--color-text-muted)]">⌘K</kbd>
+          <span>Find a project</span>
         </Link>
 
         {/* Audit Queue Link (Neutral styling) */}
-        <Link
+        {isRouteAuthorized("/dashboard/verifications", user?.role) && <Link
           href="/dashboard/verifications"
-          title="Audit Queue"
-          aria-label="Audit Queue"
+          title="Verification"
+          aria-label="Verification"
           className="flex items-center gap-1.5 text-[11px] font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] bg-[var(--color-background)] hover:bg-slate-100 dark:hover:bg-slate-800 border border-[var(--color-border)] px-2.5 py-1 rounded-md transition-colors shrink-0"
         >
           <ShieldCheck size={13} className="text-[var(--color-text-muted)]" />
-          <span className="hidden sm:inline">Audit Queue</span>
-        </Link>
+          <span className="hidden sm:inline">Verification</span>
+        </Link>}
       </div>
     </header>
   );

@@ -51,6 +51,7 @@ import '../../../services/sync_service.dart';
 import '../../../services/local_db_service.dart';
 
 import '../../../services/api_service.dart';
+import '../../../core/utils/field_access.dart';
 
 import '../../../services/device_service.dart';
 
@@ -59,6 +60,7 @@ import '../models/activity_type_config.dart';
 import 'qr_scanner_screen.dart';
 
 import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 
 
 
@@ -110,40 +112,28 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
   List<Map<String, dynamic>> _biomasses = [];
 
   Future<void> _fetchCsiProfiles() async {
-
+    final actor = ApiService.currentUser;
+    if (actor == null) { return; }
+    final key = 'csi_profiles:${actor['organization_id']}:${actor['id']}';
     try {
-
-      final isOnline = await SyncService.isOnline();
-
-      if (isOnline) {
-
-        final kilnsRes = await ApiService.get('/csink/kilns');
-
-        final biomassRes = await ApiService.get('/csink/biomass');
-
-        if (mounted) {
-
-          setState(() {
-
-            _kilns = List<Map<String, dynamic>>.from(kilnsRes['data'] ?? []);
-
-            _biomasses = List<Map<String, dynamic>>.from(biomassRes['data'] ?? []);
-
-          });
-
-        }
-
+      final prefs = await SharedPreferences.getInstance();
+      Map<String, dynamic> profiles = {};
+      final cached = prefs.getString(key);
+      if (cached != null) profiles = Map<String, dynamic>.from(jsonDecode(cached) as Map);
+      if (await SyncService.isOnline()) {
+        final kilns = await ApiService.get('/csink/kilns');
+        final biomass = await ApiService.get('/csink/biomass');
+        profiles = {'kilns': kilns['data'] ?? [], 'biomasses': biomass['data'] ?? []};
+        await prefs.setString(key, jsonEncode(profiles));
       }
-
+      if (mounted) setState(() {
+        _kilns = List<Map<String, dynamic>>.from(profiles['kilns'] ?? []);
+        _biomasses = List<Map<String, dynamic>>.from(profiles['biomasses'] ?? []);
+      });
     } catch (_) {
-
-      // Offline fallback remains active
-
+      // Unavailable profiles leave the selectors empty; never invent asset IDs.
     }
-
   }
-
-
 
   bool get _isMethodologyLocked => widget.initialActivityTypeId != null || widget.methodologyLock != null;
 
@@ -168,7 +158,7 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _captureLocation();
-      _fetchCsiProfiles();
+      if (widget.initialActivityTypeId == 'BIOCHAR_C_SINK') _fetchCsiProfiles();
     });
   }
 
@@ -416,22 +406,23 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
 
       final biomass = _biomasses.firstWhere((b) => b['id'].toString() == bId, orElse: () => {});
 
-      double capacityM3 = 1.5; // fallback
+      double? capacityM3;
 
-      double bulkDensity = 0.25; // fallback
+      double? bulkDensity;
 
       if (kiln.isNotEmpty) {
 
-        capacityM3 = double.tryParse(kiln['capacity_m3']?.toString() ?? '') ?? 1.5;
+        capacityM3 = double.tryParse(kiln['capacity_m3']?.toString() ?? '') ;
 
       }
 
       if (biomass.isNotEmpty) {
 
-        bulkDensity = double.tryParse(biomass['bulk_density_g_cm3']?.toString() ?? '') ?? 0.25;
+        bulkDensity = double.tryParse(biomass['bulk_density_g_cm3']?.toString() ?? '') ;
 
       }
 
+      if (capacityM3 == null || bulkDensity == null) return;
       final capacityLimit = capacityM3 * bulkDensity * 1000;
 
       setState(() {
@@ -687,6 +678,10 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
   Future<void> _submitInstallation() async {
 
     if (_selectedConfig == null || _locationData == null || _isCheckingDuplicate) return;
+    if (widget.projectId == null || !FieldAccess.canCapture(ApiService.currentUser?['role'])) {
+      setState(() => _errorMessage = 'Select an authorized project before submitting field records.');
+      return;
+    }
 
 
 
@@ -807,6 +802,8 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
     final activityData = Map<String, dynamic>.from(_fieldValues);
 
     activityData['device_signature'] = deviceSignature;
+    activityData['captured_by_user_id'] = ApiService.currentUser?['id'];
+    activityData['captured_in_organization_id'] = ApiService.currentUser?['organization_id'];
 
     activityData['image_metadata'] = _capturedImagesMetadata;
 
@@ -949,7 +946,7 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
 
         if (mounted) {
 
-          VFNotification.showSuccess(context, 'Installation registered successfully! ✅');
+          VFNotification.showSuccess(context, 'Field record submitted.');
 
           context.pop(true);
 
@@ -1292,16 +1289,12 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
       for (final field in config.fields) {
         if (field.type == 'boolean') {
           _fieldValues[field.key] = false;
-        } else if (field.key == 'kiln_id') {
-          _fieldValues[field.key] = '22222222-2222-2222-2222-222222222222'; // Match seeded Kiln ID fallback
-        } else if (field.key == 'biomass_id') {
-          _fieldValues[field.key] = '33333333-3333-3333-3333-333333333333'; // Match seeded Biomass ID fallback
+
         }
       }
 
       if (config.id == 'BIOCHAR_C_SINK') {
-        final currentUser = SupabaseConfig.currentUser;
-        final agentId = currentUser?.email ?? currentUser?.id ?? 'agent@verifield.io';
+        final agentId = ApiService.currentUser?['id']?.toString() ?? '';
         final nowStr = DateTime.now().toUtc().toIso8601String();
         _fieldValues['field_agent_id'] = agentId;
         _controllerFor('field_agent_id').text = agentId;
@@ -1315,8 +1308,7 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
         _controllerFor('applied_quantity_kg').text = '0.0';
         _fieldValues['remaining_quantity_kg'] = 0.0;
         _controllerFor('remaining_quantity_kg').text = '0.0';
-        _fieldValues['kiln_capacity_limit_kg'] = 300.0; // standard fallback
-        _controllerFor('kiln_capacity_limit_kg').text = '300.0';
+
       }
     });
   }
@@ -1832,9 +1824,7 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
 
       } else {
 
-        options = ['22222222-2222-2222-2222-222222222222'];
-
-        friendlyLabels['22222222-2222-2222-2222-222222222222'] = 'KILN-KT-001 (Kon-Tiki)';
+        options = [];
 
       }
 
@@ -1852,9 +1842,7 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
 
       } else {
 
-        options = ['33333333-3333-3333-3333-333333333333'];
-
-        friendlyLabels['33333333-3333-3333-3333-333333333333'] = 'Rice Husk Feedstock';
+        options = [];
 
       }
 

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { canPerformAction } from "@/lib/roles";
 import { canReadRegistry } from "@/lib/registryWorkflow";
 import React, { useState, useEffect, useCallback } from "react";
 import {
@@ -107,6 +108,7 @@ export const ProjectDocumentsModule: React.FC<ProjectDocumentsModuleProps> = ({
   methodologyName = "Standard Methodology",
 }) => {
   const { user } = useWorkspace();
+  const canUpload = canPerformAction("document:upload", user?.role);
   const effectiveOrgId = organizationId || user?.organization_id || undefined;
 
   const [documents, setDocuments] = useState<ProjectDocument[]>([]);
@@ -161,6 +163,7 @@ export const ProjectDocumentsModule: React.FC<ProjectDocumentsModuleProps> = ({
   };
 
   const handleUpload = async (e: React.FormEvent) => {
+    if (!canUpload) { e.preventDefault(); return; }
     e.preventDefault();
     if (!selectedFile) return;
 
@@ -265,7 +268,7 @@ export const ProjectDocumentsModule: React.FC<ProjectDocumentsModuleProps> = ({
         <div>
           <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
             <ShieldCheck className="w-5 h-5 text-emerald-600" />
-            Project Documentation & Methodology Ingestion
+            Project documents
           </h3>
           <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
             Context: <span className="font-medium text-emerald-700 dark:text-emerald-400">{projectName}</span> · Sector: {sectorName} · Methodology: {methodologyName}
@@ -281,13 +284,13 @@ export const ProjectDocumentsModule: React.FC<ProjectDocumentsModuleProps> = ({
             {generatingReport ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
             Generate MRV PDF
           </button>
-          <button
+          {canUpload && <button
             onClick={() => setUploadModalOpen(true)}
             className="px-3.5 py-1.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition flex items-center gap-1.5 shadow-sm"
           >
             <Upload className="w-3.5 h-3.5" />
-            Ingest Document
-          </button>
+            Upload document
+          </button>}
         </div>
       </div>
 
@@ -305,12 +308,12 @@ export const ProjectDocumentsModule: React.FC<ProjectDocumentsModuleProps> = ({
             <p className="text-xs text-gray-500 max-w-sm mx-auto mt-1 mb-4">
               Upload PDDs, monitoring reports, or baseline methodologies to extract facts and verify reconciliation against registry standards.
             </p>
-            <button
+            {canUpload && <button
               onClick={() => setUploadModalOpen(true)}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition shadow-sm"
             >
               <Upload className="w-3.5 h-3.5" /> Upload Document
-            </button>
+            </button>}
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -385,7 +388,7 @@ export const ProjectDocumentsModule: React.FC<ProjectDocumentsModuleProps> = ({
       </div>
 
       {/* Upload Modal */}
-      {uploadModalOpen && (
+      {canUpload && uploadModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="w-full max-w-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-3">

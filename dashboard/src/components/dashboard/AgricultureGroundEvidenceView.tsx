@@ -60,21 +60,16 @@ import {
   type StratumRecord,
   type LaboratoryResultRecord,
 } from "@/lib/api";
+import { canPerformAction, normalizeRole } from "@/lib/roles";
 import { useWorkspace } from "@/context/WorkspaceContext";
 
 export default function AgricultureGroundEvidenceView({ projectId }: { projectId: string }) {
-  let workspaceUser: any = null;
-  try {
-    const ws = useWorkspace();
-    workspaceUser = ws?.user;
-  } catch {
-    // Isolated testing
-  }
-  const userRole = (workspaceUser?.role || "PROJECT_MANAGER").toUpperCase();
-  const isAuditor = userRole === "AUDITOR";
+  const { user: workspaceUser } = useWorkspace();
+  const userRole = normalizeRole(workspaceUser?.role);
+  const isAuditor = userRole === "AUDITOR" || userRole === "VERIFIER";
   const isFieldAgent = userRole === "FIELD_AGENT";
-  const canManagePlans = !isAuditor && !isFieldAgent;
-  const canPerformQA = !isFieldAgent;
+  const canManagePlans = canPerformAction("project:edit", workspaceUser?.role);
+  const canPerformQA = canPerformAction("activity:approve", workspaceUser?.role);
 
   // Data States
   const [campaigns, setCampaigns] = useState<SamplingCampaignRecord[]>([]);

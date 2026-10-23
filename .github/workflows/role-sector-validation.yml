@@ -1,0 +1,68 @@
+name: Role and sector workflow checks
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  browser:
+    name: Sidebar roles and field capture (Chromium)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - name: Prepare Chromium
+        working-directory: dashboard
+        timeout-minutes: 5
+        run: |
+          if command -v google-chrome > /dev/null; then
+            echo "VF_CHROMIUM_EXECUTABLE_PATH=$(command -v google-chrome)" >> "$GITHUB_ENV"
+          else
+            npx playwright install --with-deps chromium
+          fi
+      - run: npm run build --workspace dashboard
+        env:
+          NEXT_PUBLIC_API_URL: http://127.0.0.1:48991
+          BACKEND_API_URL: http://127.0.0.1:9
+          NEXT_TELEMETRY_DISABLED: '1'
+      - name: Run isolated browser workflows
+        working-directory: dashboard
+        env:
+          BASE_URL: http://127.0.0.1:3001
+          BACKEND_API_URL: http://127.0.0.1:9
+        run: |
+          npm run start -- --hostname 127.0.0.1 --port 3001 > /tmp/verifield-ui.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID"' EXIT
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:3001/login > /dev/null; then break; fi
+            sleep 1
+          done
+          npx playwright test tests/navigation_role_sector.spec.ts tests/phase2_registry_workflow.spec.ts --project=chromium
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: role-sector-browser-results
+          path: dashboard/test-results
+  mobile:
+    name: Native field app roles and sector routing
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+        working-directory: mobile
+      - run: flutter analyze --no-fatal-infos --no-fatal-warnings
+        working-directory: mobile
+      - run: flutter test
+        working-directory: mobile

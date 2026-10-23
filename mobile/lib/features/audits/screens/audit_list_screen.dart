@@ -14,6 +14,7 @@ import '../../../core/theme/app_typography.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../shared/widgets/shared_widgets.dart';
 import '../../../services/api_service.dart';
+import '../../../core/utils/field_access.dart';
 import '../../../core/utils/refresh_event_bus.dart';
 
 class AuditListScreen extends StatefulWidget {
@@ -87,6 +88,7 @@ class _AuditListScreenState extends State<AuditListScreen> {
   }
 
   Future<void> _updateAuditStatus(String auditId, String newStatus) async {
+    if (!FieldAccess.canReview(_currentUser?['role'])) return;
     try {
       await ApiService.patch('/audits/$auditId', body: {'status': newStatus});
       if (mounted) {
@@ -278,7 +280,7 @@ class _AuditListScreenState extends State<AuditListScreen> {
               children: [
                 if (deadlineStr.isNotEmpty)
                   Text('Due: $deadlineStr', style: AppTypography.caption),
-                if ((status == 'pending' || status == 'in_progress') && isAssignedToMe)
+                if ((status == 'pending' || status == 'in_progress') && isAssignedToMe && FieldAccess.canReview(_currentUser?['role']))
                   SizedBox(
                     height: 32,
                     child: ElevatedButton(

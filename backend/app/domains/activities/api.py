@@ -468,10 +468,13 @@ async def update_activity(
             status_code=404, detail="Activity not found or unauthorized."
         )
 
+    from app.core.rbac import enforce_activity_decision
+    enforce_activity_decision(current_user.role, status_value=payload.status, validation_status=payload.validation_status)
+
     # Separation of Duties & Role permission enforcement
     is_approving = (payload.status == "verified" or payload.validation_status == "approved")
     if is_approving:
-        can_verify = has_permission(current_user.role, "activity:verify") or current_user.role in ("SUPER_ADMIN", "admin", "ORG_ADMIN", "QA_OFFICER", "FIELD_SUPERVISOR", "VERIFIER")
+        can_verify = has_permission(current_user.role, "activity:verify") if payload.status == "verified" else has_permission(current_user.role, "activity:approve")
         if not can_verify:
             raise HTTPException(
                 status_code=403, detail="Forbidden: Role lacks permission to verify or approve activities."
@@ -868,6 +871,9 @@ async def update_activity_status_patch(
     from app.domains.activities.models import Activity as ActivityModel
 
 
+
+    from app.core.rbac import enforce_activity_decision
+    enforce_activity_decision(current_user.role, status_value=payload.status)
 
     allowed_roles = ("SUPER_ADMIN", "admin", "ORG_ADMIN", "QA_OFFICER", "FIELD_SUPERVISOR", "VERIFIER")
     if current_user.role not in allowed_roles and not has_permission(current_user.role, "activity:verify"):

@@ -12,6 +12,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/router/app_router.dart';
 import '../../core/utils/refresh_event_bus.dart';
 import '../../services/api_service.dart';
+import '../../core/utils/field_access.dart';
 import 'shared_widgets.dart';
 
 /// Shell widget providing bottom navigation across main app sections.
@@ -29,10 +30,12 @@ class _VFShellState extends State<VFShell> {
   final Set<String> _seenAuditIds = {};
   bool _isFirstFetch = true;
   String? _myUserId;
+  String? _role;
 
   @override
   void initState() {
     super.initState();
+    _loadRole();
     _startNotificationCheck();
   }
 
@@ -42,10 +45,16 @@ class _VFShellState extends State<VFShell> {
     super.dispose();
   }
 
+  Future<void> _loadRole() async {
+    var user = ApiService.currentUser;
+    try { user = await ApiService.get('/auth/me'); } catch (_) {}
+    if (mounted) setState(() { _role = user?['role'] as String?; _myUserId = user?['id'] as String?; });
+  }
+
   void _startNotificationCheck() {
     // Check for new audit tasks periodically (every 10 seconds)
     _notificationTimer = Timer.periodic(const Duration(seconds: 10), (timer) async {
-      if (!mounted) return;
+      if (!mounted || !FieldAccess.canReadAudits(_role)) return;
       
       try {
         // Retrieve my user ID if not cached yet
@@ -62,7 +71,7 @@ class _VFShellState extends State<VFShell> {
 
         // Query the audits list from the new verification domain
         final response = await ApiService.get('/verification/tasks');
-        final audits = (response is List) ? response as List<dynamic> : [];
+        final audits = (response['tasks'] ?? response['audits'] ?? response['data'] ?? []) as List;
         
         bool hasNewAudit = false;
 
@@ -107,7 +116,7 @@ class _VFShellState extends State<VFShell> {
     return Scaffold(
       body: widget.child,
       // --- Floating Action Button for quick activity creation ---
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: FieldAccess.canCapture(_role) ? FloatingActionButton.extended(
         onPressed: () async {
           final result = await context.push(AppRoutes.newActivity);
           if (result == true) {
@@ -118,10 +127,10 @@ class _VFShellState extends State<VFShell> {
           }
         },
         icon: const Icon(Icons.energy_savings_leaf_rounded),
-        label: const Text('Register Installation'),
+        label: const Text('Capture data'),
         backgroundColor: AppColors.primary,
         foregroundColor: AppColors.textInverse,
-      ),
+      ) : null,
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
 
       // --- Bottom Navigation Bar ---
@@ -130,76 +139,19 @@ class _VFShellState extends State<VFShell> {
   }
 
   Widget _buildBottomNav(BuildContext context) {
-    // Determine current tab index from route
+    final destinations = <({String path, String label, IconData icon})>[
+      (path: AppRoutes.home, label: 'Field records', icon: Icons.layers_outlined),
+      if (FieldAccess.canReadAudits(_role)) (path: AppRoutes.audits, label: 'Audits', icon: Icons.verified_outlined),
+      if (FieldAccess.canReadSensors(_role)) (path: AppRoutes.sensors, label: 'Sensors', icon: Icons.hub_outlined),
+      (path: AppRoutes.community, label: 'Community', icon: Icons.public_outlined),
+      (path: AppRoutes.profile, label: 'Profile', icon: Icons.badge_outlined),
+    ];
     final location = GoRouterState.of(context).matchedLocation;
-    int currentIndex = 0;
-    if (location.startsWith('/audits')) {
-      currentIndex = 1;
-    } else if (location.startsWith('/sensors')) {
-      currentIndex = 2;
-    } else if (location.startsWith('/community')) {
-      currentIndex = 3;
-    } else if (location.startsWith('/profile')) {
-      currentIndex = 4;
-    }
-
-    return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-        border: Border(top: BorderSide(color: AppColors.border, width: 0.5)),
-      ),
-      child: NavigationBar(
-        backgroundColor: AppColors.surface,
-        surfaceTintColor: Colors.transparent,
-        indicatorColor: AppColors.primary.withValues(alpha: 0.15),
-        selectedIndex: currentIndex,
-        onDestinationSelected: (index) {
-          switch (index) {
-            case 0:
-              context.go(AppRoutes.home);
-              break;
-            case 1:
-              context.go(AppRoutes.audits);
-              break;
-            case 2:
-              context.go(AppRoutes.sensors);
-              break;
-            case 3:
-              context.go(AppRoutes.community);
-              break;
-            case 4:
-              context.go(AppRoutes.profile);
-              break;
-          }
-        },
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.layers_outlined, color: AppColors.textTertiary),
-            selectedIcon: Icon(Icons.layers_rounded, color: AppColors.primary),
-            label: 'Activities',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.verified_outlined, color: AppColors.textTertiary),
-            selectedIcon: Icon(Icons.verified_rounded, color: AppColors.primary),
-            label: 'Audits',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.hub_outlined, color: AppColors.textTertiary),
-            selectedIcon: Icon(Icons.hub_rounded, color: AppColors.primary),
-            label: 'Sensors',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.public_outlined, color: AppColors.textTertiary),
-            selectedIcon: Icon(Icons.public_rounded, color: AppColors.primary),
-            label: 'Community',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.badge_outlined, color: AppColors.textTertiary),
-            selectedIcon: Icon(Icons.badge_rounded, color: AppColors.primary),
-            label: 'Profile',
-          ),
-        ],
-      ),
+    final index = destinations.indexWhere((d) => location.startsWith(d.path));
+    return NavigationBar(
+      selectedIndex: index < 0 ? 0 : index,
+      onDestinationSelected: (index) => context.go(destinations[index].path),
+      destinations: destinations.map((d) => NavigationDestination(icon: Icon(d.icon), label: d.label)).toList(),
     );
   }
 }

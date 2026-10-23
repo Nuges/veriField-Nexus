@@ -48,23 +48,18 @@ import {
   type ManagementRecordItem,
   type LandUnitRecord,
 } from "@/lib/api";
+import { canPerformAction, normalizeRole } from "@/lib/roles";
 import { useWorkspace } from "@/context/WorkspaceContext";
 
 export default function AgricultureFoundationView({ projectId }: { projectId?: string }) {
-  let workspaceUser: any = null;
-  try {
-    const ws = useWorkspace();
-    workspaceUser = ws?.user;
-  } catch {
-    // Rendered outside WorkspaceProvider or during isolated testing
-  }
-  const userRole = (workspaceUser?.role || "PROJECT_MANAGER").toUpperCase();
-  const isAuditor = userRole === "AUDITOR";
+  const { user: workspaceUser } = useWorkspace();
+  const userRole = normalizeRole(workspaceUser?.role);
+  const isAuditor = userRole === "AUDITOR" || userRole === "VERIFIER";
   const isFieldAgent = userRole === "FIELD_AGENT";
-  const canLockMethodology = !isAuditor && !isFieldAgent;
-  const canCreateStratum = !isAuditor && !isFieldAgent;
-  const canAssignUnits = !isAuditor && !isFieldAgent;
-  const canLogManagement = !isAuditor;
+  const canLockMethodology = canPerformAction("project:edit", workspaceUser?.role);
+  const canCreateStratum = canLockMethodology;
+  const canAssignUnits = canLockMethodology;
+  const canLogManagement = canLockMethodology;
 
   const [activeSection, setActiveSection] = useState<
     "readiness" | "ground_evidence" | "quantification" | "methodology" | "land_structure" | "strata" | "management"

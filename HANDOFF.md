@@ -3,6 +3,11 @@
 Updated: 23 October 2026 (Africa/Lagos)
 Status: **ONBOARDING_CORRECTION_DEPLOYED** — sector data repaired, sidebar/dashboard/approval correction published and deployed; production agriculture schema remains a separate blocker.
 
+## Active task — Navigation, role and sector cleanup
+
+User requested removal of duplicated frontend workflows, plain labels, sidebar/role testing, independent VVB duties, super-admin field/admin oversight and correctly linked sector field apps. Implementation is on `fix/navigation-role-sector-cleanup`, based on c59be19. See `docs/navigation/ROLE_SECTOR_CLEANUP_2026-10-23.md` for scope, exact limitations and checkpoint results. Local Chromium 41/41, dashboard unit 160/160, typecheck/lint/build passed. VVB lifecycle correction passed separately. Final isolated SQLite regression: 419 passed, 21 skipped, one deselected (34.23s), with the PostgreSQL telemetry file excluded locally. Initial native Flutter analysis/tests passed (10 tests), and browser CI passed. Initial full backend CI had two outdated QA-verification expectations (843 passed); these are corrected, and persisted project sector metadata is now exposed by the API. Targeted contract/security rerun: 37 passed in 4.38s. Final CI rerun is pending. Source checkpoint 3f000cd58c6a35c7097a71ba0aea8f31fab8f549 was published in draft PR #3 (https://github.com/Nuges/veriField-Nexus/pull/3). No merge/deploy is claimed at this checkpoint. Preserve the production agriculture schema gap described below; no production schema changes are included.
+
+
 ## Latest publication and deployment — 23 October 2026
 
 - Source commit: 10e474e08ab015884a0ee8d15e182fe3578cf50b.

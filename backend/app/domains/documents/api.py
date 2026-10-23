@@ -52,7 +52,8 @@ async def upload_project_document(
     """
     # Restrict roles permitted to upload supporting documentation
     allowed_roles = {"SUPER_ADMIN", "ADMIN", "ORG_ADMIN", "PROJECT_MANAGER", "QA_OFFICER", "FIELD_SUPERVISOR"}
-    if current_user.role not in allowed_roles:
+    from app.core.rbac import normalize_canonical_role
+    if normalize_canonical_role(current_user.role) not in allowed_roles:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"Role '{current_user.role}' is not authorized to upload project documents.",

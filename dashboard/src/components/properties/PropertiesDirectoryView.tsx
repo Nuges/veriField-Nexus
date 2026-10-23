@@ -48,12 +48,14 @@ import {
 
 import { fetchProperties, createProject, fetchProjects, fetchMethodologies } from "@/lib/api";
 
+import { canPerformAction } from "@/lib/roles";
 import type { Property } from "@/lib/types";
 
 import { useToast } from "@/components/Toast";
 
 import { useWorkspace } from "@/context/WorkspaceContext";
 import {
+  getCanonicalSectorLabel,
   getCanonicalMethodologiesForSector,
   normalizeToCanonicalSectorCode,
   type CanonicalMethodologyOption,
@@ -61,9 +63,9 @@ import {
 
 
 
-export default function PropertiesDirectoryView() {
+export default function PropertiesDirectoryView({ mode = "assets" }: { mode?: "projects" | "assets" }) {
   const toast = useToast();
-  const { filterProperties, activeSector, activeMethodology, moduleRegistry } = useWorkspace();
+  const { user, filterProperties, activeSector, activeMethodology, moduleRegistry } = useWorkspace();
   const [properties, setProperties] = useState<Property[]>([]);
   const [realProjects, setRealProjects] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -97,21 +99,14 @@ export default function PropertiesDirectoryView() {
 
   useEffect(() => {
     if (availableMethodologies.length > 0) {
-      const match = availableMethodologies.find(
-        (m) =>
-          m.id.toLowerCase() === (activeMethodology || "").toLowerCase() ||
-          m.code.toUpperCase() === (activeMethodology || "").toUpperCase()
-      );
-      const chosen = match || availableMethodologies[0];
-      setSelectedMethodologyId(chosen.id);
-      setSelectedVersion(chosen.version || "");
+      setSelectedMethodologyId("");
+      setSelectedVersion("");
     }
   }, [availableMethodologies, activeMethodology]);
 
   const currentSelectedMethodology = useMemo(() => {
     return (
-      availableMethodologies.find((m) => m.id === selectedMethodologyId) ||
-      availableMethodologies[0]
+      availableMethodologies.find((m) => m.id === selectedMethodologyId)
     );
   }, [availableMethodologies, selectedMethodologyId]);
 
@@ -125,7 +120,7 @@ export default function PropertiesDirectoryView() {
 
   const [formData, setFormData] = useState({
     name: "",
-    country: "Nigeria",
+    country: user?.country || "",
     baseline_source: "diesel_generator",
     diesel_emission_factor: 2.68,
     grid_emission_factor: 0.7,
@@ -137,8 +132,8 @@ export default function PropertiesDirectoryView() {
     setIsLoading(true);
     try {
       const [resProps, resProjects] = await Promise.allSettled([
-        fetchProperties(),
-        fetchProjects()
+        mode === "assets" ? fetchProperties() : Promise.resolve(null),
+        mode === "projects" ? fetchProjects() : Promise.resolve(null)
       ]);
 
       if (resProps.status === "fulfilled") {
@@ -157,10 +152,11 @@ export default function PropertiesDirectoryView() {
 
   useEffect(() => {
     loadProps();
-  }, []);
+  }, [mode]);
 
   const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (mode !== "projects" || !canPerformAction("project:create", user?.role)) return;
     if (!formData.name.trim()) {
       toast.error("Validation Error", "Please enter a valid project name.");
       return;
@@ -179,10 +175,10 @@ export default function PropertiesDirectoryView() {
         country: formData.country,
         methodology_id: methId,
         methodology_version: selectedVersion || currentSelectedMethodology?.version || undefined,
-        methodology_version_id: selectedVersion || currentSelectedMethodology?.version || undefined,
-        baseline_source: formData.baseline_source,
-        diesel_emission_factor: Number(formData.diesel_emission_factor),
-        grid_emission_factor: Number(formData.grid_emission_factor),
+
+        baseline_source: canonicalSector === "HYBRID_ENERGY" ? formData.baseline_source : undefined,
+        diesel_emission_factor: canonicalSector === "HYBRID_ENERGY" ? Number(formData.diesel_emission_factor) : undefined,
+        grid_emission_factor: canonicalSector === "HYBRID_ENERGY" ? Number(formData.grid_emission_factor) : undefined,
         crediting_start: formData.crediting_start || undefined,
         crediting_end: formData.crediting_end || undefined
       });
@@ -194,7 +190,7 @@ export default function PropertiesDirectoryView() {
 
         name: "",
 
-        country: "Nigeria",
+        country: user?.country || "",
 
         baseline_source: "diesel_generator",
 
@@ -304,75 +300,38 @@ export default function PropertiesDirectoryView() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[var(--color-border)] pb-4">
         <div>
           <h1 className="text-xl font-bold tracking-tight text-[var(--color-text-primary)]">
-            Registered Carbon Assets & Projects
+            {mode === "projects" ? "Projects" : "Assets"}
           </h1>
           <p className="text-[var(--color-text-secondary)] text-xs mt-0.5">
-            Audit energy efficiency scores, inspect geographical placements, and onboard new climate projects.
+            {mode === "projects" ? "Manage your projects and their documents." : "View registered sites, equipment, and devices."}
           </p>
         </div>
       </div>
 
-      {/* DYNAMIC METRICS SUMMARY CARDS */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        {/* Total Assets Summary */}
-        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-4">
-          <p className="text-[11px] font-medium text-[var(--color-text-secondary)]">
-            {activeSector === "ev_mobility" ? "Registered EV Fleets & Stations" :
-             activeSector === "hybrid_energy" ? "Registered Solar Mini-grids" :
-             activeSector === "biochar" ? "Registered Biochar Pyrolyzers" :
-             activeSector === "cookstoves" ? "Monitored Stove Devices" : "Monitored Carbon Assets"}
-          </p>
-          <p className="text-2xl font-bold text-[var(--color-text-primary)] tracking-tight mt-1">
-            {isLoading ? "..." : totalAssetsCount}
-          </p>
-          <p className="text-[11px] text-[var(--color-text-muted)] mt-1">
-            {realProjects.length} Active Project{realProjects.length === 1 ? "" : "s"}
-          </p>
-        </div>
-
-        {/* Total Carbon Offsets Dynamic Sum */}
-        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-4">
-          <p className="text-[11px] font-medium text-[var(--color-text-secondary)]">Verified Emissions Offsets</p>
-          <p className="text-2xl font-bold text-blue-600 dark:text-blue-400 tracking-tight mt-1">
-            {isLoading ? "..." : `${totalCarbonOffset.toLocaleString()} kg`}
-          </p>
-          <p className="text-[11px] text-[var(--color-text-muted)] mt-1">Avoided CO₂ output</p>
-        </div>
-
-        {/* Verified Gold Status Counts */}
-        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-4">
-          <p className="text-[11px] font-medium text-[var(--color-text-secondary)]">Certified Gold Standard</p>
-          <p className="text-2xl font-bold text-[#008A5E] tracking-tight mt-1">
-            {isLoading ? "..." : verifiedAssetsCount}
-          </p>
-          <p className="text-[11px] text-[var(--color-text-muted)] mt-1">Fully verified MRV status</p>
-        </div>
-      </div>
-
-      {/* REGISTERED CLIMATE PROJECTS ROSTER */}
-      <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-4 space-y-3">
+      {/* Projects have a single home; Assets only renders physical records. */}
+      {mode === "projects" && <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-4 space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[var(--color-border)] pb-3">
           <div>
             <h2 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-primary)]">
-              Registered Climate Projects ({realProjects.length})
+              Projects ({realProjects.length})
             </h2>
             <p className="text-[11px] text-[var(--color-text-secondary)]">
               All onboarded climate projects, methodologies, and spatial boundaries for your organization.
             </p>
           </div>
-          <button
+          {canPerformAction("project:create", user?.role) && <button
             onClick={() => setShowModal(true)}
             className="px-3 py-1.5 rounded-md bg-[#008A5E] hover:bg-[#00734E] text-white font-semibold text-xs transition-colors flex items-center gap-1.5 cursor-pointer shrink-0"
           >
             <Plus size={13} />
-            <span>Create New Project</span>
-          </button>
+            <span>Create project</span>
+          </button>}
         </div>
 
         {realProjects.length === 0 ? (
           <div className="p-6 text-center bg-[var(--color-background)] rounded-md border border-[var(--color-border)] space-y-1.5">
-            <p className="text-xs font-semibold text-[var(--color-text-primary)]">No Projects Registered Yet</p>
-            <p className="text-[11px] text-[var(--color-text-muted)]">Click "Create New Project" to onboard your first project.</p>
+            <p className="text-xs font-semibold text-[var(--color-text-primary)]">No projects yet</p>
+            <p className="text-[11px] text-[var(--color-text-muted)]">Projects will appear here once created.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -403,7 +362,7 @@ export default function PropertiesDirectoryView() {
                       </Link>
                     </td>
                     <td className="py-2.5 px-3 font-mono text-[11px] text-[var(--color-text-muted)]">
-                      {proj.project_code || "VF-GP-001"}
+                      {proj.project_code || "—"}
                     </td>
                     <td className="py-2.5 px-3 font-mono text-[11px] text-[var(--color-text-muted)]">
                       {proj.id ? (
@@ -422,7 +381,7 @@ export default function PropertiesDirectoryView() {
                       ) : "—"}
                     </td>
                     <td className="py-2.5 px-3 text-[var(--color-text-secondary)]">
-                      {proj.country || "Nigeria"}
+                      {proj.country || "—"}
                     </td>
                     <td className="py-2.5 px-3 font-mono text-[11px] text-[#008A5E]">
                       {proj.methodology_code || proj.baseline_parameters?.methodology_code ? (
@@ -437,14 +396,14 @@ export default function PropertiesDirectoryView() {
                       )}
                     </td>
                     <td className="py-2.5 px-3 text-[var(--color-text-secondary)] text-[11px]">
-                      {proj.crediting_start ? `${proj.crediting_start} → ${proj.crediting_end || "Ongoing"}` : "Standard 10-Year"}
+                      {proj.crediting_start ? `${proj.crediting_start} → ${proj.crediting_end || "Ongoing"}` : "—"}
                     </td>
                     <td className="py-2.5 px-3 text-[var(--color-text-muted)] text-[11px]">
-                      {proj.created_at ? new Date(proj.created_at).toLocaleDateString() : "Active"}
+                      {proj.created_at ? new Date(proj.created_at).toLocaleDateString() : "—"}
                     </td>
                     <td className="py-2.5 px-3 text-center">
                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 dark:bg-emerald-950/50 text-[#008A5E] dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
-                        Active
+                        {proj.status || "—"}
                       </span>
                     </td>
                     <td className="py-2.5 px-3 text-right">
@@ -454,7 +413,7 @@ export default function PropertiesDirectoryView() {
                           className="px-2 py-1 rounded bg-[#008A5E]/10 hover:bg-[#008A5E]/20 text-[#008A5E] font-medium text-[10px] inline-flex items-center gap-1 transition-colors"
                           title="Upload PDD and Project Documents"
                         >
-                          <span>Ingest Docs</span>
+                          <span>Documents</span>
                         </Link>
                         {canonicalSector === "AGRICULTURE_LAND_USE" && (
                           <Link
@@ -462,7 +421,7 @@ export default function PropertiesDirectoryView() {
                             className="px-2 py-1 rounded bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 font-medium text-[10px] inline-flex items-center gap-1 transition-colors"
                             title="Upload Soil Lab Assays"
                           >
-                            <span>Lab Assay</span>
+                            <span>Laboratory</span>
                           </Link>
                         )}
                         <Link
@@ -483,15 +442,18 @@ export default function PropertiesDirectoryView() {
         )}
       </div>
 
-      {/* 🧭 MONITORED CARBON ASSETS & DEVICES DIRECTORY TOOLBAR */}
+      }
+
+      {mode === "assets" && <>
+      {/* Assets directory */}
       <div className="pt-3 border-t border-[var(--color-border)] space-y-3">
         <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
           <div>
             <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-primary)]">
-              Monitored Assets & Device Telemetry
+              Registered assets
             </h3>
             <p className="text-[11px] text-[var(--color-text-secondary)]">
-              Physical hardware devices, chargers, and sensors bound to onboarded projects.
+              Sites and equipment linked to your projects.
             </p>
           </div>
           <div className="relative w-full max-w-xs">
@@ -582,7 +544,7 @@ export default function PropertiesDirectoryView() {
                           ? "text-red-600 dark:text-red-400"
                           : "text-amber-600 dark:text-amber-400"
                       }`} title={metrics?.status || 'Unverified'}>
-                        {metrics?.status || 'Active'}
+                        {metrics?.status || 'Not assessed'}
                       </p>
                     </div>
                   </div>
@@ -593,13 +555,15 @@ export default function PropertiesDirectoryView() {
         </div>
       )}
 
-      {/* ➕ CREATE NEW PROJECT ONBOARDING MODAL */}
+      </>}
 
-      {showModal && (
+      {/* Create project */}
+
+      {mode === "projects" && canPerformAction("project:create", user?.role) && showModal && (
 
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
 
-          <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-scale-up">
+          <div role="dialog" aria-modal="true" aria-label="Create project" className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl overflow-hidden animate-scale-up">
 
 
 
@@ -617,14 +581,14 @@ export default function PropertiesDirectoryView() {
 
                 <h2 className="text-base font-bold text-[var(--color-text-primary)]">
 
-                  Register New Climate Project
+                  Create project
 
                 </h2>
 
               </div>
 
               <button
-
+                aria-label="Close project form"
                 onClick={() => setShowModal(false)}
 
                 className="p-1.5 rounded-lg text-[var(--color-text-secondary)] hover:bg-[var(--color-background)] hover:text-[var(--color-text-primary)] transition-all"
@@ -649,7 +613,7 @@ export default function PropertiesDirectoryView() {
 
                 <label className="text-[10px] font-extrabold uppercase tracking-wider text-[var(--color-text-secondary)] block mb-1">
 
-                  Project Name *
+                  Project name *
 
                 </label>
 
@@ -663,7 +627,7 @@ export default function PropertiesDirectoryView() {
 
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
 
-                  placeholder="e.g. Kano Clean Cooking Expansion Project"
+                  placeholder="Project name"
 
                   className="w-full bg-[var(--color-background)] border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs font-semibold text-[var(--color-text-primary)] focus:outline-none focus:border-[#00B47A]"
 
@@ -693,6 +657,8 @@ export default function PropertiesDirectoryView() {
 
                   >
 
+                    <option value="">Select country</option>
+                    <option value="India">India</option>
                     <option value="Nigeria">Nigeria</option>
 
                     <option value="Kenya">Kenya</option>
@@ -714,7 +680,7 @@ export default function PropertiesDirectoryView() {
                     Operating Sector
                   </label>
                   <div className="w-full bg-[var(--color-background)] border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs font-semibold text-[var(--color-text-primary)] capitalize">
-                    {canonicalSector.toLowerCase().replace(/_/g, " ")}
+                    {getCanonicalSectorLabel(canonicalSector)}
                   </div>
                 </div>
               </div>
@@ -723,7 +689,7 @@ export default function PropertiesDirectoryView() {
               <div className="space-y-3">
                 <div>
                   <label className="text-[10px] font-extrabold uppercase tracking-wider text-[var(--color-text-secondary)] block mb-1">
-                    Methodology & Standard
+                    Methodology
                   </label>
                   <select
                     id="modal-project-methodology-select"
@@ -732,6 +698,7 @@ export default function PropertiesDirectoryView() {
                     onChange={(e) => handleMethodologySelect(e.target.value)}
                     className="w-full bg-[var(--color-background)] border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs font-semibold text-[var(--color-text-primary)] focus:outline-none focus:border-[#00B47A]"
                   >
+                    <option value="">Select methodology</option>
                     {availableMethodologies.map((m) => (
                       <option key={m.id} value={m.id}>
                         {m.registryName} — {m.code} ({m.name})
@@ -754,15 +721,15 @@ export default function PropertiesDirectoryView() {
                       <div className="flex items-center gap-2">
                         {currentSelectedMethodology.verifieldSupport === "FULL" ? (
                           <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                            FULL MRV / CALCULATION READY
+                            Calculation supported
                           </span>
                         ) : currentSelectedMethodology.verifieldSupport === "MRV_ONLY" ? (
                           <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                            MRV ONLY — Evidence & Monitoring
+                            Evidence & monitoring
                           </span>
                         ) : (
                           <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                            CATALOG DISCOVERY ONLY
+                            Catalogue reference
                           </span>
                         )}
                       </div>
@@ -811,7 +778,7 @@ export default function PropertiesDirectoryView() {
 
 
 
-              <div className="grid grid-cols-3 gap-3">
+              {canonicalSector === "HYBRID_ENERGY" && <div className="grid grid-cols-3 gap-3">
 
                 <div>
 
@@ -887,7 +854,7 @@ export default function PropertiesDirectoryView() {
 
                 </div>
 
-              </div>
+              </div>}
 
 
 

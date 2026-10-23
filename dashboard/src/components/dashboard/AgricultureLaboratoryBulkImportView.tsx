@@ -45,6 +45,9 @@ import {
   type SamplingCampaignRecord,
 } from "@/lib/api";
 
+import { useWorkspace } from "@/context/WorkspaceContext";
+import { canPerformAction } from "@/lib/roles";
+
 interface Props {
   projectId: string;
   onImportSuccess?: () => void;
@@ -58,7 +61,8 @@ export default function AgricultureLaboratoryBulkImportView({
   isAuditor = false,
   isFieldAgent = false,
 }: Props) {
-  const canUpload = !isAuditor && !isFieldAgent;
+  const { user } = useWorkspace();
+  const canUpload = canPerformAction("project:edit", user?.role) && !isAuditor && !isFieldAgent;
 
   // Data states
   const [batches, setBatches] = useState<LaboratoryImportBatchItem[]>([]);
@@ -168,6 +172,7 @@ export default function AgricultureLaboratoryBulkImportView({
 
   // Handle Upload
   const handleUpload = async (e: React.FormEvent) => {
+    if (!canUpload) return;
     e.preventDefault();
     if (!selectedFile) {
       setErrorMsg("Please select a .csv or .xlsx laboratory data file.");
@@ -199,6 +204,7 @@ export default function AgricultureLaboratoryBulkImportView({
 
   // Handle Re-Validate
   const handleValidate = async () => {
+    if (!canUpload) return;
     if (!activeBatch) return;
     setValidating(true);
     setErrorMsg(null);
@@ -233,6 +239,7 @@ export default function AgricultureLaboratoryBulkImportView({
 
   // Handle Commit
   const handleCommit = async () => {
+    if (!canUpload) return;
     if (!activeBatch) return;
     setCommitting(true);
     setErrorMsg(null);

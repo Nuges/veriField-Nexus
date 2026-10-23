@@ -7,6 +7,9 @@
 
 "use client";
 
+import Link from "next/link";
+import { useWorkspace } from "@/context/WorkspaceContext";
+import { canPerformAction } from "@/lib/roles";
 import { useEffect, useState } from "react";
 import {
   Users,
@@ -32,56 +35,17 @@ import {
   Cell,
 } from "recharts";
 import StatCard from "@/components/StatCard";
-import { fetchAgentPerformance, setAuthToken, createAgent, updateAgentStatus, resetAgentPassword } from "@/lib/api";
-import type { AgentPerformance, AgentPerformanceResponse } from "@/lib/types";
+import { fetchAgentPerformance, setAuthToken } from "@/lib/api";
+import type { AgentPerformanceResponse } from "@/lib/types";
 import { useToast } from "@/components/Toast";
 
 
 export default function AgentsPage() {
-  const toast = useToast();
+  const { user } = useWorkspace();
   const [data, setData] = useState<AgentPerformanceResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterSuspicious, setFilterSuspicious] = useState(false);
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [newAgentEmail, setNewAgentEmail] = useState("");
-  const [newAgentName, setNewAgentName] = useState("");
-  const [newAgentPassword, setNewAgentPassword] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Password reset states
-  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
-  const [resetAgent, setResetAgent] = useState<AgentPerformance | null>(null);
-  const [resetPasswordValue, setResetPasswordValue] = useState("");
-  const [isResetting, setIsResetting] = useState(false);
-
-  // Revoke states
-  const [isRevokeModalOpen, setIsRevokeModalOpen] = useState(false);
-  const [revokeAgent, setRevokeAgent] = useState<AgentPerformance | null>(null);
-
-  async function handleResetPassword(e: React.FormEvent) {
-    e.preventDefault();
-    if (!resetAgent) return;
-    if (resetPasswordValue.length < 8) {
-      toast.error("Validation Error", "Password must be at least 8 characters long.");
-      return;
-    }
-    setIsResetting(true);
-    try {
-      await resetAgentPassword(resetAgent.id, resetPasswordValue);
-      toast.success("Password Reset", `Password for agent ${resetAgent.full_name} has been successfully updated.`);
-      setIsResetModalOpen(false);
-      setResetAgent(null);
-      setResetPasswordValue("");
-    } catch (err: any) {
-      console.error("Failed to reset password", err);
-      toast.error("Reset Failed", err.message || "Could not reset agent password. Please try again.");
-    } finally {
-      setIsResetting(false);
-    }
-  }
-
-
   useEffect(() => {
     const token = localStorage.getItem("vf_token");
     if (token) setAuthToken(token);
@@ -96,41 +60,6 @@ export default function AgentsPage() {
       console.error("Failed to load agent data:", err);
     } finally {
       setIsLoading(false);
-    }
-  }
-
-  async function handleStatusChange(userId: string, status: "active" | "suspended" | "revoked") {
-    try {
-      await updateAgentStatus(userId, status);
-      toast.success("Status Updated", `Agent status successfully set to ${status}.`);
-      await loadData();
-    } catch (err) {
-      console.error("Failed to update status", err);
-      toast.error("Update Failed", "Could not update agent status.");
-    }
-  }
-
-  async function handleAddAgent(e: React.FormEvent) {
-    e.preventDefault();
-    setIsSubmitting(true);
-    try {
-      await createAgent({
-        email: newAgentEmail,
-        password: newAgentPassword,
-        full_name: newAgentName,
-        role: "field_agent"
-      });
-      setIsAddModalOpen(false);
-      setNewAgentName("");
-      setNewAgentEmail("");
-      setNewAgentPassword("");
-      toast.success("Agent Provisioned", `Field agent ${newAgentName} has been successfully provisioned.`);
-      await loadData();
-    } catch (err: any) {
-      console.error("Failed to create agent", err);
-      toast.error("Provisioning Failed", err.message || "Could not provision new agent. Please try again.");
-    } finally {
-      setIsSubmitting(false);
     }
   }
 
@@ -289,13 +218,7 @@ export default function AgentsPage() {
             <ShieldAlert size={14} />
             {filterSuspicious ? "Showing Suspicious" : "Show Suspicious Only"}
           </button>
-          <button 
-            onClick={() => setIsAddModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold bg-[#008A5E] hover:bg-[#00734E] text-white transition-all shadow-xs cursor-pointer"
-          >
-            <Plus size={14} />
-            Add New Agent
-          </button>
+          {canPerformAction("users:manage", user?.role) && <Link href="/dashboard/people" className="text-sm text-emerald-700">People & access</Link>}
         </div>
       </div>
 
@@ -406,48 +329,7 @@ export default function AgentsPage() {
                         </div>
                       )}
                     </td>
-                    <td className="p-4">
-                      <div className="flex items-center justify-center gap-1.5">
-                        {agent.status !== "active" ? (
-                          <button 
-                            onClick={() => handleStatusChange(agent.id, "active")}
-                            className="p-1.5 text-emerald-800 dark:text-emerald-300 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 rounded-lg border border-emerald-300 dark:border-emerald-700 transition-colors cursor-pointer"
-                            title="Activate Agent"
-                          >
-                            <CheckCircle2 size={14} />
-                          </button>
-                        ) : (
-                          <button 
-                            onClick={() => handleStatusChange(agent.id, "suspended")}
-                            className="p-1.5 text-amber-800 dark:text-amber-300 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 rounded-lg border border-amber-300 dark:border-amber-700 transition-colors cursor-pointer"
-                            title="Suspend Agent"
-                          >
-                            <Ban size={14} />
-                          </button>
-                        )}
-                        <button 
-                          onClick={() => {
-                            setRevokeAgent(agent);
-                            setIsRevokeModalOpen(true);
-                          }}
-                          className="p-1.5 text-rose-800 dark:text-rose-300 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 rounded-lg border border-rose-300 dark:border-rose-700 transition-colors cursor-pointer"
-                          title="Revoke Access"
-                        >
-                          <X size={14} />
-                        </button>
-                        <button 
-                          onClick={() => {
-                            setResetAgent(agent);
-                            setResetPasswordValue("");
-                            setIsResetModalOpen(true);
-                          }}
-                          className="p-1.5 text-purple-800 dark:text-purple-300 bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/40 rounded-lg border border-purple-300 dark:border-purple-700 transition-colors cursor-pointer"
-                          title="Reset Agent Password"
-                        >
-                          <Key size={14} />
-                        </button>
-                      </div>
-                    </td>
+                    <td className="p-4">{canPerformAction("users:manage", user?.role) ? <Link href="/dashboard/people" className="text-sm text-emerald-700">Manage access</Link> : "—"}</td>
                   </tr>
                 ))
               )}
@@ -456,214 +338,6 @@ export default function AgentsPage() {
         </div>
       </div>
 
-      {/* Add Agent Modal */}
-      {isAddModalOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl shadow-xl w-full max-w-md p-6 animate-scale-in">
-            <div className="flex justify-between items-center mb-5 border-b border-[var(--color-border)] pb-3">
-              <h3 className="text-sm font-extrabold uppercase tracking-wider text-[var(--color-text-primary)]">
-                Provision New Agent
-              </h3>
-              <button 
-                onClick={() => setIsAddModalOpen(false)} 
-                className="p-1 rounded-lg bg-[var(--color-surface-subtle)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] border border-[var(--color-border)] transition-colors cursor-pointer"
-              >
-                <X size={16} />
-              </button>
-            </div>
-            
-            <form onSubmit={handleAddAgent} className="space-y-4 text-xs">
-              <div>
-                <label className="block text-[10px] font-bold text-[var(--color-text-secondary)] mb-1 uppercase tracking-wider">
-                  Full Name *
-                </label>
-                <input 
-                  type="text" 
-                  required 
-                  placeholder="e.g. John Doe"
-                  className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-2.5 text-xs text-[var(--color-text-primary)] font-semibold placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[#008A5E] shadow-xs"
-                  value={newAgentName}
-                  onChange={(e) => setNewAgentName(e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] font-bold text-[var(--color-text-secondary)] mb-1 uppercase tracking-wider">
-                  Email Address *
-                </label>
-                <input 
-                  type="email" 
-                  required 
-                  placeholder="johndoe@example.com"
-                  className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-2.5 text-xs text-[var(--color-text-primary)] font-mono placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[#008A5E] shadow-xs"
-                  value={newAgentEmail}
-                  onChange={(e) => setNewAgentEmail(e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] font-bold text-[var(--color-text-secondary)] mb-1 uppercase tracking-wider">
-                  Temporary Password *
-                </label>
-                <input 
-                  type="password" 
-                  required 
-                  minLength={8}
-                  placeholder="Minimum 8 characters"
-                  className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-2.5 text-xs text-[var(--color-text-primary)] font-mono placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[#008A5E] shadow-xs"
-                  value={newAgentPassword}
-                  onChange={(e) => setNewAgentPassword(e.target.value)}
-                />
-              </div>
-              
-              <div className="pt-3 flex justify-end gap-2 border-t border-[var(--color-border)]">
-                <button 
-                  type="button" 
-                  onClick={() => setIsAddModalOpen(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-bold text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-subtle)] hover:text-[var(--color-text-primary)] border border-[var(--color-border)] transition-colors cursor-pointer shadow-xs"
-                >
-                  Cancel
-                </button>
-                <button 
-                  type="submit" 
-                  disabled={isSubmitting}
-                  className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#008A5E] hover:bg-[#00734E] transition-colors disabled:opacity-50 cursor-pointer shadow-xs"
-                >
-                  {isSubmitting ? "Provisioning..." : "Provision Agent"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Reset Agent Password Modal */}
-      {isResetModalOpen && resetAgent && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl shadow-xl w-full max-w-md p-6 animate-scale-in">
-            <div className="flex justify-between items-center mb-5 border-b border-[var(--color-border)] pb-3">
-              <div className="flex items-center gap-2">
-                <Key className="text-purple-800 dark:text-purple-300" size={18} />
-                <h3 className="text-sm font-extrabold uppercase tracking-wider text-[var(--color-text-primary)]">
-                  Reset Agent Password
-                </h3>
-              </div>
-              <button 
-                onClick={() => {
-                  setIsResetModalOpen(false);
-                  setResetAgent(null);
-                }} 
-                className="p-1 rounded-lg bg-[var(--color-surface-subtle)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] border border-[var(--color-border)] transition-colors cursor-pointer"
-              >
-                <X size={16} />
-              </button>
-            </div>
-            
-            <form onSubmit={handleResetPassword} className="space-y-4 text-xs">
-              <div className="p-3 bg-[var(--color-surface-subtle)] border border-[var(--color-border)] rounded-xl space-y-1">
-                <p className="text-xs text-[var(--color-text-secondary)]">
-                  Agent: <strong className="text-[var(--color-text-primary)]">{resetAgent.full_name}</strong>
-                </p>
-                <p className="text-xs text-[var(--color-text-secondary)] font-mono">
-                  Email: {resetAgent.email}
-                </p>
-              </div>
-              <div>
-                <label className="block text-[10px] font-bold text-[var(--color-text-secondary)] mb-1 uppercase tracking-wider">
-                  New Password *
-                </label>
-                <input 
-                  type="password" 
-                  required 
-                  minLength={8}
-                  placeholder="Enter new agent password (min 8 chars)"
-                  className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-2.5 text-xs text-[var(--color-text-primary)] font-mono placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[#008A5E] shadow-xs"
-                  value={resetPasswordValue}
-                  onChange={(e) => setResetPasswordValue(e.target.value)}
-                />
-              </div>
-              
-              <div className="pt-3 flex justify-end gap-2 border-t border-[var(--color-border)]">
-                <button 
-                  type="button" 
-                  onClick={() => {
-                    setIsResetModalOpen(false);
-                    setResetAgent(null);
-                  }}
-                  className="px-4 py-2 rounded-xl text-xs font-bold text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-subtle)] hover:text-[var(--color-text-primary)] border border-[var(--color-border)] transition-colors cursor-pointer shadow-xs"
-                >
-                  Cancel
-                </button>
-                <button 
-                  type="submit" 
-                  disabled={isResetting}
-                  className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#008A5E] hover:bg-[#00734E] transition-colors disabled:opacity-50 cursor-pointer shadow-xs"
-                >
-                  {isResetting ? "Resetting..." : "Reset Password"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Revoke Agent Access Confirmation Modal */}
-      {isRevokeModalOpen && revokeAgent && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-[var(--color-surface)] border border-rose-300 dark:border-rose-800 rounded-2xl shadow-xl w-full max-w-md p-6 animate-scale-in">
-            <div className="flex justify-between items-center mb-4 border-b border-[var(--color-border)] pb-3">
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="text-rose-500" size={18} />
-                <h3 className="text-sm font-extrabold uppercase tracking-wider text-[var(--color-text-primary)]">
-                  Confirm Access Revocation
-                </h3>
-              </div>
-              <button 
-                onClick={() => {
-                  setIsRevokeModalOpen(false);
-                  setRevokeAgent(null);
-                }} 
-                className="p-1 rounded-lg bg-[var(--color-surface-subtle)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] border border-[var(--color-border)] transition-colors cursor-pointer"
-              >
-                <X size={16} />
-              </button>
-            </div>
-            
-            <div className="space-y-4 text-xs">
-              <p className="text-[var(--color-text-secondary)] leading-relaxed">
-                Are you sure you want to revoke credentials and system access for agent{" "}
-                <strong className="text-[var(--color-text-primary)]">{revokeAgent.full_name}</strong> ({revokeAgent.email})?
-              </p>
-              <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-700 dark:text-rose-400 text-[11px] leading-relaxed">
-                The agent session will be immediately invalidated and they will be blocked from synchronizing or submitting field telemetry.
-              </div>
-              
-              <div className="pt-3 flex justify-end gap-2 border-t border-[var(--color-border)]">
-                <button 
-                  type="button" 
-                  onClick={() => {
-                    setIsRevokeModalOpen(false);
-                    setRevokeAgent(null);
-                  }}
-                  className="px-4 py-2 rounded-xl text-xs font-bold text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-subtle)] hover:text-[var(--color-text-primary)] border border-[var(--color-border)] transition-colors cursor-pointer shadow-xs"
-                >
-                  Cancel
-                </button>
-                <button 
-                  type="button" 
-                  onClick={async () => {
-                    const agentId = revokeAgent.id;
-                    setIsRevokeModalOpen(false);
-                    setRevokeAgent(null);
-                    await handleStatusChange(agentId, "revoked");
-                  }}
-                  className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 transition-colors cursor-pointer shadow-xs"
-                >
-                  Revoke Credentials
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

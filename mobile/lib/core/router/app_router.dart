@@ -17,12 +17,13 @@ import 'package:go_router/go_router.dart';
 import '../config/supabase_config.dart';
 
 import '../../services/api_service.dart';
+import '../utils/field_access.dart';
+import '../../features/capture/screens/project_capture_screen.dart';
 
 import '../../features/auth/screens/login_screen.dart';
 
 import '../../features/auth/screens/register_screen.dart';
 
-import '../../features/activities/screens/activity_form_screen.dart';
 
 import '../../features/activities/screens/activity_detail_screen.dart';
 
@@ -90,7 +91,7 @@ final GoRouter appRouter = GoRouter(
 
   // --- Auth Guard: Redirect unauthenticated users to login ---
 
-  redirect: (context, state) {
+  redirect: (context, state) async {
 
     final isLoggedIn = SupabaseConfig.isAuthenticated || ApiService.customToken != null;
 
@@ -109,6 +110,19 @@ final GoRouter appRouter = GoRouter(
     }
 
 
+
+    if (isLoggedIn && !isAuthRoute) {
+      var user = ApiService.currentUser;
+      if (user == null) {
+        try { user = await ApiService.get('/auth/me'); } catch (_) {}
+      }
+      final path = state.matchedLocation;
+      if ((path == AppRoutes.newActivity && !FieldAccess.canCapture(user?['role'])) ||
+          (path.startsWith(AppRoutes.audits) && !FieldAccess.canReadAudits(user?['role'])) ||
+          (path.startsWith(AppRoutes.sensors) && !FieldAccess.canReadSensors(user?['role']))) {
+        return AppRoutes.home;
+      }
+    }
 
     // Logged in and on auth page → go to home
 
@@ -176,10 +190,8 @@ final GoRouter appRouter = GoRouter(
 
               builder: (context, state) {
                 final extra = state.extra as Map<String, dynamic>?;
-                return ActivityFormScreen(
-                  initialActivityTypeId: state.uri.queryParameters['type'] ?? extra?['type'] as String?,
+                return ProjectCaptureScreen(
                   projectId: state.uri.queryParameters['projectId'] ?? extra?['projectId'] as String?,
-                  methodologyLock: state.uri.queryParameters['methodology'] ?? extra?['methodology'] as String?,
                 );
               },
 

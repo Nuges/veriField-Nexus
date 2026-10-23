@@ -226,7 +226,9 @@ ROLE_PERMISSIONS: Dict[str, Set[str]] = {
         "project:update",
         "asset:all",
         "asset:read",
-        "activity:all",
+        "activity:create",
+        "activity:update",
+        "activity:approve",
         "activity:read",
         "report:all",
         "report:read",
@@ -268,7 +270,7 @@ ROLE_PERMISSIONS: Dict[str, Set[str]] = {
         "activity:create",
         "activity:read",
         "activity:update",
-        "activity:verify",
+        "activity:approve",
         "team:manage",
         "report:read",
     },
@@ -284,7 +286,7 @@ ROLE_PERMISSIONS: Dict[str, Set[str]] = {
         "project:read",
         "asset:read",
         "activity:read",
-        "activity:verify",
+        "activity:approve",
         "report:all",
         "report:read",
         "ledger:read",
@@ -424,9 +426,7 @@ def validate_separation_of_duties(actor: User, project_developer_id: Optional[UU
     """
     canonical_role = normalize_canonical_role(actor.role)
 
-    # Super Admin can override for emergency platform governance
-    if canonical_role == ROLE_SUPER_ADMIN:
-        return
+    # Platform oversight does not substitute for independent VVB review.
 
     # Verifier/Auditor credential check
     if action in ("VERIFY", "AUDIT", "SIGN_OFF", "CREATE_FINDING", "RESOLVE_FINDING"):
@@ -449,3 +449,14 @@ def validate_separation_of_duties(actor: User, project_developer_id: Optional[UU
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"Separation of Duties Violation: Independent auditor/verifier cannot perform project developer action '{action}'.",
             )
+
+
+def enforce_activity_decision(role: str, *, status_value: Optional[str] = None, validation_status: Optional[str] = None):
+    """Internal quality approval and independent verification are different decisions."""
+    canonical = normalize_canonical_role(role)
+    if status_value and status_value.lower() == "verified" and canonical != ROLE_VERIFIER:
+        raise HTTPException(status_code=403, detail="Independent activity verification requires a VVB verifier role.")
+    if validation_status and validation_status.lower() == "approved" and canonical not in (
+        ROLE_SUPER_ADMIN, ROLE_ORG_ADMIN, ROLE_FIELD_SUPERVISOR, ROLE_QA_OFFICER,
+    ):
+        raise HTTPException(status_code=403, detail="Internal approval requires an organization administrator, supervisor or QA officer.")

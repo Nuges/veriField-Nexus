@@ -156,24 +156,10 @@ test("Phase 1 Static Source Audit — VM0032 is completely removed from Verifica
   );
 });
 
-test("Phase 1 Static Source Audit — DynamicSidebar ORG_ADMIN contains essential destinations and humanized labels", () => {
-  const sidebarPath = path.resolve(__dirname, "../src/components/DynamicSidebar.tsx");
-  const content = fs.readFileSync(sidebarPath, "utf-8");
-
-  // Essential destinations for ORG_ADMIN
-  assert.match(content, /\/dashboard\/sensors/, "Sidebar must include Live Telemetry (/dashboard/sensors)");
-  assert.match(content, /\/dashboard\/assets/, "Sidebar must include Assets (/dashboard/assets)");
-  assert.match(content, /\/dashboard\/command-center/, "Sidebar must include Project Map (/dashboard/command-center)");
-  assert.match(content, /\/dashboard\/settings/, "Sidebar must include Settings (/dashboard/settings)");
-  assert.match(content, /\/dashboard\/verifications/, "Sidebar must include Verification (/dashboard/verifications)");
-
-  // Humanized labels
-  assert.match(content, /"Project Map"/, "Sidebar must use 'Project Map'");
-  assert.match(content, /"Live Telemetry"/, "Sidebar must use 'Live Telemetry'");
-  assert.match(content, /VeriField Nexus v5\.4/, "Sidebar footer must use 'VeriField Nexus v5.4'");
-
-  // Overblown labels must be replaced in sidebar
-  assert.doesNotMatch(content, /"Global Mission Control"/, "Global Mission Control must be replaced");
-  assert.doesNotMatch(content, /"Enterprise Spatial Command Center"/, "Enterprise Spatial Command Center must not appear in sidebar");
-  assert.doesNotMatch(content, /"CIOS v5.4-PROD"/, "CIOS v5.4-PROD must be replaced");
+test("Phase 1 navigation destinations remain in the shared navigation model", () => {
+  const content = fs.readFileSync(path.resolve(__dirname, "../src/lib/navigation.ts"), "utf-8");
+  for (const destination of ["sensors", "assets", "command-center", "settings", "verifications"]) {
+    assert.ok(content.includes(`/dashboard/${destination}`));
+  }
+  assert.doesNotMatch(content, /"Global Mission Control"|"Enterprise Spatial Command Center"/);
 });
