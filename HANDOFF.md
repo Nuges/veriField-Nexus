@@ -1,7 +1,60 @@
 # VeriField Nexus handover
 
 Updated: 23 October 2026 (Africa/Lagos)
-Status: **RELEASE_VERIFIED** — accumulated changes merged into main; Render release live and health checks passed.
+Status: **ONBOARDING_RELEASE_AUTHORIZED** — live sector data corrected; tested sidebar/dashboard/approval correction authorized for publication, merge and deployment.
+
+## Current task — Agriculture onboarding and sidebar restoration
+
+- User reported selecting Agriculture & Land Use with no methodology for a newly
+  registered farm organization, then seeing Cookstoves and an unexpected sidebar.
+- Read-only Supabase checks confirmed the approved request retained the correct
+  canonical sector. The live catalog had only four sector families; Agriculture
+  was absent. Approval therefore produced empty sector entitlements and no project.
+  Existing workspace resolution then chose Cookstoves. This was not a user selection.
+- Authorized live data repair: added only the missing Agriculture family using the
+  existing agriculture seed's name, description and five project types; restored
+  the new organization's exact requested sector. One organization updated, one
+  family added, one security audit entry written, organization version 1 -> 2.
+  Methodology entitlements remain empty. No account, activity, historical project,
+  password or role was changed. Fresh organization project/activity counts remain 0.
+- Separate verification confirmed the corrected entitlement and catalog entry.
+  The deployed API GET /api/v1/methodologies/families returned HTTP 200 and the
+  Agriculture & Land Use family. No authenticated production dashboard journey or
+  end-to-end agriculture operation has been executed.
+- Important production blocker: public.land_units and public.soil_samples are
+  absent, and projects.methodology_id is still NOT NULL despite the current ORM,
+  optional-methodology signup and an existing migration expecting it to be nullable.
+  Do not assign a methodology to work around this. Do not run the historical
+  migration chain blindly. Inventory live schema and prepare a separate controlled
+  migration/rollback plan before creating the requested unassigned project.
+- Branch fix/agriculture-onboarding-sidebar, base 7fcfb06, initially clean. Earlier
+  worktrees and Mac stashes remain untouched. Four code/test files changed here:
+  approval now rejects an unresolved/inactive explicit sector before provisioning
+  instead of guessing another sector; regression tests cover rejection and actual
+  agriculture approval with no methodology in an isolated database; EnterpriseDashboard
+  can request a sector-only dashboard and ignores obsolete in-flight responses;
+  the organization-admin sidebar restores pre-f524f84 group names and labels.
+- Sidebar groups: Governance & Operations; Reporting & Assets; Administration &
+  Security; Intelligence & Guides. All 16 current organization-admin destinations
+  are preserved. Other roles' sidebar definitions are byte-for-byte unchanged.
+  The user explicitly approved publishing this restoration and dashboard correction
+  by replying "Proceed" to the publication question on 23 October 2026. This does
+  not authorize the separate missing-agriculture-schema repair.
+- Actual local verification: the two new unresolved-sector tests failed against
+  the original implementation (organization-name inference tried Hybrid Energy),
+  then passed after the fix. Combined organization scoping/canonical-sector/Phase 2
+  workflow regression command: 74 passed in 3.96s, exit 0, using a new temporary
+  SQLite database, TESTING=1 and a test-only JWT secret. Frontend unit command:
+  npm run test:unit --workspace dashboard, 138 passed / 0 failed, exit 0.
+  Independent npx tsc --noEmit and targeted npx eslint ... --quiet both exit 0.
+  Production webpack build with API URLs pointed at unused loopback ports:
+  exit 0, 41 pages. git diff --check passed. Static comparison confirmed all 16
+  sidebar destinations retained and other roles unchanged. No browser runtime
+  verification of this new UI patch is claimed; previous release browser results
+  do not verify these changes. No source commit, push, merge or deploy yet.
+- Next: publish/merge the tested source correction and verify deployment; separately
+  scope the missing production agriculture schema and project provisioning work.
+  Keep the canonical sector, optional methodology and user-approved navigation.
 
 ## Latest published and deployed checkpoint
 

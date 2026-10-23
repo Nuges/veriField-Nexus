@@ -565,7 +565,7 @@ async def approve_access_request(
         canon = normalize_to_canonical_sector(str(sector_id_str).strip())
         if canon:
             res_sec = await db.execute(
-                text("SELECT id, code FROM methodology_families WHERE UPPER(code) = UPPER(:val_code) LIMIT 1"),
+                text("SELECT id, code FROM methodology_families WHERE UPPER(code) = UPPER(:val_code) AND is_active = TRUE LIMIT 1"),
                 {"val_code": canon.value}
             )
             sec_row = res_sec.fetchone()
@@ -581,12 +581,14 @@ async def approve_access_request(
                 clean_sec = str(uuid.UUID(str(sector_id_str).strip()))
                 hex_sec = clean_sec.replace("-", "")
                 res_sec = await db.execute(
-                    text("SELECT id, code FROM methodology_families WHERE id = :val_uuid OR id = :hex_uuid"),
+                    text("SELECT id, code FROM methodology_families WHERE (id = :val_uuid OR id = :hex_uuid) AND is_active = TRUE"),
                     {"val_uuid": clean_sec, "hex_uuid": hex_sec}
                 )
                 sec_row = res_sec.fetchone()
 
-    if not sec_row:
+    # Only legacy requests with no explicit sector may use descriptive text.
+    # An explicit selection must never be discarded or replaced by a guess.
+    if not sec_row and not sector_id_str:
         combined_text = f"{use_case or ''} {req.organization_name or ''} {str(use_case_data or '')}".lower()
         alias_code = None
         if "ev" in combined_text or "mobility" in combined_text or "electric" in combined_text:
@@ -602,14 +604,25 @@ async def approve_access_request(
 
         if alias_code:
             res_sec = await db.execute(
-                text("SELECT id, code FROM methodology_families WHERE UPPER(code) = UPPER(:alias)"),
+                text("SELECT id, code FROM methodology_families WHERE UPPER(code) = UPPER(:alias) AND is_active = TRUE"),
                 {"alias": alias_code}
             )
             sec_row = res_sec.fetchone()
 
+    if not sec_row:
+        raise HTTPException(
+            status_code=409,
+            detail="The selected operating sector is not configured in the catalog. Restore its catalog entry before approval; no account has been provisioned.",
+        )
+
+    from app.core.sectors import normalize_to_canonical_sector
+    resolved_sector = normalize_to_canonical_sector(str(sec_row.code))
+    if not resolved_sector:
+        raise HTTPException(status_code=409, detail="The selected operating sector is not a canonical platform sector.")
+
     if sec_row:
         target_sec_id = uuid.UUID(str(sec_row.id if hasattr(sec_row, "id") else sec_row[0]))
-        sec_code_val = str(sec_row.code if hasattr(sec_row, "code") else sec_row[1])
+        sec_code_val = resolved_sector.value
         licensed_sectors.append(sec_code_val)
 
     # Step 2: Resolve Methodology & Enforce Sector-Methodology Invariant (Non-blocking preference)

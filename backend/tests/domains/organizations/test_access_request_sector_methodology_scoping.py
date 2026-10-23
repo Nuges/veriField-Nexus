@@ -1,6 +1,84 @@
 import uuid
+import json
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, Mock
+
 import pytest
+from fastapi import HTTPException
 from httpx import AsyncClient
+
+from app.domains.organizations.routers.access_requests import approve_access_request
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("sector", ["AGRICULTURE_LAND_USE", "unknown-sector"])
+async def test_approval_never_discards_an_explicit_unresolved_sector(sector):
+    request = SimpleNamespace(
+        status="PENDING", organization_name="Solar Company",
+        use_case=json.dumps({"sector_id": sector, "project_name": "Requested Farm"}),
+    )
+    db = SimpleNamespace(execute=AsyncMock(), add=Mock(), commit=AsyncMock())
+
+    async def execute(statement, params=None):
+        query = str(statement)
+        if "SELECT * FROM access_requests" in query:
+            return SimpleNamespace(fetchone=lambda: request)
+        if "FROM methodology_families" in query:
+            assert not params or "alias" not in params, "Explicit sector must not be replaced by organization-name inference"
+            return SimpleNamespace(fetchone=lambda: None)
+        raise AssertionError("Unresolved sector must stop approval before provisioning")
+
+    db.execute.side_effect = execute
+    with pytest.raises(HTTPException) as caught:
+        await approve_access_request(
+            uuid.uuid4(), db=db, current_user=SimpleNamespace(role="SUPER_ADMIN"),
+        )
+    assert caught.value.status_code == 409
+    assert "operating sector" in caught.value.detail.lower()
+    db.add.assert_not_called()
+    db.commit.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_agriculture_approval_without_methodology_preserves_selection(db_session, monkeypatch):
+    from sqlalchemy import select, text
+    from app.core.event_bus import EventBus
+    from app.domains.authentication.models import User
+    from app.domains.authentication.repository import UserRepository
+    from app.domains.authentication.schemas import UserResponse
+    from app.domains.methodologies.models.base_registry import MethodologyFamily
+    from app.domains.organizations.models import Organization
+    from app.domains.organizations.routers.access_requests import AccessRequestCreate, create_access_request
+    from app.domains.projects.models import Project
+
+    monkeypatch.setattr(EventBus, "publish", AsyncMock())
+    family = (await db_session.execute(select(MethodologyFamily).where(
+        MethodologyFamily.code == "AGRICULTURE_LAND_USE"
+    ))).scalars().first()
+    if family is None:
+        family = MethodologyFamily(code="AGRICULTURE_LAND_USE", name="Agriculture & Land Use", is_active=True)
+        db_session.add(family)
+        await db_session.commit()
+    admin = (await db_session.execute(select(User).where(User.role == "SUPER_ADMIN"))).scalars().first()
+    suffix = uuid.uuid4().hex[:10]
+    email = f"partner-{suffix}@example.test"
+    project_name = f"Requested Farm {suffix}"
+    await create_access_request(AccessRequestCreate(
+        full_name="New Partner", email=email, organization_name=f"Partner {suffix}",
+        country="India", sector_id="AGRICULTURE_LAND_USE", project_name=project_name,
+    ), db=db_session)
+    request_id = (await db_session.execute(text("SELECT id FROM access_requests WHERE email=:email"), {"email": email})).scalar_one()
+    result = await approve_access_request(uuid.UUID(str(request_id)), db=db_session, current_user=admin)
+    organization = (await db_session.execute(select(Organization).where(Organization.id == uuid.UUID(result["organization_id"])))).scalar_one()
+    assert organization.licensed_sectors == ["AGRICULTURE_LAND_USE"]
+    assert organization.licensed_methodologies == []
+    project = (await db_session.execute(select(Project).where(Project.organization_id == organization.id))).scalar_one()
+    assert project.name == project_name
+    assert project.sector_id == family.id
+    assert project.methodology_id is None
+    user = await UserRepository(db_session).get_by_email(email)
+    assert UserResponse.model_validate(user).licensed_sectors == ["AGRICULTURE_LAND_USE"]
+    assert (await db_session.execute(text("SELECT status FROM access_requests WHERE id=:id"), {"id": str(request_id)})).scalar_one() == "APPROVED"
 
 
 @pytest.mark.asyncio

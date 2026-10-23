@@ -94,14 +94,17 @@ export default function EnterpriseDashboard() {
 
   useEffect(() => {
 
+    let cancelled = false;
+
     async function loadData() {
 
       if (isWorkspaceLoading) return;
 
 
 
-      if (!activeSector || !activeMethodology) {
+      if (!activeSector) {
 
+        setDashboardData(null);
         setIsLoading(false);
 
         return;
@@ -111,26 +114,29 @@ export default function EnterpriseDashboard() {
       setIsLoading(true);
 
       setError(null);
+      setDashboardData(null);
 
       try {
 
         const payload = await fetchDashboardPayload(activeSector, activeMethodology, activeProject || undefined);
 
-        setDashboardData(payload);
+        if (!cancelled) setDashboardData(payload);
 
       } catch (err) {
 
-        setError(err instanceof Error ? err.message : "Failed to load enterprise dashboard.");
+        if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load enterprise dashboard.");
 
       } finally {
 
-        setIsLoading(false);
+        if (!cancelled) setIsLoading(false);
 
       }
 
     }
 
     loadData();
+
+    return () => { cancelled = true; };
 
   }, [activeSector, activeMethodology, activeProject, isWorkspaceLoading]);
 
