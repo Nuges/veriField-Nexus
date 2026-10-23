@@ -221,6 +221,35 @@ def test_mid_repair_failure_rolls_back_all_ddl(repaired_db):
     assert snapshot(repaired_db) == before
 
 
+def test_known_historical_gap_is_completed_without_rewriting_existing_tables(repaired_db):
+    from alembic.migration import MigrationContext
+    from alembic.operations import Operations
+    # Build the known 25-table predecessor in this disposable database without DROP.
+    sql = repair.REPAIR_SQL
+    start = sql.index('    CREATE TABLE public.')
+    end = sql.index('    -- FastAPI uses')
+    groups = re.split(r'(?=    CREATE TABLE public\.)', sql[start:end])
+    missing = set(repair.HISTORICAL_MISSING_TABLES)
+    kept = [g for g in groups if g and re.match(r'    CREATE TABLE public\.(\w+)', g).group(1) not in missing]
+    targets = tuple(n for n in repair.REPAIR_TABLES if n not in missing)
+    original_array = 'ARRAY[' + ', '.join(repr(n) for n in repair.REPAIR_TABLES) + ']'
+    fixture_array = 'ARRAY[' + ', '.join(repr(n) for n in targets) + ']'
+    fixture_sql = (sql[:start] + ''.join(kept) + sql[end:]).replace(original_array, fixture_array)
+    with repaired_db.begin() as conn:
+        raw_sql(conn, fixture_sql)
+    before = snapshot(repaired_db)
+    with repaired_db.connect() as conn:
+        rls_before = dict(conn.execute(text("SELECT relname, relrowsecurity FROM pg_class WHERE relnamespace='public'::regnamespace")).all())
+    with repaired_db.begin() as conn:
+        with Operations.context(MigrationContext.configure(conn)):
+            repair.upgrade()
+    assert set(inspect(repaired_db).get_table_names()) >= set(repair.REPAIR_TABLES)
+    assert snapshot(repaired_db) == before
+    with repaired_db.connect() as conn:
+        rls_after = dict(conn.execute(text("SELECT relname, relrowsecurity FROM pg_class WHERE relnamespace='public'::regnamespace")).all())
+    assert all(rls_before[n] == rls_after[n] for n in targets)
+
+
 @pytest.mark.asyncio
 async def test_unassigned_foundation_and_land_unit_persist_without_methodology(repaired_db):
     from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker

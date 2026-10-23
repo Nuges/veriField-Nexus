@@ -1273,6 +1273,210 @@ END;
 $agriculture_repair$;
 """
 
+# The repository history creates 25 target tables but omitted these four legacy models.
+HISTORICAL_MISSING_TABLES = ('agriculture_model_runs', 'satellite_observations', 'soil_samples', 'tree_observations')
+HISTORICAL_COMPLETION_SQL = r"""
+-- Frozen from application source 1f606c7; no existing data or assignments are rewritten.
+-- Execute this one DO statement transactionally; do not replay the historical migration chain.
+DO $agriculture_repair$
+DECLARE
+    target_tables text[] := ARRAY['agriculture_model_runs', 'satellite_observations', 'soil_samples', 'tree_observations'];
+    table_name text;
+    role_name text;
+BEGIN
+    PERFORM pg_catalog.set_config('lock_timeout', '3s', true);
+    PERFORM pg_catalog.set_config('statement_timeout', '60s', true);
+    PERFORM pg_catalog.set_config('search_path', 'pg_catalog, public, extensions', true);
+    PERFORM pg_catalog.pg_advisory_xact_lock(6152865464);
+    IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_extension WHERE extname = 'postgis')
+       OR pg_catalog.to_regtype('geometry') IS NULL THEN
+        RAISE EXCEPTION 'Existing PostGIS geometry type is required; no extension will be installed';
+    END IF;
+    FOREACH table_name IN ARRAY target_tables LOOP
+        IF pg_catalog.to_regclass('public.' || table_name) IS NOT NULL THEN
+            RAISE EXCEPTION 'Repair preflight: target table % already exists; inspect drift before proceeding', table_name;
+        END IF;
+    END LOOP;
+    FOREACH table_name IN ARRAY ARRAY['organizations', 'projects', 'users', 'evidence_records', 'methodology_versions'] LOOP
+        IF NOT EXISTS (
+            SELECT 1 FROM pg_catalog.pg_attribute a
+            WHERE a.attrelid = pg_catalog.to_regclass('public.' || table_name)
+              AND a.attname = 'id' AND a.atttypid = 'uuid'::regtype AND NOT a.attisdropped
+        ) THEN
+            RAISE EXCEPTION 'Repair preflight: required UUID key missing on %', table_name;
+        END IF;
+    END LOOP;
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_catalog.pg_attribute
+        WHERE attrelid = 'public.projects'::regclass
+          AND attname = 'methodology_id' AND atttypid = 'uuid'::regtype AND NOT attisdropped
+    ) THEN
+        RAISE EXCEPTION 'Repair preflight: expected projects.methodology_id UUID missing';
+    END IF;
+
+    -- Widen the constraint only; preserve existing methodology values and foreign key.
+    ALTER TABLE public.projects ALTER COLUMN methodology_id DROP NOT NULL;
+    CREATE TABLE public.agriculture_model_runs (
+        id UUID DEFAULT gen_random_uuid() NOT NULL,
+        organization_id UUID NOT NULL,
+        project_id UUID NOT NULL,
+        model_name VARCHAR(100) NOT NULL,
+        model_type VARCHAR(50) NOT NULL,
+        version VARCHAR(30) NOT NULL,
+        run_timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
+        status VARCHAR(30) NOT NULL,
+        input_parameters JSONB NOT NULL,
+        input_dataset_hashes JSONB NOT NULL,
+        performance_metrics JSONB NOT NULL,
+        uncertainty_metrics JSONB NOT NULL,
+        output_manifest JSONB NOT NULL,
+        provenance_hash VARCHAR(64) NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
+        CONSTRAINT pk_agriculture_model_runs PRIMARY KEY (id),
+        CONSTRAINT fk_agriculture_model_runs_organization_id_organizations FOREIGN KEY(organization_id) REFERENCES public.organizations (id) ON DELETE CASCADE,
+        CONSTRAINT fk_agriculture_model_runs_project_id_projects FOREIGN KEY(project_id) REFERENCES public.projects (id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX ix_public_agriculture_model_runs_organization_id ON public.agriculture_model_runs (organization_id);
+
+    CREATE INDEX ix_public_agriculture_model_runs_project_id ON public.agriculture_model_runs (project_id);
+
+    CREATE TABLE public.satellite_observations (
+        id UUID DEFAULT gen_random_uuid() NOT NULL,
+        organization_id UUID NOT NULL,
+        project_id UUID NOT NULL,
+        land_unit_id UUID,
+        provider VARCHAR(50) NOT NULL,
+        scene_id VARCHAR(100) NOT NULL,
+        acquisition_timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
+        cloud_coverage_pct FLOAT,
+        spatial_resolution_m FLOAT NOT NULL,
+        observation_type VARCHAR(50) NOT NULL,
+        raw_band_uris JSONB NOT NULL,
+        derived_indices JSONB NOT NULL,
+        provenance_hash VARCHAR(64) NOT NULL,
+        processing_level VARCHAR(20) NOT NULL,
+        lineage_manifest JSONB NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
+        CONSTRAINT pk_satellite_observations PRIMARY KEY (id),
+        CONSTRAINT fk_satellite_observations_project_id_projects FOREIGN KEY(project_id) REFERENCES public.projects (id) ON DELETE CASCADE,
+        CONSTRAINT fk_satellite_observations_organization_id_organizations FOREIGN KEY(organization_id) REFERENCES public.organizations (id) ON DELETE CASCADE,
+        CONSTRAINT fk_satellite_observations_land_unit_id_land_units FOREIGN KEY(land_unit_id) REFERENCES public.land_units (id) ON DELETE SET NULL
+    );
+
+    CREATE INDEX ix_public_satellite_observations_land_unit_id ON public.satellite_observations (land_unit_id);
+
+    CREATE INDEX ix_public_satellite_observations_organization_id ON public.satellite_observations (organization_id);
+
+    CREATE INDEX ix_public_satellite_observations_project_id ON public.satellite_observations (project_id);
+
+    CREATE INDEX ix_public_satellite_observations_scene_id ON public.satellite_observations (scene_id);
+
+    CREATE TABLE public.tree_observations (
+        id UUID DEFAULT gen_random_uuid() NOT NULL,
+        organization_id UUID NOT NULL,
+        project_id UUID NOT NULL,
+        land_unit_id UUID NOT NULL,
+        sampling_approach VARCHAR(30) NOT NULL,
+        tag_number VARCHAR(50),
+        species_scientific VARCHAR(100) NOT NULL,
+        species_common VARCHAR(100),
+        dbh_cm FLOAT NOT NULL,
+        height_m FLOAT,
+        crown_diameter_m FLOAT,
+        health_status VARCHAR(30) NOT NULL,
+        latitude FLOAT,
+        longitude FLOAT,
+        measurement_date DATE NOT NULL,
+        allometric_equation_id VARCHAR(100),
+        belowground_model_id VARCHAR(100),
+        derived_aboveground_biomass_kg FLOAT,
+        derived_belowground_biomass_kg FLOAT,
+        derived_carbon_stock_t_co2e FLOAT,
+        calculation_run_id UUID,
+        evidence_photo_hash VARCHAR(64),
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
+        CONSTRAINT pk_tree_observations PRIMARY KEY (id),
+        CONSTRAINT fk_tree_observations_project_id_projects FOREIGN KEY(project_id) REFERENCES public.projects (id) ON DELETE CASCADE,
+        CONSTRAINT fk_tree_observations_organization_id_organizations FOREIGN KEY(organization_id) REFERENCES public.organizations (id) ON DELETE CASCADE,
+        CONSTRAINT fk_tree_observations_land_unit_id_land_units FOREIGN KEY(land_unit_id) REFERENCES public.land_units (id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX ix_public_tree_observations_land_unit_id ON public.tree_observations (land_unit_id);
+
+    CREATE INDEX ix_public_tree_observations_organization_id ON public.tree_observations (organization_id);
+
+    CREATE INDEX ix_public_tree_observations_project_id ON public.tree_observations (project_id);
+
+    CREATE INDEX ix_public_tree_observations_tag_number ON public.tree_observations (tag_number);
+
+    CREATE TABLE public.soil_samples (
+        id UUID DEFAULT gen_random_uuid() NOT NULL,
+        organization_id UUID NOT NULL,
+        project_id UUID NOT NULL,
+        land_unit_id UUID,
+        sample_code VARCHAR(50) NOT NULL,
+        sampling_date DATE NOT NULL,
+        latitude FLOAT NOT NULL,
+        longitude FLOAT NOT NULL,
+        depth_upper_cm FLOAT NOT NULL,
+        depth_lower_cm FLOAT NOT NULL,
+        bulk_density_g_cm3 FLOAT,
+        soc_stock_pct FLOAT NOT NULL,
+        total_organic_carbon_g_kg FLOAT,
+        computed_soc_stock_t_c_ha FLOAT,
+        coarse_fragments_pct FLOAT NOT NULL,
+        ph FLOAT,
+        electrical_conductivity_ds_m FLOAT,
+        texture_class VARCHAR(30),
+        lab_method VARCHAR(50) NOT NULL,
+        lab_name VARCHAR(100),
+        lab_accreditation VARCHAR(100),
+        qa_status VARCHAR(30) NOT NULL,
+        compliance_classification VARCHAR(50) NOT NULL,
+        model_represents_30cm BOOLEAN NOT NULL,
+        extrapolation_method VARCHAR(200),
+        compliance_notes TEXT,
+        evidence_id UUID,
+        physical_sample_id UUID,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
+        CONSTRAINT pk_soil_samples PRIMARY KEY (id),
+        CONSTRAINT fk_soil_samples_evidence_id_evidence_records FOREIGN KEY(evidence_id) REFERENCES public.evidence_records (id) ON DELETE SET NULL,
+        CONSTRAINT fk_soil_samples_land_unit_id_land_units FOREIGN KEY(land_unit_id) REFERENCES public.land_units (id) ON DELETE CASCADE,
+        CONSTRAINT fk_soil_samples_project_id_projects FOREIGN KEY(project_id) REFERENCES public.projects (id) ON DELETE CASCADE,
+        CONSTRAINT fk_soil_samples_organization_id_organizations FOREIGN KEY(organization_id) REFERENCES public.organizations (id) ON DELETE CASCADE,
+        CONSTRAINT fk_soil_samples_physical_sample_id_physical_samples FOREIGN KEY(physical_sample_id) REFERENCES public.physical_samples (id) ON DELETE SET NULL
+    );
+
+    CREATE INDEX ix_public_soil_samples_land_unit_id ON public.soil_samples (land_unit_id);
+
+    CREATE INDEX ix_public_soil_samples_organization_id ON public.soil_samples (organization_id);
+
+    CREATE INDEX ix_public_soil_samples_physical_sample_id ON public.soil_samples (physical_sample_id);
+
+    CREATE INDEX ix_public_soil_samples_project_id ON public.soil_samples (project_id);
+
+    CREATE INDEX ix_public_soil_samples_sample_code ON public.soil_samples (sample_code);
+
+    CREATE INDEX ix_repair_soil_samples_evidence_id ON public.soil_samples (evidence_id);
+
+    -- FastAPI uses its existing owner connection and its tenant/RBAC checks.
+    -- Supabase client roles receive no direct access and no guessed JWT policy.
+    FOREACH table_name IN ARRAY target_tables LOOP
+        EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', table_name);
+        EXECUTE format('REVOKE ALL ON TABLE public.%I FROM PUBLIC', table_name);
+        FOREACH role_name IN ARRAY ARRAY['anon', 'authenticated', 'service_role'] LOOP
+            IF EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = role_name) THEN
+                EXECUTE format('REVOKE ALL ON TABLE public.%I FROM %I', table_name, role_name);
+            END IF;
+        END LOOP;
+    END LOOP;
+END;
+$agriculture_repair$;
+"""
+
 
 def upgrade() -> None:
     bind = op.get_bind()
@@ -1283,6 +1487,10 @@ def upgrade() -> None:
         # Normal fresh Alembic installs already created these in the historical chain.
         # Do not change existing grants, policies, data or structures here.
         op.execute("ALTER TABLE public.projects ALTER COLUMN methodology_id DROP NOT NULL")
+        return
+    if present == set(REPAIR_TABLES) - set(HISTORICAL_MISSING_TABLES):
+        # Explicitly supported historical gap; leave the existing 25 tables intact.
+        op.execute(sa.text(HISTORICAL_COMPLETION_SQL))
         return
     if present:
         raise RuntimeError("Partial agriculture schema: inspect before applying repair")

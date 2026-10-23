@@ -59,7 +59,7 @@ this repair; this is agriculture persistence, not a full-database reconciliation
 The Alembic revision follows the current repository head c7d8e9f0a1b2, so normal
 clean installations can continue using the established chain. If all target
 tables already exist, that path only ensures nullable methodology; it does not
-rewrite their policies, grants or columns. A partial schema is rejected.
+rewrite their policies, grants or columns. The inspected historical chain also omits four legacy tables (agriculture_model_runs, satellite_observations, soil_samples and tree_observations). An explicit completion path creates only those four when exactly the other 25 exist. Every other partial schema is rejected; the controlled production SQL still requires all 29 absent.
 
 For the drifted live database, apply only the reviewed frozen REPAIR_SQL through
 Supabase apply_migration, with its own descriptive history entry. Do not invoke
@@ -108,12 +108,19 @@ The new downgrade refuses destructive reversal.
 
 Local command (isolated SQLite import context, no network DB):
 python -m pytest schema_tests/test_agriculture_schema_repair.py -q --tb=short
-Result: 6 passed, 5 skipped in 0.28s. The skips require disposable PostGIS and are
+Result: 6 passed, 6 skipped in 0.27s (after the historical-gap regression was added). The skips require disposable PostGIS and are
 not claimed passed. A local PostgreSQL installation was unavailable because the
 workspace cannot change the required OS user IDs; no production database was used
-as a substitute. GitHub PostGIS and full CI results remain pending.
+as a substitute. Initial GitHub run 40010251070 passed all 11 repair tests in 7.85s, including actual PostGIS writes and rollback. The subsequent normal Alembic chain failed because it omitted four legacy models; the new explicit completion path and its regression address that. Final PostGIS/full CI results remain pending.
 
 Supabase security advisor returned only the pre-existing Auth leaked-password
 protection warning; this repair does not change authentication configuration.
 Supabase guidance checked: https://supabase.com/docs/guides/api/securing-your-api
 and https://supabase.com/docs/guides/database/postgres/row-level-security.
+
+Read-only protected-data baseline before any production change: six projects
+(hash 04df95945cc53de6428ce9fbf36b133c), one activity
+(hash c4338c5a56a1fdf95cc17d0567fcdc09), affected organization hash
+c40074f3275d76d136a5f5db88934b5b, and zero projects in that organization.
+Recompute these after approval and immediately before/after execution; concurrent
+legitimate writes require reviewing changed fingerprints rather than overwriting.

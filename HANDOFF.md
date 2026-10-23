@@ -13,7 +13,7 @@ with Alembic at 3307d715f0e7 and no Supabase migration entries. Prepared frozen,
 atomic additive repair in new revision 615d2865c464, a read-only catalog fixture,
 independent disposable-PostGIS tests, CI step and recovery plan. See
 `docs/navigation/AGRICULTURE_SCHEMA_REPAIR_2026-10-23.md`. Local safety checks:
-6 passed, 5 PostGIS-dependent skips. Actual PostGIS and full CI checks pending.
+6 passed, 6 PostGIS-dependent skips after adding the historical-gap case. Initial GitHub PostGIS checks: 11 passed in 7.85s (run 40010251070); the following normal Alembic chain exposed four omitted legacy tables. An explicit four-table completion path now handles that exact known gap without weakening the standalone production guard. Final CI rerun pending. Draft PR #4: https://github.com/Nuges/veriField-Nexus/pull/4.
 No production schema/data change or project provisioning has been performed.
 Do not replay historical migrations, stamp the old live Alembic marker, overwrite
 existing projects/activities or assign a methodology to bypass the blocker.
