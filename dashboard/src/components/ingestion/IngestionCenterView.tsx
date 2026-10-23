@@ -17,6 +17,8 @@ import {
   Upload,
   Download,
 } from "lucide-react";
+import { resolveProjectMethodology } from "@/lib/projectMethodology";
+import { canReadRegistry } from "@/lib/registryWorkflow";
 import { useWorkspace } from "@/context/WorkspaceContext";
 import { canonicalSectorCode } from "@/lib/moduleRegistry";
 import { downloadLaboratoryImportTemplate } from "@/lib/api";
@@ -77,7 +79,7 @@ export default function IngestionCenterView({ initialSubView = "hub" }: Ingestio
           projectName={currentProject?.name || "Active Project"}
           organizationId={currentProject?.organization_id || user?.organization_id || undefined}
           sectorName={activeSector}
-          methodologyName="VeriField MRV Standard"
+          methodologyName={resolveProjectMethodology(currentProject).code}
         />
       </div>
     );
@@ -183,6 +185,8 @@ export default function IngestionCenterView({ initialSubView = "hub" }: Ingestio
           {templateError}
         </div>
       )}
+
+      {currentProject && canReadRegistry(user?.role) && <Link href={`/dashboard/projects/${currentProject.id}?tab=registry`} className="inline-block text-xs underline">Review registry requirements for {currentProject.name}</Link>}
 
       {/* 📦 THE THREE INGESTION PATHWAYS */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

@@ -77,7 +77,7 @@ def test_ssrf_redirect_handler_blocks_private_ip_redirect():
         handler.redirect_request(mock_req, None, 302, "Found", {}, "https://attacker.evil.com/payload")
 
 
-def test_ssrf_redirect_depth_limit():
+def test_ssrf_redirect_depth_limit(satellite_public_dns):
     """Verifies that excessive redirects (> max_redirects) fail closed."""
     handler = SSRFRedirectHandler(enforce_allowlist=True, max_redirects=2)
     mock_req = urllib.request.Request("https://sentinel-cogs.s3.us-west-2.amazonaws.com/test.tif")
@@ -99,6 +99,7 @@ def test_ssrf_redirect_depth_limit():
 async def test_raster_delivery_endpoint_tenant_isolation(
     async_client: AsyncClient,
     db_session: AsyncSession,
+    satellite_public_dns,
 ):
     """
     Verifies that the EO raster endpoint enforces strict ABAC:
@@ -192,25 +193,34 @@ async def test_raster_delivery_endpoint_tenant_isolation(
     token_b = login_b.json()["access_token"]
     headers_b = {"Authorization": f"Bearer {token_b}"}
 
-    # Attack 1: User A requests Project B raster endpoint directly -> 403 Forbidden (cross-tenant)
-    resp_cross_org = await async_client.get(
-        f"/api/v1/earth-observation/projects/{proj_b.id}/observations/{obs_b.id}/raster",
-        headers=headers_a,
-    )
-    assert resp_cross_org.status_code == 403, f"Expected 403, got {resp_cross_org.status_code}"
+    # Deterministic provider bytes, used only by this isolated endpoint test.
+    image_buffer = io.BytesIO()
+    Image.new("RGB", (32, 32), color=(30, 80, 40)).save(image_buffer, format="JPEG")
+    mock_response = MagicMock()
+    mock_response.status = 200
+    mock_response.read.return_value = image_buffer.getvalue()
+    mock_response.__enter__.return_value = mock_response
+    mock_response.__exit__.return_value = None
 
-    # Attack 2: User A attempts to request Observation B using Project A's URL -> 404 Not Found
-    resp_cross_proj = await async_client.get(
-        f"/api/v1/earth-observation/projects/{proj_a.id}/observations/{obs_b.id}/raster",
-        headers=headers_a,
-    )
-    assert resp_cross_proj.status_code == 404, f"Expected 404, got {resp_cross_proj.status_code}"
+    with patch("urllib.request.OpenerDirector.open", return_value=mock_response) as provider_open:
+        # Cross-tenant and cross-project rejection must precede provider access.
+        resp_cross_org = await async_client.get(
+            f"/api/v1/earth-observation/projects/{proj_b.id}/observations/{obs_b.id}/raster",
+            headers=headers_a,
+        )
+        assert resp_cross_org.status_code == 403, f"Expected 403, got {resp_cross_org.status_code}"
+        resp_cross_proj = await async_client.get(
+            f"/api/v1/earth-observation/projects/{proj_a.id}/observations/{obs_b.id}/raster",
+            headers=headers_a,
+        )
+        assert resp_cross_proj.status_code == 404, f"Expected 404, got {resp_cross_proj.status_code}"
+        provider_open.assert_not_called()
 
-    # Authorized Request: User B requests their own Project B raster -> 200 OK with valid image
-    resp_valid = await async_client.get(
-        f"/api/v1/earth-observation/projects/{proj_b.id}/observations/{obs_b.id}/raster",
-        headers=headers_b,
-    )
+        resp_valid = await async_client.get(
+            f"/api/v1/earth-observation/projects/{proj_b.id}/observations/{obs_b.id}/raster",
+            headers=headers_b,
+        )
+        provider_open.assert_called_once()
     assert resp_valid.status_code == 200, f"Expected 200, got {resp_valid.status_code}"
     assert "image" in resp_valid.headers.get("Content-Type", "")
 
@@ -222,6 +232,7 @@ async def test_raster_delivery_endpoint_tenant_isolation(
 
 # ─── 3. Real Sentinel-2 Live End-to-End Trace ───
 
+@pytest.mark.external_live
 @pytest.mark.asyncio
 async def test_real_sentinel2_live_trace(
     async_client: AsyncClient,
@@ -352,6 +363,7 @@ async def test_real_sentinel2_live_trace(
 
 # ─── 4. Real Landsat Historical Baseline Trace ───
 
+@pytest.mark.external_live
 @pytest.mark.asyncio
 async def test_real_landsat_historical_baseline_trace(
     async_client: AsyncClient,
@@ -468,6 +480,7 @@ async def test_production_raster_fallback_returns_404_prohibits_synthetic_images
 async def test_display_source_provenance_differentiates_visual_composite_and_derived(
     async_client: AsyncClient,
     db_session: AsyncSession,
+    satellite_public_dns,
 ):
     """
     Verifies truthful provenance header differentiation:

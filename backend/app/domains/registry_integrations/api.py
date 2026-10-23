@@ -7,9 +7,12 @@ from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import get_current_user
+from app.core.abac import ABACEngine
+from app.core.rbac import require_permission
 from app.db.session import get_db
 from app.domains.authentication.models import User
 from app.domains.projects.models import Project
+from app.domains.registry_integrations.repository import project_activity_statement
 
 from .models import RegistryConfig
 from .schemas import (RegistryConfigCreate, RegistryConfigResponse,
@@ -17,6 +20,15 @@ from .schemas import (RegistryConfigCreate, RegistryConfigResponse,
 from .service import RegistryFederationService
 
 router = APIRouter()
+
+
+async def _registry_project(db: AsyncSession, user: User, project_id: UUID):
+    try:
+        return await ABACEngine(db, user).enforce_project_access(project_id)
+    except HTTPException as error:
+        if error.status_code == 403:
+            raise HTTPException(status_code=403, detail="Forbidden: Cannot access another organization's registry data.") from error
+        raise
 
 
 @router.get("/configs", response_model=List[RegistryConfigResponse])
@@ -297,24 +309,12 @@ async def get_compliance_dossier(
     stage: str = "monitoring",
     version: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_permission("registry:read")),
 ):
     """
     Generates an authoritative, standard-specific compliance dossier (NCCC, Article 6.2, Article 6.4, Verra, Gold Standard).
     """
-    p_stmt = select(Project.organization_id).where(Project.id == project_id)
-    p_res = await db.execute(p_stmt)
-    proj_org = p_res.scalar_one_or_none()
-    if not proj_org and current_user.role != "SUPER_ADMIN":
-        # Check if project exists
-        p_check = await db.execute(select(Project.id).where(Project.id == project_id))
-        if not p_check.scalar_one_or_none():
-            raise HTTPException(status_code=404, detail=f"Project with ID {project_id} not found.")
-
-    if current_user.role != "SUPER_ADMIN":
-        user_org = current_user.organization_id
-        if not user_org or (proj_org and str(proj_org).lower() != str(user_org).lower()):
-            raise HTTPException(status_code=403, detail="Forbidden: Cannot access compliance dossiers for another organization.")
+    await _registry_project(db, current_user, project_id)
 
     from app.domains.registry_integrations.services.compliance_dossier import RegistryComplianceDossierService
     service = RegistryComplianceDossierService(db)
@@ -332,23 +332,12 @@ async def get_project_registry_readiness(
     target_standard: str = "VERRA",
     target_stage: str = "verification",
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_permission("registry:read")),
 ):
     """
     Computes deterministic documentation completeness and registry readiness score across 9 pillars.
     """
-    p_stmt = select(Project.organization_id).where(Project.id == project_id)
-    p_res = await db.execute(p_stmt)
-    proj_org = p_res.scalar_one_or_none()
-    if not proj_org and current_user.role != "SUPER_ADMIN":
-        p_check = await db.execute(select(Project.id).where(Project.id == project_id))
-        if not p_check.scalar_one_or_none():
-            raise HTTPException(status_code=404, detail=f"Project with ID {project_id} not found.")
-
-    if current_user.role != "SUPER_ADMIN":
-        user_org = current_user.organization_id
-        if not user_org or (proj_org and str(proj_org).lower() != str(user_org).lower()):
-            raise HTTPException(status_code=403, detail="Forbidden: Cannot access readiness scores for another organization.")
+    await _registry_project(db, current_user, project_id)
 
     from app.domains.registry_integrations.services.readiness_engine import RegistryReadinessEngine
     engine = RegistryReadinessEngine(db)
@@ -399,23 +388,12 @@ async def download_registry_package_zip(
     stage: str = "verification",
     version: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_permission("registry:read")),
 ):
     """
     Generates and downloads a standardized, multi-directory, cryptographically sealed ZIP submission package.
     """
-    p_stmt = select(Project.organization_id).where(Project.id == project_id)
-    p_res = await db.execute(p_stmt)
-    proj_org = p_res.scalar_one_or_none()
-    if not proj_org and current_user.role != "SUPER_ADMIN":
-        p_check = await db.execute(select(Project.id).where(Project.id == project_id))
-        if not p_check.scalar_one_or_none():
-            raise HTTPException(status_code=404, detail=f"Project with ID {project_id} not found.")
-
-    if current_user.role != "SUPER_ADMIN":
-        user_org = current_user.organization_id
-        if not user_org or (proj_org and str(proj_org).lower() != str(user_org).lower()):
-            raise HTTPException(status_code=403, detail="Forbidden: Cannot download registry packages for another organization.")
+    await _registry_project(db, current_user, project_id)
 
     from app.domains.registry_integrations.services.package_builder import ComprehensivePackageBuilder
     builder = ComprehensivePackageBuilder(db)
@@ -435,7 +413,7 @@ async def download_registry_package_zip(
 
 @router.get("/document-matrix")
 async def get_registry_document_matrix(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_permission("registry:read")),
 ):
     """
     Returns the authoritative registry document requirements matrix across NCCC, Article 6.2, Article 6.4, Verra, and Gold Standard.
@@ -452,22 +430,12 @@ async def get_registry_document(
     document_id: str,
     format: str = "pdf",
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_permission("registry:read")),
 ):
     """
     Renders and streams a specific structured registry submission document in PDF, DOCX, or JSON format.
     """
-    # 1. Tenant Verification
-    p_stmt = select(Project).where(Project.id == project_id)
-    p_res = await db.execute(p_stmt)
-    project = p_res.scalar_one_or_none()
-    if not project:
-        raise HTTPException(status_code=404, detail=f"Project with ID {project_id} not found.")
-
-    if current_user.role != "SUPER_ADMIN":
-        user_org = current_user.organization_id
-        if not user_org or str(project.organization_id).lower() != str(user_org).lower():
-            raise HTTPException(status_code=403, detail="Forbidden: Cannot access registry documents for another organization.")
+    project = await _registry_project(db, current_user, project_id)
 
     from app.domains.registry_integrations.services.readiness_engine import RegistryReadinessEngine
     from app.domains.reporting.services.lineage import DataLineageEngine
@@ -507,12 +475,7 @@ async def get_registry_document(
     assets = a_res.scalars().all()
 
     asset_ids = [a.id for a in assets]
-    if asset_ids:
-        act_stmt = select(Activity).where(Activity.asset_id.in_(asset_ids))
-    elif project.organization_id:
-        act_stmt = select(Activity).where(Activity.organization_id == project.organization_id)
-    else:
-        act_stmt = select(Activity).where(Activity.id.is_(None))
+    act_stmt = project_activity_statement(project_id, project.organization_id, asset_ids)
     act_res = await db.execute(act_stmt)
     activities = act_res.scalars().all()
 

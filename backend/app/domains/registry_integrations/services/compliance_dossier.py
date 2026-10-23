@@ -28,6 +28,7 @@ from app.domains.jurisdictions.models import Jurisdiction
 from app.domains.methodologies.models.base_registry import Methodology, MethodologyFamily
 from app.domains.organizations.models import Organization
 from app.domains.projects.models import Project
+from app.domains.registry_integrations.repository import project_activity_statement
 
 
 def _get_activity_emission_kg(act) -> float:
@@ -101,12 +102,7 @@ class RegistryComplianceDossierService:
         assets = a_res.scalars().all()
 
         asset_ids = [a.id for a in assets]
-        if asset_ids:
-            act_stmt = select(Activity).where(Activity.asset_id.in_(asset_ids))
-        elif project.organization_id:
-            act_stmt = select(Activity).where(Activity.organization_id == project.organization_id)
-        else:
-            act_stmt = select(Activity).where(Activity.id.is_(None))
+        act_stmt = project_activity_statement(project_id, project.organization_id, asset_ids)
         act_res = await self.db.execute(act_stmt)
         activities = act_res.scalars().all()
 

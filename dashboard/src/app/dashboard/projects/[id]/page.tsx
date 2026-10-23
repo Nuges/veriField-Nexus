@@ -34,6 +34,9 @@ import { useToast } from "@/components/Toast";
 import { ProjectDocumentsModule } from "@/components/dashboard/ProjectDocumentsModule";
 import AgricultureLaboratoryBulkImportView from "@/components/dashboard/AgricultureLaboratoryBulkImportView";
 import AuditsListView from "@/components/verification/AuditsListView";
+import RegistryModule from "@/components/dashboard/RegistryModule";
+import { canReadRegistry } from "@/lib/registryWorkflow";
+import { isRouteAuthorized } from "@/lib/roles";
 import { resolveProjectMethodology } from "@/lib/projectMethodology";
 import VerificationsPage from "../../verifications/page";
 import SensorsPage from "../../sensors/page";
@@ -55,15 +58,17 @@ function ProjectDetailPageContent() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [copiedId, setCopiedId] = useState<boolean>(false);
 
-  // Sync active project in WorkspaceContext so subviews like SensorsPage pick up this project
+  // Child workflows share scope only after the project API authorized this record.
   useEffect(() => {
-    if (projectId) {
-      changeProject(projectId);
-    }
-  }, [projectId, changeProject]);
+    if (project?.id === projectId) changeProject(projectId);
+  }, [project?.id, projectId, changeProject]);
 
   // Load project details, land units, and activities count
   useEffect(() => {
+    let cancelled = false;
+    setProject(null);
+    setLandUnits([]);
+    setActivitiesCount(0);
     async function loadProject() {
       if (!projectId) return;
       setIsLoading(true);
@@ -74,6 +79,7 @@ function ProjectDetailPageContent() {
           fetchActivities({ project_id: projectId })
         ]);
 
+        if (cancelled) return;
         if (projRes.status === "fulfilled" && projRes.value) {
           setProject(projRes.value);
         }
@@ -92,10 +98,11 @@ function ProjectDetailPageContent() {
       } catch (err) {
         console.error("Failed to load project details:", err);
       } finally {
-        setIsLoading(false);
+        if (!cancelled) setIsLoading(false);
       }
     }
     loadProject();
+    return () => { cancelled = true; };
   }, [projectId]);
 
   const handleCopyId = async () => {
@@ -117,7 +124,7 @@ function ProjectDetailPageContent() {
 
   const isAgriculture = useMemo(() => {
     const s = (activeSector || project?.sector || "").toUpperCase();
-    return s.includes("AGRI") || s.includes("LAND") || !s;
+    return s.includes("AGRI") || s.includes("LAND");
   }, [activeSector, project]);
 
   const resolvedMethodology = useMemo(() => {
@@ -133,7 +140,8 @@ function ProjectDetailPageContent() {
       : []),
     { id: "evidence", label: "Proof Evidence Vault", icon: FileText },
     { id: "telemetry", label: "Live Telemetry & Devices", icon: Radio },
-    { id: "verification", label: "Verification Hub", icon: ShieldCheck },
+    ...(isRouteAuthorized("/dashboard/verifications", user?.role) ? [{ id: "verification", label: "Verification", icon: ShieldCheck }] : []),
+    ...(canReadRegistry(user?.role) ? [{ id: "registry", label: "Registry Readiness", icon: FileText }] : []),
   ];
 
   if (isLoading) {
@@ -211,7 +219,7 @@ function ProjectDetailPageContent() {
             </h1>
             <p className="text-xs text-[var(--color-text-secondary)] mt-1 flex items-center gap-2">
               <MapPin size={13} className="text-[#00B47A]" />
-              <span>{project.country || "Nigeria"}</span>
+              <span>{project.country || "Not specified"}</span>
               <span className="text-[var(--color-border)]">•</span>
               <span
                 className="font-mono text-[11px] text-[#00B47A]"
@@ -323,7 +331,7 @@ function ProjectDetailPageContent() {
                       className="font-mono font-bold text-[var(--color-text-primary)]"
                       data-testid="project-methodology-version"
                     >
-                      {resolvedMethodology.version || (resolvedMethodology.isAssigned ? "1.0" : "—")}
+                      {resolvedMethodology.version || "—"}
                     </span>
                   </div>
                   <div className="flex justify-between py-1.5 border-b border-[var(--color-border)]">
@@ -335,7 +343,7 @@ function ProjectDetailPageContent() {
                   <div className="flex justify-between py-1.5">
                     <span className="text-[var(--color-text-secondary)]">Crediting Period</span>
                     <span className="font-medium text-[var(--color-text-primary)]">
-                      {project.crediting_start ? `${project.crediting_start} → ${project.crediting_end || "Ongoing"}` : "Standard 10-Year Renewable"}
+                      {project.crediting_start ? `${project.crediting_start} → ${project.crediting_end || "Ongoing"}` : "Not configured"}
                     </span>
                   </div>
                 </div>
@@ -349,19 +357,19 @@ function ProjectDetailPageContent() {
                 <div className="space-y-2 text-xs">
                   <div className="flex justify-between py-1.5 border-b border-[var(--color-border)]">
                     <span className="text-[var(--color-text-secondary)]">Country / Jurisdiction</span>
-                    <span className="font-bold text-[var(--color-text-primary)]">{project.country || "Nigeria"}</span>
+                    <span className="font-bold text-[var(--color-text-primary)]">{project.country || "Not specified"}</span>
                   </div>
                   <div className="flex justify-between py-1.5 border-b border-[var(--color-border)]">
                     <span className="text-[var(--color-text-secondary)]">Bound Land Units</span>
                     <span className="font-mono font-bold text-[var(--color-text-primary)]">{landUnits.length} Parcels</span>
                   </div>
                   <div className="flex justify-between py-1.5 border-b border-[var(--color-border)]">
-                    <span className="text-[var(--color-text-secondary)]">Recorded Telemetry Transmissions</span>
+                    <span className="text-[var(--color-text-secondary)]">Recorded Activities</span>
                     <span className="font-mono font-bold text-[#00B47A]">{activitiesCount} Records</span>
                   </div>
                   <div className="flex justify-between py-1.5">
                     <span className="text-[var(--color-text-secondary)]">Tenant Ownership</span>
-                    <span className="font-bold text-emerald-600 dark:text-emerald-400">Tenant-Verified</span>
+                    <span className="font-bold text-emerald-600 dark:text-emerald-400">Accessible to this account</span>
                   </div>
                 </div>
               </div>
@@ -388,7 +396,7 @@ function ProjectDetailPageContent() {
                 <Layers size={24} className="text-[var(--color-text-muted)] mx-auto" />
                 <p className="text-xs font-bold text-[var(--color-text-primary)]">No Land Units Bound to Project</p>
                 <p className="text-[11px] text-[var(--color-text-secondary)] max-w-sm mx-auto">
-                  Spatial boundaries can be ingested via geospatial GeoJSON boundaries or registered in the Spatial Command Center.
+                  Spatial boundaries can be ingested via geospatial GeoJSON boundaries or registered in the Project Map.
                 </p>
               </div>
             ) : (
@@ -463,7 +471,8 @@ function ProjectDetailPageContent() {
         )}
 
         {/* TAB: VERIFICATION */}
-        {activeTab === "verification" && (
+        {activeTab === "registry" && canReadRegistry(user?.role) && <RegistryModule projectId={projectId} sectorCode={activeSector || undefined} />}
+        {activeTab === "verification" && isRouteAuthorized("/dashboard/verifications", user?.role) && (
           <VerificationsPage />
         )}
       </div>

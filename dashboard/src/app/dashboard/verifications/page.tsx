@@ -56,6 +56,7 @@ import {
 import { useToast } from "@/components/Toast";
 import { useWorkspace } from "@/context/WorkspaceContext";
 import { getSectorVerificationCopy } from "@/lib/sectors";
+import { canReadRegistry } from "@/lib/registryWorkflow";
 import { resolveProjectMethodology } from "@/lib/projectMethodology";
 import VerificationPipelineStages, { PipelineStage } from "@/components/VerificationPipelineStages";
 
@@ -102,7 +103,7 @@ function VerificationsPageContent() {
     ? (paramTab as 'packages' | 'audits' | 'community' | 'sensors')
     : 'packages';
 
-  const { activeSector, activeProject, projects, filterProperties, filterAudits, moduleRegistry } = useWorkspace();
+  const { user, activeSector, activeProject, projects, filterProperties, filterAudits, moduleRegistry } = useWorkspace();
 
   const selectedProjectRecord = activeProject && activeProject !== "all"
     ? projects.find((p) => p.id === activeProject || p.project_code === activeProject || (p as any).code === activeProject)
@@ -508,6 +509,8 @@ function VerificationsPageContent() {
               </span>
             </div>
           )}
+
+          {selectedProjectRecord && canReadRegistry(user?.role) && <Link href={`/dashboard/projects/${selectedProjectRecord.id}?tab=registry`} className="inline-block mb-2 text-xs underline">Registry Readiness for this project</Link>}
 
           <h1 className="text-xl font-bold tracking-tight text-[var(--color-text-primary)]">
             Verification & Audits

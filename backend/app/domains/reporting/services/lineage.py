@@ -22,6 +22,7 @@ from app.domains.assets.models import Asset
 from app.domains.evidence.models import Evidence
 from app.domains.methodologies.models.base_registry import Methodology
 from app.domains.projects.models import Project
+from app.domains.registry_integrations.repository import project_activity_statement
 
 
 class DataLineageEngine:
@@ -65,12 +66,7 @@ class DataLineageEngine:
 
         # 3. Fetch Activities via assets or org
         asset_ids = [a.id for a in assets]
-        if asset_ids:
-            act_stmt = select(Activity).where(Activity.asset_id.in_(asset_ids))
-        elif project.organization_id:
-            act_stmt = select(Activity).where(Activity.organization_id == project.organization_id)
-        else:
-            act_stmt = select(Activity).where(Activity.id.is_(None))
+        act_stmt = project_activity_statement(project_id, project.organization_id, asset_ids)
 
         if monitoring_period_start:
             act_stmt = act_stmt.where(Activity.submitted_at >= monitoring_period_start)

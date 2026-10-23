@@ -1,0 +1,2812 @@
+[
+  {
+    "name": "getApiV1",
+    "backend": "Indirect/dynamic; requires contract review",
+    "ui": [],
+    "support": [],
+    "classification": "Internal service",
+    "decision": "Retain shared client utility",
+    "role": "Internal"
+  },
+  {
+    "name": "setAuthToken",
+    "backend": "Indirect/dynamic; requires contract review",
+    "ui": [
+      "dashboard/src/app/login/page.tsx",
+      "dashboard/src/app/dashboard/agents/page.tsx",
+      "dashboard/src/app/dashboard/poa/page.tsx"
+    ],
+    "support": [
+      "dashboard/tests/phase1_remediation.test.ts",
+      "dashboard/tests/phase2_registry_workflow.test.ts"
+    ],
+    "classification": "Internal service",
+    "decision": "Retain shared client utility",
+    "role": "Internal"
+  },
+  {
+    "name": "getAuthToken",
+    "backend": "Indirect/dynamic; requires contract review",
+    "ui": [],
+    "support": [],
+    "classification": "Internal service",
+    "decision": "Retain shared client utility",
+    "role": "Internal"
+  },
+  {
+    "name": "apiFetch",
+    "backend": "Indirect/dynamic; requires contract review",
+    "ui": [
+      "dashboard/src/components/methodologies/DynamicWorkspace.tsx",
+      "dashboard/src/components/access-control/RolePermissionConsole.tsx",
+      "dashboard/src/components/access-control/AccessControlClient.tsx"
+    ],
+    "support": [],
+    "classification": "Internal service",
+    "decision": "Retain shared client utility",
+    "role": "Internal"
+  },
+  {
+    "name": "loginAdmin",
+    "backend": "Indirect/dynamic; requires contract review",
+    "ui": [
+      "dashboard/src/app/login/page.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "onboardDeveloper",
+    "backend": "Route family present; contract not inferred",
+    "ui": [],
+    "support": [],
+    "classification": "Future / gated capability",
+    "decision": "Retain; no speculative deletion",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchActivities",
+    "backend": "Indirect/dynamic; requires contract review",
+    "ui": [
+      "dashboard/src/components/DynamicSidebar.tsx",
+      "dashboard/src/components/AINotificationCenter.tsx",
+      "dashboard/src/components/monitoring/TelemetryHistorianConsole.tsx",
+      "dashboard/src/components/jurisdictions/SpatialBoundaryMap.tsx",
+      "dashboard/src/components/VerificationPipelineStages.tsx",
+      "dashboard/src/app/dashboard/sensors/page.tsx",
+      "dashboard/src/app/dashboard/activities/page.tsx",
+      "dashboard/src/app/dashboard/trust-scores/page.tsx",
+      "dashboard/src/app/dashboard/analytics/page.tsx",
+      "dashboard/src/app/dashboard/command-center/page.tsx",
+      "dashboard/src/app/dashboard/projects/[id]/page.tsx",
+      "dashboard/src/app/dashboard/verifications/page.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "createActivity",
+    "backend": "Indirect/dynamic; requires contract review",
+    "ui": [
+      "dashboard/src/app/capture/page.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "uploadProof",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/app/capture/page.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "checkDuplicate",
+    "backend": "Route family present; contract not inferred",
+    "ui": [],
+    "support": [],
+    "classification": "Future / gated capability",
+    "decision": "Retain; no speculative deletion",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchActivity",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/app/dashboard/activities/[id]/page.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "updateActivityStatus",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/app/dashboard/activities/[id]/page.tsx",
+      "dashboard/src/app/dashboard/trust-scores/page.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchTrustScore",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/app/dashboard/activities/[id]/page.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchProperties",
+    "backend": "Indirect/dynamic; requires contract review",
+    "ui": [
+      "dashboard/src/components/properties/PropertiesDirectoryView.tsx",
+      "dashboard/src/components/jurisdictions/SpatialBoundaryMap.tsx",
+      "dashboard/src/components/verification/AuditsListView.tsx",
+      "dashboard/src/app/dashboard/sensors/page.tsx",
+      "dashboard/src/app/dashboard/command-center/page.tsx",
+      "dashboard/src/app/dashboard/verifications/page.tsx"
+    ],
+    "support": [
+      "dashboard/tests/agriculture_foundation_workflow.spec.ts"
+    ],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchProperty",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/app/dashboard/properties/[id]/page.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchPropertyActivities",
+    "backend": "Indirect/dynamic; requires contract review",
+    "ui": [
+      "dashboard/src/app/dashboard/properties/[id]/page.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchAnalyticsOverview",
+    "backend": "Route family present; contract not inferred",
+    "ui": [],
+    "support": [],
+    "classification": "Future / gated capability",
+    "decision": "Retain; no speculative deletion",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchDailySubmissions",
+    "backend": "Route family present; contract not inferred",
+    "ui": [],
+    "support": [],
+    "classification": "Future / gated capability",
+    "decision": "Retain; no speculative deletion",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchTrends",
+    "backend": "Route family present; contract not inferred",
+    "ui": [],
+    "support": [],
+    "classification": "Future / gated capability",
+    "decision": "Retain; no speculative deletion",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchTrustDistribution",
+    "backend": "Route family present; contract not inferred",
+    "ui": [],
+    "support": [],
+    "classification": "Future / gated capability",
+    "decision": "Retain; no speculative deletion",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "exportData",
+    "backend": "Route family present; contract not inferred",
+    "ui": [],
+    "support": [],
+    "classification": "Future / gated capability",
+    "decision": "Retain; no speculative deletion",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchSensorReadings",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/verification/AuditorWorkspaceView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchCommunityValidations",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/verification/AuditorWorkspaceView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchVerificationTasks",
+    "backend": "Route family present; contract not inferred",
+    "ui": [],
+    "support": [
+      "dashboard/tests/verification_api_contract.test.ts"
+    ],
+    "classification": "Legacy / duplicate",
+    "decision": "Retain compatibility entry point",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchMyAuditTasks",
+    "backend": "Indirect/dynamic; requires contract review",
+    "ui": [
+      "dashboard/src/app/dashboard/verifications/page.tsx"
+    ],
+    "support": [
+      "dashboard/tests/verification_api_contract.test.ts"
+    ],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "createAuditTask",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/verification/AuditsListView.tsx",
+      "dashboard/src/app/dashboard/verifications/page.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchCarbonLedger",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/app/dashboard/carbon/page.tsx",
+      "dashboard/src/app/dashboard/poa/page.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchAnomalies",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/monitoring/DataQualityEventConsole.tsx",
+      "dashboard/src/app/dashboard/anomalies/page.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "resolveAnomaly",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/monitoring/DataQualityEventConsole.tsx",
+      "dashboard/src/app/dashboard/anomalies/page.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchAudits",
+    "backend": "Indirect/dynamic; requires contract review",
+    "ui": [
+      "dashboard/src/components/verification/AuditsListView.tsx"
+    ],
+    "support": [
+      "dashboard/tests/verification_api_contract.test.ts"
+    ],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "updateAuditStatus",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/verification/AuditsListView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "issueVerraCredits",
+    "backend": "Indirect/dynamic; requires contract review",
+    "ui": [],
+    "support": [],
+    "classification": "Unsupported or incomplete",
+    "decision": "Retain stub; no issuance UI",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "issueGoldStandardCredits",
+    "backend": "Indirect/dynamic; requires contract review",
+    "ui": [],
+    "support": [],
+    "classification": "Unsupported or incomplete",
+    "decision": "Retain stub; no issuance UI",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchPublicSectors",
+    "backend": "Indirect/dynamic; requires contract review",
+    "ui": [
+      "dashboard/src/components/landing/ClimateSectorsSection.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchPublicOverview",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/landing/PilotMapSection.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "quantifyActivity",
+    "backend": "Indirect/dynamic; requires contract review",
+    "ui": [
+      "dashboard/src/app/dashboard/activities/[id]/page.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchAgentPerformance",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/verification/AuditsListView.tsx",
+      "dashboard/src/app/dashboard/agents/page.tsx",
+      "dashboard/src/app/dashboard/verifications/page.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "createAgent",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/app/dashboard/agents/page.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchCarbonProjects",
+    "backend": "Indirect/dynamic; requires contract review",
+    "ui": [],
+    "support": [],
+    "classification": "Legacy / duplicate",
+    "decision": "Retain compatibility entry point",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchCsiLedger",
+    "backend": "Indirect/dynamic; requires contract review",
+    "ui": [],
+    "support": [],
+    "classification": "Future / gated capability",
+    "decision": "Retain; no speculative deletion",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchCsiParameters",
+    "backend": "Indirect/dynamic; requires contract review",
+    "ui": [],
+    "support": [],
+    "classification": "Future / gated capability",
+    "decision": "Retain; no speculative deletion",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "createCsiBundle",
+    "backend": "Route family present; contract not inferred",
+    "ui": [],
+    "support": [],
+    "classification": "Future / gated capability",
+    "decision": "Retain; no speculative deletion",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "syncBundleToRegistry",
+    "backend": "Route family present; contract not inferred",
+    "ui": [],
+    "support": [],
+    "classification": "Future / gated capability",
+    "decision": "Retain; no speculative deletion",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "updateCsiParameter",
+    "backend": "Route family present; contract not inferred",
+    "ui": [],
+    "support": [],
+    "classification": "Future / gated capability",
+    "decision": "Retain; no speculative deletion",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchUsers",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/app/dashboard/projects/page.tsx",
+      "dashboard/src/app/dashboard/layout.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "updateAgentStatus",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/access-control/AccessControlClient.tsx",
+      "dashboard/src/app/dashboard/agents/page.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "updateUserAccount",
+    "backend": "Route family present; contract not inferred",
+    "ui": [],
+    "support": [],
+    "classification": "Future / gated capability",
+    "decision": "Retain; no speculative deletion",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "resetAgentPassword",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/access-control/AccessControlClient.tsx",
+      "dashboard/src/app/dashboard/agents/page.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "createUserAccount",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/access-control/AccessControlClient.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "exportVerraCSV",
+    "backend": "Indirect/dynamic; requires contract review",
+    "ui": [],
+    "support": [],
+    "classification": "Future / gated capability",
+    "decision": "Retain; no speculative deletion",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "exportGoldStandardJSON",
+    "backend": "Indirect/dynamic; requires contract review",
+    "ui": [],
+    "support": [],
+    "classification": "Future / gated capability",
+    "decision": "Retain; no speculative deletion",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "uploadProjectDocument",
+    "backend": "Indirect/dynamic; requires contract review",
+    "ui": [
+      "dashboard/src/components/dashboard/ProjectDocumentsModule.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchProjectDocuments",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/ProjectDocumentsModule.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchDocumentDetails",
+    "backend": "Route family present; contract not inferred",
+    "ui": [],
+    "support": [],
+    "classification": "Future / gated capability",
+    "decision": "Retain; no speculative deletion",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchDocumentFraudFlags",
+    "backend": "Route family present; contract not inferred",
+    "ui": [],
+    "support": [],
+    "classification": "Future / gated capability",
+    "decision": "Retain; no speculative deletion",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "downloadDocument",
+    "backend": "Indirect/dynamic; requires contract review",
+    "ui": [
+      "dashboard/src/components/dashboard/ProjectDocumentsModule.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "generateAndDownloadReport",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/UniversalAIAssistant.tsx",
+      "dashboard/src/components/dashboard/ProjectDocumentsModule.tsx",
+      "dashboard/src/app/dashboard/analytics/page.tsx",
+      "dashboard/src/app/dashboard/poa/page.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchRegistryPackage",
+    "backend": "Route family present; contract not inferred",
+    "ui": [],
+    "support": [],
+    "classification": "Future / gated capability",
+    "decision": "Retain; no speculative deletion",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchSensorDevices",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/app/dashboard/verifications/page.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchProjectTotal",
+    "backend": "Route family present; contract not inferred",
+    "ui": [],
+    "support": [],
+    "classification": "Future / gated capability",
+    "decision": "Retain; no speculative deletion",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchProjects",
+    "backend": "Indirect/dynamic; requires contract review",
+    "ui": [
+      "dashboard/src/components/properties/PropertiesDirectoryView.tsx",
+      "dashboard/src/components/UniversalAIAssistant.tsx",
+      "dashboard/src/context/WorkspaceContext.tsx",
+      "dashboard/src/app/capture/page.tsx",
+      "dashboard/src/app/dashboard/analytics/page.tsx",
+      "dashboard/src/app/dashboard/carbon/page.tsx",
+      "dashboard/src/app/dashboard/verifications/page.tsx",
+      "dashboard/src/app/dashboard/poa/page.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "createCarbonProject",
+    "backend": "Indirect/dynamic; requires contract review",
+    "ui": [],
+    "support": [],
+    "classification": "Legacy / duplicate",
+    "decision": "Retain compatibility entry point",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchSettings",
+    "backend": "Indirect/dynamic; requires contract review",
+    "ui": [
+      "dashboard/src/app/dashboard/settings/page.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "updateSettings",
+    "backend": "Indirect/dynamic; requires contract review",
+    "ui": [
+      "dashboard/src/app/dashboard/settings/page.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchCommunityFeed",
+    "backend": "Indirect/dynamic; requires contract review",
+    "ui": [
+      "dashboard/src/app/dashboard/community/page.tsx",
+      "dashboard/src/app/dashboard/verifications/page.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "upvoteCommunityPost",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/app/dashboard/community/page.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "addCommunityComment",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/app/dashboard/community/page.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchMe",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/context/WorkspaceContext.tsx",
+      "dashboard/src/app/dashboard/settings/page.tsx",
+      "dashboard/src/app/dashboard/poa/page.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "updateProfile",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/app/dashboard/settings/page.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "changePassword",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/app/super-admin/page.tsx",
+      "dashboard/src/app/login/page.tsx",
+      "dashboard/src/app/dashboard/settings/page.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "uploadAvatar",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/app/dashboard/settings/page.tsx"
+    ],
+    "support": [
+      "mobile/lib/features/profile/screens/profile_screen.dart",
+      "mobile/lib/services/api_service.dart"
+    ],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchEnergyPortfolio",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/app/dashboard/energy/page.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchEnergyActivities",
+    "backend": "Indirect/dynamic; requires contract review",
+    "ui": [
+      "dashboard/src/app/dashboard/energy/page.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchSiteTelemetry",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/app/dashboard/energy/page.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "createAccessRequest",
+    "backend": "Indirect/dynamic; requires contract review",
+    "ui": [
+      "dashboard/src/app/signup/page.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchAccessRequests",
+    "backend": "Indirect/dynamic; requires contract review",
+    "ui": [
+      "dashboard/src/app/super-admin/page.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "approveAccessRequest",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/app/super-admin/page.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "rejectAccessRequest",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/app/super-admin/page.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "deleteAccessRequest",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/app/super-admin/page.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchAllOrganizations",
+    "backend": "Indirect/dynamic; requires contract review",
+    "ui": [
+      "dashboard/src/app/super-admin/page.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchAllUsersGlobal",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/app/super-admin/page.tsx",
+      "dashboard/src/app/dashboard/projects/page.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "toggleUserSuspension",
+    "backend": "Indirect/dynamic; requires contract review",
+    "ui": [],
+    "support": [],
+    "classification": "Future / gated capability",
+    "decision": "Retain; no speculative deletion",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchAuditLogs",
+    "backend": "Route family present; contract not inferred",
+    "ui": [],
+    "support": [],
+    "classification": "Future / gated capability",
+    "decision": "Retain; no speculative deletion",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "deleteOrganization",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/app/super-admin/page.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchOrganizationAnalytics",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/app/super-admin/page.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "createAdminUserAccount",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/app/super-admin/page.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchOrganizationProjects",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/access-control/RolePermissionConsole.tsx",
+      "dashboard/src/app/super-admin/page.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "forceResetUserPassword",
+    "backend": "Route family present; contract not inferred",
+    "ui": [],
+    "support": [],
+    "classification": "Future / gated capability",
+    "decision": "Retain; no speculative deletion",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchGlobalAnalytics",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/app/super-admin/page.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchMethodologies",
+    "backend": "Indirect/dynamic; requires contract review",
+    "ui": [
+      "dashboard/src/components/properties/PropertiesDirectoryView.tsx",
+      "dashboard/src/context/WorkspaceContext.tsx",
+      "dashboard/src/app/signup/page.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchRecommendedMethodology",
+    "backend": "Route family present; contract not inferred",
+    "ui": [],
+    "support": [],
+    "classification": "Future / gated capability",
+    "decision": "Retain; no speculative deletion",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchMethodologyFamilies",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/context/WorkspaceContext.tsx",
+      "dashboard/src/app/dashboard/settings/sectors/page.tsx",
+      "dashboard/src/app/dashboard/settings/page.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchDashboardPayload",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/EnterpriseDashboard.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "addLicensedSector",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/app/dashboard/settings/sectors/page.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "createProject",
+    "backend": "Indirect/dynamic; requires contract review",
+    "ui": [
+      "dashboard/src/components/properties/PropertiesDirectoryView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "getMFAStatus",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/MFASettings.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "setupMFA",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/MFASettings.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "verifyMFASetup",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/MFASettings.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "verifyMFALogin",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/app/login/page.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "useMFARecovery",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/app/login/page.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "disableMFA",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/MFASettings.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "getSSOProviders",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/app/login/page.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "initiateSSOLogin",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/app/login/page.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "handleSSOCallback",
+    "backend": "Route family present; contract not inferred",
+    "ui": [],
+    "support": [],
+    "classification": "Future / gated capability",
+    "decision": "Retain; no speculative deletion",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "chatWithAI",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/UniversalAIAssistant.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchAIInsights",
+    "backend": "Route family present; contract not inferred",
+    "ui": [],
+    "support": [],
+    "classification": "Future / gated capability",
+    "decision": "Retain; no speculative deletion",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchAdminUsers",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/app/super-admin/page.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchAdminUserDetail",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/app/super-admin/page.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchProjectUsers",
+    "backend": "Route family present; contract not inferred",
+    "ui": [],
+    "support": [],
+    "classification": "Future / gated capability",
+    "decision": "Retain; no speculative deletion",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "adminResetUserPassword",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/access-control/RolePermissionConsole.tsx",
+      "dashboard/src/app/super-admin/page.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "adminSuspendUser",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/app/super-admin/page.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "adminReactivateUser",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/app/super-admin/page.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "adminDeleteUser",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/app/super-admin/page.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchAdminRoles",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/app/super-admin/page.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchAdminPermissions",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/app/super-admin/page.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchProjectMemberships",
+    "backend": "Route family present; contract not inferred",
+    "ui": [],
+    "support": [],
+    "classification": "Future / gated capability",
+    "decision": "Retain; no speculative deletion",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "assignProjectMembership",
+    "backend": "Route family present; contract not inferred",
+    "ui": [],
+    "support": [],
+    "classification": "Future / gated capability",
+    "decision": "Retain; no speculative deletion",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "revokeProjectMembership",
+    "backend": "Route family present; contract not inferred",
+    "ui": [],
+    "support": [],
+    "classification": "Future / gated capability",
+    "decision": "Retain; no speculative deletion",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "adminRevokeUserSessions",
+    "backend": "Route family present; contract not inferred",
+    "ui": [],
+    "support": [],
+    "classification": "Future / gated capability",
+    "decision": "Retain; no speculative deletion",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchGovernanceAuditLogs",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/access-control/RolePermissionConsole.tsx",
+      "dashboard/src/app/super-admin/page.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "submitITMOAuthorization",
+    "backend": "Indirect/dynamic; requires contract review",
+    "ui": [
+      "dashboard/src/components/UniversalAIAssistant.tsx"
+    ],
+    "support": [
+      "dashboard/tests/phase2_registry_workflow.test.ts"
+    ],
+    "classification": "Advanced or specialist workflow",
+    "decision": "Retain specialist controls; no ordinary-operator exposure",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchComplianceDossier",
+    "backend": "Indirect/dynamic; requires contract review",
+    "ui": [],
+    "support": [],
+    "classification": "Future / gated capability",
+    "decision": "Retain; no speculative deletion",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchRegistryReadiness",
+    "backend": "Indirect/dynamic; requires contract review",
+    "ui": [
+      "dashboard/src/components/dashboard/RegistryModule.tsx"
+    ],
+    "support": [
+      "dashboard/tests/phase2_registry_workflow.test.ts"
+    ],
+    "classification": "Current operational workflow",
+    "decision": "Expose in canonical project preparation",
+    "role": "registry:read"
+  },
+  {
+    "name": "downloadRegistryPackage",
+    "backend": "Indirect/dynamic; requires contract review",
+    "ui": [
+      "dashboard/src/components/dashboard/RegistryModule.tsx"
+    ],
+    "support": [
+      "dashboard/tests/phase2_registry_workflow.test.ts"
+    ],
+    "classification": "Current operational workflow",
+    "decision": "Expose in canonical project preparation",
+    "role": "registry:read"
+  },
+  {
+    "name": "downloadArticle6PackageZip",
+    "backend": "Indirect/dynamic; requires contract review",
+    "ui": [
+      "dashboard/src/components/UniversalAIAssistant.tsx",
+      "dashboard/src/app/dashboard/analytics/page.tsx"
+    ],
+    "support": [
+      "dashboard/tests/phase2_registry_workflow.test.ts"
+    ],
+    "classification": "Legacy / duplicate",
+    "decision": "Retain compatibility entry point",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "executeCarbonMinting",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/UniversalAIAssistant.tsx",
+      "dashboard/src/app/dashboard/carbon/page.tsx"
+    ],
+    "support": [],
+    "classification": "Advanced or specialist workflow",
+    "decision": "Retain specialist controls; no ordinary-operator exposure",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchLedgerTransactions",
+    "backend": "Route family present; contract not inferred",
+    "ui": [],
+    "support": [],
+    "classification": "Future / gated capability",
+    "decision": "Retain; no speculative deletion",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchRegistryDocumentMatrix",
+    "backend": "Indirect/dynamic; requires contract review",
+    "ui": [
+      "dashboard/src/components/dashboard/RegistryModule.tsx"
+    ],
+    "support": [
+      "dashboard/tests/phase2_registry_workflow.test.ts"
+    ],
+    "classification": "Current operational workflow",
+    "decision": "Expose in canonical project preparation",
+    "role": "registry:read"
+  },
+  {
+    "name": "downloadRegistryDocument",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/RegistryModule.tsx"
+    ],
+    "support": [
+      "dashboard/tests/phase2_registry_workflow.test.ts"
+    ],
+    "classification": "Current operational workflow",
+    "decision": "Expose in canonical project preparation",
+    "role": "registry:read"
+  },
+  {
+    "name": "fetchBiocharBatches",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/BiocharValueChainView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchBiocharBatch",
+    "backend": "Route family present; contract not inferred",
+    "ui": [],
+    "support": [],
+    "classification": "Future / gated capability",
+    "decision": "Retain; no speculative deletion",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchBiocharSummary",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/BiocharValueChainView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchBiocharMassBalance",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/BiocharValueChainView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchBiocharLineage",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/BiocharValueChainView.tsx"
+    ],
+    "support": [],
+    "classification": "Advanced or specialist workflow",
+    "decision": "Retain specialist controls; no ordinary-operator exposure",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchBiocharLandUnitConflict",
+    "backend": "Route family present; contract not inferred",
+    "ui": [],
+    "support": [],
+    "classification": "Future / gated capability",
+    "decision": "Retain; no speculative deletion",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchBiocharEligibility",
+    "backend": "Route family present; contract not inferred",
+    "ui": [],
+    "support": [],
+    "classification": "Future / gated capability",
+    "decision": "Retain; no speculative deletion",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchFeedstockSources",
+    "backend": "Route family present; contract not inferred",
+    "ui": [],
+    "support": [],
+    "classification": "Future / gated capability",
+    "decision": "Retain; no speculative deletion",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchFeedstockLots",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/BiocharValueChainView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchProductionFacilities",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/jurisdictions/SpatialBoundaryMap.tsx",
+      "dashboard/src/components/dashboard/BiocharValueChainView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchProductionRuns",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/BiocharValueChainView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchBiocharEndUses",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/jurisdictions/SpatialBoundaryMap.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchPuroRules",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/BiocharValueChainView.tsx"
+    ],
+    "support": [],
+    "classification": "Advanced or specialist workflow",
+    "decision": "Retain specialist controls; no ordinary-operator exposure",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchPuroDependencies",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/BiocharValueChainView.tsx"
+    ],
+    "support": [],
+    "classification": "Advanced or specialist workflow",
+    "decision": "Retain specialist controls; no ordinary-operator exposure",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchPuroEndUseCategories",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/BiocharValueChainView.tsx"
+    ],
+    "support": [],
+    "classification": "Advanced or specialist workflow",
+    "decision": "Retain specialist controls; no ordinary-operator exposure",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchPuroSupplierProfile",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/BiocharValueChainView.tsx"
+    ],
+    "support": [],
+    "classification": "Advanced or specialist workflow",
+    "decision": "Retain specialist controls; no ordinary-operator exposure",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchPuroFacilityProfile",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/BiocharValueChainView.tsx"
+    ],
+    "support": [],
+    "classification": "Advanced or specialist workflow",
+    "decision": "Retain specialist controls; no ordinary-operator exposure",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchPuroCreditingPeriods",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/BiocharValueChainView.tsx"
+    ],
+    "support": [],
+    "classification": "Advanced or specialist workflow",
+    "decision": "Retain specialist controls; no ordinary-operator exposure",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "executePuroQuantification",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/BiocharValueChainView.tsx"
+    ],
+    "support": [],
+    "classification": "Advanced or specialist workflow",
+    "decision": "Retain specialist controls; no ordinary-operator exposure",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "simulatePuroQuantification",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/BiocharValueChainView.tsx"
+    ],
+    "support": [],
+    "classification": "Advanced or specialist workflow",
+    "decision": "Retain specialist controls; no ordinary-operator exposure",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchPuroAudits",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/BiocharValueChainView.tsx"
+    ],
+    "support": [],
+    "classification": "Advanced or specialist workflow",
+    "decision": "Retain specialist controls; no ordinary-operator exposure",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchPuroOutputReports",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/BiocharValueChainView.tsx"
+    ],
+    "support": [],
+    "classification": "Advanced or specialist workflow",
+    "decision": "Retain specialist controls; no ordinary-operator exposure",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchPuroRegistryReadiness",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/BiocharValueChainView.tsx"
+    ],
+    "support": [],
+    "classification": "Advanced or specialist workflow",
+    "decision": "Retain specialist controls; no ordinary-operator exposure",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchVM0044Version",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/BiocharVM0044View.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchVM0044Rules",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/BiocharVM0044View.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchVM0044Dependencies",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/BiocharVM0044View.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "evaluateVM0044Applicability",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/BiocharVM0044View.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "evaluateVM0044Additionality",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/BiocharVM0044View.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "createVM0044Snapshot",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/BiocharVM0044View.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "executeVM0044Calculation",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/BiocharVM0044View.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchVM0044Executions",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/BiocharVM0044View.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchSatelliteObservations",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/jurisdictions/SpatialBoundaryMap.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchLandUnits",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/jurisdictions/SpatialBoundaryMap.tsx",
+      "dashboard/src/components/dashboard/AgricultureGroundEvidenceView.tsx",
+      "dashboard/src/components/dashboard/AgricultureFoundationView.tsx",
+      "dashboard/src/app/dashboard/projects/[id]/page.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchSoilSamples",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/jurisdictions/SpatialBoundaryMap.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchTreeObservations",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/jurisdictions/SpatialBoundaryMap.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchProjectFoundation",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/AgricultureFoundationView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "lockProjectMethodology",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/AgricultureFoundationView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "linkProjectBoundary",
+    "backend": "Route family present; contract not inferred",
+    "ui": [],
+    "support": [],
+    "classification": "Future / gated capability",
+    "decision": "Retain; no speculative deletion",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchProjectStrata",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/AgricultureGroundEvidenceView.tsx",
+      "dashboard/src/components/dashboard/AgricultureFoundationView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "createProjectStratum",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/AgricultureFoundationView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "addStratumMemberships",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/AgricultureFoundationView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchProjectManagementRecords",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/AgricultureFoundationView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "createProjectManagementRecord",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/AgricultureFoundationView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchFoundationReadiness",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/AgricultureFoundationView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchSamplingCampaigns",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/AgricultureLaboratoryBulkImportView.tsx",
+      "dashboard/src/components/dashboard/AgricultureGroundEvidenceView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "createSamplingCampaign",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/AgricultureGroundEvidenceView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchSamplingPlanVersions",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/AgricultureGroundEvidenceView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "createSamplingPlanVersion",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/AgricultureGroundEvidenceView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "lockSamplingPlanVersion",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/AgricultureGroundEvidenceView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchSamplingPoints",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/AgricultureGroundEvidenceView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "createSamplingPoints",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/AgricultureGroundEvidenceView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchPhysicalSamples",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/AgricultureGroundEvidenceView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchPhysicalSample",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/AgricultureGroundEvidenceView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "recordSampleCollection",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/app/capture/page.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "recordSampleCustodyEvent",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/AgricultureGroundEvidenceView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "recordSampleLaboratoryReceipt",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/AgricultureGroundEvidenceView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "recordSampleLaboratoryAnalysis",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/AgricultureGroundEvidenceView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "reviseLaboratoryResult",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/AgricultureGroundEvidenceView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "recordSampleQAReview",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/AgricultureGroundEvidenceView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchGroundEvidenceReadiness",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/AgricultureGroundEvidenceView.tsx",
+      "dashboard/src/components/dashboard/AgricultureFoundationView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchQuantificationReadiness",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/AgricultureQuantificationView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchEligibleMeasurements",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/AgricultureQuantificationView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "createQuantificationSnapshot",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/AgricultureQuantificationView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchQuantificationSnapshots",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/AgricultureQuantificationView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchQuantificationSnapshotDetail",
+    "backend": "Route family present; contract not inferred",
+    "ui": [],
+    "support": [],
+    "classification": "Future / gated capability",
+    "decision": "Retain; no speculative deletion",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchPrerequisiteReadiness",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/AgricultureQuantificationView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "evaluatePrerequisites",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/AgricultureQuantificationView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "lockPrerequisiteAssessment",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/AgricultureQuantificationView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchPrerequisiteAssessments",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/AgricultureQuantificationView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchPrerequisiteAssessmentDetail",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/AgricultureQuantificationView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "evaluateSOCStock",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/AgricultureQuantificationView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "calculateSOCStock",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/AgricultureQuantificationView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchSOCStockResults",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/AgricultureQuantificationView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchSOCStockResultDetail",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/AgricultureQuantificationView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchSOCStockResultComponents",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/AgricultureQuantificationView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "evaluateSOCChange",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/AgricultureQuantificationView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "finalizeSOCChange",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/AgricultureQuantificationView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchSOCChangeResults",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/AgricultureQuantificationView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchSOCChangeResultDetail",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/AgricultureQuantificationView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchSOCChangeResultComponents",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/AgricultureQuantificationView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "evaluateNetGHG",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/AgricultureQuantificationView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "finalizeNetGHG",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/AgricultureQuantificationView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchNetGHGResults",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/AgricultureQuantificationView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchNetGHGResultDetail",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/AgricultureQuantificationView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchNetGHGResultComponents",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/AgricultureQuantificationView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchLaboratoryImportBatches",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/AgricultureLaboratoryBulkImportView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchLaboratoryImportBatch",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/AgricultureLaboratoryBulkImportView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchLaboratoryImportRows",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/AgricultureLaboratoryBulkImportView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "uploadLaboratoryBulkFile",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/AgricultureLaboratoryBulkImportView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "validateLaboratoryImportBatch",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/AgricultureLaboratoryBulkImportView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "commitLaboratoryImportBatch",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/AgricultureLaboratoryBulkImportView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "getLaboratoryImportTemplateUrl",
+    "backend": "Indirect/dynamic; requires contract review",
+    "ui": [],
+    "support": [
+      "dashboard/tests/phase1_remediation.test.ts"
+    ],
+    "classification": "Internal service",
+    "decision": "Retain test/automation dependency",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "downloadLaboratoryImportTemplate",
+    "backend": "Indirect/dynamic; requires contract review",
+    "ui": [
+      "dashboard/src/components/dashboard/AgricultureLaboratoryBulkImportView.tsx",
+      "dashboard/src/components/ingestion/IngestionCenterView.tsx"
+    ],
+    "support": [
+      "dashboard/tests/phase1_remediation.test.ts"
+    ],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "getLaboratoryImportErrorsUrl",
+    "backend": "Indirect/dynamic; requires contract review",
+    "ui": [
+      "dashboard/src/components/dashboard/AgricultureLaboratoryBulkImportView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchVerificationPackages",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/app/dashboard/verifications/page.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchVerificationPackage",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/verification/AuditorWorkspaceView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "compileVerificationPackage",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/app/dashboard/verifications/page.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "sealVerificationPackage",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/verification/AuditorWorkspaceView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchPackageEvidence",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/verification/AuditorWorkspaceView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "verifyEvidenceIntegrity",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/verification/AuditorWorkspaceView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "verifyAllEvidenceIntegrity",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/verification/AuditorWorkspaceView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchPackageFindings",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/verification/AuditorWorkspaceView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "createPackageFinding",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/verification/AuditorWorkspaceView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "respondToFinding",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/verification/AuditorWorkspaceView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "resolveFinding",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/verification/AuditorWorkspaceView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "recordAuditDecision",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/verification/AuditorWorkspaceView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchPackageGrants",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/verification/AuditorWorkspaceView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "grantAuditorAccess",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/verification/AuditorWorkspaceView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "exportPackageBundle",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/verification/AuditorWorkspaceView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "downloadEvidenceContent",
+    "backend": "Indirect/dynamic; requires contract review",
+    "ui": [
+      "dashboard/src/components/verification/AuditorWorkspaceView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "downloadPackageArchive",
+    "backend": "Indirect/dynamic; requires contract review",
+    "ui": [
+      "dashboard/src/components/verification/AuditorWorkspaceView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchFeedstockBlendBreakdown",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/verification/AuditorWorkspaceView.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchProductFormulations",
+    "backend": "Route family present; contract not inferred",
+    "ui": [],
+    "support": [],
+    "classification": "Future / gated capability",
+    "decision": "Retain; no speculative deletion",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "createProductFormulation",
+    "backend": "Route family present; contract not inferred",
+    "ui": [],
+    "support": [],
+    "classification": "Future / gated capability",
+    "decision": "Retain; no speculative deletion",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchProductBatches",
+    "backend": "Route family present; contract not inferred",
+    "ui": [],
+    "support": [],
+    "classification": "Future / gated capability",
+    "decision": "Retain; no speculative deletion",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "createProductBatch",
+    "backend": "Route family present; contract not inferred",
+    "ui": [],
+    "support": [],
+    "classification": "Future / gated capability",
+    "decision": "Retain; no speculative deletion",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchEOProviders",
+    "backend": "Route family present; contract not inferred",
+    "ui": [],
+    "support": [],
+    "classification": "Future / gated capability",
+    "decision": "Retain; no speculative deletion",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchProjectActiveAOI",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/SpatialModule.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "setProjectBoundary",
+    "backend": "Route family present; contract not inferred",
+    "ui": [],
+    "support": [],
+    "classification": "Future / gated capability",
+    "decision": "Retain; no speculative deletion",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchBoundaryHistory",
+    "backend": "Route family present; contract not inferred",
+    "ui": [],
+    "support": [],
+    "classification": "Future / gated capability",
+    "decision": "Retain; no speculative deletion",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchProjectObservations",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/SpatialModule.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchDerivedLayers",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/SpatialModule.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "computeDerivedLayer",
+    "backend": "Route family present; contract not inferred",
+    "ui": [],
+    "support": [],
+    "classification": "Future / gated capability",
+    "decision": "Retain; no speculative deletion",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchProjectSpatialAnomalies",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/SpatialModule.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "corroborateSpatialAnomaly",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/SpatialModule.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "compileBaselinePackage",
+    "backend": "Route family present; contract not inferred",
+    "ui": [],
+    "support": [],
+    "classification": "Future / gated capability",
+    "decision": "Retain; no speculative deletion",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "fetchMRVManifest",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/SpatialModule.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  },
+  {
+    "name": "verifyCOGAsset",
+    "backend": "Route family present; contract not inferred",
+    "ui": [
+      "dashboard/src/components/dashboard/SpatialModule.tsx"
+    ],
+    "support": [],
+    "classification": "Current operational workflow",
+    "decision": "Retain existing consumer",
+    "role": "Existing endpoint policy; not re-audited"
+  }
+]
