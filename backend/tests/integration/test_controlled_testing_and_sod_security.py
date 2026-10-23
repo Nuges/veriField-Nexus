@@ -149,14 +149,19 @@ async def test_sod_and_security_negative_suite():
         )
         assert res2.status_code == 403
 
-        # Test 3: QA Officer approving another agent submission (Permitted)
+        # Test 3: QA approves internal quality but cannot give a VVB opinion.
         res3 = await client.patch(
             f"/api/v1/activities/{act_a_id}/status",
-            json={"status": "verified"},
-            headers=headers_qa_a,
+            json={"status": "verified"}, headers=headers_qa_a,
         )
-        assert res3.status_code == 200
-        assert res3.json()["status"] == "verified"
+        assert res3.status_code == 403
+        internal_approval = await client.put(
+            f"/api/v1/activities/{act_a_id}",
+            json={"validation_status": "approved"}, headers=headers_qa_a,
+        )
+        assert internal_approval.status_code == 200, internal_approval.text
+        assert internal_approval.json()["validation_status"] == "approved"
+        assert internal_approval.json()["status"] != "verified"
 
         # Test 4: Verification Task IDOR / BOLA check
         res4 = await client.get(

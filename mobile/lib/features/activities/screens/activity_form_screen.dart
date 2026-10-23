@@ -113,7 +113,7 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
 
   Future<void> _fetchCsiProfiles() async {
     final actor = ApiService.currentUser;
-    if (actor == null) return;
+    if (actor == null) { return; }
     final key = 'csi_profiles:${actor['organization_id']}:${actor['id']}';
     try {
       final prefs = await SharedPreferences.getInstance();

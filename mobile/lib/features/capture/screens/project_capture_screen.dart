@@ -26,9 +26,8 @@ class _ProjectCaptureScreenState extends State<ProjectCaptureScreen> {
     try {
       var user = ApiService.currentUser;
       try { user = await ApiService.get('/auth/me'); } catch (error) { if (error is ApiException && (error.statusCode == 401 || error.statusCode == 403)) rethrow; if (user == null) rethrow; }
-      if (!FieldAccess.canCapture(user?['role'])) throw Exception('Your role cannot submit field records.');
+      if (!FieldAccess.canCapture(user['role'])) throw Exception('Your role cannot submit field records.');
       final actor = user;
-      if (actor == null) throw Exception('Sign in before capturing field records.');
       final prefs = await SharedPreferences.getInstance();
       final key = 'capture_projects:${actor['organization_id']}:${actor['id']}';
       List<dynamic> items;

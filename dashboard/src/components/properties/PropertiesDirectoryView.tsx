@@ -453,7 +453,7 @@ export default function PropertiesDirectoryView({ mode = "assets" }: { mode?: "p
               Registered assets
             </h3>
             <p className="text-[11px] text-[var(--color-text-secondary)]">
-              Physical hardware devices, chargers, and sensors bound to onboarded projects.
+              Sites and equipment linked to your projects.
             </p>
           </div>
           <div className="relative w-full max-w-xs">

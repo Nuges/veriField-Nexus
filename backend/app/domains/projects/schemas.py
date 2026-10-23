@@ -73,6 +73,10 @@ class ProjectResponse(BaseModel):
 
     programme_id: Optional[UUID] = None
 
+    sector_id: Optional[UUID] = None
+    sector: Optional[str] = None
+    methodology_code: Optional[str] = None
+
     methodology_id: Optional[UUID] = None
 
     methodology_version_id: Optional[UUID] = None

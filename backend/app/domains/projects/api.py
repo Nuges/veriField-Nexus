@@ -22,6 +22,38 @@ from app.domains.projects.service import ProjectService
 router = APIRouter(prefix="/projects", tags=["Projects"])
 
 
+async def project_responses(projects, db: AsyncSession) -> list[ProjectResponse]:
+    """Expose persisted family metadata so every field client uses the same sector.
+
+    Legacy projects may have only a methodology link. Reading its actual family
+    is presentation metadata, not a new methodology/sector assignment.
+    """
+    from sqlalchemy import select
+    from app.domains.methodologies.models.base_registry import Methodology, MethodologyFamily
+
+    methodology_ids = {p.methodology_id for p in projects if p.methodology_id}
+    methodologies = {}
+    if methodology_ids:
+        result = await db.execute(select(Methodology.id, Methodology.family_id, Methodology.code).where(Methodology.id.in_(methodology_ids)))
+        methodologies = {row.id: row for row in result.all()}
+    family_ids = {p.sector_id for p in projects if p.sector_id}
+    family_ids.update(row.family_id for row in methodologies.values() if row.family_id)
+    families = {}
+    if family_ids:
+        result = await db.execute(select(MethodologyFamily.id, MethodologyFamily.code).where(MethodologyFamily.id.in_(family_ids)))
+        families = {row.id: row.code for row in result.all()}
+    responses = []
+    for project in projects:
+        methodology = methodologies.get(project.methodology_id)
+        family_id = project.sector_id or (methodology.family_id if methodology else None)
+        responses.append(ProjectResponse.model_validate(project).model_copy(update={
+            "sector_id": family_id,
+            "sector": families.get(family_id),
+            "methodology_code": methodology.code if methodology else None,
+        }))
+    return responses
+
+
 @router.post(
     "", response_model=ProjectResponse, status_code=status.HTTP_201_CREATED
 )
@@ -69,7 +101,7 @@ async def create_project(
 
     project = await service.create_project(payload, target_org_id)
 
-    return ProjectResponse.model_validate(project)
+    return (await project_responses([project], db))[0]
 
 
 
@@ -97,7 +129,7 @@ async def list_projects(
     )
 
     return ProjectListResponse(
-        items=[ProjectResponse.model_validate(p) for p in projects], total=total
+        items=await project_responses(projects, db), total=total
     )
 
 
@@ -119,7 +151,7 @@ async def get_project(
     project = await service.get_project(project_id, org_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
-    return ProjectResponse.model_validate(project)
+    return (await project_responses([project], db))[0]
 
 
 @router.put("/{project_id}", response_model=ProjectResponse)
@@ -142,7 +174,7 @@ async def update_project(
         raise HTTPException(
             status_code=404, detail="Project not found or unauthorized."
         )
-    return ProjectResponse.model_validate(updated)
+    return (await project_responses([updated], db))[0]
 
 
 @router.post("/{project_id}/approve", response_model=ProjectResponse)
@@ -172,4 +204,4 @@ async def approve_project(
         raise HTTPException(
             status_code=404, detail="Project not found or unauthorized."
         )
-    return ProjectResponse.model_validate(approved)
+    return (await project_responses([approved], db))[0]

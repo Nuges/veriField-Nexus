@@ -119,7 +119,9 @@ final GoRouter appRouter = GoRouter(
       final path = state.matchedLocation;
       if ((path == AppRoutes.newActivity && !FieldAccess.canCapture(user?['role'])) ||
           (path.startsWith(AppRoutes.audits) && !FieldAccess.canReadAudits(user?['role'])) ||
-          (path.startsWith(AppRoutes.sensors) && !FieldAccess.canReadSensors(user?['role']))) return AppRoutes.home;
+          (path.startsWith(AppRoutes.sensors) && !FieldAccess.canReadSensors(user?['role']))) {
+        return AppRoutes.home;
+      }
     }
 
     // Logged in and on auth page → go to home

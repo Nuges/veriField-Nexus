@@ -194,3 +194,14 @@ test("capture uses plain mobile layout", async ({ page }) => {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy();
   await page.screenshot({ path: "test-results/capture-agriculture-mobile.png", fullPage: true });
 });
+
+test("field quality scores do not claim independent verification and zero coordinates remain visible", async ({ page }) => {
+  await fixtures(page, "ORG_ADMIN", "HYBRID_ENERGY");
+  await page.route("**/api/v1/activities**", route => route.fulfill({ json: { activities: [{ id: "quality-record", project_id: projectId, user_id: "field-agent", agent_name: "Field agent", activity_type: "HYBRID_ENERGY", activity_data: {}, status: "pending", trust_score: 95, latitude: 0, longitude: 0, captured_at: "2026-10-23T12:00:00Z" }], total: 1 } }));
+  await page.goto("/dashboard/operations");
+  const record = page.getByRole("row").filter({ hasText: "Field agent" });
+  await expect(record).toContainText("High score");
+  await expect(record).toContainText("0.0000, 0.0000");
+  await expect(record).not.toContainText("Verified");
+  await expect(page.getByText("✓ Verified", { exact: true })).toHaveCount(0);
+});
