@@ -4,13 +4,21 @@ Updated: 23 October 2026
 
 ## Current work
 
-Recovered Antigravity's unfinished Phase 1 changes from
+Recovered Antigravity's Phase 1 checkpoint from
 `VeriField-handover-3585531.zip`. The second upload contained identical bytes.
 Recovery base: `358553116741b151978415fabcaa21887536b3e1` on `main`.
 Continuation branch: `work/continue-antigravity`.
 
-The original Antigravity task prompt and final response have not been supplied.
-Scope was reconstructed from the six changed frontend files and two new test files.
+The user subsequently supplied Antigravity's `Product-Surface Remediation — Phase 1
+Closure Report`. It reports Phase 1 completed locally and ends
+`READY_FOR_PHASE_2_WORKFLOW_CONSOLIDATION`. Its six source files and two new test files
+match the recovered archive. The user clarified that the NEXT prompt was interrupted.
+That newer prompt has not been supplied or recovered from conversation history.
+Do not infer its requirements from the Phase 1 report's closing label.
+
+The report states the local Deepak pilot had 91 activities, 2 devices, 0 soil samples,
+0 net-GHG calculations, and no assigned methodology. These are reported local invariants;
+the recovery has not queried or changed production data.
 
 ## Changes recovered and completed
 
@@ -41,8 +49,14 @@ Completed locally:
 - Focused backend audit security tests: 14 passed against an isolated SQLite database.
 - `git diff --check`: passed.
 
-GitHub CI results and live browser/production checks must be recorded separately.
-The complete backend suite and authoritative PostGIS integration suite were not run locally.
+GitHub CI passed for code commit `f524f84f56a6bc340406797f7b073eb2683c06ef`:
+[CI run 39923673091](https://github.com/Nuges/veriField-Nexus/actions/runs/39923673091).
+The deterministic backend job reports 754 passed, 34 skipped, and 3 deselected.
+Migrations, authoritative PostGIS integration, dashboard typechecking/unit tests/build,
+SDK typechecking, and the external STAC smoke-test job all succeeded.
+This is separate from Antigravity's reported 776-test local run.
+Live browser/production checks remain outstanding. The complete backend/PostGIS
+suites were run in GitHub CI, rather than in the local recovery container.
 
 Run from repository root:
 
@@ -61,8 +75,9 @@ DATABASE_URL=sqlite+aiosqlite:///test_recovery.db python -m pytest tests/domains
 
 ## Outstanding work
 
-- Compare against the original Antigravity instruction when it is provided.
-- Review the pull request and CI results before merging.
+- Obtain the instruction sent immediately after the Phase 1 closure report and
+  compare it against the recovered checkpoint before continuing that interrupted task.
+- Review [draft PR #1](https://github.com/Nuges/veriField-Nexus/pull/1) before merging.
 - Verify real browser downloads and project switching against the deployed service.
 - Confirm the Render workspace before using hosted resources; the account lists `Eddi`,
   but the user has not confirmed it for this task.
