@@ -161,7 +161,7 @@ interface AuditorWorkspaceViewProps {
 export default function AuditorWorkspaceView({ packageId }: AuditorWorkspaceViewProps) {
   const { user } = useWorkspace();
   const canonicalRole = normalizeRole(user?.role);
-  const isAuditor = canonicalRole === "AUDITOR" || canonicalRole === "VERIFIER" || canonicalRole === "SUPER_ADMIN";
+  const isAuditor = canonicalRole === "AUDITOR" || canonicalRole === "VERIFIER";
   const isDeveloper = canonicalRole === "PROJECT_MANAGER" || canonicalRole === "ORG_ADMIN" || canonicalRole === "SUPER_ADMIN";
 
   const [pkg, setPkg] = useState<VerificationPackageDetail | null>(null);

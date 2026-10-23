@@ -53,6 +53,8 @@ import {
   type VerificationPackageSummary,
   type Project,
 } from "@/lib/api";
+import { canPerformAction, normalizeRole } from "@/lib/roles";
+import { RoleGate } from "@/components/RoleGate";
 import { useToast } from "@/components/Toast";
 import { useWorkspace } from "@/context/WorkspaceContext";
 import { getSectorVerificationCopy } from "@/lib/sectors";
@@ -135,8 +137,8 @@ function VerificationsPageContent() {
   const [availableProjects, setAvailableProjects] = useState<Project[]>([]);
   const [showCompileModal, setShowCompileModal] = useState<boolean>(false);
   const [compileProjectId, setCompileProjectId] = useState<string>("");
-  const [compilePackageName, setCompilePackageName] = useState<string>("Puro Biochar Q1-Q2 2026 Annual Verification Package");
-  const [compileRegistryTarget, setCompileRegistryTarget] = useState<string>("PURO_EARTH");
+  const [compilePackageName, setCompilePackageName] = useState<string>("");
+  const [compileRegistryTarget, setCompileRegistryTarget] = useState<string>("");
   const [compileAuditType, setCompileAuditType] = useState<string>("ANNUAL_VERIFICATION");
   const [compileStartDate, setCompileStartDate] = useState<string>("2026-01-01T00:00:00Z");
   const [compileEndDate, setCompileEndDate] = useState<string>("2026-06-30T23:59:59Z");
@@ -340,6 +342,7 @@ function VerificationsPageContent() {
 
 
   const handleGenerateAudit = async () => {
+    if (!canPerformAction("audit:create", user?.role)) return;
 
     try {
 
@@ -601,11 +604,11 @@ function VerificationsPageContent() {
                 <div className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-[#00B47A] animate-pulse" />
                   <h3 className="text-sm font-bold uppercase tracking-wider text-[var(--color-text-primary)]">
-                    Automatic Verification Packages
+                    Verification packages
                   </h3>
                 </div>
                 <p className="text-xs text-[var(--color-text-secondary)] mt-1 max-w-2xl">
-                  Cryptographically sealed, canonical audit manifests compiled from the complete MRV graph for Puro.earth and third-party validation.
+                  Prepare project evidence for independent review.
                 </p>
               </div>
 
@@ -620,13 +623,13 @@ function VerificationsPageContent() {
                   <span>Refresh</span>
                 </button>
 
-                <button
+                <RoleGate allowedRoles={["ORG_ADMIN", "PROJECT_MANAGER", "QA_OFFICER", "SUPER_ADMIN"]}><button
                   onClick={() => setShowCompileModal(true)}
                   className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#00B47A] hover:bg-[#009b68] shadow-md shadow-[#00B47A]/25 transition-all uppercase tracking-wider active:scale-95"
                 >
                   <Plus size={14} />
-                  <span>Compile Audit Package</span>
-                </button>
+                  <span>Prepare package</span>
+                </button></RoleGate>
               </div>
             </div>
 
@@ -942,11 +945,11 @@ function VerificationsPageContent() {
 
               <div>
 
-                <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-primary)]">Automated Verification Triggers</h3>
+                <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-primary)]">Audit assignments</h3>
 
                 <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">
 
-                  Instantiate random ground-truth assignments for double-blind verification checks.
+                  Assign an independent field check.
 
                 </p>
 
@@ -954,7 +957,7 @@ function VerificationsPageContent() {
 
 
 
-              <button
+              <RoleGate action="audit:create"><button
 
                 onClick={handleGenerateAudit}
 
@@ -974,9 +977,9 @@ function VerificationsPageContent() {
 
                 {isGenerating ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
 
-                {isGenerating ? 'Committing...' : 'Generate Audit Run'}
+                {isGenerating ? 'Creating…' : 'Create audit assignment'}
 
-              </button>
+              </button></RoleGate>
 
             </div>
 

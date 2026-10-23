@@ -87,8 +87,8 @@ export const ROLE_ALIASES: Record<string, CanonicalRole> = {
  */
 export function normalizeRole(role?: string | null): CanonicalRole {
   if (!role) return CANONICAL_ROLES.VIEWER;
-  const cleaned = role.trim().toUpperCase().replace(/\s+/g, "_");
-  const cleanedLower = role.trim().toLowerCase().replace(/\s+/g, "_");
+  const cleaned = role.trim().toUpperCase().replace(/[\s-]+/g, "_");
+  const cleanedLower = role.trim().toLowerCase().replace(/[\s-]+/g, "_");
 
   if (ROLE_ALIASES[cleanedLower]) return ROLE_ALIASES[cleanedLower];
   if (ROLE_ALIASES[cleaned]) return ROLE_ALIASES[cleaned];
@@ -103,8 +103,8 @@ export const ALLOWED_DASHBOARD_ROLES = Object.values(CANONICAL_ROLES);
 
 export function isDashboardRoleAllowed(role?: string | null): boolean {
   if (!role) return false;
-  const canonical = normalizeRole(role);
-  return Boolean(canonical);
+  const cleaned = role.trim().toUpperCase().replace(/[\s-]+/g, "_");
+  return (Object.values(CANONICAL_ROLES) as string[]).includes(cleaned) || Boolean(ROLE_ALIASES[cleaned.toLowerCase()]);
 }
 
 // ─── Route Access Control Map ────────────────────────────────────────────────
@@ -115,6 +115,18 @@ export interface RouteRule {
 }
 
 export const ROUTE_ACCESS_RULES: RouteRule[] = [
+  { pathPrefix: "/capture", allowedRoles: ["SUPER_ADMIN", "ORG_ADMIN", "PROJECT_MANAGER", "FIELD_SUPERVISOR", "FIELD_AGENT"], label: "Field capture" },
+  { pathPrefix: "/dashboard/assets", allowedRoles: ["SUPER_ADMIN", "ORG_ADMIN", "PROJECT_MANAGER", "FIELD_SUPERVISOR", "FIELD_AGENT", "QA_OFFICER", "VERIFIER", "AUDITOR", "COMPLIANCE_ADMIN"], label: "Assets" },
+  { pathPrefix: "/dashboard/properties", allowedRoles: ["SUPER_ADMIN", "ORG_ADMIN", "PROJECT_MANAGER", "FIELD_SUPERVISOR", "FIELD_AGENT", "QA_OFFICER", "VERIFIER", "AUDITOR", "COMPLIANCE_ADMIN"], label: "Assets" },
+  { pathPrefix: "/dashboard/activities", allowedRoles: ["SUPER_ADMIN", "ORG_ADMIN", "PROJECT_MANAGER", "FIELD_SUPERVISOR", "FIELD_AGENT", "QA_OFFICER", "VERIFIER", "AUDITOR", "COMPLIANCE_ADMIN"], label: "Field records" },
+  { pathPrefix: "/dashboard/sensors", allowedRoles: ["SUPER_ADMIN", "ORG_ADMIN", "PROJECT_MANAGER", "FIELD_SUPERVISOR", "QA_OFFICER", "VERIFIER", "AUDITOR"], label: "Sensors" },
+  { pathPrefix: "/dashboard/agents", allowedRoles: ["SUPER_ADMIN", "ORG_ADMIN", "FIELD_SUPERVISOR"], label: "Field performance" },
+  { pathPrefix: "/dashboard/trust-scores", allowedRoles: ["SUPER_ADMIN", "ORG_ADMIN", "FIELD_SUPERVISOR", "QA_OFFICER", "VERIFIER", "AUDITOR"], label: "Data quality" },
+  { pathPrefix: "/dashboard/anomalies", allowedRoles: ["SUPER_ADMIN", "ORG_ADMIN", "FIELD_SUPERVISOR", "QA_OFFICER", "VERIFIER", "AUDITOR"], label: "Anomalies" },
+  { pathPrefix: "/dashboard/energy", allowedRoles: ["SUPER_ADMIN", "ORG_ADMIN", "PROJECT_MANAGER", "QA_OFFICER", "VERIFIER", "AUDITOR"], label: "Energy" },
+  { pathPrefix: "/dashboard/portfolio", allowedRoles: ["SUPER_ADMIN", "ORG_ADMIN", "PROJECT_MANAGER", "INVESTOR", "FINANCE"], label: "Portfolio" },
+  { pathPrefix: "/dashboard/community", allowedRoles: Object.values(CANONICAL_ROLES), label: "Community" },
+  { pathPrefix: "/dashboard/map", allowedRoles: ["SUPER_ADMIN", "ORG_ADMIN", "PROJECT_MANAGER", "FIELD_SUPERVISOR", "VERIFIER", "AUDITOR", "COMPLIANCE_ADMIN"], label: "Project map" },
   {
     pathPrefix: "/super-admin",
     allowedRoles: ["SUPER_ADMIN"],
@@ -181,7 +193,7 @@ export const ROUTE_ACCESS_RULES: RouteRule[] = [
   },
   {
     pathPrefix: "/dashboard/projects",
-    allowedRoles: ["SUPER_ADMIN", "ORG_ADMIN", "PROJECT_MANAGER", "FIELD_SUPERVISOR", "QA_OFFICER", "COMPLIANCE_ADMIN", "REGISTRY_ADMIN", "VERIFIER", "AUDITOR", "INVESTOR", "VIEWER"],
+    allowedRoles: ["SUPER_ADMIN", "ORG_ADMIN", "PROJECT_MANAGER", "FIELD_SUPERVISOR", "FIELD_AGENT", "QA_OFFICER", "COMPLIANCE_ADMIN", "REGISTRY_ADMIN", "FINANCE", "VERIFIER", "AUDITOR", "INVESTOR", "VIEWER"],
     label: "Projects & Mini-Grids",
   },
   {
@@ -210,6 +222,7 @@ export const ROUTE_ACCESS_RULES: RouteRule[] = [
  * Checks whether a given role is authorized to visit a pathname.
  */
 export function isRouteAuthorized(pathname: string, role?: string | null): boolean {
+  if (!isDashboardRoleAllowed(role)) return false;
   const canonical = normalizeRole(role);
 
   // Super Admin can access everything
@@ -227,13 +240,14 @@ export function isRouteAuthorized(pathname: string, role?: string | null): boole
     }
   }
 
-  return true;
+  return false;
 }
 
 // ─── Mutation Action Permissions ─────────────────────────────────────────────
 export type ActionPermission =
   | "project:create"
   | "project:edit"
+  | "document:upload"
   | "evidence:upload"
   | "activity:approve"
   | "activity:verify"
@@ -248,11 +262,12 @@ export type ActionPermission =
 export const ACTION_ROLE_MAP: Record<ActionPermission, CanonicalRole[]> = {
   "project:create": ["SUPER_ADMIN", "ORG_ADMIN", "PROJECT_MANAGER"],
   "project:edit": ["SUPER_ADMIN", "ORG_ADMIN", "PROJECT_MANAGER"],
+  "document:upload": ["SUPER_ADMIN", "ORG_ADMIN", "PROJECT_MANAGER", "QA_OFFICER", "FIELD_SUPERVISOR"],
   "evidence:upload": ["SUPER_ADMIN", "ORG_ADMIN", "PROJECT_MANAGER", "FIELD_SUPERVISOR", "FIELD_AGENT"],
   "activity:approve": ["SUPER_ADMIN", "ORG_ADMIN", "FIELD_SUPERVISOR", "QA_OFFICER"],
-  "activity:verify": ["SUPER_ADMIN", "FIELD_SUPERVISOR", "QA_OFFICER", "VERIFIER"],
-  "audit:create": ["SUPER_ADMIN", "VERIFIER", "AUDITOR"],
-  "audit:sign": ["SUPER_ADMIN", "VERIFIER"],
+  "activity:verify": ["VERIFIER"],
+  "audit:create": ["VERIFIER", "AUDITOR"],
+  "audit:sign": ["VERIFIER", "AUDITOR"],
   "itmo:authorize": ["SUPER_ADMIN", "COMPLIANCE_ADMIN"],
   "registry:submit": ["SUPER_ADMIN", "REGISTRY_ADMIN"],
   "ledger:mint": ["SUPER_ADMIN", "FINANCE"],
@@ -262,7 +277,7 @@ export const ACTION_ROLE_MAP: Record<ActionPermission, CanonicalRole[]> = {
 
 export function canPerformAction(action: ActionPermission, role?: string | null): boolean {
   const canonical = normalizeRole(role);
-  if (canonical === CANONICAL_ROLES.SUPER_ADMIN) return true;
+  if (!isDashboardRoleAllowed(role)) return false;
   const allowed = ACTION_ROLE_MAP[action] || [];
   return allowed.includes(canonical);
 }

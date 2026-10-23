@@ -43,6 +43,7 @@ import '../core/config/supabase_config.dart';
 import 'local_db_service.dart';
 
 import 'api_service.dart';
+import '../core/utils/field_access.dart';
 
 import 'dart:convert';
 
@@ -63,6 +64,7 @@ class CiosSectors {
   static const String biochar = 'biochar';
 
   static const String evMobility = 'ev_mobility';
+  static const String agriculture = 'agriculture_land_use';
 
 
 
@@ -77,6 +79,7 @@ class CiosSectors {
     biochar,
 
     evMobility,
+    agriculture,
 
   ];
 
@@ -784,6 +787,11 @@ class SyncService {
 
 
 
+    final actor = await ApiService.get('/auth/me');
+    if (!FieldAccess.canCapture(actor['role'])) {
+      return SyncResult(synced: 0, failed: 0, message: 'Your role cannot submit field records.');
+    }
+
     final List<Map<String, dynamic>> pending;
 
     if (failedOnly) {
@@ -853,6 +861,13 @@ class SyncService {
         }
 
 
+
+        if (actData['captured_by_user_id'] != actor['id'] ||
+            actData['captured_in_organization_id'] != actor['organization_id']) {
+          // Leave legacy or another user's unsent records intact for reconciliation.
+          failed++;
+          continue;
+        }
 
         // Upload primary image if present
 
@@ -963,6 +978,7 @@ class SyncService {
           'sector': activity['sector'],
 
           'activity_data': actData,
+          'project_id': actData['project_id'],
 
           'description': activity['description'],
 

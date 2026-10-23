@@ -466,7 +466,7 @@ export default function ActivitiesPage() {
 
           <h1 className="text-xl font-bold tracking-tight text-[var(--color-text-primary)] mt-1">
 
-            Field Activities Ledger
+            Field records
 
           </h1>
 
@@ -498,7 +498,7 @@ export default function ActivitiesPage() {
 
             className="p-2 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:text-[#00B47A] hover:border-[#00B47A]/30 transition-all shadow-sm active:scale-95"
 
-            title="Refresh Ledger"
+            title="Refresh records"
 
           >
 
@@ -530,7 +530,7 @@ export default function ActivitiesPage() {
 
         <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4 flex flex-col justify-between shadow-sm hover:shadow-md transition-all">
 
-          <span className="text-[9px] uppercase font-extrabold tracking-wider text-[var(--color-text-muted)]">Submissions Ledger</span>
+          <span className="text-[9px] uppercase font-extrabold tracking-wider text-[var(--color-text-muted)]">Submissions</span>
 
           <div className="flex items-baseline gap-1.5 mt-1.5">
 
@@ -640,7 +640,7 @@ export default function ActivitiesPage() {
 
             <Filter size={14} />
 
-            <span>Filter Engine</span>
+            <span>Filters</span>
 
           </div>
 
@@ -800,7 +800,7 @@ export default function ActivitiesPage() {
 
                       <button onClick={loadActivities} className="px-4 py-2 rounded-xl bg-[#00B47A]/10 text-[#00B47A] text-xs font-bold border border-[#00B47A]/20 hover:bg-[#00B47A]/20 transition-all">
 
-                        Force Ledger Reload
+                        Reload records
 
                       </button>
 

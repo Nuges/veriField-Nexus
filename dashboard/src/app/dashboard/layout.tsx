@@ -53,6 +53,7 @@ function DashboardLayoutContent({
   const router = useRouter();
   const pathname = usePathname();
   const [isAINotificationsOpen, setIsAINotificationsOpen] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const [guidanceData, setGuidanceData] = useState<{ activeUsers?: number; pendingApprovals?: number }>({});
 
@@ -65,23 +66,12 @@ function DashboardLayoutContent({
     if (!user) return;
 
     if (!isDashboardRoleAllowed(user.role)) {
-      localStorage.clear();
+      localStorage.removeItem("vf_token");
+      localStorage.removeItem("vf_user");
       router.push("/login?error=unauthorized");
       return;
     }
 
-    // Dynamically fetch live active users & pending approvals for administrative guidance
-    fetchUsers()
-      .then((users) => {
-        if (Array.isArray(users)) {
-          const activeCount = users.filter((u) => u.is_active !== false && u.status !== "suspended" && u.status !== "decommissioned").length;
-          const pendingCount = users.filter((u) => u.status === "pending" || u.status === "pending_approval").length;
-          setGuidanceData({ activeUsers: Math.max(1, activeCount), pendingApprovals: pendingCount });
-        }
-      })
-      .catch(() => {
-        setGuidanceData({ activeUsers: 1, pendingApprovals: 0 });
-      });
   }, [user, router]);
 
 
@@ -92,7 +82,7 @@ function DashboardLayoutContent({
       <div className="flex flex-col items-center justify-center min-h-screen bg-[var(--color-background)] space-y-3">
         <div className="w-8 h-8 border-2 border-[#00B47A] border-t-transparent rounded-full animate-spin" />
         <p className="text-[var(--color-text-secondary)] text-xs font-semibold tracking-tight animate-pulse">
-          Connecting to secure digital MRV ledger...
+          Loading workspace…
         </p>
       </div>
     );
@@ -103,13 +93,13 @@ function DashboardLayoutContent({
     const canonical = normalizeRole(user.role);
     return (
       <div className="flex min-h-screen bg-[var(--color-background)]">
-        <Sidebar />
-        <div className="flex-1 flex flex-col items-center justify-center p-8 text-center ml-64 min-h-screen">
+        <Sidebar mobileOpen={mobileNavOpen} onNavigate={() => setMobileNavOpen(false)} />
+        <div className="flex-1 flex flex-col items-center justify-center p-8 text-center md:ml-64 min-h-screen">
           <div className="w-16 h-16 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center mb-4">
             <span className="text-2xl">🔒</span>
           </div>
           <h1 className="text-xl font-bold tracking-tight text-[var(--color-text-primary)] mb-2">
-            Access Denied: Least-Privilege Security Boundary
+            Access denied
           </h1>
           <p className="text-xs text-[var(--color-text-secondary)] max-w-md mb-6 leading-relaxed">
             Your active persona (<span className="font-mono text-emerald-500 font-bold">{canonical}</span>) does not have permission to access or operate the module at <code className="text-[11px] bg-slate-800/80 px-2 py-0.5 rounded text-rose-400 font-mono">{pathname}</code>.
@@ -119,7 +109,7 @@ function DashboardLayoutContent({
               href="/dashboard"
               className="px-4 py-2 bg-[#00B47A] hover:bg-[#009664] text-white text-xs font-bold rounded-xl transition-all shadow-sm"
             >
-              Return to Authorized Workspace
+              Return to overview
             </Link>
           </div>
         </div>
@@ -136,16 +126,20 @@ function DashboardLayoutContent({
 
       {/* Sidebar navigation */}
 
-      <Sidebar />
+      <Sidebar mobileOpen={mobileNavOpen} onNavigate={() => setMobileNavOpen(false)} />
 
 
 
       {/* Main content area */}
-      <div className="flex-1 flex flex-col min-w-0 pl-64 bg-[var(--color-background)] transition-colors duration-300">
+      <div className="flex-1 flex flex-col min-w-0 md:pl-64 bg-[var(--color-background)] transition-colors duration-300">
 
 
         {/* Header Enterprise Contextual Breadcrumb */}
 
+        <div className="md:hidden flex items-center justify-between p-3 border-b border-[var(--color-border)]">
+          <button type="button" aria-label="Toggle navigation" aria-expanded={mobileNavOpen} onClick={() => setMobileNavOpen(!mobileNavOpen)} className="relative z-40 rounded-lg border px-3 py-2 text-sm">{mobileNavOpen ? "Close menu" : "Menu"}</button>
+          <span className="text-sm font-semibold">VeriField Nexus</span>
+        </div>
         {user && <EnterpriseBreadcrumb />}
 
 
@@ -227,7 +221,7 @@ function DashboardLayoutContent({
 
 
           {/* Inline Role Guidance */}
-          <InlineGuidance role={user?.role} page={pathname} data={guidanceData} />
+
 
           <div key={activeSector}>
 

@@ -62,6 +62,7 @@ import type { Activity, TrustScoreBreakdown } from "@/lib/types";
 
 import TrustBadge from "@/components/TrustBadge";
 import { useToast } from "@/components/Toast";
+import { canPerformAction } from "@/lib/roles";
 import { useWorkspace } from "@/context/WorkspaceContext";
 
 
@@ -483,7 +484,7 @@ export default function ActivityDetailPage() {
   const userRole = useMemo(() => (user?.role || "").toUpperCase(), [user]);
   const isSuperAdmin = userRole === "SUPER_ADMIN";
   const canVerifyRole = useMemo(() => {
-    return ["SUPER_ADMIN", "ADMIN", "ORG_ADMIN", "QA_OFFICER", "FIELD_SUPERVISOR", "VERIFIER"].includes(userRole);
+    return canPerformAction("activity:verify", userRole);
   }, [userRole]);
 
   const isOwnSubmission = useMemo(() => {
@@ -495,7 +496,7 @@ export default function ActivityDetailPage() {
     return isMatchingUser || isMatchingName;
   }, [user, activity]);
 
-  const sodBlocked = isOwnSubmission && !isSuperAdmin;
+  const sodBlocked = isOwnSubmission;
 
   // Test / Demo data classification indicator
   const isTestData = useMemo(() => {

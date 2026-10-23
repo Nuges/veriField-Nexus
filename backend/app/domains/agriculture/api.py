@@ -1168,7 +1168,7 @@ async def record_sample_qa_review(
     project_id: uuid.UUID,
     sample_id: uuid.UUID,
     payload: SampleQAReviewCreate,
-    current_user: User = Depends(require_permission("activity:verify")),
+    current_user: User = Depends(require_permission("activity:approve")),
     db: AsyncSession = Depends(get_db),
 ):
     abac = ABACEngine(db, current_user)
